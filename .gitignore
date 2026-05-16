@@ -1,0 +1,20 @@
+# Secrets — never commit
+.env
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+nginx/ssl/live/
+nginx/ssl/archive/
+nginx/ssl/renewal/
+
+# Backend
+backend/node_modules/
+backend/uploads/
+backend/logs/
+
+# Flutter — not needed on VPS, but keeping source out of server repo
+flutter_phr/
+
+# OS
+.DS_Store
+Thumbs.db

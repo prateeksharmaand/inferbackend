@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: phr_postgres
+    environment:
+      POSTGRES_DB: phr_db
+      POSTGRES_USER: phr_user
+      POSTGRES_PASSWORD: phr_password_change_me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phr_user -d phr_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: phr_backend
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: phr_db
+      DB_USER: phr_user
+      DB_PASSWORD: phr_password_change_me
+      JWT_SECRET: phr_jwt_secret_local_dev_32chars_ok
+      JWT_REFRESH_SECRET: phr_refresh_secret_local_32chars_ok
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENFDA_API_KEY: ${OPENFDA_API_KEY:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
