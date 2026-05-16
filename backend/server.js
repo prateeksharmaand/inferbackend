@@ -16,6 +16,9 @@ const { startReminderCron } = require('./src/services/cron.service');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Nginx reverse proxy (required for rate-limit + X-Forwarded-For)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*', credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] }));
