@@ -5,10 +5,10 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GE
 
 async function analyzeWithAI(message, history = [], systemPrompt = '') {
   if (!process.env.GEMINI_API_KEY) {
+    console.warn('GEMINI_API_KEY not set — using fallback');
     return _fallbackResponse(message);
   }
 
-  // Gemini uses 'model' role (not 'assistant') and parts[] format
   const contents = [
     ...history.slice(-10).map(h => ({
       role: h.is_user ? 'user' : 'model',
@@ -17,23 +17,32 @@ async function analyzeWithAI(message, history = [], systemPrompt = '') {
     { role: 'user', parts: [{ text: message }] },
   ];
 
+  const body = {
+    contents,
+    generationConfig: { maxOutputTokens: 1024 },
+  };
+
+  // systemInstruction is camelCase in Gemini REST API
+  if (systemPrompt) {
+    body.systemInstruction = { parts: [{ text: systemPrompt }] };
+  }
+
   try {
     const response = await axios.post(
       `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
-      {
-        system_instruction: systemPrompt
-          ? { parts: [{ text: systemPrompt }] }
-          : undefined,
-        contents,
-        generationConfig: { maxOutputTokens: 1024 },
-      },
+      body,
       { headers: { 'Content-Type': 'application/json' }, timeout: 30000 },
     );
 
-    return response.data.candidates[0].content.parts[0].text;
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      console.error('Gemini unexpected response shape:', JSON.stringify(response.data));
+      return _fallbackResponse(message);
+    }
+    return text;
   } catch (e) {
     if (e.response?.status === 429) return 'I am currently busy. Please try again in a moment.';
-    console.error('Gemini error:', e.response?.data || e.message);
+    console.error('Gemini API error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
     return _fallbackResponse(message);
   }
 }
