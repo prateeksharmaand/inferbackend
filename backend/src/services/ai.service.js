@@ -1,33 +1,39 @@
-﻿const axios = require('axios');
+const axios = require('axios');
+
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 async function analyzeWithAI(message, history = [], systemPrompt = '') {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return _fallbackResponse(message);
   }
 
-  const messages = [
-    ...history.slice(-10).map(h => ({ role: h.is_user ? 'user' : 'assistant', content: h.content })),
-    { role: 'user', content: message }
+  // Gemini uses 'model' role (not 'assistant') and parts[] format
+  const contents = [
+    ...history.slice(-10).map(h => ({
+      role: h.is_user ? 'user' : 'model',
+      parts: [{ text: h.content }],
+    })),
+    { role: 'user', parts: [{ text: message }] },
   ];
 
   try {
-    const response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      system: systemPrompt || 'You are a helpful health assistant. Be concise and accurate. Always recommend consulting a doctor for medical advice.',
-      messages,
-    }, {
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
+    const response = await axios.post(
+      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
+      {
+        system_instruction: systemPrompt
+          ? { parts: [{ text: systemPrompt }] }
+          : undefined,
+        contents,
+        generationConfig: { maxOutputTokens: 1024 },
       },
-      timeout: 30000,
-    });
+      { headers: { 'Content-Type': 'application/json' }, timeout: 30000 },
+    );
 
-    return response.data.content[0].text;
+    return response.data.candidates[0].content.parts[0].text;
   } catch (e) {
     if (e.response?.status === 429) return 'I am currently busy. Please try again in a moment.';
+    console.error('Gemini error:', e.response?.data || e.message);
     return _fallbackResponse(message);
   }
 }
