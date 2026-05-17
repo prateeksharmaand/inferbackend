@@ -27,6 +27,8 @@ async function analyzeWithAI(message, history = [], systemPrompt = '') {
     body.systemInstruction = { parts: [{ text: systemPrompt }] };
   }
 
+  console.log('[Gemini] REQUEST:', JSON.stringify(body, null, 2));
+
   try {
     const response = await axios.post(
       `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
@@ -34,15 +36,17 @@ async function analyzeWithAI(message, history = [], systemPrompt = '') {
       { headers: { 'Content-Type': 'application/json' }, timeout: 30000 },
     );
 
+    console.log('[Gemini] RESPONSE:', JSON.stringify(response.data, null, 2));
+
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
-      console.error('Gemini unexpected response shape:', JSON.stringify(response.data));
+      console.error('[Gemini] Unexpected response shape:', JSON.stringify(response.data));
       return _fallbackResponse(message);
     }
     return text;
   } catch (e) {
     if (e.response?.status === 429) return 'I am currently busy. Please try again in a moment.';
-    console.error('Gemini API error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
+    console.error('[Gemini] ERROR:', e.response?.status, JSON.stringify(e.response?.data || e.message));
     return _fallbackResponse(message);
   }
 }
