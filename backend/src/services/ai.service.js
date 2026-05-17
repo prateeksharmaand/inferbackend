@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 async function analyzeWithAI(message, history = [], systemPrompt = '') {
