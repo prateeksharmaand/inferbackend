@@ -32,13 +32,19 @@ async function uploadDocument(req, res) {
   const fileUrl = `/uploads/${req.user.id}/${req.file.filename}`;
   const tagArray = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
 
+  const docTitle = title || analysisResult?.suggested_title || req.file.originalname;
+  const docType = type || analysisResult?.document_type || 'Other';
+  const docDoctorName = doctor_name || analysisResult?.doctor_name || null;
+  const docFacilityName = facility_name || analysisResult?.facility_name || null;
+  const docDate = document_date || analysisResult?.document_date || null;
+
   const result = await query(
     `INSERT INTO documents (user_id, title, type, file_path, mime_type, file_size, ocr_text, extracted_vitals,
      is_encrypted, doctor_name, facility_name, document_date, tags)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-    [req.user.id, title || req.file.originalname, type || 'Other', req.file.path,
+    [req.user.id, docTitle, docType, req.file.path,
      req.file.mimetype, req.file.size, ocr_text, extractedVitals ? JSON.stringify(extractedVitals) : null,
-     true, doctor_name, facility_name, document_date, tagArray]
+     true, docDoctorName, docFacilityName, docDate, tagArray]
   );
 
   const doc = result.rows[0];

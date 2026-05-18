@@ -72,6 +72,12 @@ function extractVitalsFromText(text) {
     if (val >= 5 && val <= 25) vitals.hemoglobin = { value: val };
   }
 
+  const creatinineMatch = [...t.matchAll(CREATININE_PATTERN)][0];
+  if (creatinineMatch) {
+    const val = parseFloat(creatinineMatch[1]);
+    if (val >= 0.3 && val <= 20) vitals.creatinine = { value: val };
+  }
+
   return vitals;
 }
 
