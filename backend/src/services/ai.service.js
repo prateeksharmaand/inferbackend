@@ -85,10 +85,17 @@ Include ALL of the following categories when present:
 - Vitals: blood_pressure_systolic, blood_pressure_diastolic, heart_rate, spo2, temperature, weight, height, bmi
 - Any other numeric result present
 
-Rules:
+REFERENCE RANGE — THIS IS MANDATORY:
+Lab reports always have a reference range column (labelled "Biological Reference Interval", "Normal Range", "Reference Range", "Ref. Range", or similar).
+For EVERY test you must read that column and set reference_min and reference_max to the lower and upper bound numbers.
+Example: if the reference range column shows "4.5 - 5.5" then reference_min = 4.5 and reference_max = 5.5.
+Example: if it shows "< 5.7" then reference_min = 0 and reference_max = 5.7.
+Example: if it shows "> 60" then reference_min = 60 and reference_max = 999.
+Only omit reference_min and reference_max if the column is completely absent from the document.
+
+Other rules:
 - name must be snake_case (e.g. "total_cholesterol", "fasting_glucose")
 - For blood pressure output TWO separate entries: blood_pressure_systolic and blood_pressure_diastolic
-- Set reference_min and reference_max if a reference range is visible; omit them if not
 - status: normal | high | low | critical | unknown
 - Parse EVERY row of every table — do not stop after the first section`;
 
