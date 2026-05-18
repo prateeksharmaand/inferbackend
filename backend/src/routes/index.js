@@ -8,6 +8,7 @@ const remindersRoutes = require('./reminders.routes');
 const timelineRoutes = require('./timeline.routes');
 const ocrRoutes = require('./ocr.routes');
 const gmailRoutes = require('./gmail.routes');
+const riskRoutes = require('./risk.routes');
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use('/reminders', authMiddleware, remindersRoutes);
 router.use('/timeline', authMiddleware, timelineRoutes);
 router.use('/ocr', authMiddleware, ocrRoutes);
 router.use('/gmail', gmailRoutes); // auth handled inside gmail.routes.js (callback is public)
+router.use('/risk', authMiddleware, riskRoutes);
 
 module.exports = router;

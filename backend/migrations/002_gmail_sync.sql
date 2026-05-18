@@ -1,6 +1,6 @@
 -- Gmail OAuth tokens per user
 CREATE TABLE IF NOT EXISTS user_gmail_tokens (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       UUID REFERENCES users(id) ON DELETE CASCADE,
   gmail_email   VARCHAR(255) NOT NULL,
   access_token  TEXT NOT NULL,
