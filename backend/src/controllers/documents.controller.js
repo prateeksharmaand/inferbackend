@@ -1,8 +1,9 @@
 ﻿const path = require('path');
 const fs = require('fs');
 const { query } = require('../config/database');
-const { extractVitalsFromText, analyzeDocumentText } = require('../services/vitals-extractor.service');
+const { analyzeDocumentText } = require('../services/vitals-extractor.service');
 const { processDocument } = require('../services/ocrService');
+const { extractVitalsWithAI } = require('../services/ai.service');
 const { addTimelineEvent } = require('../services/timeline.service');
 const logger = require('../utils/logger');
 
@@ -101,8 +102,10 @@ async function _processDocumentOcr(docId, filePath, userId) {
     }
     logger.info(`OCR | extracted ${text.length} chars | doc: ${docId}`);
 
-    const vitals = extractVitalsFromText(text);
-    const analysis = analyzeDocumentText(text);
+    const [vitals, analysis] = await Promise.all([
+      extractVitalsWithAI(text),
+      Promise.resolve(analyzeDocumentText(text)),
+    ]);
     const vitalsFound = Object.keys(vitals);
 
     logger.info(`OCR | vitals found: [${vitalsFound.join(', ') || 'none'}] | type: ${analysis.document_type || 'none'} | doc: ${docId}`);
