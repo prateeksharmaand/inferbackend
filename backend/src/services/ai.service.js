@@ -75,25 +75,32 @@ async function extractVitalsWithAI(ocrText) {
     return {};
   }
 
+  // Cap at 25000 chars to stay well within token limits
+  const trimmedText = ocrText.length > 25000 ? ocrText.substring(0, 25000) : ocrText;
+
   const prompt = `You are a medical data extractor. Extract ALL vital signs and lab values from the following medical document text.
 
-Return ONLY a valid JSON object with no explanation or markdown. Each key is the vital/lab name in snake_case (e.g. hemoglobin, blood_pressure, glucose_fasting, total_cholesterol, wbc, platelets, sgot, tsh, vitamin_d), and each value is an object with:
+Return a JSON object where each key is the vital/lab name in snake_case (e.g. hemoglobin, blood_pressure, glucose_fasting, total_cholesterol, wbc, platelets, sgot, tsh, vitamin_d), and each value is an object with:
 - "value": numeric value (number type, not string)
 - "unit": unit string (e.g. "g/dL", "mg/dL", "U/L")
-- "status": "normal", "high", "low", "critical", or "unknown" based on standard reference ranges
+- "status": "normal", "high", "low", or "critical" based on standard reference ranges
 
 For blood pressure use: { "systolic": 120, "diastolic": 80, "unit": "mmHg", "status": "normal" }
 If no vitals are found return {}.
 
 Document text:
-${ocrText}`;
+${trimmedText}`;
 
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { maxOutputTokens: 4096, temperature: 0.1 },
+    generationConfig: {
+      maxOutputTokens: 8192,
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+    },
   };
 
-  logger.info('[Gemini] extractVitalsWithAI | sending OCR text for vitals extraction');
+  logger.info(`[Gemini] extractVitalsWithAI | text length: ${trimmedText.length} chars`);
 
   try {
     const response = await axios.post(
@@ -103,15 +110,13 @@ ${ocrText}`;
     );
 
     const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    logger.info(`[Gemini] extractVitalsWithAI | raw response: ${raw.substring(0, 300)}`);
+    logger.info(`[Gemini] extractVitalsWithAI | raw response (first 500): ${raw.substring(0, 500)}`);
 
-    // Strip markdown code fences if present
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-    const vitals = JSON.parse(cleaned);
+    const vitals = JSON.parse(raw);
     logger.info(`[Gemini] extractVitalsWithAI | extracted ${Object.keys(vitals).length} vitals: [${Object.keys(vitals).join(', ')}]`);
     return vitals;
   } catch (e) {
-    logger.error(`[Gemini] extractVitalsWithAI | failed: ${e.message}`, { status: e.response?.status, data: e.response?.data });
+    logger.error(`[Gemini] extractVitalsWithAI | failed: ${e.message}`, { status: e.response?.status, data: JSON.stringify(e.response?.data) });
     return {};
   }
 }
