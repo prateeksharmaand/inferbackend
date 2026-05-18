@@ -11,7 +11,7 @@ const { initializeDatabase } = require('./src/config/database');
 const routes = require('./src/routes');
 const errorHandler = require('./src/middleware/errorHandler');
 const logger = require('./src/utils/logger');
-const { startReminderCron } = require('./src/services/cron.service');
+const { startReminderCron, startGmailSyncCron } = require('./src/services/cron.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,6 +57,7 @@ async function start() {
     app.listen(PORT, '0.0.0.0', () => {
       logger.info(`PHR Backend running on port ${PORT}`);
       startReminderCron();
+      startGmailSyncCron();
     });
   } catch (err) {
     logger.error('Failed to start server:', err);

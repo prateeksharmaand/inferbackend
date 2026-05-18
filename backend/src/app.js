@@ -48,6 +48,7 @@ app.use('/api/medicines', require('./routes/medicines'));
 app.use('/api/healthbot', require('./routes/healthbot'));
 app.use('/api/timeline', require('./routes/timeline'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/gmail',         require('./routes/gmail.routes'));
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));

@@ -2,6 +2,27 @@
 const { query } = require('../config/database');
 const logger = require('../utils/logger');
 
+function startGmailSyncCron() {
+  // Run every 30 minutes — fetch new medical emails for all connected users
+  cron.schedule('*/30 * * * *', async () => {
+    try {
+      const result = await query(
+        'SELECT user_id FROM user_gmail_tokens WHERE is_active = true',
+      );
+      if (result.rows.length === 0) return;
+      const { syncUserEmails } = require('./gmail.service');
+      for (const { user_id } of result.rows) {
+        await syncUserEmails(user_id).catch(
+          e => logger.error(`[Gmail Cron] user:${user_id} | ${e.message}`),
+        );
+      }
+    } catch (e) {
+      logger.error('[Gmail Cron] error:', e.message);
+    }
+  });
+  logger.info('Gmail sync cron started (every 30 min)');
+}
+
 function startReminderCron() {
   cron.schedule('* * * * *', async () => {
     try {
@@ -32,4 +53,4 @@ function startReminderCron() {
   logger.info('Medicine reminder cron started');
 }
 
-module.exports = { startReminderCron };
+module.exports = { startReminderCron, startGmailSyncCron };

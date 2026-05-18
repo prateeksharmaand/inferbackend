@@ -213,4 +213,7 @@ async function _saveExtractedVitals(userId, vitals, documentId) {
   }
 }
 
-module.exports = { getDocuments, uploadDocument, deleteDocument, reanalyzeDocument };
+// Exported for use by gmail sync service
+const ingestDocumentAsync = _processDocumentOcr;
+
+module.exports = { getDocuments, uploadDocument, deleteDocument, reanalyzeDocument, ingestDocumentAsync };
