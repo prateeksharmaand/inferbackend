@@ -1,8 +1,8 @@
 ﻿const path = require('path');
 const fs = require('fs');
 const { query } = require('../config/database');
-const { extractVitalsFromText } = require('../services/vitals-extractor.service');
-const { analyzeDocumentText } = require('../services/ocr.service');
+const { extractVitalsFromText, analyzeDocumentText } = require('../services/vitals-extractor.service');
+const { processDocument } = require('../services/ocrService');
 const { addTimelineEvent } = require('../services/timeline.service');
 const logger = require('../utils/logger');
 
@@ -38,50 +38,33 @@ async function uploadDocument(req, res) {
   }
 
   try {
-    const { title, type, doctor_name, facility_name, document_date, ocr_text, tags } = req.body;
-    let extractedVitals = null;
-    let analysisResult = null;
-
-    if (ocr_text) {
-      extractedVitals = extractVitalsFromText(ocr_text);
-      analysisResult = analyzeDocumentText(ocr_text);
-      logger.info(`${reqId} | OCR analysis | vitals found: ${Object.keys(extractedVitals).join(', ') || 'none'} | type detected: ${analysisResult?.document_type || 'none'}`);
-    }
-
-    const fileUrl = `/uploads/${req.user.id}/${req.file.filename}`;
+    const { title, type, doctor_name, facility_name, document_date, tags } = req.body;
     const tagArray = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const fileUrl = `/uploads/${req.user.id}/${req.file.filename}`;
 
-    const docTitle = title || analysisResult?.suggested_title || req.file.originalname;
-    const docType = type || analysisResult?.document_type || 'Other';
-    const docDoctorName = doctor_name || analysisResult?.doctor_name || null;
-    const docFacilityName = facility_name || analysisResult?.facility_name || null;
-    const docDate = document_date || analysisResult?.document_date || null;
-
-    logger.info(`${reqId} | inserting document | title: "${docTitle}" | type: ${docType} | date: ${docDate} | tags: [${tagArray}]`);
+    logger.info(`${reqId} | inserting document | title: "${title}" | type: ${type} | tags: [${tagArray}]`);
 
     const result = await query(
-      `INSERT INTO documents (user_id, title, type, file_path, mime_type, file_size, ocr_text, extracted_vitals,
+      `INSERT INTO documents (user_id, title, type, file_path, file_url, mime_type, file_size,
        is_encrypted, doctor_name, facility_name, document_date, tags)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-      [req.user.id, docTitle, docType, req.file.path,
-       req.file.mimetype, req.file.size, ocr_text, extractedVitals ? JSON.stringify(extractedVitals) : null,
-       true, docDoctorName, docFacilityName, docDate, tagArray]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [req.user.id, title || req.file.originalname, type || 'Other',
+       req.file.path, fileUrl, req.file.mimetype, req.file.size,
+       false, doctor_name || null, facility_name || null, document_date || null, tagArray]
     );
 
     const doc = result.rows[0];
-    doc.file_url = fileUrl;
     logger.info(`${reqId} | document inserted | id: ${doc.id}`);
-
-    if (extractedVitals && Object.keys(extractedVitals).length > 0) {
-      logger.info(`${reqId} | saving ${Object.keys(extractedVitals).length} extracted vitals`);
-      await _saveExtractedVitals(req.user.id, extractedVitals, doc.id);
-    }
 
     await addTimelineEvent(req.user.id, 'document', `Document Uploaded: ${doc.title}`,
       `Type: ${doc.type}${doc.doctor_name ? ` | Dr. ${doc.doctor_name}` : ''}`, null, new Date(), doc.id, 'document');
 
-    logger.info(`${reqId} | 201 | success | doc id: ${doc.id}`);
-    res.status(201).json({ document: doc, extracted_vitals: extractedVitals, analysis: analysisResult });
+    logger.info(`${reqId} | 201 | success | doc id: ${doc.id} | starting async OCR`);
+    res.status(201).json({ document: doc });
+
+    // Run OCR asynchronously after responding — does not block the client
+    _processDocumentOcr(doc.id, req.file.path, req.user.id)
+      .catch(err => logger.error(`${reqId} | async OCR failed | doc: ${doc.id} | ${err.message}`, { stack: err.stack }));
   } catch (err) {
     logger.error(`${reqId} | 500 | ${err.message}`, { stack: err.stack, file: req.file?.path, body: req.body });
     throw err;
@@ -105,6 +88,37 @@ async function deleteDocument(req, res) {
   } catch (err) {
     logger.error(`${reqId} | 500 | ${err.message}`, { stack: err.stack });
     throw err;
+  }
+}
+
+async function _processDocumentOcr(docId, filePath, userId) {
+  logger.info(`OCR | start | doc: ${docId} | file: ${filePath}`);
+  try {
+    const { text } = await processDocument(filePath);
+    if (!text || !text.trim()) {
+      logger.warn(`OCR | no text extracted | doc: ${docId}`);
+      return;
+    }
+    logger.info(`OCR | extracted ${text.length} chars | doc: ${docId}`);
+
+    const vitals = extractVitalsFromText(text);
+    const analysis = analyzeDocumentText(text);
+    const vitalsFound = Object.keys(vitals);
+
+    logger.info(`OCR | vitals found: [${vitalsFound.join(', ') || 'none'}] | type: ${analysis.document_type || 'none'} | doc: ${docId}`);
+
+    await query(
+      `UPDATE documents SET ocr_text = $1, extracted_vitals = $2 WHERE id = $3`,
+      [text, vitalsFound.length > 0 ? JSON.stringify(vitals) : null, docId]
+    );
+    logger.info(`OCR | document updated | doc: ${docId}`);
+
+    if (vitalsFound.length > 0) {
+      await _saveExtractedVitals(userId, vitals, docId);
+      logger.info(`OCR | saved ${vitalsFound.length} vitals | doc: ${docId}`);
+    }
+  } catch (err) {
+    logger.error(`OCR | failed | doc: ${docId} | ${err.message}`, { stack: err.stack });
   }
 }
 
