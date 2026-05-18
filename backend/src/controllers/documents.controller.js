@@ -130,7 +130,9 @@ async function _saveExtractedVitals(userId, vitals, documentId) {
   for (const [type, values] of Object.entries(vitals)) {
     if (!values || (typeof values === 'object' && Object.keys(values).length === 0)) continue;
     const normalizedValues = typeof values === 'number' ? { value: values } : values;
-    const status = determineVitalStatus(type, normalizedValues);
+    // Use LOINC threshold if available, otherwise trust Gemini's status
+    const loincStatus = determineVitalStatus(type, normalizedValues);
+    const status = loincStatus !== 'unknown' ? loincStatus : (normalizedValues.status || 'unknown');
     const loincCode = getLoincCode(type);
     await query(
       `INSERT INTO vitals (user_id, type, values, status, loinc_code, source, notes)

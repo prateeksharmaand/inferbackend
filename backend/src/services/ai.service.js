@@ -78,15 +78,9 @@ async function extractVitalsWithAI(ocrText) {
   // Cap at 25000 chars to stay well within token limits
   const trimmedText = ocrText.length > 25000 ? ocrText.substring(0, 25000) : ocrText;
 
-  const prompt = `You are a medical data extractor. Extract ALL vital signs and lab values from the following medical document text.
-
-Return a JSON object where each key is the vital/lab name in snake_case (e.g. hemoglobin, blood_pressure, glucose_fasting, total_cholesterol, wbc, platelets, sgot, tsh, vitamin_d), and each value is an object with:
-- "value": numeric value (number type, not string)
-- "unit": unit string (e.g. "g/dL", "mg/dL", "U/L")
-- "status": "normal", "high", "low", or "critical" based on standard reference ranges
-
-For blood pressure use: { "systolic": 120, "diastolic": 80, "unit": "mmHg", "status": "normal" }
-If no vitals are found return {}.
+  const prompt = `Extract all vital signs and lab test results from the medical document text below.
+For each result return its name in snake_case, numeric value, unit, and status (normal/high/low/critical).
+For blood pressure list systolic and diastolic as separate entries named blood_pressure_systolic and blood_pressure_diastolic.
 
 Document text:
 ${trimmedText}`;
@@ -97,6 +91,19 @@ ${trimmedText}`;
       maxOutputTokens: 8192,
       temperature: 0.1,
       responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name:   { type: 'string' },
+            value:  { type: 'number' },
+            unit:   { type: 'string' },
+            status: { type: 'string', enum: ['normal', 'high', 'low', 'critical', 'unknown'] },
+          },
+          required: ['name', 'value', 'unit', 'status'],
+        },
+      },
     },
   };
 
@@ -110,9 +117,22 @@ ${trimmedText}`;
     );
 
     const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    logger.info(`[Gemini] extractVitalsWithAI | raw response (first 500): ${raw.substring(0, 500)}`);
+    logger.info(`[Gemini] extractVitalsWithAI | raw (first 500): ${raw.substring(0, 500)}`);
 
-    const vitals = JSON.parse(raw);
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) {
+      logger.warn('[Gemini] extractVitalsWithAI | response is not an array');
+      return {};
+    }
+
+    // Convert array → { name: { value, unit, status } } for _saveExtractedVitals
+    const vitals = {};
+    for (const item of arr) {
+      if (item.name && typeof item.value === 'number') {
+        vitals[item.name] = { value: item.value, unit: item.unit || '', status: item.status || 'unknown' };
+      }
+    }
+
     logger.info(`[Gemini] extractVitalsWithAI | extracted ${Object.keys(vitals).length} vitals: [${Object.keys(vitals).join(', ')}]`);
     return vitals;
   } catch (e) {
