@@ -3,7 +3,7 @@ const fs = require('fs');
 const { query } = require('../config/database');
 const { analyzeDocumentText } = require('../services/vitals-extractor.service');
 const { processDocument } = require('../services/ocrService');
-const { extractVitalsWithAI } = require('../services/ai.service');
+const { extractVitalsWithAI, extractVitalsWithVision } = require('../services/ai.service');
 const { addTimelineEvent } = require('../services/timeline.service');
 const logger = require('../utils/logger');
 
@@ -64,7 +64,7 @@ async function uploadDocument(req, res) {
     res.status(201).json({ document: doc });
 
     // Run OCR asynchronously after responding — does not block the client
-    _processDocumentOcr(doc.id, req.file.path, req.user.id)
+    _processDocumentOcr(doc.id, req.file.path, req.user.id, req.file.mimetype)
       .catch(err => logger.error(`${reqId} | async OCR failed | doc: ${doc.id} | ${err.message}`, { stack: err.stack }));
   } catch (err) {
     logger.error(`${reqId} | 500 | ${err.message}`, { stack: err.stack, file: req.file?.path, body: req.body });
@@ -109,14 +109,25 @@ async function reanalyzeDocument(req, res) {
       return res.status(400).json({ error: 'No file associated with this document' });
     }
 
-    logger.info(`${reqId} | running OCR on: ${doc.file_path}`);
-    const { text } = await processDocument(doc.file_path);
-    if (!text || !text.trim()) {
-      return res.status(422).json({ error: 'Could not extract text from document' });
-    }
-    logger.info(`${reqId} | extracted ${text.length} chars, sending to Gemini`);
+    logger.info(`${reqId} | running extraction on: ${doc.file_path} (${doc.mime_type})`);
 
-    const vitals = await extractVitalsWithAI(text);
+    // Try vision first; fall back to text OCR
+    const [{ text }, visionVitals] = await Promise.all([
+      processDocument(doc.file_path),
+      extractVitalsWithVision(doc.file_path, doc.mime_type || ''),
+    ]);
+
+    let vitals;
+    if (visionVitals !== null) {
+      logger.info(`${reqId} | using Gemini Vision results`);
+      vitals = visionVitals;
+    } else {
+      if (!text || !text.trim()) {
+        return res.status(422).json({ error: 'Could not extract text from document' });
+      }
+      logger.info(`${reqId} | vision unavailable, using text OCR (${text.length} chars)`);
+      vitals = await extractVitalsWithAI(text);
+    }
     const vitalsFound = Object.keys(vitals);
     logger.info(`${reqId} | extracted ${vitalsFound.length} vitals: [${vitalsFound.join(', ')}]`);
 
@@ -140,20 +151,32 @@ async function reanalyzeDocument(req, res) {
   }
 }
 
-async function _processDocumentOcr(docId, filePath, userId) {
-  logger.info(`OCR | start | doc: ${docId} | file: ${filePath}`);
+async function _processDocumentOcr(docId, filePath, userId, mimeType) {
+  logger.info(`OCR | start | doc: ${docId} | file: ${filePath} | mime: ${mimeType}`);
   try {
-    const { text } = await processDocument(filePath);
+    // Extract text (for storage) and try vision-based vitals extraction in parallel
+    const [{ text }, visionVitals] = await Promise.all([
+      processDocument(filePath),
+      extractVitalsWithVision(filePath, mimeType || ''),
+    ]);
+
     if (!text || !text.trim()) {
       logger.warn(`OCR | no text extracted | doc: ${docId}`);
-      return;
+    } else {
+      logger.info(`OCR | extracted ${text.length} chars | doc: ${docId}`);
     }
-    logger.info(`OCR | extracted ${text.length} chars | doc: ${docId}`);
 
-    const [vitals, analysis] = await Promise.all([
-      extractVitalsWithAI(text),
-      Promise.resolve(analyzeDocumentText(text)),
-    ]);
+    // Vision succeeded → use it; vision returned null → fall back to text OCR
+    let vitals;
+    if (visionVitals !== null) {
+      logger.info(`OCR | using Gemini Vision results | doc: ${docId}`);
+      vitals = visionVitals;
+    } else {
+      logger.info(`OCR | vision unavailable, using text OCR | doc: ${docId}`);
+      vitals = text ? await extractVitalsWithAI(text) : {};
+    }
+
+    const analysis = text ? analyzeDocumentText(text) : {};
     const vitalsFound = Object.keys(vitals);
 
     logger.info(`OCR | vitals found: [${vitalsFound.join(', ') || 'none'}] | type: ${analysis.document_type || 'none'} | doc: ${docId}`);

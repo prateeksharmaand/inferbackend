@@ -1,4 +1,5 @@
 const axios = require('axios');
+const fs = require('fs');
 const logger = require('../utils/logger');
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
@@ -69,64 +70,156 @@ function _fallbackResponse(message) {
   return 'I\'m here to help with your health questions. For specific medical concerns, please consult your healthcare provider. I can provide general health information about blood pressure, glucose, heart rate, and other vital signs.';
 }
 
+// ─── Shared prompt & schema ───────────────────────────────────────────────────
+
+const VITALS_EXTRACT_PROMPT = `You are a medical document parser. Extract EVERY numeric lab test result and vital sign — do not skip any value.
+
+Include ALL of the following categories when present:
+- Blood glucose: fasting_glucose, glucose_random, glucose_post_prandial, hba1c
+- Lipid panel: total_cholesterol, hdl_cholesterol, ldl_cholesterol, vldl_cholesterol, triglycerides, non_hdl_cholesterol
+- CBC: hemoglobin, hematocrit, rbc_count, wbc_count, platelet_count, mcv, mch, mchc, rdw, neutrophils, lymphocytes, monocytes, eosinophils, basophils
+- Liver function (LFT): sgot, sgpt, alp, total_bilirubin, direct_bilirubin, indirect_bilirubin, albumin, total_protein, ggt
+- Kidney function (KFT): serum_creatinine, bun, uric_acid, egfr, sodium, potassium, chloride, calcium
+- Thyroid: tsh, t3, t4, free_t3, free_t4
+- Vitamins & minerals: vitamin_d, vitamin_b12, folate, ferritin, serum_iron, tibc
+- Vitals: blood_pressure_systolic, blood_pressure_diastolic, heart_rate, spo2, temperature, weight, height, bmi
+- Any other numeric result present
+
+Rules:
+- name must be snake_case (e.g. "total_cholesterol", "fasting_glucose")
+- For blood pressure output TWO separate entries: blood_pressure_systolic and blood_pressure_diastolic
+- Set reference_min and reference_max if a reference range is visible; omit them if not
+- status: normal | high | low | critical | unknown
+- Parse EVERY row of every table — do not stop after the first section`;
+
+const VITALS_SCHEMA = {
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      name:          { type: 'string' },
+      value:         { type: 'number' },
+      unit:          { type: 'string' },
+      status:        { type: 'string', enum: ['normal', 'high', 'low', 'critical', 'unknown'] },
+      reference_min: { type: 'number' },
+      reference_max: { type: 'number' },
+    },
+    required: ['name', 'value', 'unit', 'status'],
+  },
+};
+
+const VISION_SUPPORTED = new Set([
+  'application/pdf',
+  'image/jpeg', 'image/jpg', 'image/png',
+  'image/webp', 'image/heic', 'image/heif', 'image/gif',
+]);
+
+// Parse Gemini JSON response (with truncation recovery) → vitals map
+function _parseVitalsResponse(raw, tag) {
+  let arr;
+  try {
+    arr = JSON.parse(raw);
+  } catch (_) {
+    arr = _recoverPartialArray(raw);
+    logger.warn(`[${tag}] JSON truncated — recovered ${arr.length} items`);
+  }
+  if (!Array.isArray(arr) || arr.length === 0) return {};
+
+  const vitals = {};
+  for (const item of arr) {
+    if (item.name && typeof item.value === 'number') {
+      vitals[item.name] = {
+        value: item.value,
+        unit: item.unit || '',
+        status: item.status || 'unknown',
+        ...(typeof item.reference_min === 'number' && { reference_min: item.reference_min }),
+        ...(typeof item.reference_max === 'number' && { reference_max: item.reference_max }),
+      };
+    }
+  }
+  return vitals;
+}
+
+// ─── Vision extraction (sends actual file to Gemini) ─────────────────────────
+
+async function extractVitalsWithVision(filePath, mimeType) {
+  if (!process.env.GEMINI_API_KEY) return null;
+
+  const mime = mimeType === 'image/jpg' ? 'image/jpeg' : mimeType;
+  if (!VISION_SUPPORTED.has(mime)) {
+    logger.warn(`[Gemini Vision] Unsupported MIME: ${mimeType} — will fall back to text OCR`);
+    return null;
+  }
+
+  let fileBuffer;
+  try { fileBuffer = fs.readFileSync(filePath); }
+  catch (err) { logger.error(`[Gemini Vision] Cannot read file: ${err.message}`); return null; }
+
+  const sizeKB = (fileBuffer.length / 1024).toFixed(1);
+  if (fileBuffer.length > 20 * 1024 * 1024) {
+    logger.warn(`[Gemini Vision] File too large (${sizeKB} KB) — falling back to text OCR`);
+    return null;
+  }
+
+  logger.info(`[Gemini Vision] Sending ${sizeKB} KB (${mime}) to Gemini`);
+
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType: mime, data: fileBuffer.toString('base64') } },
+        { text: VITALS_EXTRACT_PROMPT },
+      ],
+    }],
+    generationConfig: {
+      maxOutputTokens: 8192,
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+      responseSchema: VITALS_SCHEMA,
+    },
+  };
+
+  try {
+    const response = await axios.post(
+      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
+      body,
+      { headers: { 'Content-Type': 'application/json' }, timeout: 120000 },
+    );
+    const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const finishReason = response.data?.candidates?.[0]?.finishReason;
+    logger.info(`[Gemini Vision] raw length: ${raw.length} | finishReason: ${finishReason}`);
+
+    const vitals = _parseVitalsResponse(raw, 'Gemini Vision');
+    logger.info(`[Gemini Vision] extracted ${Object.keys(vitals).length} vitals: [${Object.keys(vitals).join(', ')}]`);
+    return vitals;
+  } catch (e) {
+    logger.error(`[Gemini Vision] failed: ${e.message}`, { status: e.response?.status, data: JSON.stringify(e.response?.data) });
+    return null; // null = caller should fall back to text OCR
+  }
+}
+
+// ─── Text-based extraction (fallback when vision unavailable) ─────────────────
+
 async function extractVitalsWithAI(ocrText) {
   if (!process.env.GEMINI_API_KEY) {
     logger.warn('[Gemini] GEMINI_API_KEY not set — skipping AI vitals extraction');
     return {};
   }
 
-  // Cap at 25000 chars to stay well within token limits
   const trimmedText = ocrText.length > 25000 ? ocrText.substring(0, 25000) : ocrText;
-
-  const prompt = `You are a medical document parser. Extract EVERY numeric lab test result and vital sign from the document text below — do not skip any value.
-
-Include ALL of the following categories when present:
-- Blood glucose: fasting glucose, random glucose, post-prandial glucose, HbA1c
-- Lipid panel: total cholesterol, HDL, LDL, VLDL, triglycerides, non-HDL cholesterol
-- CBC: hemoglobin, hematocrit/PCV, RBC count, WBC/TLC, platelets, MCV, MCH, MCHC, RDW, neutrophils, lymphocytes, monocytes, eosinophils, basophils
-- Liver function: SGOT/AST, SGPT/ALT, ALP, total bilirubin, direct bilirubin, indirect bilirubin, albumin, total protein, GGT
-- Kidney function: serum creatinine, BUN/urea, uric acid, eGFR, sodium, potassium, chloride, calcium
-- Thyroid: TSH, T3, T4, free T3, free T4
-- Vitamins & minerals: vitamin D, vitamin B12, folate, ferritin, serum iron, TIBC
-- Vitals: blood pressure systolic, blood pressure diastolic, heart rate, SpO2, temperature, weight, height, BMI
-- Any other numeric result present in the document
-
-Rules:
-- Use snake_case for name (e.g. "total_cholesterol", "fasting_glucose", "blood_pressure_systolic")
-- For blood pressure list systolic and diastolic as SEPARATE entries: blood_pressure_systolic and blood_pressure_diastolic
-- Include reference_min and reference_max if a reference range is printed in the document
-- Status must be one of: normal, high, low, critical, unknown
-- If the document has a header row like "Test | Result | Unit | Reference Range", parse each data row
-- Do NOT skip values just because they appear in a table or because they seem redundant
-
-Document text:
-${trimmedText}`;
+  const textPrompt = `${VITALS_EXTRACT_PROMPT}\n\nDocument text:\n${trimmedText}`;
 
   const body = {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    contents: [{ role: 'user', parts: [{ text: textPrompt }] }],
     generationConfig: {
       maxOutputTokens: 8192,
       temperature: 0.1,
       responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            name:          { type: 'string' },
-            value:         { type: 'number' },
-            unit:          { type: 'string' },
-            status:        { type: 'string', enum: ['normal', 'high', 'low', 'critical', 'unknown'] },
-            reference_min: { type: 'number' },
-            reference_max: { type: 'number' },
-          },
-          required: ['name', 'value', 'unit', 'status'],
-        },
-      },
+      responseSchema: VITALS_SCHEMA,
     },
   };
 
-  logger.info(`[Gemini] extractVitalsWithAI | text length: ${trimmedText.length} chars`);
+  logger.info(`[Gemini Text] extractVitalsWithAI | text length: ${trimmedText.length} chars`);
 
   try {
     const response = await axios.post(
@@ -134,44 +227,15 @@ ${trimmedText}`;
       body,
       { headers: { 'Content-Type': 'application/json' }, timeout: 60000 },
     );
-
     const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const finishReason = response.data?.candidates?.[0]?.finishReason;
-    logger.info(`[Gemini] extractVitalsWithAI | raw length: ${raw.length} | finishReason: ${finishReason}`);
-    logger.info(`[Gemini] extractVitalsWithAI | raw: ${raw}`);
+    logger.info(`[Gemini Text] raw length: ${raw.length} | finishReason: ${finishReason}`);
 
-    let arr = null;
-    try {
-      arr = JSON.parse(raw);
-    } catch (_) {
-      // Response was truncated — recover all complete objects from the partial array
-      arr = _recoverPartialArray(raw);
-      logger.warn(`[Gemini] extractVitalsWithAI | JSON truncated, recovered ${arr.length} items from partial response`);
-    }
-
-    if (!Array.isArray(arr) || arr.length === 0) {
-      logger.warn('[Gemini] extractVitalsWithAI | no vitals recovered');
-      return {};
-    }
-
-    // Convert array → { name: { value, unit, status } } for _saveExtractedVitals
-    const vitals = {};
-    for (const item of arr) {
-      if (item.name && typeof item.value === 'number') {
-        vitals[item.name] = {
-          value: item.value,
-          unit: item.unit || '',
-          status: item.status || 'unknown',
-          ...(typeof item.reference_min === 'number' && { reference_min: item.reference_min }),
-          ...(typeof item.reference_max === 'number' && { reference_max: item.reference_max }),
-        };
-      }
-    }
-
-    logger.info(`[Gemini] extractVitalsWithAI | extracted ${Object.keys(vitals).length} vitals: [${Object.keys(vitals).join(', ')}]`);
+    const vitals = _parseVitalsResponse(raw, 'Gemini Text');
+    logger.info(`[Gemini Text] extracted ${Object.keys(vitals).length} vitals: [${Object.keys(vitals).join(', ')}]`);
     return vitals;
   } catch (e) {
-    logger.error(`[Gemini] extractVitalsWithAI | failed: ${e.message}`, { status: e.response?.status, data: JSON.stringify(e.response?.data) });
+    logger.error(`[Gemini Text] failed: ${e.message}`, { status: e.response?.status, data: JSON.stringify(e.response?.data) });
     return {};
   }
 }
@@ -190,4 +254,4 @@ function _recoverPartialArray(raw) {
   return results;
 }
 
-module.exports = { analyzeWithAI, extractVitalsWithAI };
+module.exports = { analyzeWithAI, extractVitalsWithAI, extractVitalsWithVision };
