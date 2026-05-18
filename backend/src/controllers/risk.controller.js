@@ -1,4 +1,5 @@
 const { predictRisk, getCachedRisk } = require('../services/risk.service');
+const { addTimelineEvent } = require('../services/timeline.service');
 
 const CACHE_TTL_MINUTES = 30;
 
@@ -17,7 +18,16 @@ async function getRiskPrediction(req, res) {
   }
 
   const risk = await predictRisk(userId);
-  res.json({ risk: _format(risk), cached: false });
+  const formatted = _format(risk);
+  const label = formatted.level.charAt(0).toUpperCase() + formatted.level.slice(1);
+  await addTimelineEvent(
+    userId, 'risk',
+    `Risk Assessment: ${label} (${formatted.score}/100)`,
+    formatted.recommendation?.summary?.slice(0, 120) || null,
+    { score: formatted.score, level: formatted.level, factors: formatted.factors?.length ?? 0 },
+    new Date(), risk.id, 'risk_prediction'
+  ).catch(() => {});
+  res.json({ risk: formatted, cached: false });
 }
 
 function _format(row) {
