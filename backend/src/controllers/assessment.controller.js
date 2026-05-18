@@ -69,7 +69,7 @@ async function generateQuestions(req, res) {
     return res.status(400).json({ error: 'category and subcategory are required' });
   }
 
-  const prompt = `You are a medical assessment expert. Generate exactly 8 to 9 health assessment questions for the specific subcategory "${subcategory}" under the broader health category "${category}".
+  const prompt = `You are a medical assessment expert. Generate exactly 6 health assessment questions for the specific subcategory "${subcategory}" under the broader health category "${category}".
 
 Rules:
 - Questions must be STRICTLY and ONLY about "${subcategory}" — absolutely no questions about other topics
@@ -80,7 +80,7 @@ Rules:
 - Progress logically: start with symptom presence, move to frequency/severity, then impact/duration
 - Do NOT ask for personal identifying information (name, DOB, etc.)
 - Question 1: primary symptom or main concern presence
-- Question 8 or 9: impact on daily life or duration/when symptoms started
+- Question 6: impact on daily life or duration/when symptoms started
 - Include at least 2 multiple_choice questions`;
 
   try {
