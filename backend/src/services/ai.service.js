@@ -79,8 +79,9 @@ async function extractVitalsWithAI(ocrText) {
   const trimmedText = ocrText.length > 25000 ? ocrText.substring(0, 25000) : ocrText;
 
   const prompt = `Extract all vital signs and lab test results from the medical document text below.
-For each result return its name in snake_case, numeric value, unit, and status (normal/high/low/critical).
+For each result return its name in snake_case, numeric value, unit, status (normal/high/low/critical), and the reference range minimum and maximum values exactly as printed in the document (reference_min and reference_max).
 For blood pressure list systolic and diastolic as separate entries named blood_pressure_systolic and blood_pressure_diastolic.
+If no reference range is printed for a result, omit reference_min and reference_max.
 
 Document text:
 ${trimmedText}`;
@@ -96,10 +97,12 @@ ${trimmedText}`;
         items: {
           type: 'object',
           properties: {
-            name:   { type: 'string' },
-            value:  { type: 'number' },
-            unit:   { type: 'string' },
-            status: { type: 'string', enum: ['normal', 'high', 'low', 'critical', 'unknown'] },
+            name:          { type: 'string' },
+            value:         { type: 'number' },
+            unit:          { type: 'string' },
+            status:        { type: 'string', enum: ['normal', 'high', 'low', 'critical', 'unknown'] },
+            reference_min: { type: 'number' },
+            reference_max: { type: 'number' },
           },
           required: ['name', 'value', 'unit', 'status'],
         },
@@ -139,7 +142,13 @@ ${trimmedText}`;
     const vitals = {};
     for (const item of arr) {
       if (item.name && typeof item.value === 'number') {
-        vitals[item.name] = { value: item.value, unit: item.unit || '', status: item.status || 'unknown' };
+        vitals[item.name] = {
+          value: item.value,
+          unit: item.unit || '',
+          status: item.status || 'unknown',
+          ...(typeof item.reference_min === 'number' && { reference_min: item.reference_min }),
+          ...(typeof item.reference_max === 'number' && { reference_max: item.reference_max }),
+        };
       }
     }
 
