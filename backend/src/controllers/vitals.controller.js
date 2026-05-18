@@ -4,11 +4,18 @@ const { addTimelineEvent } = require('../services/timeline.service');
 const { sendVitalAlert } = require('../services/notification.service');
 
 async function getVitals(req, res) {
-  const { type, from, to, limit = 50, offset = 0 } = req.query;
+  const { type, types, from, to, limit = 50, offset = 0 } = req.query;
   let sql = 'SELECT * FROM vitals WHERE user_id = $1';
   const params = [req.user.id];
   let idx = 2;
-  if (type) { sql += ` AND type = $${idx++}`; params.push(type); }
+  if (types) {
+    const typeList = types.split(',').map(t => t.trim()).filter(Boolean);
+    sql += ` AND type = ANY($${idx++})`;
+    params.push(typeList);
+  } else if (type) {
+    sql += ` AND type = $${idx++}`;
+    params.push(type);
+  }
   if (from) { sql += ` AND recorded_at >= $${idx++}`; params.push(from); }
   if (to) { sql += ` AND recorded_at <= $${idx++}`; params.push(to); }
   sql += ` ORDER BY recorded_at DESC LIMIT $${idx++} OFFSET $${idx++}`;
@@ -78,7 +85,6 @@ function _displayValue(type, values) {
 }
 
 async function getAllLatestVitals(req, res) {
-  // One row per vital type — the most recently recorded
   const result = await query(
     `SELECT DISTINCT ON (type) id, type, values, unit, status, loinc_code, recorded_at, source
      FROM vitals
@@ -86,10 +92,44 @@ async function getAllLatestVitals(req, res) {
      ORDER BY type, recorded_at DESC`,
     [req.user.id],
   );
+
   const vitals = {};
   for (const row of result.rows) {
-    vitals[row.type] = row; // JSONB values field is auto-parsed by pg
+    vitals[row.type] = row;
+
+    // Normalise manual-entry vitals into OCR-style keys so AllVitals
+    // categories (which use keys like blood_pressure_systolic, fasting_glucose)
+    // pick them up automatically.
+
+    if (row.type === 'blood_pressure' && row.values?.systolic != null) {
+      const base = { id: row.id, loinc_code: row.loinc_code, recorded_at: row.recorded_at, source: row.source, status: row.status };
+      if (!vitals['blood_pressure_systolic'])
+        vitals['blood_pressure_systolic'] = { ...base, type: 'blood_pressure_systolic', values: { value: row.values.systolic, unit: 'mmHg', status: row.status } };
+      if (!vitals['blood_pressure_diastolic'])
+        vitals['blood_pressure_diastolic'] = { ...base, type: 'blood_pressure_diastolic', values: { value: row.values.diastolic, unit: 'mmHg', status: row.status } };
+    }
+
+    if (row.type === 'glucose' && row.values?.value != null) {
+      if (!vitals['fasting_glucose'])
+        vitals['fasting_glucose'] = { ...row, type: 'fasting_glucose', values: { value: row.values.value, unit: 'mg/dL', status: row.status } };
+    }
+
+    // Normalise heart_rate: manual stores values.bpm, AllVitals needs values.value
+    if (row.type === 'heart_rate' && row.values?.bpm != null) {
+      vitals['heart_rate'] = { ...row, values: { value: row.values.bpm, unit: 'bpm', status: row.status } };
+    }
+
+    // spo2, temperature, weight already use values.value — expose under alias keys
+    if (row.type === 'spo2' && row.values?.value != null && !vitals['oxygen_saturation'])
+      vitals['oxygen_saturation'] = { ...row, type: 'oxygen_saturation' };
+
+    if (row.type === 'temperature' && row.values?.value != null && !vitals['body_temperature'])
+      vitals['body_temperature'] = { ...row, type: 'body_temperature' };
+
+    if (row.type === 'weight' && row.values?.value != null && !vitals['body_weight'])
+      vitals['body_weight'] = { ...row, type: 'body_weight' };
   }
+
   res.json({ vitals });
 }
 
