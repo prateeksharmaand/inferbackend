@@ -83,6 +83,7 @@ async function initializeDatabase() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_vitals_user_type ON vitals(user_id, type)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_vitals_recorded_at ON vitals(recorded_at DESC)`);
+    await client.query(`ALTER TABLE vitals ALTER COLUMN type TYPE VARCHAR(150)`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS documents (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
