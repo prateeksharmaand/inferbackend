@@ -147,6 +147,25 @@ function _parseVitalsResponse(raw, tag) {
   return vitals;
 }
 
+// ─── Cost calculator (Gemini 2.5 Flash, thinking disabled) ───────────────────
+// Prices: input $0.075 / 1M tokens | output $0.30 / 1M tokens
+const PRICE_INPUT_PER_M  = 0.075;
+const PRICE_OUTPUT_PER_M = 0.30;
+
+function _logCost(tag, usageMeta) {
+  if (!usageMeta) return;
+  const inputTok   = usageMeta.promptTokenCount     || 0;
+  const outputTok  = usageMeta.candidatesTokenCount  || 0;
+  const thinkTok   = usageMeta.thoughtsTokenCount    || 0;   // should be 0 (disabled)
+  const inputCost  = (inputTok  / 1_000_000) * PRICE_INPUT_PER_M;
+  const outputCost = (outputTok / 1_000_000) * PRICE_OUTPUT_PER_M;
+  const totalCost  = inputCost + outputCost;
+  logger.info(
+    `[${tag}] tokens: ${inputTok} in + ${outputTok} out + ${thinkTok} think` +
+    ` | cost: $${totalCost.toFixed(6)} (in $${inputCost.toFixed(6)} + out $${outputCost.toFixed(6)})`,
+  );
+}
+
 // ─── Vision extraction (sends actual file to Gemini) ─────────────────────────
 
 async function extractVitalsWithVision(filePath, mimeType) {
@@ -197,6 +216,7 @@ async function extractVitalsWithVision(filePath, mimeType) {
     const finishReason = response.data?.candidates?.[0]?.finishReason;
     if (finishReason === 'MAX_TOKENS') logger.warn(`[Gemini Vision] Hit MAX_TOKENS — output truncated at ${raw.length} chars`);
     logger.info(`[Gemini Vision] raw length: ${raw.length} | finishReason: ${finishReason}`);
+    _logCost('Gemini Vision', response.data?.usageMetadata);
 
     const vitals = _parseVitalsResponse(raw, 'Gemini Vision');
     logger.info(`[Gemini Vision] extracted ${Object.keys(vitals).length} vitals: [${Object.keys(vitals).join(', ')}]`);
@@ -235,12 +255,13 @@ async function extractVitalsWithAI(ocrText) {
     const response = await axios.post(
       `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
       body,
-      { headers: { 'Content-Type': 'application/json' }, timeout: 90000 },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 180000 },
     );
     const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const finishReason = response.data?.candidates?.[0]?.finishReason;
     if (finishReason === 'MAX_TOKENS') logger.warn(`[Gemini Text] Hit MAX_TOKENS — output truncated at ${raw.length} chars`);
     logger.info(`[Gemini Text] raw length: ${raw.length} | finishReason: ${finishReason}`);
+    _logCost('Gemini Text', response.data?.usageMetadata);
 
     const vitals = _parseVitalsResponse(raw, 'Gemini Text');
     logger.info(`[Gemini Text] extracted ${Object.keys(vitals).length} vitals: [${Object.keys(vitals).join(', ')}]`);
