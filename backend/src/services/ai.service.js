@@ -117,11 +117,21 @@ ${trimmedText}`;
     );
 
     const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    logger.info(`[Gemini] extractVitalsWithAI | raw (first 500): ${raw.substring(0, 500)}`);
+    const finishReason = response.data?.candidates?.[0]?.finishReason;
+    logger.info(`[Gemini] extractVitalsWithAI | raw length: ${raw.length} | finishReason: ${finishReason}`);
+    logger.info(`[Gemini] extractVitalsWithAI | raw: ${raw}`);
 
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) {
-      logger.warn('[Gemini] extractVitalsWithAI | response is not an array');
+    let arr = null;
+    try {
+      arr = JSON.parse(raw);
+    } catch (_) {
+      // Response was truncated — recover all complete objects from the partial array
+      arr = _recoverPartialArray(raw);
+      logger.warn(`[Gemini] extractVitalsWithAI | JSON truncated, recovered ${arr.length} items from partial response`);
+    }
+
+    if (!Array.isArray(arr) || arr.length === 0) {
+      logger.warn('[Gemini] extractVitalsWithAI | no vitals recovered');
       return {};
     }
 
@@ -139,6 +149,20 @@ ${trimmedText}`;
     logger.error(`[Gemini] extractVitalsWithAI | failed: ${e.message}`, { status: e.response?.status, data: JSON.stringify(e.response?.data) });
     return {};
   }
+}
+
+// Recovers all complete JSON objects from a truncated array string like [{...},{...}, {"na
+function _recoverPartialArray(raw) {
+  const results = [];
+  const objPattern = /\{[^{}]*\}/g;
+  let match;
+  while ((match = objPattern.exec(raw)) !== null) {
+    try {
+      const obj = JSON.parse(match[0]);
+      if (obj.name && typeof obj.value === 'number') results.push(obj);
+    } catch (_) {}
+  }
+  return results;
 }
 
 module.exports = { analyzeWithAI, extractVitalsWithAI };
