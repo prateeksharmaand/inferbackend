@@ -92,6 +92,54 @@ async function deleteDocument(req, res) {
   }
 }
 
+async function reanalyzeDocument(req, res) {
+  const reqId = `POST /documents/${req.params.id}/reanalyze [user:${req.user.id}]`;
+  logger.info(`${reqId} | request received`);
+  try {
+    const result = await query(
+      'SELECT * FROM documents WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      logger.warn(`${reqId} | 404 | document not found`);
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    const doc = result.rows[0];
+    if (!doc.file_path) {
+      return res.status(400).json({ error: 'No file associated with this document' });
+    }
+
+    logger.info(`${reqId} | running OCR on: ${doc.file_path}`);
+    const { text } = await processDocument(doc.file_path);
+    if (!text || !text.trim()) {
+      return res.status(422).json({ error: 'Could not extract text from document' });
+    }
+    logger.info(`${reqId} | extracted ${text.length} chars, sending to Gemini`);
+
+    const vitals = await extractVitalsWithAI(text);
+    const vitalsFound = Object.keys(vitals);
+    logger.info(`${reqId} | extracted ${vitalsFound.length} vitals: [${vitalsFound.join(', ')}]`);
+
+    await query(
+      `UPDATE documents SET ocr_text = $1, extracted_vitals = $2 WHERE id = $3`,
+      [text, vitalsFound.length > 0 ? JSON.stringify(vitals) : null, doc.id]
+    );
+
+    if (vitalsFound.length > 0) {
+      await _saveExtractedVitals(req.user.id, vitals, doc.id);
+    }
+
+    const updated = await query('SELECT * FROM documents WHERE id = $1', [doc.id]);
+    const updatedDoc = updated.rows[0];
+    const fileUrl = updatedDoc.file_path ? `/uploads/${req.user.id}/${path.basename(updatedDoc.file_path)}` : null;
+    logger.info(`${reqId} | 200 | reanalysis complete`);
+    res.json({ document: { ...updatedDoc, file_url: fileUrl } });
+  } catch (err) {
+    logger.error(`${reqId} | 500 | ${err.message}`, { stack: err.stack });
+    throw err;
+  }
+}
+
 async function _processDocumentOcr(docId, filePath, userId) {
   logger.info(`OCR | start | doc: ${docId} | file: ${filePath}`);
   try {
@@ -142,4 +190,4 @@ async function _saveExtractedVitals(userId, vitals, documentId) {
   }
 }
 
-module.exports = { getDocuments, uploadDocument, deleteDocument };
+module.exports = { getDocuments, uploadDocument, deleteDocument, reanalyzeDocument };

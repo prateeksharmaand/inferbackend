@@ -78,10 +78,26 @@ async function extractVitalsWithAI(ocrText) {
   // Cap at 25000 chars to stay well within token limits
   const trimmedText = ocrText.length > 25000 ? ocrText.substring(0, 25000) : ocrText;
 
-  const prompt = `Extract all vital signs and lab test results from the medical document text below.
-For each result return its name in snake_case, numeric value, unit, status (normal/high/low/critical), and the reference range minimum and maximum values exactly as printed in the document (reference_min and reference_max).
-For blood pressure list systolic and diastolic as separate entries named blood_pressure_systolic and blood_pressure_diastolic.
-If no reference range is printed for a result, omit reference_min and reference_max.
+  const prompt = `You are a medical document parser. Extract EVERY numeric lab test result and vital sign from the document text below — do not skip any value.
+
+Include ALL of the following categories when present:
+- Blood glucose: fasting glucose, random glucose, post-prandial glucose, HbA1c
+- Lipid panel: total cholesterol, HDL, LDL, VLDL, triglycerides, non-HDL cholesterol
+- CBC: hemoglobin, hematocrit/PCV, RBC count, WBC/TLC, platelets, MCV, MCH, MCHC, RDW, neutrophils, lymphocytes, monocytes, eosinophils, basophils
+- Liver function: SGOT/AST, SGPT/ALT, ALP, total bilirubin, direct bilirubin, indirect bilirubin, albumin, total protein, GGT
+- Kidney function: serum creatinine, BUN/urea, uric acid, eGFR, sodium, potassium, chloride, calcium
+- Thyroid: TSH, T3, T4, free T3, free T4
+- Vitamins & minerals: vitamin D, vitamin B12, folate, ferritin, serum iron, TIBC
+- Vitals: blood pressure systolic, blood pressure diastolic, heart rate, SpO2, temperature, weight, height, BMI
+- Any other numeric result present in the document
+
+Rules:
+- Use snake_case for name (e.g. "total_cholesterol", "fasting_glucose", "blood_pressure_systolic")
+- For blood pressure list systolic and diastolic as SEPARATE entries: blood_pressure_systolic and blood_pressure_diastolic
+- Include reference_min and reference_max if a reference range is printed in the document
+- Status must be one of: normal, high, low, critical, unknown
+- If the document has a header row like "Test | Result | Unit | Reference Range", parse each data row
+- Do NOT skip values just because they appear in a table or because they seem redundant
 
 Document text:
 ${trimmedText}`;
