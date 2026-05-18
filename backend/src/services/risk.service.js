@@ -154,11 +154,16 @@ const RULES = [
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
 
+// Status-based weights for vitals not covered by a specific rule.
+// Every extracted vital already has a status set by LOINC thresholds or Gemini.
+const STATUS_WEIGHT = { critical: 25, high: 12, elevated: 8, low: 10 };
+
 function _computeScore(vitalsMap) {
   const fired = new Set(); // prevent duplicate labels from multi-type rules
   const factors = [];
   let raw = 0;
 
+  // 1. Apply specific threshold rules
   for (const rule of RULES) {
     for (const type of rule.types) {
       const vital = vitalsMap[type];
@@ -166,9 +171,10 @@ function _computeScore(vitalsMap) {
       const val = rule.extract(vital);
       if (val === null || val === undefined || isNaN(Number(val))) continue;
       if (rule.check(Number(val))) {
-        const key = `${rule.label}`;
-        if (fired.has(key)) break; // already counted via another alias
-        fired.add(key);
+        if (fired.has(rule.label)) break;
+        fired.add(rule.label);
+        // Mark all aliases as fired so status fallback doesn't double-count
+        for (const t of rule.types) fired.add(`_status_${t}`);
         factors.push({ label: rule.label, weight: rule.weight, category: rule.category, value: Number(val) });
         raw += rule.weight;
         break;
@@ -176,7 +182,40 @@ function _computeScore(vitalsMap) {
     }
   }
 
+  // 2. Status-based fallback — score ANY vital marked high/critical/low
+  //    that wasn't already handled by a specific rule above.
+  for (const [type, vital] of Object.entries(vitalsMap)) {
+    if (fired.has(`_status_${type}`)) continue; // already scored by a specific rule
+    const status = vital.status;
+    const weight = STATUS_WEIGHT[status];
+    if (!weight) continue; // normal / unknown — skip
+    const label = `${_fmt(type)} — ${status}`;
+    if (fired.has(label)) continue;
+    fired.add(label);
+    fired.add(`_status_${type}`);
+    const val = vital.values?.value ?? vital.values?.bpm ?? vital.values?.systolic;
+    factors.push({ label, weight, category: _guessCategory(type), value: val ?? 0 });
+    raw += weight;
+  }
+
   return { score: Math.min(100, raw), factors };
+}
+
+function _fmt(key) {
+  return key.split('_').map(w => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
+}
+
+function _guessCategory(type) {
+  if (/glucose|hba1c|insulin|sugar/.test(type))                        return 'metabolic';
+  if (/cholesterol|ldl|hdl|triglyceride|bp|blood_pressure|heart/.test(type)) return 'cardiovascular';
+  if (/hemoglobin|wbc|rbc|platelet|hematocrit|neutrophil|lymphocyte/.test(type)) return 'blood';
+  if (/creatinine|bun|urea|egfr|uric/.test(type))                      return 'kidney';
+  if (/sgpt|sgot|alt|ast|bilirubin|albumin|alp|liver/.test(type))      return 'liver';
+  if (/tsh|t3|t4|thyroid/.test(type))                                  return 'thyroid';
+  if (/vitamin|ferritin|iron|folate/.test(type))                       return 'nutrition';
+  if (/spo2|oxygen|respiratory/.test(type))                            return 'respiratory';
+  if (/temperature|fever/.test(type))                                  return 'infection';
+  return 'general';
 }
 
 function _scoreToLevel(score) {
@@ -193,7 +232,7 @@ async function _aiRecommendation(vitalsMap, factors, score, level, user) {
     ? Math.floor((Date.now() - new Date(user.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
     : null;
 
-  const vitalsLines = Object.entries(vitalsMap).slice(0, 15).map(([type, v]) => {
+  const vitalsLines = Object.entries(vitalsMap).map(([type, v]) => {
     const val = v?.values?.value ?? v?.values?.bpm ?? v?.values?.systolic;
     const unit = v?.values?.unit ?? '';
     return `${type}: ${val ?? '?'} ${unit} (${v?.status ?? 'unknown'})`;
