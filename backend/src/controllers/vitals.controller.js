@@ -77,4 +77,20 @@ function _displayValue(type, values) {
   return String(values.value || values.bpm || Object.values(values)[0]);
 }
 
-module.exports = { getVitals, getLatestVitals, addVital, deleteVital, getVitalStats };
+async function getAllLatestVitals(req, res) {
+  // One row per vital type — the most recently recorded
+  const result = await query(
+    `SELECT DISTINCT ON (type) id, type, values, unit, status, loinc_code, recorded_at, source
+     FROM vitals
+     WHERE user_id = $1
+     ORDER BY type, recorded_at DESC`,
+    [req.user.id],
+  );
+  const vitals = {};
+  for (const row of result.rows) {
+    vitals[row.type] = row; // JSONB values field is auto-parsed by pg
+  }
+  res.json({ vitals });
+}
+
+module.exports = { getVitals, getLatestVitals, getAllLatestVitals, addVital, deleteVital, getVitalStats };

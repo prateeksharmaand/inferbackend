@@ -85,13 +85,15 @@ Include ALL of the following categories when present:
 - Vitals: blood_pressure_systolic, blood_pressure_diastolic, heart_rate, spo2, temperature, weight, height, bmi
 - Any other numeric result present
 
-REFERENCE RANGE — THIS IS MANDATORY:
+REFERENCE RANGE — ALWAYS REQUIRED:
+reference_min and reference_max are REQUIRED fields. You must always output them.
 Lab reports always have a reference range column (labelled "Biological Reference Interval", "Normal Range", "Reference Range", "Ref. Range", or similar).
 For EVERY test you must read that column and set reference_min and reference_max to the lower and upper bound numbers.
 Example: if the reference range column shows "4.5 - 5.5" then reference_min = 4.5 and reference_max = 5.5.
 Example: if it shows "< 5.7" then reference_min = 0 and reference_max = 5.7.
 Example: if it shows "> 60" then reference_min = 60 and reference_max = 999.
-Only omit reference_min and reference_max if the column is completely absent from the document.
+If the reference range is truly absent for a test, set reference_min = -1 and reference_max = -1.
+NEVER omit reference_min or reference_max — always output both fields for every entry.
 
 Other rules:
 - name must be snake_case (e.g. "total_cholesterol", "fasting_glucose")
@@ -111,7 +113,7 @@ const VITALS_SCHEMA = {
       reference_min: { type: 'number' },
       reference_max: { type: 'number' },
     },
-    required: ['name', 'value', 'unit', 'status'],
+    required: ['name', 'value', 'unit', 'status', 'reference_min', 'reference_max'],
   },
 };
 
@@ -139,8 +141,8 @@ function _parseVitalsResponse(raw, tag) {
         value: item.value,
         unit: item.unit || '',
         status: item.status || 'unknown',
-        ...(typeof item.reference_min === 'number' && { reference_min: item.reference_min }),
-        ...(typeof item.reference_max === 'number' && { reference_max: item.reference_max }),
+        ...(typeof item.reference_min === 'number' && item.reference_min >= 0 && { reference_min: item.reference_min }),
+        ...(typeof item.reference_max === 'number' && item.reference_max >= 0 && { reference_max: item.reference_max }),
       };
     }
   }
