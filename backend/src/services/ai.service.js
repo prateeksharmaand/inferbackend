@@ -172,10 +172,11 @@ async function extractVitalsWithVision(filePath, mimeType) {
       ],
     }],
     generationConfig: {
-      maxOutputTokens: 8192,
-      temperature: 0.1,
+      maxOutputTokens: 65536,
+      temperature: 1,           // required when thinkingBudget = 0
       responseMimeType: 'application/json',
       responseSchema: VITALS_SCHEMA,
+      thinkingConfig: { thinkingBudget: 0 },  // disable thinking — saves all tokens for output
     },
   };
 
@@ -183,10 +184,11 @@ async function extractVitalsWithVision(filePath, mimeType) {
     const response = await axios.post(
       `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
       body,
-      { headers: { 'Content-Type': 'application/json' }, timeout: 120000 },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 180000 },
     );
     const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const finishReason = response.data?.candidates?.[0]?.finishReason;
+    if (finishReason === 'MAX_TOKENS') logger.warn(`[Gemini Vision] Hit MAX_TOKENS — output truncated at ${raw.length} chars`);
     logger.info(`[Gemini Vision] raw length: ${raw.length} | finishReason: ${finishReason}`);
 
     const vitals = _parseVitalsResponse(raw, 'Gemini Vision');
@@ -212,10 +214,11 @@ async function extractVitalsWithAI(ocrText) {
   const body = {
     contents: [{ role: 'user', parts: [{ text: textPrompt }] }],
     generationConfig: {
-      maxOutputTokens: 8192,
-      temperature: 0.1,
+      maxOutputTokens: 65536,
+      temperature: 1,           // required when thinkingBudget = 0
       responseMimeType: 'application/json',
       responseSchema: VITALS_SCHEMA,
+      thinkingConfig: { thinkingBudget: 0 },  // disable thinking — saves all tokens for output
     },
   };
 
@@ -225,10 +228,11 @@ async function extractVitalsWithAI(ocrText) {
     const response = await axios.post(
       `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
       body,
-      { headers: { 'Content-Type': 'application/json' }, timeout: 60000 },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 90000 },
     );
     const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const finishReason = response.data?.candidates?.[0]?.finishReason;
+    if (finishReason === 'MAX_TOKENS') logger.warn(`[Gemini Text] Hit MAX_TOKENS — output truncated at ${raw.length} chars`);
     logger.info(`[Gemini Text] raw length: ${raw.length} | finishReason: ${finishReason}`);
 
     const vitals = _parseVitalsResponse(raw, 'Gemini Text');
