@@ -137,7 +137,7 @@ async function verifyAadhaarOtp(otp, txnId, mobile) {
   const encMobile = mobile ? await rsaEncrypt(mobile) : null;
   return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/byAadhaar`, {
     authData: {
-      authMethods: ['OTP'],
+      authMethods: ['AADHAAR_OTP'],
       otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
       ...(encMobile && { mobile: encMobile }),
     },
