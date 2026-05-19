@@ -15,9 +15,7 @@ const aadhaarGenerateOtp = async (req, res) => {
 
 const aadhaarVerifyOtp = async (req, res) => {
   const { otp, txnId, mobile } = req.body;
-  if (!mobile || !/^\d{10}$/.test(mobile))
-    return res.status(400).json({ error: 'mobile required (10 digits) for ABHA enrollment' });
-  const result = await abdm.verifyAadhaarOtp(otp, txnId, mobile);
+  const result = await abdm.verifyAadhaarOtp(otp, txnId, mobile ?? null);
 
   const profile = result.ABHAProfile ?? {};
   if (profile.ABHANumber) {
