@@ -11,7 +11,7 @@ set -euo pipefail
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DOMAIN="api.inferapp.online"
-LANDING_DOMAIN="infer.online"
+LANDING_DOMAIN="inferapp.online"
 BACKEND_SERVICE="backend"
 NGINX_SERVICE="nginx"
 POSTGRES_SERVICE="postgres"
@@ -119,14 +119,30 @@ info "Container started"
 
 # ── Reload nginx (picks up config changes + new web/ files, zero downtime) ────
 log "Reloading nginx..."
-if docker compose ps --status running "$NGINX_SERVICE" | grep -q "$NGINX_SERVICE"; then
-  docker compose exec -T "$NGINX_SERVICE" nginx -t \
-    && docker compose exec -T "$NGINX_SERVICE" nginx -s reload \
-    && info "Nginx reloaded: ✓" \
-    || err "Nginx config test failed — not reloading. Run: docker compose logs $NGINX_SERVICE"
+
+# `docker compose ps -q` returns the container ID if the service exists;
+# `docker inspect` then confirms it is actually running.
+# Avoids --status flag which requires Docker Compose v2.1+.
+_NGINX_ID=$(docker compose ps -q "$NGINX_SERVICE" 2>/dev/null || true)
+_NGINX_UP=false
+if [ -n "$_NGINX_ID" ]; then
+  _STATE=$(docker inspect -f '{{.State.Running}}' "$_NGINX_ID" 2>/dev/null || echo "false")
+  [ "$_STATE" = "true" ] && _NGINX_UP=true
+fi
+
+if [ "$_NGINX_UP" = "true" ]; then
+  # Test config explicitly, then graceful reload (zero downtime, keeps connections alive)
+  if docker compose exec -T "$NGINX_SERVICE" nginx -t -c /etc/nginx/nginx.conf; then
+    docker compose exec -T "$NGINX_SERVICE" nginx -s reload
+    info "Nginx reloaded: ✓"
+  else
+    err "Nginx config test failed — not reloading. Run: docker compose logs $NGINX_SERVICE"
+  fi
 else
   warn "Nginx not running — starting it..."
   docker compose up -d "$NGINX_SERVICE"
+  # Brief wait for nginx to initialise before the health check below
+  sleep 3
   info "Nginx started: ✓"
 fi
 
