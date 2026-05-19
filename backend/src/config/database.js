@@ -176,6 +176,63 @@ async function initializeDatabase() {
       )
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_risk_predictions_user ON risk_predictions(user_id)`);
+
+    // ── ABDM / ABHA tables ────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS abha_accounts (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id          UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        abha_number      VARCHAR(20),
+        abha_address     VARCHAR(100),
+        name             VARCHAR(150),
+        mobile           VARCHAR(15),
+        x_token          TEXT,
+        x_refresh_token  TEXT,
+        created_at       TIMESTAMPTZ DEFAULT NOW(),
+        updated_at       TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS linked_care_contexts (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id          UUID REFERENCES users(id) ON DELETE CASCADE,
+        hip_id           VARCHAR(100) NOT NULL,
+        reference_number VARCHAR(200) NOT NULL,
+        display          TEXT,
+        hi_type          VARCHAR(50) DEFAULT 'OPConsultation',
+        linked_at        TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_id, hip_id, reference_number)
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_care_ctx_user ON linked_care_contexts(user_id)`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS consent_requests (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id          UUID REFERENCES users(id) ON DELETE CASCADE,
+        request_id       VARCHAR(100) UNIQUE,
+        transaction_id   VARCHAR(100),
+        hiu_id           VARCHAR(100),
+        purpose          VARCHAR(50),
+        status           VARCHAR(30) DEFAULT 'REQUESTED',
+        created_at       TIMESTAMPTZ DEFAULT NOW(),
+        updated_at       TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_consents_user ON consent_requests(user_id)`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS health_records (
+        id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        transaction_id         VARCHAR(100),
+        care_context_reference VARCHAR(200),
+        content                TEXT,
+        media                  VARCHAR(50),
+        checksum               TEXT,
+        page_number            INTEGER,
+        page_count             INTEGER,
+        received_at            TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(transaction_id, care_context_reference)
+      )
+    `);
     await client.query(`
       CREATE OR REPLACE FUNCTION update_updated_at()
       RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ language 'plpgsql'
