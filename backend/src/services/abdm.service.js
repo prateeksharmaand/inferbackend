@@ -212,7 +212,7 @@ async function getAbhaProfile(xToken) {
 
 async function getAbhaPngCard(xToken) {
   const token = await getGatewayToken();
-  const res = await axios.get(`${ABHA_BASE}/profile/card`, {
+  const res = await axios.get(`${ABHA_BASE}/profile/account/abha-card`, {
     headers: {
       Authorization: `Bearer ${token}`,
       'X-Token': `Bearer ${xToken}`,

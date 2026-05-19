@@ -126,6 +126,7 @@ const getAbhaCard = async (req, res) => {
     [req.user.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'No ABHA linked' });
+  if (!rows[0].x_token) return res.status(404).json({ error: 'ABHA token not available — re-login to ABHA' });
   const pngBuffer = await abdm.getAbhaPngCard(rows[0].x_token);
   res.set('Content-Type', 'image/png');
   res.send(pngBuffer);
