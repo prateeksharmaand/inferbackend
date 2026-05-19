@@ -101,8 +101,13 @@ async function abhaReq(method, url, data = null, xToken = null) {
     const res = await axios(cfg);
     return res.data;
   } catch (err) {
-    logger.error('ABHA API error', { url, status: err.response?.status, body: err.response?.data });
-    throw err;
+    const abdmBody = err.response?.data;
+    const abdmStatus = err.response?.status ?? 500;
+    logger.error('ABHA API error', { url, status: abdmStatus, body: abdmBody });
+    // Forward the actual ABHA error body so clients see the real reason
+    const fwd = new Error(abdmBody ? JSON.stringify(abdmBody) : err.message);
+    fwd.status = abdmStatus;
+    throw fwd;
   }
 }
 
