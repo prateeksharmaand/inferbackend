@@ -133,13 +133,21 @@ async function generateAadhaarOtp(aadhaar) {
 }
 
 async function verifyAadhaarOtp(otp, txnId, mobile) {
-  const encOtp = await rsaEncrypt(otp);
-  const encMobile = mobile ? await rsaEncrypt(mobile) : null;
+  const [encOtp, encMobile] = await Promise.all([
+    rsaEncrypt(otp),
+    mobile ? rsaEncrypt(mobile) : Promise.resolve(null),
+  ]);
   return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/byAadhaar`, {
+    txnId,
+    scope: ['abha-enrol'],
     authData: {
-      authMethods: ['AADHAAR_OTP'],
-      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
-      ...(encMobile && { mobile: encMobile }),
+      authMethods: ['otp'],
+      otp: {
+        timeStamp: new Date().toISOString(),
+        txnId,
+        otpValue: encOtp,
+        ...(encMobile && { mobile: encMobile }),
+      },
     },
     consent: { code: 'abha-enrollment', version: '1.4' },
   });

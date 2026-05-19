@@ -14,8 +14,18 @@ const aadhaarGenerateOtp = async (req, res) => {
 };
 
 const aadhaarVerifyOtp = async (req, res) => {
-  const { otp, txnId, mobile } = req.body;
-  const result = await abdm.verifyAadhaarOtp(otp, txnId, mobile ?? null);
+  const { otp, txnId } = req.body;
+  let mobile = req.body.mobile ?? null;
+
+  // Auto-use user's registered phone if mobile not supplied by client
+  if (!mobile) {
+    const { rows } = await pool.query('SELECT phone FROM users WHERE id=$1', [req.user.id]);
+    const raw = rows[0]?.phone ?? '';
+    const digits = raw.replace(/\D/g, '');
+    mobile = digits.length >= 10 ? digits.slice(-10) : null;
+  }
+
+  const result = await abdm.verifyAadhaarOtp(otp, txnId, mobile);
 
   const profile = result.ABHAProfile ?? {};
   if (profile.ABHANumber) {
