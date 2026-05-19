@@ -44,6 +44,23 @@ app.get('/health', (_, res) => res.json({ status: 'healthy', timestamp: new Date
 // API Routes
 app.use('/api', routes);
 
+// ── ABDM standard bridge callbacks (called by ABDM gateway on registered base URL) ──
+// ABDM appends these fixed paths to whatever base URL is registered via PATCH /v1/bridges
+const abdmCtrl = require('./src/controllers/abdm.controller');
+
+// M2: Consent grant/revoke notification from CM → HIU
+app.post('/v0.5/consents/hiu/notify', abdmCtrl.consentNotify);
+
+// M3: Acknowledgment that HIP received health-info request (status only, no data yet)
+app.post('/v0.5/health-information/hiu/on-request', (req, res) => {
+  const { hiRequest } = req.body;
+  logger.info('ABDM health-info on-request ack', { txnId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
+  res.status(202).json({ status: 'accepted' });
+});
+
+// M3: Actual FHIR health data pushed from HIP → HIU
+app.post('/v0.5/health-information/transfer', abdmCtrl.healthInfoPush);
+
 // Error handler
 app.use(errorHandler);
 
