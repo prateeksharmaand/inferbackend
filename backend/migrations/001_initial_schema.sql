@@ -248,12 +248,12 @@ CREATE INDEX IF NOT EXISTS idx_notifications_scheduled ON notifications(schedule
 -- ================================================
 INSERT INTO vital_thresholds (profile_id, vital_type, min_normal, max_normal, min_critical, max_critical, is_custom)
 VALUES
-  (NULL, 'systolic', 90, 120, 70, 180),
-  (NULL, 'diastolic', 60, 80, 40, 120),
-  (NULL, 'heart_rate', 60, 100, 40, 150),
-  (NULL, 'spo2', 95, 100, 88, NULL),
-  (NULL, 'temperature', 36.1, 37.2, 35.0, 40.0),
-  (NULL, 'glucose_fasting', 70, 100, 55, 300),
-  (NULL, 'glucose_post_meal', 70, 140, 55, 300),
-  (NULL, 'weight_kg', 40, 120, 30, 200)
+  (NULL, 'systolic',         90,   120,  70,   180,  FALSE),
+  (NULL, 'diastolic',        60,   80,   40,   120,  FALSE),
+  (NULL, 'heart_rate',       60,   100,  40,   150,  FALSE),
+  (NULL, 'spo2',             95,   100,  88,   NULL, FALSE),
+  (NULL, 'temperature',      36.1, 37.2, 35.0, 40.0, FALSE),
+  (NULL, 'glucose_fasting',  70,   100,  55,   300,  FALSE),
+  (NULL, 'glucose_post_meal',70,   140,  55,   300,  FALSE),
+  (NULL, 'weight_kg',        40,   120,  30,   200,  FALSE)
 ON CONFLICT DO NOTHING;

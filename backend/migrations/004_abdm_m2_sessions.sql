@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS discover_sessions (
   id             SERIAL PRIMARY KEY,
-  user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id        UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   request_id     VARCHAR(64) UNIQUE NOT NULL,
   transaction_id VARCHAR(64),
   hip_id         VARCHAR(128) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS discover_sessions (
 
 CREATE TABLE IF NOT EXISTS link_sessions (
   id                 SERIAL PRIMARY KEY,
-  user_id            INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id            UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   request_id         VARCHAR(64) UNIQUE NOT NULL,
   confirm_request_id VARCHAR(64) UNIQUE,
   transaction_id     VARCHAR(64),
