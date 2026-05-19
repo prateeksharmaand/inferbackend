@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS risk_predictions (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  user_id      UUID REFERENCES users(id) ON DELETE CASCADE,
   score        INTEGER NOT NULL DEFAULT 0,
   level        VARCHAR(20) NOT NULL DEFAULT 'low',
   factors      JSONB DEFAULT '[]',
