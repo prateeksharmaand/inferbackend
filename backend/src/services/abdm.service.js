@@ -155,20 +155,20 @@ async function verifyAadhaarOtp(otp, txnId, mobile) {
 
 // ─── M1: Enrollment via Mobile ───────────────────────────────────────────────
 
-async function generateMobileOtp(mobile) {
+async function generateMobileLoginOtp(mobile) {
   const encryptedId = await rsaEncrypt(mobile);
-  return abhaReq('POST', `${ABHA_BASE}/enrollment/request/otp`, {
-    scope: ['abha-enrol'],
+  return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
+    scope: ['profile'],
     loginHint: 'mobile',
     loginId: encryptedId,
     otpSystem: 'abdm',
   });
 }
 
-async function verifyMobileOtp(otp, txnId, mobile) {
+async function verifyMobileLoginOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
-  return abhaReq('POST', `${ABHA_BASE}/enrollment/auth/byAbdm`, {
-    scope: ['abha-enrol'],
+  return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
+    scope: ['profile'],
     authData: {
       authMethods: ['otp'],
       otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
@@ -300,9 +300,9 @@ function uuid() {
 
 module.exports = {
   getGatewayToken,
-  generateAadhaarOtp, verifyAadhaarOtp,
-  generateMobileOtp,  verifyMobileOtp,
-  loginRequestOtp,    loginVerifyOtp,
+  generateAadhaarOtp,     verifyAadhaarOtp,
+  generateMobileLoginOtp, verifyMobileLoginOtp,
+  loginRequestOtp,        loginVerifyOtp,
   getAbhaProfile,     getAbhaPngCard,
   discoverCareContexts, linkCareContexts,
   createConsentRequest, fetchHealthInfo,

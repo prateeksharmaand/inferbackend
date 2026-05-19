@@ -57,13 +57,21 @@ const mobileGenerateOtp = async (req, res) => {
   if (!mobile || !/^\d{10}$/.test(mobile))
     return res.status(400).json({ error: 'Mobile must be 10 digits' });
 
-  const result = await abdm.generateMobileOtp(mobile);
+  const result = await abdm.generateMobileLoginOtp(mobile);
   res.json({ txnId: result.txnId, message: 'OTP sent to your mobile' });
 };
 
 const mobileVerifyOtp = async (req, res) => {
-  const { otp, txnId, mobile } = req.body;
-  const result = await abdm.verifyMobileOtp(otp, txnId, mobile);
+  const { otp, txnId } = req.body;
+  const result = await abdm.verifyMobileLoginOtp(otp, txnId);
+
+  if (result.token) {
+    await pool.query(
+      `UPDATE abha_accounts SET x_token=$1, x_refresh_token=$2, updated_at=NOW()
+       WHERE user_id=$3`,
+      [result.token.token, result.token.refreshToken, req.user.id]
+    );
+  }
   res.json(result);
 };
 
