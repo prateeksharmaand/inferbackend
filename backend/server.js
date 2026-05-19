@@ -38,6 +38,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static files (encrypted uploads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// EMR web UI + API
+app.use('/emr', express.static(path.join(__dirname, 'public/emr')));
+app.use('/api/emr', require('./src/emr/emr.routes'));
+
 // Health check
 app.get('/health', (_, res) => res.json({ status: 'healthy', timestamp: new Date().toISOString(), version: process.env.npm_package_version || '1.0.0' }));
 
@@ -47,6 +51,17 @@ app.use('/api', routes);
 // ── ABDM standard bridge callbacks (called by ABDM gateway on registered base URL) ──
 // ABDM appends these fixed paths to whatever base URL is registered via PATCH /v1/bridges
 const abdmCtrl = require('./src/controllers/abdm.controller');
+const hipCtrl  = require('./src/emr/hip.controller');
+
+// ── HIU callbacks (gateway → our app acting as HIU) ──────────────────────────
+// M2: Discover care contexts result
+app.post('/v0.5/care-contexts/on-discover', abdmCtrl.onDiscover);
+
+// M2: Link init result (linkRefNumber returned)
+app.post('/v0.5/links/link/on-init', abdmCtrl.onLinkInit);
+
+// M2: Link confirm result (care contexts confirmed)
+app.post('/v0.5/links/link/on-confirm', abdmCtrl.onLinkConfirm);
 
 // M2: Consent grant/revoke notification from CM → HIU
 app.post('/v0.5/consents/hiu/notify', abdmCtrl.consentNotify);
@@ -60,6 +75,12 @@ app.post('/v0.5/health-information/hiu/on-request', (req, res) => {
 
 // M3: Actual FHIR health data pushed from HIP → HIU
 app.post('/v0.5/health-information/transfer', abdmCtrl.healthInfoPush);
+
+// ── HIP callbacks (gateway → our EMR acting as HIP) ──────────────────────────
+app.post('/v0.5/care-contexts/discover',            hipCtrl.handleDiscovery);
+app.post('/v0.5/links/link/init',                   hipCtrl.handleLinkInit);
+app.post('/v0.5/links/link/confirm',                hipCtrl.handleLinkConfirm);
+app.post('/v0.5/health-information/hip/request',    hipCtrl.handleHealthInfoRequest);
 
 // Error handler
 app.use(errorHandler);

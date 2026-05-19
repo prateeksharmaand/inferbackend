@@ -1,0 +1,183 @@
+const { pool }  = require('../config/database');
+const logger    = require('../utils/logger');
+const hip       = require('./hip.service');
+
+// ── ABDM gateway → HIP: care-context discovery ───────────────────────────────
+
+const handleDiscovery = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const { requestId, transactionId, patient } = req.body;
+    logger.info('HIP discover request', { requestId, transactionId, patientId: patient?.id });
+
+    // Match patient by ABHA address, then mobile, then name
+    let rows = [];
+    if (patient?.id) {
+      ({ rows } = await pool.query(
+        `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
+        [patient.id]
+      ));
+    }
+    if (!rows.length && patient?.verifiedIdentifiers?.length) {
+      const mobiles = patient.verifiedIdentifiers
+        .filter(i => i.type === 'MOBILE')
+        .map(i => i.value);
+      if (mobiles.length) {
+        ({ rows } = await pool.query(
+          `SELECT * FROM emr_patients WHERE mobile = ANY($1) LIMIT 1`,
+          [mobiles]
+        ));
+      }
+    }
+
+    if (!rows.length) {
+      await hip.sendDiscoverResult({ requestId, transactionId, patientId: null, careContexts: [] });
+      return;
+    }
+
+    const pt = rows[0];
+    const { rows: ctxRows } = await pool.query(
+      `SELECT * FROM emr_care_contexts WHERE patient_id=$1 ORDER BY created_at DESC`,
+      [pt.id]
+    );
+
+    await hip.sendDiscoverResult({
+      requestId,
+      transactionId,
+      patientId: pt.abha_address ?? pt.abha_number ?? `${pt.id}@hip`,
+      careContexts: ctxRows,
+    });
+    logger.info('HIP discover: matched patient', { name: pt.name, contexts: ctxRows.length });
+  } catch (err) {
+    logger.error('handleDiscovery error', err);
+  }
+};
+
+// ── ABDM gateway → HIP: link init (generate OTP) ─────────────────────────────
+
+const handleLinkInit = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const { requestId, transactionId, patient } = req.body;
+    logger.info('HIP link/init', { requestId, transactionId, patientId: patient?.id });
+
+    // Find patient
+    const { rows } = await pool.query(
+      `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
+      [patient?.id ?? '']
+    );
+    const pt = rows[0] ?? null;
+
+    const otp           = String(Math.floor(100000 + Math.random() * 900000));
+    const linkRefNumber = hip.uuid();
+    const expiresAt     = new Date(Date.now() + 10 * 60 * 1000);
+
+    await pool.query(
+      `INSERT INTO hip_link_sessions
+         (patient_id, transaction_id, request_id, care_contexts, otp, otp_expires_at, link_ref_number)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [pt?.id ?? null, transactionId, requestId,
+       JSON.stringify(patient?.careContexts ?? []),
+       otp, expiresAt, linkRefNumber]
+    );
+
+    logger.info('HIP OTP generated', { otp, linkRefNumber, patient: patient?.id });
+
+    await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber });
+  } catch (err) {
+    logger.error('handleLinkInit error', err);
+  }
+};
+
+// ── ABDM gateway → HIP: link confirm (verify OTP) ────────────────────────────
+
+const handleLinkConfirm = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const { requestId, transactionId, confirmation } = req.body;
+    const { linkRefNumber, token: submittedOtp } = confirmation ?? {};
+    logger.info('HIP link/confirm', { requestId, linkRefNumber });
+
+    const { rows } = await pool.query(
+      `SELECT * FROM hip_link_sessions WHERE link_ref_number=$1`,
+      [linkRefNumber]
+    );
+    if (!rows.length) {
+      logger.warn('HIP: link session not found', { linkRefNumber });
+      return;
+    }
+    const session = rows[0];
+
+    if (session.status !== 'pending_otp') {
+      logger.warn('HIP: link already processed', { linkRefNumber, status: session.status });
+      return;
+    }
+    if (new Date() > new Date(session.otp_expires_at)) {
+      await pool.query(`UPDATE hip_link_sessions SET status='expired' WHERE id=$1`, [session.id]);
+      logger.warn('HIP: OTP expired', { linkRefNumber });
+      return;
+    }
+    if (session.otp !== submittedOtp) {
+      logger.warn('HIP: OTP mismatch', { expected: session.otp, got: submittedOtp });
+      return;
+    }
+
+    await pool.query(`UPDATE hip_link_sessions SET status='confirmed' WHERE id=$1`, [session.id]);
+
+    const careContexts = session.care_contexts ?? [];
+    const ptId = session.patient_id
+      ? (await pool.query(`SELECT abha_address, abha_number, id FROM emr_patients WHERE id=$1`, [session.patient_id]))
+          .rows[0]
+      : null;
+    const patientRef = ptId?.abha_address ?? ptId?.abha_number ?? `${ptId?.id}@hip`;
+
+    await hip.sendLinkConfirmResult({ requestId, patientId: patientRef, careContexts });
+    logger.info('HIP link confirmed', { linkRefNumber, contexts: careContexts.length });
+  } catch (err) {
+    logger.error('handleLinkConfirm error', err);
+  }
+};
+
+// ── ABDM gateway → HIP: health information request ───────────────────────────
+
+const handleHealthInfoRequest = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const { transactionId, hiRequest } = req.body;
+    const consentId  = hiRequest?.consent?.id;
+    const dataPushUrl = hiRequest?.dataPushUrl;
+    const keyMaterial = hiRequest?.keyMaterial;
+    logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl });
+
+    await pool.query(
+      `INSERT INTO hip_health_requests (transaction_id, consent_id, data_push_url, key_material)
+       VALUES ($1,$2,$3,$4) ON CONFLICT (transaction_id) DO NOTHING`,
+      [transactionId, consentId, dataPushUrl, JSON.stringify(keyMaterial ?? {})]
+    );
+
+    // Find all care contexts for this HIP and push them
+    const { rows } = await pool.query(
+      `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
+       FROM emr_care_contexts ecc
+       JOIN emr_patients ep ON ep.id = ecc.patient_id
+       ORDER BY ecc.created_at DESC LIMIT 50`
+    );
+
+    if (!rows.length) {
+      logger.warn('HIP health-info: no care contexts to push');
+      await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
+      return;
+    }
+
+    // Group by first patient for simplicity
+    const patient = { name: rows[0].name, mobile: rows[0].mobile, dob: rows[0].dob, gender: rows[0].gender };
+    await hip.pushHealthData({ dataPushUrl, transactionId, careContexts: rows, patient, keyMaterial });
+    await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
+  } catch (err) {
+    logger.error('handleHealthInfoRequest error', err);
+    await pool.query(`UPDATE hip_health_requests SET status='failed' WHERE transaction_id=$1`,
+      [req.body?.transactionId]).catch(() => {});
+  }
+};
+
+module.exports = { handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest };

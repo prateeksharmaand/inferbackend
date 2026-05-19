@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EMR — ABDM Test HIP</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+  :root { --accent: #7B6EF6; }
+  body { background: #f5f4ff; font-family: 'Segoe UI', sans-serif; }
+  .sidebar { width: 220px; min-height: 100vh; background: #fff; border-right: 1px solid #eee; position: fixed; top: 0; left: 0; }
+  .sidebar .brand { padding: 20px 16px 12px; font-weight: 700; font-size: 15px; color: var(--accent); border-bottom: 1px solid #eee; }
+  .sidebar .brand small { display: block; color: #999; font-weight: 400; font-size: 11px; }
+  .sidebar .nav-link { color: #555; padding: 9px 16px; border-radius: 8px; margin: 2px 8px; font-size: 14px; }
+  .sidebar .nav-link.active, .sidebar .nav-link:hover { background: #f0eeff; color: var(--accent); }
+  .sidebar .nav-link i { margin-right: 8px; }
+  .main { margin-left: 220px; padding: 24px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .card { border: none; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .badge-hitype { font-size: 11px; padding: 3px 8px; border-radius: 20px; }
+  .otp-badge { font-size: 22px; font-weight: 700; color: var(--accent); letter-spacing: 6px; }
+  .pulse { animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .table th { font-weight: 600; font-size: 13px; color: #666; }
+  .btn-accent { background: var(--accent); color: #fff; border: none; }
+  .btn-accent:hover { background: #6a5ce0; color: #fff; }
+  .activity-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  #otp-panel { position: fixed; bottom: 20px; right: 20px; width: 320px; z-index: 9999; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar d-flex flex-column">
+  <div class="brand">
+    <i class="bi bi-hospital"></i> EMR Test HIP
+    <small>ABDM Sandbox</small>
+  </div>
+  <ul class="nav flex-column mt-2 px-1">
+    <li class="nav-item"><a class="nav-link active" href="#" data-page="patients"><i class="bi bi-people"></i>Patients</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" data-page="otps"><i class="bi bi-shield-lock"></i>Pending OTPs <span id="otp-count" class="badge bg-danger ms-1 d-none">0</span></a></li>
+    <li class="nav-item"><a class="nav-link" href="#" data-page="health-reqs"><i class="bi bi-activity"></i>Health Requests</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" data-page="activity"><i class="bi bi-clock-history"></i>Activity Log</a></li>
+    <li class="nav-item mt-auto"><a class="nav-link" href="#" data-page="setup"><i class="bi bi-gear"></i>HIP Setup Guide</a></li>
+  </ul>
+</nav>
+
+<!-- Main content -->
+<div class="main">
+
+<!-- ── Patients page ──────────────────────────────────────────────────────── -->
+<div id="page-patients" class="page active">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0">Patients</h5>
+    <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#addPatientModal">
+      <i class="bi bi-person-plus me-1"></i>Add Patient
+    </button>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0" id="patients-table">
+        <thead class="table-light"><tr>
+          <th>Name</th><th>Mobile</th><th>ABHA</th><th>Gender</th><th>Records</th><th></th>
+        </tr></thead>
+        <tbody id="patients-tbody"><tr><td colspan="6" class="text-center py-4 text-muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Patient detail page ────────────────────────────────────────────────── -->
+<div id="page-patient-detail" class="page">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <button class="btn btn-sm btn-outline-secondary" onclick="showPage('patients')"><i class="bi bi-arrow-left"></i></button>
+    <h5 class="fw-bold mb-0" id="detail-name">Patient</h5>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-5">
+      <div class="card h-100">
+        <div class="card-body">
+          <h6 class="fw-bold text-muted mb-3">Patient Info</h6>
+          <div id="patient-info"></div>
+          <button class="btn btn-outline-primary btn-sm mt-3" onclick="editPatientModal()"><i class="bi bi-pencil me-1"></i>Edit</button>
+          <button class="btn btn-outline-danger btn-sm mt-3 ms-2" onclick="deleteCurrentPatient()"><i class="bi bi-trash me-1"></i>Delete</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold text-muted mb-0">Care Contexts</h6>
+            <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#addCtxModal">
+              <i class="bi bi-plus-circle me-1"></i>Add Record
+            </button>
+          </div>
+          <div id="care-contexts-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Pending OTPs page ──────────────────────────────────────────────────── -->
+<div id="page-otps" class="page">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0">Pending OTPs <span class="fs-6 fw-normal text-muted">(auto-refreshes every 5s)</span></h5>
+    <button class="btn btn-outline-secondary btn-sm" onclick="loadOtps()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+  </div>
+  <div id="otps-container">
+    <div class="text-center py-5 text-muted"><i class="bi bi-shield-check fs-1"></i><br>No pending OTPs</div>
+  </div>
+</div>
+
+<!-- ── Health requests page ───────────────────────────────────────────────── -->
+<div id="page-health-reqs" class="page">
+  <h5 class="fw-bold mb-3">Health Information Requests</h5>
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light"><tr><th>Transaction ID</th><th>Consent ID</th><th>Status</th><th>Time</th></tr></thead>
+        <tbody id="health-reqs-tbody"><tr><td colspan="4" class="text-center py-4 text-muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Activity log page ──────────────────────────────────────────────────── -->
+<div id="page-activity" class="page">
+  <h5 class="fw-bold mb-3">Activity Log</h5>
+  <div class="card">
+    <div class="card-body" id="activity-list">Loading…</div>
+  </div>
+</div>
+
+<!-- ── Setup guide page ───────────────────────────────────────────────────── -->
+<div id="page-setup" class="page">
+  <h5 class="fw-bold mb-3">HIP Setup Guide</h5>
+  <div class="card">
+    <div class="card-body">
+      <h6 class="fw-bold">Step 1 — Register HIP at ABDM Sandbox</h6>
+      <p>Go to <a href="https://sandbox.abdm.gov.in" target="_blank">sandbox.abdm.gov.in</a> → Developer Console → Register as HIP.</p>
+      <p>Set the <strong>HIP callback base URL</strong> to your backend URL and ABDM will call:</p>
+      <pre class="bg-light p-3 rounded"><code id="hip-urls">Loading backend URL…</code></pre>
+
+      <h6 class="fw-bold mt-4">Step 2 — Add ABDM_HIP_ID to .env</h6>
+      <pre class="bg-light p-3 rounded"><code>ABDM_HIP_ID=your-registered-hip-id</code></pre>
+
+      <h6 class="fw-bold mt-4">Step 3 — Run DB migration</h6>
+      <pre class="bg-light p-3 rounded"><code>npm run migrate</code></pre>
+
+      <h6 class="fw-bold mt-4">Step 4 — Test M2 End-to-End</h6>
+      <ol>
+        <li>Add a patient here with the same mobile/ABHA as your PHR app account</li>
+        <li>Add some care contexts (OPConsultation, Prescription, etc.)</li>
+        <li>In the PHR Flutter app → ABDM → Link Records → Discover Records</li>
+        <li>Enter the HIP ID registered with ABDM</li>
+        <li>Your patient's care contexts will appear in the app</li>
+        <li>Select and tap Link — this page will show the OTP</li>
+        <li>Enter the OTP in the Flutter app</li>
+        <li>Records are now linked!</li>
+      </ol>
+
+      <h6 class="fw-bold mt-4">Step 5 — Test M3 Health Data Exchange</h6>
+      <ol>
+        <li>In PHR app → Consents → Create consent request (use your HIP ID as HIU ID)</li>
+        <li>ABDM will call your HIU notification endpoint when granted</li>
+        <li>Your PHR app will automatically request and display the FHIR data</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- ── Floating OTP notification panel ───────────────────────────────────── -->
+<div id="otp-panel"></div>
+
+<!-- ── Add Patient Modal ─────────────────────────────────────────────────── -->
+<div class="modal fade" id="addPatientModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title fw-bold">Add Patient</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><label class="form-label fw-semibold">Full Name *</label><input class="form-control" id="pt-name"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">Mobile</label><input class="form-control" id="pt-mobile" placeholder="10 digits"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">Date of Birth</label><input class="form-control" type="date" id="pt-dob"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">Gender</label>
+          <select class="form-select" id="pt-gender"><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option></select>
+        </div>
+        <div class="mb-2"><label class="form-label fw-semibold">ABHA Number</label><input class="form-control" id="pt-abha-num" placeholder="12-3456-7890-1234"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">ABHA Address</label><input class="form-control" id="pt-abha-addr" placeholder="name@abdm"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-accent" onclick="savePatient()">Save Patient</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Patient Modal ─────────────────────────────────────────────────── -->
+<div class="modal fade" id="editPatientModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title fw-bold">Edit Patient</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-pt-id">
+        <div class="mb-2"><label class="form-label fw-semibold">Full Name</label><input class="form-control" id="edit-pt-name"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">Mobile</label><input class="form-control" id="edit-pt-mobile"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">Date of Birth</label><input class="form-control" type="date" id="edit-pt-dob"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">Gender</label>
+          <select class="form-select" id="edit-pt-gender"><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option></select>
+        </div>
+        <div class="mb-2"><label class="form-label fw-semibold">ABHA Number</label><input class="form-control" id="edit-pt-abha-num"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">ABHA Address</label><input class="form-control" id="edit-pt-abha-addr"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-accent" onclick="updatePatient()">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Care Context Modal ─────────────────────────────────────────────── -->
+<div class="modal fade" id="addCtxModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title fw-bold">Add Care Context</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><label class="form-label fw-semibold">Display Name *</label><input class="form-control" id="ctx-display" placeholder="e.g. OPD Visit 19-May-2026"></div>
+        <div class="mb-2"><label class="form-label fw-semibold">Record Type</label>
+          <select class="form-select" id="ctx-hitype">
+            <option>OPConsultation</option>
+            <option>Prescription</option>
+            <option>DiagnosticReport</option>
+            <option>DischargeSummary</option>
+            <option>ImmunizationRecord</option>
+            <option>WellnessRecord</option>
+          </select>
+        </div>
+        <div class="mb-2"><label class="form-label fw-semibold">FHIR Content (optional JSON)</label>
+          <textarea class="form-control font-monospace" id="ctx-fhir" rows="4" placeholder='{"resourceType":"Bundle","type":"document",...}'></textarea>
+          <small class="text-muted">Leave blank to auto-generate a minimal FHIR bundle.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-accent" onclick="saveCareContext()">Add Record</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/emr';
+let currentPatientId = null;
+let prevOtpIds = new Set();
+let otpInterval = null;
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelector(`[data-page="${name}"]`)?.classList.add('active');
+  if (name === 'patients')     loadPatients();
+  if (name === 'otps')         loadOtps();
+  if (name === 'health-reqs')  loadHealthReqs();
+  if (name === 'activity')     loadActivity();
+  if (name === 'setup')        loadSetup();
+}
+document.querySelectorAll('[data-page]').forEach(el =>
+  el.addEventListener('click', e => { e.preventDefault(); showPage(el.dataset.page); })
+);
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const r = await fetch(API + path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'API error'); }
+  return r.json();
+}
+
+function toast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+  t.style.zIndex = 9999; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ── Patients ──────────────────────────────────────────────────────────────────
+const HI_COLORS = { OPConsultation: 'warning', Prescription: 'info', DiagnosticReport: 'primary', DischargeSummary: 'secondary', ImmunizationRecord: 'success', WellnessRecord: 'danger' };
+
+async function loadPatients() {
+  const tbody = document.getElementById('patients-tbody');
+  try {
+    const pts = await api('GET', '/patients');
+    if (!pts.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">No patients yet. Add one!</td></tr>'; return; }
+    tbody.innerHTML = pts.map(p => `
+      <tr style="cursor:pointer" onclick="openPatient(${p.id})">
+        <td class="fw-semibold">${esc(p.name)}</td>
+        <td>${esc(p.mobile||'—')}</td>
+        <td><span class="text-muted" style="font-size:12px">${esc(p.abha_address||p.abha_number||'—')}</span></td>
+        <td>${p.gender==='M'?'Male':p.gender==='F'?'Female':'Other'}</td>
+        <td><span class="badge bg-light text-dark">${p.context_count} record(s)</span></td>
+        <td><button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();openPatient(${p.id})"><i class="bi bi-chevron-right"></i></button></td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="text-danger p-3">${e.message}</td></tr>`; }
+}
+
+async function openPatient(id) {
+  currentPatientId = id;
+  showPage('patient-detail');
+  try {
+    const p = await api('GET', `/patients/${id}`);
+    document.getElementById('detail-name').textContent = p.name;
+    document.getElementById('patient-info').innerHTML = `
+      <dl class="row mb-0">
+        <dt class="col-5 text-muted">Mobile</dt><dd class="col-7">${esc(p.mobile||'—')}</dd>
+        <dt class="col-5 text-muted">Date of Birth</dt><dd class="col-7">${p.dob ? new Date(p.dob).toLocaleDateString() : '—'}</dd>
+        <dt class="col-5 text-muted">Gender</dt><dd class="col-7">${p.gender==='M'?'Male':p.gender==='F'?'Female':'Other'}</dd>
+        <dt class="col-5 text-muted">ABHA Number</dt><dd class="col-7 small">${esc(p.abha_number||'—')}</dd>
+        <dt class="col-5 text-muted">ABHA Address</dt><dd class="col-7 small">${esc(p.abha_address||'—')}</dd>
+      </dl>`;
+    const ctxList = document.getElementById('care-contexts-list');
+    if (!p.care_contexts.length) {
+      ctxList.innerHTML = '<p class="text-muted text-center py-3">No records yet</p>';
+    } else {
+      ctxList.innerHTML = p.care_contexts.map(c => `
+        <div class="d-flex align-items-center justify-content-between p-2 mb-2 bg-light rounded">
+          <div>
+            <span class="badge badge-hitype bg-${HI_COLORS[c.hi_type]||'secondary'} me-2">${c.hi_type}</span>
+            <span class="fw-semibold small">${esc(c.display)}</span>
+            <div class="text-muted" style="font-size:11px">${c.reference_number} · ${new Date(c.created_at).toLocaleDateString()}</div>
+          </div>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteCareCtx(${id},${c.id})"><i class="bi bi-trash"></i></button>
+        </div>`).join('');
+    }
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+async function savePatient() {
+  try {
+    await api('POST', '/patients', {
+      name: val('pt-name'), mobile: val('pt-mobile'), dob: val('pt-dob'),
+      gender: val('pt-gender'), abha_number: val('pt-abha-num'), abha_address: val('pt-abha-addr'),
+    });
+    bootstrap.Modal.getInstance(document.getElementById('addPatientModal')).hide();
+    ['pt-name','pt-mobile','pt-dob','pt-abha-num','pt-abha-addr'].forEach(id => document.getElementById(id).value='');
+    toast('Patient added'); loadPatients();
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+function editPatientModal() {
+  api('GET', `/patients/${currentPatientId}`).then(p => {
+    document.getElementById('edit-pt-id').value = p.id;
+    document.getElementById('edit-pt-name').value = p.name;
+    document.getElementById('edit-pt-mobile').value = p.mobile || '';
+    document.getElementById('edit-pt-dob').value = p.dob ? p.dob.slice(0,10) : '';
+    document.getElementById('edit-pt-gender').value = p.gender || 'M';
+    document.getElementById('edit-pt-abha-num').value = p.abha_number || '';
+    document.getElementById('edit-pt-abha-addr').value = p.abha_address || '';
+    new bootstrap.Modal(document.getElementById('editPatientModal')).show();
+  });
+}
+
+async function updatePatient() {
+  const id = document.getElementById('edit-pt-id').value;
+  try {
+    await api('PATCH', `/patients/${id}`, {
+      name: val('edit-pt-name'), mobile: val('edit-pt-mobile'), dob: val('edit-pt-dob'),
+      gender: val('edit-pt-gender'), abha_number: val('edit-pt-abha-num'), abha_address: val('edit-pt-abha-addr'),
+    });
+    bootstrap.Modal.getInstance(document.getElementById('editPatientModal')).hide();
+    toast('Patient updated'); openPatient(id);
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+async function deleteCurrentPatient() {
+  if (!confirm('Delete this patient and all their records?')) return;
+  await api('DELETE', `/patients/${currentPatientId}`);
+  toast('Patient deleted'); showPage('patients');
+}
+
+async function saveCareContext() {
+  try {
+    await api('POST', `/patients/${currentPatientId}/care-contexts`, {
+      display: val('ctx-display'),
+      hi_type: val('ctx-hitype'),
+      fhir_content: val('ctx-fhir') || null,
+    });
+    bootstrap.Modal.getInstance(document.getElementById('addCtxModal')).hide();
+    document.getElementById('ctx-display').value = '';
+    document.getElementById('ctx-fhir').value = '';
+    toast('Record added'); openPatient(currentPatientId);
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+async function deleteCareCtx(patId, ctxId) {
+  if (!confirm('Delete this care context?')) return;
+  await api('DELETE', `/patients/${patId}/care-contexts/${ctxId}`);
+  toast('Deleted'); openPatient(patId);
+}
+
+// ── OTPs ─────────────────────────────────────────────────────────────────────
+async function loadOtps() {
+  const container = document.getElementById('otps-container');
+  try {
+    const otps = await api('GET', '/pending-otps');
+    const countBadge = document.getElementById('otp-count');
+    if (!otps.length) {
+      container.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-shield-check fs-1"></i><br>No pending OTPs</div>';
+      countBadge.classList.add('d-none');
+      // Clear floating notifications
+      document.getElementById('otp-panel').innerHTML = '';
+      return;
+    }
+    countBadge.textContent = otps.length;
+    countBadge.classList.remove('d-none');
+
+    container.innerHTML = otps.map(o => `
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-bold">${esc(o.patient_name || 'Unknown patient')}</div>
+              <div class="text-muted small">${esc(o.patient_mobile||'')} · ${new Date(o.created_at).toLocaleString()}</div>
+              <div class="text-muted small">Link ref: <code>${o.link_ref_number}</code></div>
+              <div class="text-muted small">Care contexts: ${(o.care_contexts||[]).length}</div>
+            </div>
+            <div class="text-end">
+              <div class="text-muted small mb-1">OTP (enter in PHR app)</div>
+              <div class="otp-badge">${o.otp}</div>
+              <div class="text-danger small mt-1">Expires: ${new Date(o.otp_expires_at).toLocaleTimeString()}</div>
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+
+    // Floating notification for newly arrived OTPs
+    const newOtps = otps.filter(o => !prevOtpIds.has(o.id));
+    newOtps.forEach(o => {
+      prevOtpIds.add(o.id);
+      const n = document.createElement('div');
+      n.className = 'card mb-2 border-0 shadow';
+      n.innerHTML = `<div class="card-body p-3">
+        <div class="fw-bold text-success"><i class="bi bi-bell-fill me-1"></i>New OTP Request</div>
+        <div class="small text-muted">${esc(o.patient_name||'Unknown')}</div>
+        <div class="otp-badge">${o.otp}</div>
+      </div>`;
+      document.getElementById('otp-panel').prepend(n);
+      setTimeout(() => n.remove(), 30000);
+    });
+  } catch(e) { container.innerHTML = `<div class="text-danger p-3">${e.message}</div>`; }
+}
+
+// ── Health requests ───────────────────────────────────────────────────────────
+async function loadHealthReqs() {
+  const tbody = document.getElementById('health-reqs-tbody');
+  try {
+    const reqs = await api('GET', '/health-requests');
+    if (!reqs.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No requests yet</td></tr>'; return; }
+    tbody.innerHTML = reqs.map(r => `
+      <tr>
+        <td class="small font-monospace">${r.transaction_id?.slice(0,16)}…</td>
+        <td class="small">${r.consent_id?.slice(0,16)||'—'}…</td>
+        <td><span class="badge bg-${r.status==='sent'?'success':r.status==='failed'?'danger':'warning'}">${r.status}</span></td>
+        <td class="small">${new Date(r.created_at).toLocaleString()}</td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="4" class="text-danger p-3">${e.message}</td></tr>`; }
+}
+
+// ── Activity ──────────────────────────────────────────────────────────────────
+async function loadActivity() {
+  const el = document.getElementById('activity-list');
+  try {
+    const items = await api('GET', '/activity');
+    if (!items.length) { el.innerHTML = '<p class="text-muted text-center py-3">No activity yet</p>'; return; }
+    el.innerHTML = items.map(i => `
+      <div class="d-flex align-items-center gap-3 py-2 border-bottom">
+        <span class="activity-dot bg-${i.type==='link'?'primary':'success'}"></span>
+        <div class="flex-grow-1">
+          <span class="fw-semibold small">${i.type === 'link' ? 'Link Request' : 'Health Info Request'}</span>
+          <span class="badge bg-${i.status==='confirmed'||i.status==='sent'?'success':i.status==='expired'||i.status==='failed'?'danger':'warning'} ms-2">${i.status}</span>
+          ${i.ctx_count!=null?`<span class="text-muted small ms-2">${i.ctx_count} context(s)</span>`:''}
+        </div>
+        <span class="text-muted small">${new Date(i.created_at).toLocaleString()}</span>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = `<p class="text-danger">${e.message}</p>`; }
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+function loadSetup() {
+  const base = window.location.origin;
+  document.getElementById('hip-urls').textContent =
+`HIP discovery:   POST ${base}/v0.5/care-contexts/discover
+HIP link init:   POST ${base}/v0.5/links/link/init
+HIP link confirm: POST ${base}/v0.5/links/link/confirm
+HIP health info:  POST ${base}/v0.5/health-information/hip/request
+
+HIU on-discover: POST ${base}/v0.5/care-contexts/on-discover
+HIU on-init:     POST ${base}/v0.5/links/link/on-init
+HIU on-confirm:  POST ${base}/v0.5/links/link/on-confirm
+HIU consent:     POST ${base}/v0.5/consents/hiu/notify
+HIU health push: POST ${base}/v0.5/health-information/transfer`;
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function val(id) { return document.getElementById(id)?.value?.trim() || null; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Auto-refresh OTPs ─────────────────────────────────────────────────────────
+otpInterval = setInterval(async () => {
+  // Poll OTPs in background, show floating notification
+  try {
+    const otps = await api('GET', '/pending-otps');
+    const countBadge = document.getElementById('otp-count');
+    if (otps.length) {
+      countBadge.textContent = otps.length;
+      countBadge.classList.remove('d-none');
+      otps.filter(o => !prevOtpIds.has(o.id)).forEach(o => {
+        prevOtpIds.add(o.id);
+        const n = document.createElement('div');
+        n.className = 'card mb-2 border-0 shadow';
+        n.innerHTML = `<div class="card-body p-3">
+          <div class="fw-bold text-success"><i class="bi bi-bell-fill me-1"></i>New OTP Request!</div>
+          <div class="small text-muted">${esc(o.patient_name||'Unknown')}</div>
+          <div class="otp-badge pulse">${o.otp}</div>
+          <div class="small mt-1"><a href="#" onclick="showPage('otps')">View all OTPs</a></div>
+        </div>`;
+        document.getElementById('otp-panel').prepend(n);
+        setTimeout(() => n.remove(), 30000);
+      });
+    } else {
+      countBadge.classList.add('d-none');
+    }
+    // If currently on OTP page, refresh
+    if (document.getElementById('page-otps').classList.contains('active')) loadOtps();
+  } catch(_) {}
+}, 5000);
+
+// Initial load
+loadPatients();
+</script>
+</body>
+</html>
