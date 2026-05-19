@@ -1,4 +1,5 @@
-const axios = require('axios');
+const axios  = require('axios');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 
 const ABDM_GATEWAY = process.env.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in/gateway';
@@ -8,6 +9,9 @@ const CLIENT_SECRET = process.env.ABDM_CLIENT_SECRET;
 
 let _accessToken = null;
 let _tokenExpiry  = 0;
+
+let _abhaPubKey       = null;
+let _abhaPubKeyExpiry = 0;
 
 async function getGatewayToken() {
   if (_accessToken && Date.now() < _tokenExpiry) return _accessToken;
@@ -19,11 +23,45 @@ async function getGatewayToken() {
   );
 
   _accessToken = res.data.accessToken;
-  // expiresIn is in seconds; refresh 30 s early
   _tokenExpiry = Date.now() + ((res.data.expiresIn ?? 300) - 30) * 1000;
   return _accessToken;
 }
 
+// Fetch ABHA v3 public certificate and cache for 24 h
+async function getAbhaCert() {
+  if (_abhaPubKey && Date.now() < _abhaPubKeyExpiry) return _abhaPubKey;
+
+  const token = await getGatewayToken();
+  const res = await axios.get(`${ABHA_BASE}/profile/public/certificate`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-CM-ID': 'sbx',
+      'REQUEST-ID': uuid(),
+      TIMESTAMP: new Date().toISOString(),
+    },
+  });
+
+  _abhaPubKey       = res.data.publicKey;
+  _abhaPubKeyExpiry = Date.now() + 24 * 3600_000;
+  logger.info('ABHA public certificate refreshed');
+  return _abhaPubKey;
+}
+
+// RSA/ECB/OAEPWithSHA-1AndMGF1Padding — required by ABHA v3 for all loginId fields
+async function rsaEncrypt(plaintext) {
+  const pubKeyBase64 = await getAbhaCert();
+  const pubKey = crypto.createPublicKey({
+    key: Buffer.from(pubKeyBase64, 'base64'),
+    format: 'der',
+    type: 'spki',
+  });
+  return crypto.publicEncrypt(
+    { key: pubKey, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha1' },
+    Buffer.from(plaintext, 'utf8')
+  ).toString('base64');
+}
+
+// Gateway requests (HIE-CM / M2-M3 operations)
 async function gwReq(method, url, data = null, extra = {}) {
   const token = await getGatewayToken();
   const cfg = {
@@ -45,19 +83,43 @@ async function gwReq(method, url, data = null, extra = {}) {
   }
 }
 
+// ABHA v3 requests — requires REQUEST-ID + TIMESTAMP on every call
+async function abhaReq(method, url, data = null, xToken = null) {
+  const token = await getGatewayToken();
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    'X-CM-ID': 'sbx',
+    'REQUEST-ID': uuid(),
+    TIMESTAMP: new Date().toISOString(),
+  };
+  if (xToken) headers['X-Token'] = `Bearer ${xToken}`;
+
+  const cfg = { method, url, headers };
+  if (data) cfg.data = data;
+  try {
+    const res = await axios(cfg);
+    return res.data;
+  } catch (err) {
+    logger.error('ABHA API error', { url, status: err.response?.status, body: err.response?.data });
+    throw err;
+  }
+}
+
 // ─── M1: Enrollment via Aadhaar ──────────────────────────────────────────────
 
 async function generateAadhaarOtp(aadhaar) {
-  return gwReq('POST', `${ABHA_BASE}/enrollment/request/otp`, {
+  const encryptedId = await rsaEncrypt(aadhaar);
+  return abhaReq('POST', `${ABHA_BASE}/enrollment/request/otp`, {
     scope: ['abha-enrol'],
     loginHint: 'aadhaar',
-    loginId: aadhaar,
+    loginId: encryptedId,
     otpSystem: 'aadhaar',
   });
 }
 
 async function verifyAadhaarOtp(otp, txnId) {
-  return gwReq('POST', `${ABHA_BASE}/enrollment/enrol/byAadhaar`, {
+  return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/byAadhaar`, {
     authData: {
       authMethods: ['OTP'],
       otp: { timeStamp: new Date().toISOString(), txnId, otpValue: otp },
@@ -69,16 +131,17 @@ async function verifyAadhaarOtp(otp, txnId) {
 // ─── M1: Enrollment via Mobile ───────────────────────────────────────────────
 
 async function generateMobileOtp(mobile) {
-  return gwReq('POST', `${ABHA_BASE}/enrollment/request/otp`, {
+  const encryptedId = await rsaEncrypt(mobile);
+  return abhaReq('POST', `${ABHA_BASE}/enrollment/request/otp`, {
     scope: ['abha-enrol', 'mobile-verify'],
     loginHint: 'mobile',
-    loginId: mobile,
+    loginId: encryptedId,
     otpSystem: 'abdm',
   });
 }
 
 async function verifyMobileOtp(otp, txnId) {
-  return gwReq('POST', `${ABHA_BASE}/enrollment/auth/byAbdm`, {
+  return abhaReq('POST', `${ABHA_BASE}/enrollment/auth/byAbdm`, {
     scope: ['abha-enrol', 'mobile-verify'],
     authData: {
       authMethods: ['OTP'],
@@ -90,16 +153,17 @@ async function verifyMobileOtp(otp, txnId) {
 // ─── M1: ABHA Login ───────────────────────────────────────────────────────────
 
 async function loginRequestOtp(abhaId) {
-  return gwReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
+  const encryptedId = await rsaEncrypt(abhaId);
+  return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
     scope: ['profile'],
     loginHint: 'abha-number',
-    loginId: abhaId,
+    loginId: encryptedId,
     otpSystem: 'abdm',
   });
 }
 
 async function loginVerifyOtp(otp, txnId) {
-  return gwReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
+  return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
     scope: ['profile'],
     authData: {
       authMethods: ['OTP'],
@@ -111,13 +175,19 @@ async function loginVerifyOtp(otp, txnId) {
 // ─── M1: ABHA Profile & Card ──────────────────────────────────────────────────
 
 async function getAbhaProfile(xToken) {
-  return gwReq('GET', `${ABHA_BASE}/profile/account`, null, { 'X-Token': `Bearer ${xToken}` });
+  return abhaReq('GET', `${ABHA_BASE}/profile/account`, null, xToken);
 }
 
 async function getAbhaPngCard(xToken) {
   const token = await getGatewayToken();
   const res = await axios.get(`${ABHA_BASE}/profile/card`, {
-    headers: { Authorization: `Bearer ${token}`, 'X-Token': `Bearer ${xToken}`, 'X-CM-ID': 'sbx' },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-Token': `Bearer ${xToken}`,
+      'X-CM-ID': 'sbx',
+      'REQUEST-ID': uuid(),
+      TIMESTAMP: new Date().toISOString(),
+    },
     responseType: 'arraybuffer',
   });
   return res.data;
