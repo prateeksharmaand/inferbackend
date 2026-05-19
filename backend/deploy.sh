@@ -87,6 +87,7 @@ if [[ "$SKIP_MIGRATE" == "false" ]]; then
       $DC exec -T postgres psql \
         -U "${DB_USER:-phr_user}" \
         -d "${DB_NAME:-phr_db}" \
+        --set ON_ERROR_STOP=off \
         -f "/dev/stdin" \
         < "$REPO_ROOT/$migration" 2>&1 \
         | grep -Ev "already exists|skipping" || true

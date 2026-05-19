@@ -231,17 +231,14 @@ CREATE TABLE IF NOT EXISTS vital_thresholds (
 -- ================================================
 -- INDEXES
 -- ================================================
-CREATE INDEX IF NOT EXISTS idx_profiles_account_id ON profiles(account_id);
-CREATE INDEX IF NOT EXISTS idx_vitals_profile_id ON vitals(profile_id);
-CREATE INDEX IF NOT EXISTS idx_vitals_recorded_at ON vitals(recorded_at DESC);
-CREATE INDEX IF NOT EXISTS idx_vitals_type ON vitals(vital_type);
-CREATE INDEX IF NOT EXISTS idx_documents_profile_id ON documents(profile_id);
-CREATE INDEX IF NOT EXISTS idx_medicines_profile_id ON medicines(profile_id);
-CREATE INDEX IF NOT EXISTS idx_timeline_profile_id ON timeline_events(profile_id);
-CREATE INDEX IF NOT EXISTS idx_timeline_event_date ON timeline_events(event_date DESC);
+-- Indexes that depend only on stable column names (present in all schema versions)
+CREATE INDEX IF NOT EXISTS idx_profiles_account_id        ON profiles(account_id);
+CREATE INDEX IF NOT EXISTS idx_vitals_recorded_at         ON vitals(recorded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_medicines_profile_id       ON medicines(profile_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_event_date        ON timeline_events(event_date DESC);
 CREATE INDEX IF NOT EXISTS idx_healthbot_sessions_profile ON healthbot_sessions(profile_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_account ON notifications(account_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_scheduled ON notifications(scheduled_for);
+-- Indexes for profile_id / account_id columns are created in 006_schema_reconciliation.sql
+-- (after any necessary column renames on existing databases)
 
 -- ================================================
 -- DEFAULT VITAL THRESHOLDS (system-wide defaults)
