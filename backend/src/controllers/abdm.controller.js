@@ -132,7 +132,7 @@ const getAbhaCard = async (req, res) => {
   res.send(pngBuffer);
 };
 
-// ─── M2: Care-context discovery ───────────────────────────────────────────────
+// ─── M2: Care-context discovery (async — ABDM calls on-discover callback) ─────
 
 const discoverCareContexts = async (req, res) => {
   const { hipId, patientMobile, patientName, dateOfBirth, gender } = req.body;
@@ -149,17 +149,193 @@ const discoverCareContexts = async (req, res) => {
     name: patientName,
     gender: gender ?? 'M',
     dateOfBirth,
-    verifiedIdentifiers: patientMobile
-      ? [{ type: 'MOBILE', value: patientMobile }]
-      : [],
+    verifiedIdentifiers: patientMobile ? [{ type: 'MOBILE', value: patientMobile }] : [],
     unverifiedIdentifiers: [],
   };
 
-  const result = await abdm.discoverCareContexts(patient, hipId);
-  res.json(result);
+  const requestId = await abdm.discoverCareContexts(patient, hipId);
+  await pool.query(
+    `INSERT INTO discover_sessions (user_id, request_id, hip_id) VALUES ($1,$2,$3)`,
+    [req.user.id, requestId, hipId]
+  );
+  res.json({ requestId });
 };
 
-// ─── M2: Link care contexts ───────────────────────────────────────────────────
+// Called by ABDM gateway with discovered care contexts
+const onDiscover = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const { patient, resp, transactionId, error } = req.body;
+    const requestId = resp?.requestId;
+    if (!requestId) return;
+    if (error) {
+      await pool.query(
+        `UPDATE discover_sessions SET status='error', error_message=$1 WHERE request_id=$2`,
+        [error.message ?? JSON.stringify(error), requestId]
+      );
+      return;
+    }
+    await pool.query(
+      `UPDATE discover_sessions SET status='done', care_contexts=$1, transaction_id=$2 WHERE request_id=$3`,
+      [JSON.stringify(patient?.careContexts ?? []), transactionId ?? null, requestId]
+    );
+  } catch (err) {
+    logger.error('onDiscover error', err);
+  }
+};
+
+// Flutter polls this until status = 'done' or 'error'
+const discoverStatus = async (req, res) => {
+  const { requestId } = req.params;
+  const { rows } = await pool.query(
+    `SELECT status, care_contexts, error_message FROM discover_sessions
+     WHERE request_id=$1 AND user_id=$2`,
+    [requestId, req.user.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Session not found' });
+  const s = rows[0];
+  res.json({ status: s.status, careContexts: s.care_contexts ?? [], error: s.error_message ?? null });
+};
+
+// ─── M2: Patient-initiated link (gateway v0.5 async) ─────────────────────────
+
+const linkInit = async (req, res) => {
+  const { requestId: discoverRequestId, careContexts } = req.body;
+  if (!discoverRequestId || !careContexts?.length)
+    return res.status(400).json({ error: 'discoverRequestId and careContexts required' });
+
+  const { rows } = await pool.query(
+    `SELECT ds.transaction_id, ds.hip_id, aa.abha_address
+     FROM discover_sessions ds
+     JOIN abha_accounts aa ON aa.user_id = ds.user_id
+     WHERE ds.request_id=$1 AND ds.user_id=$2`,
+    [discoverRequestId, req.user.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Discover session not found' });
+
+  const { transaction_id, hip_id, abha_address } = rows[0];
+  const linkRequestId = await abdm.linkInit(transaction_id, abha_address, hip_id, careContexts);
+
+  await pool.query(
+    `INSERT INTO link_sessions (user_id, request_id, transaction_id, hip_id, care_contexts)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [req.user.id, linkRequestId, transaction_id, hip_id, JSON.stringify(careContexts)]
+  );
+  res.json({ requestId: linkRequestId });
+};
+
+// Called by ABDM when the HIP is ready for OTP confirmation
+const onLinkInit = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const { link, resp, error } = req.body;
+    const requestId = resp?.requestId;
+    if (!requestId) return;
+    if (error) {
+      await pool.query(
+        `UPDATE link_sessions SET status='error', error_message=$1 WHERE request_id=$2`,
+        [error.message ?? JSON.stringify(error), requestId]
+      );
+      return;
+    }
+    await pool.query(
+      `UPDATE link_sessions SET status='otp_ready', link_ref_number=$1 WHERE request_id=$2`,
+      [link?.referenceNumber, requestId]
+    );
+  } catch (err) {
+    logger.error('onLinkInit error', err);
+  }
+};
+
+// Flutter polls until status = 'otp_ready'
+const linkStatus = async (req, res) => {
+  const { requestId } = req.params;
+  const { rows } = await pool.query(
+    `SELECT status, link_ref_number, error_message FROM link_sessions
+     WHERE request_id=$1 AND user_id=$2`,
+    [requestId, req.user.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Link session not found' });
+  const s = rows[0];
+  res.json({ status: s.status, linkRefNumber: s.link_ref_number ?? null, error: s.error_message ?? null });
+};
+
+// Flutter submits OTP
+const linkConfirm = async (req, res) => {
+  const { requestId, token } = req.body;
+  if (!requestId || !token) return res.status(400).json({ error: 'requestId and token required' });
+
+  const { rows } = await pool.query(
+    `SELECT link_ref_number FROM link_sessions WHERE request_id=$1 AND user_id=$2`,
+    [requestId, req.user.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Link session not found' });
+  if (!rows[0].link_ref_number)
+    return res.status(400).json({ error: 'OTP not yet received from ABDM — please wait and retry' });
+
+  const confirmRequestId = await abdm.linkConfirm(rows[0].link_ref_number, token);
+  await pool.query(
+    `UPDATE link_sessions SET status='confirming', confirm_request_id=$1 WHERE request_id=$2`,
+    [confirmRequestId, requestId]
+  );
+  res.json({ message: 'OTP submitted' });
+};
+
+// Called by ABDM when link is confirmed
+const onLinkConfirm = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const { patient, resp, error } = req.body;
+    const confirmRequestId = resp?.requestId;
+    if (!confirmRequestId) return;
+
+    if (error) {
+      await pool.query(
+        `UPDATE link_sessions SET status='error', error_message=$1 WHERE confirm_request_id=$2`,
+        [error.message ?? JSON.stringify(error), confirmRequestId]
+      );
+      return;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT user_id, hip_id, care_contexts FROM link_sessions WHERE confirm_request_id=$1`,
+      [confirmRequestId]
+    );
+    if (!rows.length) return;
+    const { user_id, hip_id, care_contexts } = rows[0];
+
+    await pool.query(
+      `UPDATE link_sessions SET status='confirmed' WHERE confirm_request_id=$1`,
+      [confirmRequestId]
+    );
+
+    const contexts = patient?.careContexts ?? care_contexts ?? [];
+    for (const ctx of contexts) {
+      await pool.query(
+        `INSERT INTO linked_care_contexts (user_id, hip_id, reference_number, display, hi_type)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (user_id, hip_id, reference_number) DO NOTHING`,
+        [user_id, hip_id, ctx.referenceNumber ?? ctx.reference_number, ctx.display, ctx.hiType ?? 'OPConsultation']
+      );
+    }
+    logger.info('Care contexts linked via patient-initiated flow', { user_id, hip_id, count: contexts.length });
+  } catch (err) {
+    logger.error('onLinkConfirm error', err);
+  }
+};
+
+// Flutter polls until status = 'confirmed' or 'error'
+const confirmStatus = async (req, res) => {
+  const { requestId } = req.params;
+  const { rows } = await pool.query(
+    `SELECT status, error_message FROM link_sessions WHERE request_id=$1 AND user_id=$2`,
+    [requestId, req.user.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Link session not found' });
+  res.json({ status: rows[0].status, error: rows[0].error_message ?? null });
+};
+
+// ─── M2: HIP-initiated link (HIECM v3, kept for direct HIU linking) ──────────
 
 const linkCareContexts = async (req, res) => {
   const { careContexts, hipId, patientGender, patientYearOfBirth } = req.body;
@@ -181,8 +357,7 @@ const linkCareContexts = async (req, res) => {
 
   for (const ctx of careContexts) {
     await pool.query(
-      `INSERT INTO linked_care_contexts
-         (user_id, hip_id, reference_number, display, hi_type)
+      `INSERT INTO linked_care_contexts (user_id, hip_id, reference_number, display, hi_type)
        VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (user_id, hip_id, reference_number) DO NOTHING`,
       [req.user.id, hipId, ctx.referenceNumber, ctx.display, ctx.hiType ?? 'OPConsultation']
@@ -341,7 +516,10 @@ module.exports = {
   loginGenerateOtp,   loginVerifyOtp,
   logoutAbha,
   getAbhaStatus, getAbhaProfile, getAbhaCard,
-  discoverCareContexts, linkCareContexts, getLinkedCareContexts,
+  discoverCareContexts, onDiscover,     discoverStatus,
+  linkInit,             onLinkInit,     linkStatus,
+  linkConfirm,          onLinkConfirm,  confirmStatus,
+  linkCareContexts,     getLinkedCareContexts,
   createConsent, getConsents,
   consentNotify, healthInfoPush,
   getHealthRecords,

@@ -20,8 +20,20 @@ router.get('/profile', auth, ctrl.getAbhaProfile);
 router.get('/card',    auth, ctrl.getAbhaCard);
 router.post('/logout', auth, ctrl.logoutAbha);
 
-// ── M2: Care contexts ─────────────────────────────────────────────────────────
-router.post('/care-contexts/discover', auth, ctrl.discoverCareContexts);
+// ── M2: Care-context discovery (async) ───────────────────────────────────────
+router.post('/care-contexts/discover',               auth, ctrl.discoverCareContexts);
+router.get('/care-contexts/discover/:requestId',     auth, ctrl.discoverStatus);
+router.post('/care-contexts/on-discover',                  ctrl.onDiscover);       // ABDM callback
+
+// ── M2: Patient-initiated link ────────────────────────────────────────────────
+router.post('/links/init',                           auth, ctrl.linkInit);
+router.get('/links/:requestId/status',               auth, ctrl.linkStatus);
+router.post('/links/confirm',                        auth, ctrl.linkConfirm);
+router.get('/links/:requestId/confirm-status',       auth, ctrl.confirmStatus);
+router.post('/links/link/on-init',                         ctrl.onLinkInit);       // ABDM callback
+router.post('/links/link/on-confirm',                      ctrl.onLinkConfirm);    // ABDM callback
+
+// ── M2: HIP-initiated link (legacy) ──────────────────────────────────────────
 router.post('/care-contexts/link',     auth, ctrl.linkCareContexts);
 router.get('/care-contexts',           auth, ctrl.getLinkedCareContexts);
 

@@ -228,15 +228,48 @@ async function getAbhaPngCard(xToken) {
 // ─── M2: Care-context discovery ───────────────────────────────────────────────
 
 async function discoverCareContexts(patient, hipId) {
-  return gwReq('POST', `${ABDM_GATEWAY}/v0.5/care-contexts/discover`, {
-    requestId: uuid(),
+  const requestId = uuid();
+  await gwReq('POST', `${ABDM_GATEWAY}/v0.5/care-contexts/discover`, {
+    requestId,
     timestamp: new Date().toISOString(),
     patient,
     hip: { id: hipId },
   });
+  return requestId;  // ABDM responds 202; real results arrive via on-discover callback
 }
 
-// ─── M2: Link care contexts ───────────────────────────────────────────────────
+// ─── M2: Patient-initiated link (gateway v0.5) ────────────────────────────────
+
+async function linkInit(transactionId, patientId, hipId, careContexts) {
+  const requestId = uuid();
+  await gwReq('POST', `${ABDM_GATEWAY}/v0.5/links/link/init`, {
+    requestId,
+    timestamp: new Date().toISOString(),
+    transactionId,
+    patient: {
+      id: patientId,
+      referenceNumber: hipId,
+      display: patientId,
+      careContexts: careContexts.map(c => ({
+        referenceNumber: c.referenceNumber,
+        display: c.display,
+      })),
+    },
+  });
+  return requestId;
+}
+
+async function linkConfirm(linkRefNumber, token) {
+  const requestId = uuid();
+  await gwReq('POST', `${ABDM_GATEWAY}/v0.5/links/link/confirm`, {
+    requestId,
+    timestamp: new Date().toISOString(),
+    confirmation: { linkRefNumber, token },
+  });
+  return requestId;
+}
+
+// ─── M2: HIP-initiated link (HIECM v3) ───────────────────────────────────────
 
 async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, yearOfBirth) {
   const token = await getGatewayToken();
@@ -343,7 +376,8 @@ module.exports = {
   generateMobileLoginOtp, verifyMobileLoginOtp,
   loginRequestOtp,        loginVerifyOtp,
   getAbhaProfile,         getAbhaPngCard,
-  discoverCareContexts,   generateLinkToken,    linkCareContexts,
+  discoverCareContexts,   linkInit,             linkConfirm,
+  generateLinkToken,      linkCareContexts,
   createConsentRequest,   fetchHealthInfo,
   uuid,
 };
