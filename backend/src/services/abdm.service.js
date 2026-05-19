@@ -23,7 +23,14 @@ async function getGatewayToken() {
     const res = await axios.post(
       ABDM_SESSION_URL,
       { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
-      { headers: { 'Content-Type': 'application/json' } }
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CM-ID': 'sbx',
+          'REQUEST-ID': uuid(),
+          TIMESTAMP: new Date().toISOString(),
+        },
+      }
     );
     _accessToken = res.data.accessToken;
     _tokenExpiry = Date.now() + ((res.data.expiresIn ?? 300) - 30) * 1000;
