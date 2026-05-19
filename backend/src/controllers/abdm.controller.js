@@ -161,17 +161,22 @@ const discoverCareContexts = async (req, res) => {
 // ─── M2: Link care contexts ───────────────────────────────────────────────────
 
 const linkCareContexts = async (req, res) => {
-  const { accessToken: linkToken, careContexts, hipId } = req.body;
-  if (!linkToken || !careContexts?.length || !hipId)
-    return res.status(400).json({ error: 'accessToken, careContexts, hipId required' });
+  const { careContexts, hipId, patientGender, patientYearOfBirth } = req.body;
+  if (!careContexts?.length || !hipId)
+    return res.status(400).json({ error: 'careContexts, hipId required' });
 
   const { rows } = await pool.query(
-    'SELECT abha_address FROM abha_accounts WHERE user_id=$1',
+    'SELECT abha_number, abha_address, name FROM abha_accounts WHERE user_id=$1',
     [req.user.id]
   );
   if (!rows.length) return res.status(400).json({ error: 'ABHA not linked' });
 
-  const result = await abdm.linkCareContexts(linkToken, rows[0].abha_address, careContexts);
+  const { abha_number, abha_address, name } = rows[0];
+  const tokenRes = await abdm.generateLinkToken(
+    hipId, abha_number, abha_address, name,
+    patientGender ?? 'M', patientYearOfBirth ?? 1990
+  );
+  const result = await abdm.linkCareContexts(hipId, tokenRes.linkToken, abha_number, abha_address, careContexts);
 
   for (const ctx of careContexts) {
     await pool.query(

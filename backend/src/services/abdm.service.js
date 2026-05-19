@@ -2,10 +2,12 @@ const axios  = require('axios');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 
-const ABDM_GATEWAY = process.env.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in/gateway';
-const ABHA_BASE    = process.env.ABHA_BASE_URL     || 'https://abhasbx.abdm.gov.in/abha/api/v3';
-const CLIENT_ID     = process.env.ABDM_CLIENT_ID;
-const CLIENT_SECRET = process.env.ABDM_CLIENT_SECRET;
+const ABDM_GATEWAY   = process.env.ABDM_GATEWAY_URL  || 'https://dev.abdm.gov.in/gateway';
+const ABHA_BASE      = process.env.ABHA_BASE_URL      || 'https://abhasbx.abdm.gov.in/abha/api/v3';
+const ABDM_HIECM     = process.env.ABDM_HIECM_URL     || 'https://dev.abdm.gov.in/api/hiecm';
+const ABDM_SESSION_URL = `${ABDM_HIECM}/gateway/v3/sessions`;
+const CLIENT_ID      = process.env.ABDM_CLIENT_ID;
+const CLIENT_SECRET  = process.env.ABDM_CLIENT_SECRET;
 
 let _accessToken = null;
 let _tokenExpiry  = 0;
@@ -19,7 +21,7 @@ async function getGatewayToken() {
   logger.info('ABDM gateway token request', { clientId: CLIENT_ID, hasSecret: !!CLIENT_SECRET });
   try {
     const res = await axios.post(
-      `${ABDM_GATEWAY}/v0.5/sessions`,
+      ABDM_SESSION_URL,
       { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
       { headers: { 'Content-Type': 'application/json' } }
     );
@@ -182,7 +184,7 @@ async function loginRequestOtp(abhaId) {
   const normalised = abhaId.replace(/-/g, '');
   const encryptedId = await rsaEncrypt(normalised);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    scope: 'abha-login',
+    scope: ['abha-login'],
     loginHint: 'abha-number',
     loginId: encryptedId,
     otpSystem: 'abdm',
@@ -192,7 +194,8 @@ async function loginRequestOtp(abhaId) {
 async function loginVerifyOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
-    scope: 'abha-login',
+    txnId,
+    scope: ['abha-login'],
     authData: {
       authMethods: ['otp'],
       otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
@@ -234,20 +237,53 @@ async function discoverCareContexts(patient, hipId) {
 
 // ─── M2: Link care contexts ───────────────────────────────────────────────────
 
-async function linkCareContexts(accessToken, patientId, careContexts) {
-  return gwReq('POST', `${ABDM_GATEWAY}/v0.5/links/link/add-contexts`, {
-    requestId: uuid(),
-    timestamp: new Date().toISOString(),
-    link: {
-      accessToken,
-      patient: {
-        id: patientId,
-        referenceNumber: patientId,
-        careContexts,
-        display: patientId,
+async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, yearOfBirth) {
+  const token = await getGatewayToken();
+  const res = await axios.post(
+    `${ABDM_HIECM}/v3/token/generate-token`,
+    { abhaNumber: Number(String(abhaNumber).replace(/-/g, '')), abhaAddress, name, gender, yearOfBirth },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-CM-ID': 'sbx',
+        'X-HIP-ID': hipId,
+        'REQUEST-ID': uuid(),
+        TIMESTAMP: new Date().toISOString(),
       },
+    }
+  );
+  return res.data;
+}
+
+async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, careContexts) {
+  const token = await getGatewayToken();
+  const res = await axios.post(
+    `${ABDM_HIECM}/hip/v3/link/carecontext`,
+    {
+      abhaNumber: String(abhaNumber).replace(/-/g, ''),
+      abhaAddress,
+      patient: careContexts.map(ctx => ({
+        referenceNumber: ctx.referenceNumber,
+        display: ctx.display,
+        careContexts: [{ referenceNumber: ctx.referenceNumber, display: ctx.display }],
+        hiType: ctx.hiType ?? 'OPConsultation',
+        count: 1,
+      })),
     },
-  });
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-CM-ID': 'sbx',
+        'X-HIP-ID': hipId,
+        'X-LINK-TOKEN': linkToken,
+        'REQUEST-ID': uuid(),
+        TIMESTAMP: new Date().toISOString(),
+      },
+    }
+  );
+  return res.data;
 }
 
 // ─── M2: Consent request ──────────────────────────────────────────────────────
@@ -305,8 +341,8 @@ module.exports = {
   generateAadhaarOtp,     verifyAadhaarOtp,
   generateMobileLoginOtp, verifyMobileLoginOtp,
   loginRequestOtp,        loginVerifyOtp,
-  getAbhaProfile,     getAbhaPngCard,
-  discoverCareContexts, linkCareContexts,
-  createConsentRequest, fetchHealthInfo,
+  getAbhaProfile,         getAbhaPngCard,
+  discoverCareContexts,   generateLinkToken,    linkCareContexts,
+  createConsentRequest,   fetchHealthInfo,
   uuid,
 };
