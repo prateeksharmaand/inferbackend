@@ -181,7 +181,7 @@ async function verifyMobileLoginOtp(otp, txnId) {
 async function loginRequestOtp(abhaId) {
   const encryptedId = await rsaEncrypt(abhaId);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    scope: ['profile'],
+    scope: ['abha-enrol'],
     loginHint: 'abha-number',
     loginId: encryptedId,
     otpSystem: 'abdm',
@@ -189,11 +189,12 @@ async function loginRequestOtp(abhaId) {
 }
 
 async function loginVerifyOtp(otp, txnId) {
+  const encOtp = await rsaEncrypt(otp);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
-    scope: ['profile'],
+    scope: ['abha-enrol'],
     authData: {
-      authMethods: ['OTP'],
-      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: otp },
+      authMethods: ['otp'],
+      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
     },
   });
 }
