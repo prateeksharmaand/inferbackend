@@ -11,7 +11,9 @@ set -euo pipefail
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DOMAIN="api.inferapp.online"
+LANDING_DOMAIN="infer.online"
 BACKEND_SERVICE="backend"
+NGINX_SERVICE="nginx"
 POSTGRES_SERVICE="postgres"
 DB_NAME="phr_db"
 DB_USER="phr_user"
@@ -35,7 +37,7 @@ done
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║       PHR Backend Deployment         ║${NC}"
+echo -e "${GREEN}║        Infer Health Deployment        ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
 echo ""
 
@@ -47,6 +49,8 @@ command -v curl   >/dev/null 2>&1 || err "curl is not installed"
 
 [ -f ".env" ]              || err ".env not found — copy .env.example and fill in values"
 [ -f "docker-compose.yml" ] || err "docker-compose.yml not found — run from repo root"
+[ -f "web/index.html" ]    || err "web/index.html not found — landing page missing"
+[ -f "nginx/nginx.conf" ]  || err "nginx/nginx.conf not found"
 
 # Check required Gmail env vars and warn (soft — does not abort)
 log "Checking environment variables..."
@@ -113,7 +117,20 @@ log "Restarting backend container..."
 docker compose up -d --no-deps "$BACKEND_SERVICE"
 info "Container started"
 
-# ── Health check ──────────────────────────────────────────────────────────────
+# ── Reload nginx (picks up config changes + new web/ files, zero downtime) ────
+log "Reloading nginx..."
+if docker compose ps --status running "$NGINX_SERVICE" | grep -q "$NGINX_SERVICE"; then
+  docker compose exec -T "$NGINX_SERVICE" nginx -t \
+    && docker compose exec -T "$NGINX_SERVICE" nginx -s reload \
+    && info "Nginx reloaded: ✓" \
+    || err "Nginx config test failed — not reloading. Run: docker compose logs $NGINX_SERVICE"
+else
+  warn "Nginx not running — starting it..."
+  docker compose up -d "$NGINX_SERVICE"
+  info "Nginx started: ✓"
+fi
+
+# ── Health check: API ──────────────────────────────────────────────────────────
 log "Waiting for backend to respond at https://$DOMAIN/health ..."
 MAX=20; ATTEMPT=0
 until curl -sf "https://$DOMAIN/health" > /dev/null 2>&1; do
@@ -125,6 +142,15 @@ done
 echo ""
 HEALTH=$(curl -sf "https://$DOMAIN/health")
 info "Health response: $HEALTH"
+
+# ── Health check: Landing page ─────────────────────────────────────────────────
+log "Checking landing page at https://$LANDING_DOMAIN ..."
+if curl -sf --max-time 10 "https://$LANDING_DOMAIN" > /dev/null 2>&1; then
+  info "Landing page: ✓  https://$LANDING_DOMAIN"
+else
+  warn "Landing page did not respond — check SSL cert for $LANDING_DOMAIN"
+  warn "If first deploy: certbot certonly --standalone -d $LANDING_DOMAIN -d www.$LANDING_DOMAIN"
+fi
 
 # ── Tail recent logs ──────────────────────────────────────────────────────────
 log "Recent backend logs (last 30 lines):"
@@ -138,10 +164,12 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║   ✅  Deployment complete!            ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
 echo ""
-info "API:    https://$DOMAIN"
-info "Health: https://$DOMAIN/health"
-info "Commit: $(git log -1 --format='%h — %s')"
+info "Landing:  https://$LANDING_DOMAIN"
+info "API:      https://$DOMAIN"
+info "Health:   https://$DOMAIN/health"
+info "Commit:   $(git log -1 --format='%h — %s')"
 echo ""
 info "To watch live logs:  docker compose logs -f backend"
+info "To watch nginx logs: docker compose logs -f nginx"
 info "To rollback:         git revert HEAD && bash deployment.sh"
 echo ""
