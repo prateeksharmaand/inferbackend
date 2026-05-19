@@ -295,6 +295,15 @@ const getHealthRecords = async (req, res) => {
   res.json(rows);
 };
 
+const debugToken = async (req, res) => {
+  try {
+    const token = await abdm.getGatewayToken();
+    res.json({ ok: true, tokenPrefix: token?.slice(0, 20) + '...', clientId: process.env.ABDM_CLIENT_ID });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
+  }
+};
+
 module.exports = {
   aadhaarGenerateOtp, aadhaarVerifyOtp,
   mobileGenerateOtp,  mobileVerifyOtp,
@@ -304,4 +313,5 @@ module.exports = {
   createConsent, getConsents,
   consentNotify, healthInfoPush,
   getHealthRecords,
+  debugToken,
 };

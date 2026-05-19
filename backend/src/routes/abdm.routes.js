@@ -35,4 +35,7 @@ router.post('/health-info/push',   ctrl.healthInfoPush);
 // ── M3: View fetched health records ──────────────────────────────────────────
 router.get('/health-records', auth, ctrl.getHealthRecords);
 
+// ── Debug: test ABDM gateway credentials (no auth, remove after testing) ─────
+router.get('/debug/token', ctrl.debugToken);
+
 module.exports = router;

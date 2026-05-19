@@ -16,15 +16,24 @@ let _abhaPubKeyExpiry = 0;
 async function getGatewayToken() {
   if (_accessToken && Date.now() < _tokenExpiry) return _accessToken;
 
-  const res = await axios.post(
-    `${ABDM_GATEWAY}/v0.5/sessions`,
-    { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
-    { headers: { 'Content-Type': 'application/json' } }
-  );
-
-  _accessToken = res.data.accessToken;
-  _tokenExpiry = Date.now() + ((res.data.expiresIn ?? 300) - 30) * 1000;
-  return _accessToken;
+  logger.info('ABDM gateway token request', { clientId: CLIENT_ID, hasSecret: !!CLIENT_SECRET });
+  try {
+    const res = await axios.post(
+      `${ABDM_GATEWAY}/v0.5/sessions`,
+      { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    _accessToken = res.data.accessToken;
+    _tokenExpiry = Date.now() + ((res.data.expiresIn ?? 300) - 30) * 1000;
+    logger.info('ABDM gateway token obtained', { expiresIn: res.data.expiresIn });
+    return _accessToken;
+  } catch (err) {
+    const body = err.response?.data;
+    logger.error('ABDM gateway token FAILED', { status: err.response?.status, body });
+    const fwd = new Error(`ABDM gateway auth failed: ${body ? JSON.stringify(body) : err.message}`);
+    fwd.status = err.response?.status ?? 502;
+    throw fwd;
+  }
 }
 
 // Fetch ABHA v3 public certificate and cache for 24 h
