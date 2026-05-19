@@ -132,11 +132,13 @@ async function generateAadhaarOtp(aadhaar) {
   });
 }
 
-async function verifyAadhaarOtp(otp, txnId) {
+async function verifyAadhaarOtp(otp, txnId, mobile) {
+  const [encOtp, encMobile] = await Promise.all([rsaEncrypt(otp), rsaEncrypt(mobile)]);
   return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/byAadhaar`, {
     authData: {
       authMethods: ['OTP'],
-      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: otp },
+      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
+      mobile: encMobile,
     },
     consent: { code: 'abha-enrollment', version: '1.4' },
   });
@@ -154,12 +156,14 @@ async function generateMobileOtp(mobile) {
   });
 }
 
-async function verifyMobileOtp(otp, txnId) {
+async function verifyMobileOtp(otp, txnId, mobile) {
+  const [encOtp, encMobile] = await Promise.all([rsaEncrypt(otp), rsaEncrypt(mobile ?? '')]);
   return abhaReq('POST', `${ABHA_BASE}/enrollment/auth/byAbdm`, {
     scope: ['abha-enrol', 'mobile-verify'],
     authData: {
       authMethods: ['OTP'],
-      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: otp },
+      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
+      ...(mobile && { mobile: encMobile }),
     },
   });
 }
