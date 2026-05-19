@@ -51,8 +51,10 @@ if [[ "$SKIP_REBUILD" == "false" ]]; then
 fi
 
 # ── STEP 1: Run cleanup migration (006) BEFORE backend starts ─────────────────
-# This drops migration-001 conflict tables so database.js can recreate them
-# with the correct schema on first startup.
+# Stop backend first so the crash loop doesn't interfere with the migration.
+log "Stopping backend for schema cleanup..."
+$DC stop backend 2>/dev/null || true
+
 if [[ "$SKIP_MIGRATE" == "false" ]]; then
   log "Starting postgres..."
   $DC up -d postgres
