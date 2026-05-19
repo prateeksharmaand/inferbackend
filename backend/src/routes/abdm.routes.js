@@ -14,10 +14,11 @@ router.post('/enrol/mobile/verify', auth, ctrl.mobileVerifyOtp);
 router.post('/login/otp',    auth, ctrl.loginGenerateOtp);
 router.post('/login/verify', auth, ctrl.loginVerifyOtp);
 
-// ── M1: ABHA status / profile / card ─────────────────────────────────────────
+// ── M1: ABHA status / profile / card / logout ────────────────────────────────
 router.get('/status',  auth, ctrl.getAbhaStatus);
 router.get('/profile', auth, ctrl.getAbhaProfile);
 router.get('/card',    auth, ctrl.getAbhaCard);
+router.post('/logout', auth, ctrl.logoutAbha);
 
 // ── M2: Care contexts ─────────────────────────────────────────────────────────
 router.post('/care-contexts/discover', auth, ctrl.discoverCareContexts);

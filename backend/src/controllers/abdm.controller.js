@@ -319,6 +319,17 @@ const getHealthRecords = async (req, res) => {
   res.json(rows);
 };
 
+// ─── M1: ABHA Logout ──────────────────────────────────────────────────────────
+
+const logoutAbha = async (req, res) => {
+  await pool.query(
+    `UPDATE abha_accounts SET x_token=NULL, x_refresh_token=NULL, updated_at=NOW()
+     WHERE user_id=$1`,
+    [req.user.id]
+  );
+  res.json({ message: 'ABHA session cleared' });
+};
+
 const debugToken = async (req, res) => {
   try {
     const token = await abdm.getGatewayToken();
@@ -332,6 +343,7 @@ module.exports = {
   aadhaarGenerateOtp, aadhaarVerifyOtp,
   mobileGenerateOtp,  mobileVerifyOtp,
   loginGenerateOtp,   loginVerifyOtp,
+  logoutAbha,
   getAbhaStatus, getAbhaProfile, getAbhaCard,
   discoverCareContexts, linkCareContexts, getLinkedCareContexts,
   createConsent, getConsents,
