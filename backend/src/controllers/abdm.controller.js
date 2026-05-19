@@ -322,12 +322,8 @@ const getHealthRecords = async (req, res) => {
 // ─── M1: ABHA Logout ──────────────────────────────────────────────────────────
 
 const logoutAbha = async (req, res) => {
-  await pool.query(
-    `UPDATE abha_accounts SET x_token=NULL, x_refresh_token=NULL, updated_at=NOW()
-     WHERE user_id=$1`,
-    [req.user.id]
-  );
-  res.json({ message: 'ABHA session cleared' });
+  await pool.query('DELETE FROM abha_accounts WHERE user_id=$1', [req.user.id]);
+  res.json({ message: 'ABHA unlinked' });
 };
 
 const debugToken = async (req, res) => {
