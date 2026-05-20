@@ -185,27 +185,29 @@ export default function Queue() {
                   {t} ({t === 'Booked' ? board.booked.length : 0})
                 </button>
               ))}
-              <button
-                className={`${styles.colAction} ${leftSearchOpen ? styles.colActionActive : ''}`}
-                title="Search" onClick={toggleLeftSearch}
-              ><Search size={14} strokeWidth={2} /></button>
-              <div className={styles.filterWrap}>
+              <div className={styles.colActions}>
                 <button
-                  ref={leftFilterBtnRef}
-                  className={`${styles.colAction} ${leftFilterCount > 0 ? styles.colActionActive : ''}`}
-                  title="Filter" onClick={() => setLeftFilterOpen(v => !v)}
-                >
-                  <SlidersHorizontal size={14} strokeWidth={2} />
-                  {leftFilterCount > 0 && <span className={styles.filterBadge}>{leftFilterCount}</span>}
-                </button>
-                {leftFilterOpen && (
-                  <FilterPanel
-                    filters={leftFilters}
-                    onChange={setLeftFilters}
-                    onClose={() => setLeftFilterOpen(false)}
-                    clinicTags={clinicTags}
-                  />
-                )}
+                  className={`${styles.colAction} ${leftSearchOpen ? styles.colActionActive : ''}`}
+                  title="Search" onClick={toggleLeftSearch}
+                ><Search size={14} strokeWidth={2} /></button>
+                <div className={styles.filterWrap}>
+                  <button
+                    ref={leftFilterBtnRef}
+                    className={`${styles.colAction} ${leftFilterCount > 0 ? styles.colActionActive : ''}`}
+                    title="Filter" onClick={() => setLeftFilterOpen(v => !v)}
+                  >
+                    <SlidersHorizontal size={14} strokeWidth={2} />
+                    {leftFilterCount > 0 && <span className={styles.filterBadge}>{leftFilterCount}</span>}
+                  </button>
+                  {leftFilterOpen && (
+                    <FilterPanel
+                      filters={leftFilters}
+                      onChange={setLeftFilters}
+                      onClose={() => setLeftFilterOpen(false)}
+                      clinicTags={clinicTags}
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -262,30 +264,32 @@ export default function Queue() {
               >
                 COMPLETED ({board.completed.length})
               </button>
-              <button
-                className={`${styles.colAction} ${rightSearchOpen ? styles.colActionActive : ''}`}
-                title="Search" onClick={toggleRightSearch}
-              ><Search size={14} strokeWidth={2} /></button>
-              <button className={styles.colAction} title="Sort"><ArrowUpDown size={14} strokeWidth={2} /></button>
-              <div className={styles.filterWrap}>
+              <div className={styles.colActions}>
                 <button
-                  ref={rightFilterBtnRef}
-                  className={`${styles.colAction} ${rightFilterCount > 0 ? styles.colActionActive : ''}`}
-                  title="Filter" onClick={() => setRightFilterOpen(v => !v)}
-                >
-                  <SlidersHorizontal size={14} strokeWidth={2} />
-                  {rightFilterCount > 0 && <span className={styles.filterBadge}>{rightFilterCount}</span>}
-                </button>
-                {rightFilterOpen && (
-                  <FilterPanel
-                    filters={rightFilters}
-                    onChange={setRightFilters}
-                    onClose={() => setRightFilterOpen(false)}
-                    clinicTags={clinicTags}
-                  />
-                )}
+                  className={`${styles.colAction} ${rightSearchOpen ? styles.colActionActive : ''}`}
+                  title="Search" onClick={toggleRightSearch}
+                ><Search size={14} strokeWidth={2} /></button>
+                <button className={styles.colAction} title="Sort"><ArrowUpDown size={14} strokeWidth={2} /></button>
+                <div className={styles.filterWrap}>
+                  <button
+                    ref={rightFilterBtnRef}
+                    className={`${styles.colAction} ${rightFilterCount > 0 ? styles.colActionActive : ''}`}
+                    title="Filter" onClick={() => setRightFilterOpen(v => !v)}
+                  >
+                    <SlidersHorizontal size={14} strokeWidth={2} />
+                    {rightFilterCount > 0 && <span className={styles.filterBadge}>{rightFilterCount}</span>}
+                  </button>
+                  {rightFilterOpen && (
+                    <FilterPanel
+                      filters={rightFilters}
+                      onChange={setRightFilters}
+                      onClose={() => setRightFilterOpen(false)}
+                      clinicTags={clinicTags}
+                    />
+                  )}
+                </div>
+                <button className={styles.colAction} title="More"><MoreVertical size={14} strokeWidth={2} /></button>
               </div>
-              <button className={styles.colAction} title="More"><MoreVertical size={14} strokeWidth={2} /></button>
             </div>
 
             {rightSearchOpen && (
