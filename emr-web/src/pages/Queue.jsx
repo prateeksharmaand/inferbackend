@@ -103,6 +103,16 @@ export default function Queue() {
     fetchBoard();
   };
 
+  const handleTagUpdate = (apptId, tagIds) => {
+    const update = list => list.map(a => a.id === apptId ? { ...a, tags: tagIds } : a);
+    setBoard(prev => ({
+      ...prev,
+      booked:    update(prev.booked),
+      my_opd:    update(prev.my_opd),
+      completed: update(prev.completed),
+    }));
+  };
+
   const toggleLeftSearch = () => {
     const next = !leftSearchOpen;
     setLeftSearchOpen(next);
@@ -223,6 +233,7 @@ export default function Queue() {
               {leftList.map(a => (
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
+                  onTagUpdate={handleTagUpdate}
                   onOpen={() => navigate(`/rx/${a.id}`)}
                 />
               ))}
@@ -303,6 +314,7 @@ export default function Queue() {
               {rightList.map(a => (
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
+                  onTagUpdate={handleTagUpdate}
                   onOpen={() => navigate(`/rx/${a.id}`)}
                 />
               ))}

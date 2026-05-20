@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { Tag } from 'lucide-react';
+import TagDialog from './TagDialog';
 import styles from './AppointmentCard.module.css';
 
 const STATUS_COLOR = {
@@ -13,8 +16,10 @@ const ACTIONS = {
   parked:     ['Resume', 'Complete'],
 };
 
-export default function AppointmentCard({ appt, clinicTags = [], onStatusChange, onOpen }) {
-  const color = STATUS_COLOR[appt.status] || '#94a3b8';
+export default function AppointmentCard({ appt, clinicTags = [], onStatusChange, onTagUpdate, onOpen }) {
+  const [showTagDialog, setShowTagDialog] = useState(false);
+
+  const color   = STATUS_COLOR[appt.status] || '#94a3b8';
   const actions = ACTIONS[appt.status] || [];
 
   const resolvedTags = Array.isArray(appt.tags) ? appt.tags.map(idOrObj => {
@@ -33,33 +38,37 @@ export default function AppointmentCard({ appt, clinicTags = [], onStatusChange,
     if (action === 'Write Rx') onOpen();
   };
 
+  const openTagDialog = (e) => { e.stopPropagation(); setShowTagDialog(true); };
+
   return (
-    <div className={styles.card} onClick={onOpen}>
-      <div className={styles.stripe} style={{ background: color }} />
-      <div className={styles.body}>
-        <div className={styles.row1}>
-          <span className={styles.token}>#{appt.token_number}</span>
-          <span className={styles.name}>{appt.patient_name}</span>
-          <span className={styles.status} style={{ color }}>
-            {appt.status.replace('_', ' ')}
-          </span>
-        </div>
-        <div className={styles.row2}>
-          <span>{appt.patient_mobile || '—'}</span>
-          {appt.patient_gender && <span>• {appt.patient_gender === 'M' ? 'Male' : 'Female'}</span>}
-          {appt.visit_type && <span>• {appt.visit_type}</span>}
-          <span className={`${styles.pill} ${appt.payment_status === 'billed' ? styles.billed : styles.unbilled}`}>
-            {appt.payment_status}
-          </span>
-        </div>
-        {appt.appointment_time && (
-          <div className={styles.row2}>
-            <span>⏰ {appt.appointment_time}</span>
-            {appt.channel && <span>• {appt.channel.replace('_', ' ')}</span>}
+    <>
+      <div className={styles.card} onClick={onOpen}>
+        <div className={styles.stripe} style={{ background: color }} />
+        <div className={styles.body}>
+          <div className={styles.row1}>
+            <span className={styles.token}>#{appt.token_number}</span>
+            <span className={styles.name}>{appt.patient_name}</span>
+            <span className={styles.status} style={{ color }}>
+              {appt.status.replace('_', ' ')}
+            </span>
           </div>
-        )}
-        {resolvedTags.length > 0 && (
-          <div className={styles.tagRow}>
+          <div className={styles.row2}>
+            <span>{appt.patient_mobile || '—'}</span>
+            {appt.patient_gender && <span>• {appt.patient_gender === 'M' ? 'Male' : 'Female'}</span>}
+            {appt.visit_type && <span>• {appt.visit_type}</span>}
+            <span className={`${styles.pill} ${appt.payment_status === 'billed' ? styles.billed : styles.unbilled}`}>
+              {appt.payment_status}
+            </span>
+          </div>
+          {appt.appointment_time && (
+            <div className={styles.row2}>
+              <span>⏰ {appt.appointment_time}</span>
+              {appt.channel && <span>• {appt.channel.replace('_', ' ')}</span>}
+            </div>
+          )}
+
+          {/* Tags row + Add Tag button */}
+          <div className={styles.tagRow} onClick={e => e.stopPropagation()}>
             {resolvedTags.map(t => (
               <span
                 key={t.id}
@@ -69,18 +78,32 @@ export default function AppointmentCard({ appt, clinicTags = [], onStatusChange,
                 {t.display_name}
               </span>
             ))}
+            <button className={styles.addTagBtn} onClick={openTagDialog}>
+              <Tag size={11} strokeWidth={2} />
+              {resolvedTags.length === 0 ? 'Add Tag' : '+'}
+            </button>
           </div>
-        )}
-        {actions.length > 0 && (
-          <div className={styles.actions} onClick={e => e.stopPropagation()}>
-            {actions.map(a => (
-              <button key={a} className={styles.actionBtn} onClick={() => handleAction(a)}>
-                {a}
-              </button>
-            ))}
-          </div>
-        )}
+
+          {actions.length > 0 && (
+            <div className={styles.actions} onClick={e => e.stopPropagation()}>
+              {actions.map(a => (
+                <button key={a} className={styles.actionBtn} onClick={() => handleAction(a)}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {showTagDialog && (
+        <TagDialog
+          appt={appt}
+          clinicTags={clinicTags}
+          onClose={() => setShowTagDialog(false)}
+          onSaved={onTagUpdate}
+        />
+      )}
+    </>
   );
 }

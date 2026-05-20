@@ -71,7 +71,7 @@ const createAppointment = async (req, res) => {
 
 // PATCH /api/emr/appointments/:id/status  { status }
 const updateStatus = async (req, res) => {
-  const { status, payment_status, assessment_status, notes } = req.body;
+  const { status, payment_status, assessment_status, notes, tags } = req.body;
   if (status && !VALID_STATUSES.includes(status))
     return res.status(400).json({ error: `Invalid status. Valid: ${VALID_STATUSES.join(', ')}` });
 
@@ -87,6 +87,7 @@ const updateStatus = async (req, res) => {
   if (payment_status)    { setClauses.push(`payment_status=$${idx++}`);    params.push(payment_status); }
   if (assessment_status) { setClauses.push(`assessment_status=$${idx++}`); params.push(assessment_status); }
   if (notes !== undefined) { setClauses.push(`notes=$${idx++}`); params.push(notes); }
+  if (tags  !== undefined) { setClauses.push(`tags=$${idx++}`);  params.push(JSON.stringify(tags)); }
 
   if (!setClauses.length) return res.status(400).json({ error: 'Nothing to update' });
 
