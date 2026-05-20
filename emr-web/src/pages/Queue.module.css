@@ -68,6 +68,16 @@
 .colAction:hover { background: var(--color-border); }
 .colActionActive { background: var(--color-primary) !important; color: #fff !important; border-radius: 4px; }
 
+.filterWrap { position: relative; display: flex; align-items: center; }
+.filterBadge {
+  position: absolute; top: -4px; right: -4px;
+  background: #ef4444; color: #fff;
+  font-size: 9px; font-weight: 700;
+  width: 14px; height: 14px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
 /* Inline search bar */
 .searchBar {
   display: flex; align-items: center; gap: 6px;

@@ -4,18 +4,44 @@ import { api } from '../api/client';
 import { Search, SlidersHorizontal, ArrowUpDown, MoreVertical, Plus, LayoutList, CalendarDays, X } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
 import CalendarView from '../components/CalendarView';
+import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
 import styles from './Queue.module.css';
 
 const STATUS_TABS = ['Booked', 'Follow Ups', 'Others'];
 
-function filterAppts(list, q) {
-  if (!q.trim()) return list;
-  const t = q.trim().toLowerCase();
-  return list.filter(a =>
-    a.patient_name?.toLowerCase().includes(t) ||
-    a.patient_mobile?.includes(t) ||
-    String(a.token_number).includes(t)
-  );
+function filterAppts(list, q, filters) {
+  let out = list;
+
+  // Text search
+  if (q.trim()) {
+    const t = q.trim().toLowerCase();
+    out = out.filter(a =>
+      a.patient_name?.toLowerCase().includes(t) ||
+      a.patient_mobile?.includes(t) ||
+      String(a.token_number).includes(t)
+    );
+  }
+
+  // Tags filter (no tags = no tags field set)
+  if (filters.tags === 'no_tags') {
+    out = out.filter(a => !a.tags || a.tags.length === 0);
+  }
+
+  // Follow-up filter
+  if (filters.followup === 'added') {
+    out = out.filter(a => a.status === 'follow_up' || a.next_visit_date);
+  } else if (filters.followup === 'not_added') {
+    out = out.filter(a => a.status !== 'follow_up' && !a.next_visit_date);
+  }
+
+  // Paid status filter
+  if (filters.paid === 'paid') {
+    out = out.filter(a => a.payment_status === 'billed' || a.payment_status === 'paid');
+  } else if (filters.paid === 'unpaid') {
+    out = out.filter(a => a.payment_status === 'unbilled' || a.payment_status === 'unpaid' || !a.payment_status);
+  }
+
+  return out;
 }
 
 export default function Queue() {
@@ -31,12 +57,20 @@ export default function Queue() {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Column search
-  const [leftSearch,     setLeftSearch]     = useState('');
-  const [leftSearchOpen, setLeftSearchOpen] = useState(false);
-  const [rightSearch,    setRightSearch]    = useState('');
-  const [rightSearchOpen,setRightSearchOpen]= useState(false);
+  const [leftSearch,      setLeftSearch]      = useState('');
+  const [leftSearchOpen,  setLeftSearchOpen]  = useState(false);
+  const [rightSearch,     setRightSearch]     = useState('');
+  const [rightSearchOpen, setRightSearchOpen] = useState(false);
   const leftInputRef  = useRef(null);
   const rightInputRef = useRef(null);
+
+  // Column filters
+  const [leftFilters,       setLeftFilters]       = useState({ ...DEFAULT_FILTERS });
+  const [leftFilterOpen,    setLeftFilterOpen]    = useState(false);
+  const [rightFilters,      setRightFilters]      = useState({ ...DEFAULT_FILTERS });
+  const [rightFilterOpen,   setRightFilterOpen]   = useState(false);
+  const leftFilterBtnRef  = useRef(null);
+  const rightFilterBtnRef = useRef(null);
 
   useEffect(() => {
     api.get('/queues').then(rows => {
@@ -81,8 +115,10 @@ export default function Queue() {
 
   const rawLeft  = leftTab === 'Booked' ? board.booked : [];
   const rawRight = rightTab === 'MY OPD' ? board.my_opd : board.completed;
-  const leftList  = filterAppts(rawLeft,  leftSearch);
-  const rightList = filterAppts(rawRight, rightSearch);
+  const leftList  = filterAppts(rawLeft,  leftSearch,  leftFilters);
+  const rightList = filterAppts(rawRight, rightSearch, rightFilters);
+  const leftFilterCount  = activeFilterCount(leftFilters);
+  const rightFilterCount = activeFilterCount(rightFilters);
 
   return (
     <div className={styles.page}>
@@ -134,7 +170,23 @@ export default function Queue() {
                 className={`${styles.colAction} ${leftSearchOpen ? styles.colActionActive : ''}`}
                 title="Search" onClick={toggleLeftSearch}
               ><Search size={14} strokeWidth={2} /></button>
-              <button className={styles.colAction} title="Filter"><SlidersHorizontal size={14} strokeWidth={2} /></button>
+              <div className={styles.filterWrap}>
+                <button
+                  ref={leftFilterBtnRef}
+                  className={`${styles.colAction} ${leftFilterCount > 0 ? styles.colActionActive : ''}`}
+                  title="Filter" onClick={() => setLeftFilterOpen(v => !v)}
+                >
+                  <SlidersHorizontal size={14} strokeWidth={2} />
+                  {leftFilterCount > 0 && <span className={styles.filterBadge}>{leftFilterCount}</span>}
+                </button>
+                {leftFilterOpen && (
+                  <FilterPanel
+                    filters={leftFilters}
+                    onChange={setLeftFilters}
+                    onClose={() => setLeftFilterOpen(false)}
+                  />
+                )}
+              </div>
             </div>
 
             {leftSearchOpen && (
@@ -195,7 +247,23 @@ export default function Queue() {
                 title="Search" onClick={toggleRightSearch}
               ><Search size={14} strokeWidth={2} /></button>
               <button className={styles.colAction} title="Sort"><ArrowUpDown size={14} strokeWidth={2} /></button>
-              <button className={styles.colAction} title="Filter"><SlidersHorizontal size={14} strokeWidth={2} /></button>
+              <div className={styles.filterWrap}>
+                <button
+                  ref={rightFilterBtnRef}
+                  className={`${styles.colAction} ${rightFilterCount > 0 ? styles.colActionActive : ''}`}
+                  title="Filter" onClick={() => setRightFilterOpen(v => !v)}
+                >
+                  <SlidersHorizontal size={14} strokeWidth={2} />
+                  {rightFilterCount > 0 && <span className={styles.filterBadge}>{rightFilterCount}</span>}
+                </button>
+                {rightFilterOpen && (
+                  <FilterPanel
+                    filters={rightFilters}
+                    onChange={setRightFilters}
+                    onClose={() => setRightFilterOpen(false)}
+                  />
+                )}
+              </div>
               <button className={styles.colAction} title="More"><MoreVertical size={14} strokeWidth={2} /></button>
             </div>
 
