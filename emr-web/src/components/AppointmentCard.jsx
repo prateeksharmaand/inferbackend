@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Tag } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Tag, Clock } from 'lucide-react';
 import TagDialog from './TagDialog';
 import styles from './AppointmentCard.module.css';
 
@@ -15,6 +15,32 @@ const ACTIONS = {
   ongoing:    ['Write Rx', 'Complete'],
   parked:     ['Resume', 'Complete'],
 };
+
+function sinceText(ts) {
+  if (!ts) return null;
+  const mins = Math.floor((Date.now() - new Date(ts)) / 60000);
+  if (mins < 1) return '< 1 min';
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function ConsultTimer({ since }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick(n => n + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const text = sinceText(since);
+  if (!text) return null;
+  return (
+    <span className={styles.consultTimer}>
+      <Clock size={11} strokeWidth={2} />
+      Since {text}
+    </span>
+  );
+}
 
 export default function AppointmentCard({ appt, clinicTags = [], onStatusChange, onTagUpdate, onOpen }) {
   const [showTagDialog, setShowTagDialog] = useState(false);
@@ -48,9 +74,10 @@ export default function AppointmentCard({ appt, clinicTags = [], onStatusChange,
           <div className={styles.row1}>
             <span className={styles.token}>#{appt.token_number}</span>
             <span className={styles.name}>{appt.patient_name}</span>
-            <span className={styles.status} style={{ color }}>
-              {appt.status.replace('_', ' ')}
-            </span>
+            {appt.status === 'ongoing' && appt.checked_in_at
+              ? <ConsultTimer since={appt.checked_in_at} />
+              : <span className={styles.status} style={{ color }}>{appt.status.replace('_', ' ')}</span>
+            }
           </div>
           <div className={styles.row2}>
             <span>{appt.patient_mobile || '—'}</span>
