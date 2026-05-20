@@ -15,6 +15,7 @@ router.post('/auth/register-clinic', auth.registerClinic);
 // Autocomplete proxy (ICD-10 / RxTerms via NLM — public, avoids CSP)
 router.get('/autocomplete/icd10',   ac.searchICD10);
 router.get('/autocomplete/rxterms', ac.searchRxTerms);
+router.get('/autocomplete/ping',    ac.ping);
 
 // ── Protected (all routes below require EMR JWT) ───────────────────────────
 router.use(emrAuth);
