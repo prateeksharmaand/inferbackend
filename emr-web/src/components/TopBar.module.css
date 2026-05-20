@@ -116,6 +116,17 @@
   background: #16a34a; color: #fff; flex-shrink: 0; white-space: nowrap;
 }
 
+/* Book mode search box */
+.searchBoxBook {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(124,58,237,.1);
+  background: #f5f3ff;
+}
+.bookTag {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  background: var(--color-primary); color: #fff; flex-shrink: 0; white-space: nowrap;
+}
+
 /* Patient hit card */
 .suggPatient { background: #fafbff; }
 .suggPatient:hover { background: #f0f0ff; }

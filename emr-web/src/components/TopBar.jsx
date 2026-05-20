@@ -28,11 +28,11 @@ export default function TopBar() {
   const { user } = useAuth();
   const { queueDate, prevDay, nextDay } = useQueueDate();
   const navigate = useNavigate();
-  const [showAdd,     setShowAdd]     = useState(false);
-  const [showBook,    setShowBook]    = useState(false);
-  const [addMode,     setAddMode]     = useState('');
-  const [prefill,     setPrefill]     = useState({});
-  const [checkinMode, setCheckinMode] = useState(false);
+  const [showAdd,    setShowAdd]    = useState(false);
+  const [showBook,   setShowBook]   = useState(false);
+  const [addMode,    setAddMode]    = useState('');
+  const [prefill,    setPrefill]    = useState({});
+  const [searchMode, setSearchMode] = useState(null); // 'checkin' | 'book' | null
   const [query,       setQuery]       = useState('');
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [patients,    setPatients]    = useState([]);
@@ -51,15 +51,10 @@ export default function TopBar() {
 
   const handleOption = (key) => {
     setShowAdd(false);
-    if (key === 'checkin') {
-      setCheckinMode(true);
+    if (key === 'checkin' || key === 'book') {
+      setSearchMode(key);
       setSearchOpen(true);
       setTimeout(() => searchInput.current?.focus(), 50);
-    } else if (key === 'book') {
-      setCheckinMode(false);
-      setAddMode('book');
-      setPrefill({});
-      setShowBook(true);
     } else if (key === 'rx') {
       navigate('/rx/new');
     }
@@ -69,27 +64,27 @@ export default function TopBar() {
     setQuery('');
     setSearchOpen(false);
     setPatients([]);
-    setCheckinMode(false);
+    setSearchMode(null);
   };
 
   const openWithPatient = (p) => {
-    const isCheckin = checkinMode;
+    const mode = searchMode;
     clearSearch();
     const pf = {
       patient_name:   p.name,
-      patient_mobile: p.mobile        || '',
-      patient_abha:   p.abha_number   || '',
+      patient_mobile: p.mobile      || '',
+      patient_abha:   p.abha_number || '',
       channel: 'walk_in',
     };
-    setAddMode(isCheckin ? 'checkin' : 'book');
+    setAddMode(mode === 'checkin' ? 'checkin' : 'book');
     setPrefill(pf);
     setShowBook(true);
   };
 
   const openWithName = (name, via) => {
-    const isCheckin = checkinMode;
+    const mode = searchMode;
     clearSearch();
-    setAddMode(isCheckin ? 'checkin' : 'book');
+    setAddMode(mode === 'checkin' ? 'checkin' : 'book');
     setPrefill({ patient_name: name, channel: via === 'abha' ? 'abha' : 'walk_in' });
     setShowBook(true);
   };
@@ -117,7 +112,7 @@ export default function TopBar() {
     const handler = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setSearchOpen(false);
-        setCheckinMode(false);
+        setSearchMode(null);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -125,7 +120,7 @@ export default function TopBar() {
   }, []);
 
   const trimmed      = query.trim();
-  const showDropdown = searchOpen && (checkinMode || trimmed.length > 0);
+  const showDropdown = searchOpen && (searchMode || trimmed.length > 0);
 
   return (
     <>
@@ -159,22 +154,26 @@ export default function TopBar() {
 
           {/* Search */}
           <div ref={searchRef} className={`${styles.searchWrap} ${searchOpen ? styles.searchWrapOpen : ''}`}>
-            <div className={`${styles.searchBox} ${checkinMode ? styles.searchBoxCheckin : ''}`}>
-              {checkinMode
+            <div className={`${styles.searchBox} ${searchMode === 'checkin' ? styles.searchBoxCheckin : searchMode === 'book' ? styles.searchBoxBook : ''}`}>
+              {searchMode === 'checkin'
                 ? <span className={styles.checkinTag}>Check-In</span>
-                : <Search size={14} className={styles.searchIcon} strokeWidth={2} />
+                : searchMode === 'book'
+                  ? <span className={styles.bookTag}>Book Appt</span>
+                  : <Search size={14} className={styles.searchIcon} strokeWidth={2} />
               }
               <input
                 ref={searchInput}
                 className={styles.searchInput}
-                placeholder={checkinMode
+                placeholder={searchMode === 'checkin'
                   ? 'Search patient to check in, or type a new name…'
-                  : 'Search / Add Patient by Name, Number, UHID, ABHA ID, or Aadhar'}
+                  : searchMode === 'book'
+                    ? 'Search patient to book appointment…'
+                    : 'Search / Add Patient by Name, Number, UHID, ABHA ID, or Aadhar'}
                 value={query}
                 onChange={handleQueryChange}
                 onFocus={() => setSearchOpen(true)}
               />
-              {(query || checkinMode) ? (
+              {(query || searchMode) ? (
                 <button className={styles.clearBtn} onClick={clearSearch}><X size={13} /></button>
               ) : (
                 <span className={styles.kbd}>⌘K</span>
@@ -197,8 +196,8 @@ export default function TopBar() {
                           {[p.uhid, p.mobile, p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : 'Other', age ? `${age}y` : null, p.abha_number].filter(Boolean).join(' • ')}
                         </span>
                       </div>
-                      <span className={`${styles.suggBadge} ${checkinMode ? styles.suggBadgeCheckin : ''}`}>
-                        {checkinMode ? 'Check-In' : 'Book'}
+                      <span className={`${styles.suggBadge} ${searchMode === 'checkin' ? styles.suggBadgeCheckin : ''}`}>
+                        {searchMode === 'checkin' ? 'Check-In' : 'Book'}
                       </span>
                     </li>
                   );
@@ -206,7 +205,7 @@ export default function TopBar() {
 
                 {!searching && patients.length > 0 && (
                   <li className={styles.suggDivider}>
-                    {checkinMode ? 'Add new patient & check in' : 'Add new patient'}
+                    {searchMode === 'checkin' ? 'Add new patient & check in' : 'Add new patient'}
                   </li>
                 )}
 
@@ -215,14 +214,14 @@ export default function TopBar() {
                   <li className={styles.suggestion} onClick={() => openWithName(trimmed, 'manual')}>
                     <span className={styles.suggIcon}>👤</span>
                     <div className={styles.suggText}>
-                      <span className={styles.suggMain}>{checkinMode ? 'Add & Check-In' : 'Add New Patient'}</span>
+                      <span className={styles.suggMain}>{searchMode === 'checkin' ? 'Add & Check-In' : 'Add New Patient'}</span>
                       <span className={styles.suggSub}>"{trimmed}"</span>
                     </div>
-                    <span className={`${styles.suggBadge} ${checkinMode ? styles.suggBadgeCheckin : ''}`}>
-                      {checkinMode ? 'Check-In' : 'Manual'}
+                    <span className={`${styles.suggBadge} ${searchMode === 'checkin' ? styles.suggBadgeCheckin : ''}`}>
+                      {searchMode === 'checkin' ? 'Check-In' : 'Manual'}
                     </span>
                   </li>
-                  {!checkinMode && (
+                  {searchMode !== 'checkin' && (
                     <li className={styles.suggestion} onClick={() => openWithName(trimmed, 'abha')}>
                       <span className={styles.suggIcon}>🔗</span>
                       <div className={styles.suggText}>
@@ -234,8 +233,8 @@ export default function TopBar() {
                   )}
                 </>}
 
-                {/* In checkin mode with no query yet, show a prompt */}
-                {checkinMode && !searching && trimmed.length === 0 && (
+                {/* Prompt when in a mode with no query yet */}
+                {searchMode && !searching && trimmed.length === 0 && (
                   <li className={styles.suggHint}>Type a name or number to search…</li>
                 )}
               </ul>
