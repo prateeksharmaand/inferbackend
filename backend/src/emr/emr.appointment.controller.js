@@ -138,7 +138,28 @@ const getAppointment = async (req, res) => {
     [req.params.id, req.emrUser.clinic_id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Not found' });
-  res.json(rows[0]);
+  const appt = rows[0];
+
+  // Fetch past encounter notes for the same patient (by mobile)
+  let past_encounter_notes = [];
+  if (appt.patient_mobile) {
+    const { rows: prev } = await pool.query(
+      `SELECT e.notes, a.appointment_date, d.name AS doctor_name
+       FROM emr_encounters e
+       JOIN emr_appointments a ON a.id = e.appointment_id
+       LEFT JOIN emr_doctors d ON d.id = a.doctor_id
+       WHERE a.clinic_id = $1
+         AND a.patient_mobile = $2
+         AND a.id != $3
+         AND e.notes IS NOT NULL AND e.notes != ''
+       ORDER BY a.appointment_date DESC
+       LIMIT 10`,
+      [req.emrUser.clinic_id, appt.patient_mobile, req.params.id]
+    );
+    past_encounter_notes = prev;
+  }
+
+  res.json({ ...appt, past_encounter_notes });
 };
 
 // POST /api/emr/appointments/:id/encounter  (save Rx / FHIR)

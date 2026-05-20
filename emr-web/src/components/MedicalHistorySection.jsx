@@ -1,12 +1,12 @@
 import { Check } from 'lucide-react';
 import styles from './MedicalHistorySection.module.css';
 
-const CONDITIONS = [
+export const CONDITIONS = [
   { key: 'diabetes',       label: 'Diabetes' },
   { key: 'hypertension',   label: 'Hypertension' },
   { key: 'hypothyroidism', label: 'Hypothyroidism' },
 ];
-const HABITS = [
+export const HABITS = [
   { key: 'alcohol', label: 'Alcohol' },
   { key: 'tobacco', label: 'Tobacco' },
   { key: 'smoking', label: 'Smoking' },

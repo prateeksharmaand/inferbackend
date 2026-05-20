@@ -169,6 +169,107 @@
 }
 .customDel:hover { background: #fef2f2; }
 
+/* ── Since / Severity meta row ── */
+.metaRow {
+  display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
+}
+.metaField {
+  display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 120px;
+}
+.metaField label { font-size: 11px; font-weight: 600; color: var(--color-text-2); }
+.metaField input {
+  border: 1px solid var(--color-border); border-radius: 7px;
+  padding: 6px 10px; font-size: 12px; outline: none; font-family: inherit;
+}
+.metaField input:focus { border-color: var(--color-primary); }
+
+/* Severity pills */
+.severityRow { display: flex; gap: 5px; }
+.sevBtn {
+  padding: 5px 11px; border-radius: 20px; border: 1px solid var(--color-border);
+  background: none; font-size: 11px; font-weight: 600; cursor: pointer;
+  color: var(--color-text-2); transition: all .1s;
+}
+.sevBtn:hover         { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
+.sevBtnActive         { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+/* Chip meta (since / severity inline) */
+.chipMeta { font-size: 10px; opacity: .75; font-weight: 400; }
+.chipCode { font-size: 10px; opacity: .65; font-weight: 400; }
+
+/* ── Medication card layout ── */
+.medList { display: flex; flex-direction: column; gap: 10px; }
+.medCard {
+  border: 1px solid var(--color-border); border-radius: 8px;
+  overflow: hidden; background: #fafbff;
+}
+.medCardRow, .medCardRow2, .medCardRow3 {
+  display: flex; gap: 8px; padding: 8px 12px; align-items: flex-end;
+  border-bottom: 1px solid var(--color-border);
+}
+.medCardRow3 { border-bottom: none; }
+.medNameCell { flex: 2; display: flex; flex-direction: column; gap: 4px; }
+.medSmallCell { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 90px; }
+.medNameCell label,
+.medSmallCell label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); }
+.medCardRow3 label  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); flex-shrink: 0; margin-right: 8px; align-self: center; }
+.delTop { align-self: flex-end; padding-bottom: 5px; }
+
+/* ── Autocomplete suggestion item layout ── */
+.acItem { display: flex; align-items: baseline; gap: 8px; }
+.acCode { font-size: 11px; font-weight: 700; color: var(--color-primary); flex-shrink: 0; min-width: 50px; }
+.acName { font-size: 13px; color: var(--color-text); }
+.acSub  { font-size: 11px; color: var(--color-text-3); }
+
+/* Code badge on chips */
+.chipCode { font-size: 10px; opacity: .7; }
+
+/* Cell input inside table rows (used for non-autocomplete fields) */
+.cellInput {
+  border: 1px solid var(--color-border); border-radius: 5px;
+  padding: 5px 8px; font-size: 12px; outline: none;
+  font-family: inherit; width: 100%; box-sizing: border-box;
+}
+.cellInput:focus { border-color: var(--color-primary); }
+
+/* ── Notes two-section layout ── */
+.notesSection { display: flex; flex-direction: column; gap: 8px; }
+
+.notesSectionHead {
+  display: flex; align-items: center; gap: 10px;
+}
+.notesSectionTitle {
+  font-size: 12px; font-weight: 700; color: var(--color-text); text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.notesPrintTag {
+  font-size: 10px; font-weight: 700; background: #dcfce7; color: #166534;
+  border: 1px solid #86efac; padding: 1px 7px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.notesROTag {
+  font-size: 10px; font-weight: 700; background: #f1f5f9; color: var(--color-text-3);
+  border: 1px solid var(--color-border); padding: 1px 7px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: .4px;
+}
+
+.notesDivider {
+  height: 1px; background: var(--color-border); margin: 4px 0;
+}
+
+/* Past notes list */
+.pastNotesList { display: flex; flex-direction: column; gap: 8px; }
+.pastNote {
+  background: #f8fafc; border: 1px solid var(--color-border);
+  border-radius: 8px; padding: 10px 14px;
+  border-left: 3px solid #94a3b8;
+}
+.pastNoteMeta {
+  display: flex; gap: 6px; align-items: center;
+  font-size: 11px; font-weight: 600; color: var(--color-text-3); margin-bottom: 5px;
+}
+.pastNoteText { font-size: 13px; color: var(--color-text-2); margin: 0; line-height: 1.6; white-space: pre-wrap; }
+
 /* ── Add custom section button ── */
 .addSection {
   display: flex; align-items: center; justify-content: center; gap: 6px;

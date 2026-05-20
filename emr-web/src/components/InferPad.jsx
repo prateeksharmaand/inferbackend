@@ -1,19 +1,48 @@
 import { useState } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import styles from './InferPad.module.css';
+import AutocompleteInput from './AutocompleteInput';
+import MedicalHistorySection from './MedicalHistorySection';
+
+// ── External API helpers ──────────────────────────────────────────────────────
+
+async function fetchICD10(query) {
+  try {
+    const r = await fetch(
+      `https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search?terms=${encodeURIComponent(query)}&maxList=12`
+    );
+    const [, , , rows] = await r.json();
+    return (rows || []).map(([code, name]) => ({ code, name, label: `${code} — ${name}` }));
+  } catch { return []; }
+}
+
+async function fetchRxTerms(query) {
+  try {
+    const r = await fetch(
+      `https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?terms=${encodeURIComponent(query)}&maxList=12`
+    );
+    const [, , , rows] = await r.json();
+    return (rows || []).map(row => ({ name: row[0], strength: row[3] || '', label: row[0] }));
+  } catch { return []; }
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const VITALS_CONFIG = [
-  { key: 'bp_systolic',      label: 'Systolic BP',      unit: 'mmHg',  placeholder: '120' },
-  { key: 'bp_diastolic',     label: 'Diastolic BP',      unit: 'mmHg',  placeholder: '80'  },
-  { key: 'temp',             label: 'Temperature',       unit: '°C',    placeholder: '37.2' },
-  { key: 'spo2',             label: 'SpO₂',              unit: '%',     placeholder: '98'  },
-  { key: 'pulse',            label: 'Pulse',             unit: 'bpm',   placeholder: '72'  },
-  { key: 'respiratory_rate', label: 'Respiratory Rate',  unit: '/min',  placeholder: '16'  },
-  { key: 'height',           label: 'Height',            unit: 'cm',    placeholder: '170' },
-  { key: 'weight',           label: 'Weight',            unit: 'kg',    placeholder: '70'  },
+  { key: 'bp_systolic',      label: 'Systolic BP',      unit: 'mmHg', placeholder: '120'  },
+  { key: 'bp_diastolic',     label: 'Diastolic BP',      unit: 'mmHg', placeholder: '80'   },
+  { key: 'temp',             label: 'Temperature',       unit: '°C',   placeholder: '37.2' },
+  { key: 'spo2',             label: 'SpO₂',              unit: '%',    placeholder: '98'   },
+  { key: 'pulse',            label: 'Pulse',             unit: 'bpm',  placeholder: '72'   },
+  { key: 'respiratory_rate', label: 'Respiratory Rate',  unit: '/min', placeholder: '16'   },
+  { key: 'height',           label: 'Height',            unit: 'cm',   placeholder: '170'  },
+  { key: 'weight',           label: 'Weight',            unit: 'kg',   placeholder: '70'   },
 ];
 
-// Collapsible card
+const SEVERITIES = ['Mild', 'Moderate', 'Severe'];
+
+// ── Collapsible card ─────────────────────────────────────────────────────────
+
 function ICard({ title, icon, badge, color = '#6366f1', defaultOpen = true, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -31,43 +60,90 @@ function ICard({ title, icon, badge, color = '#6366f1', defaultOpen = true, chil
   );
 }
 
-export default function InferPad({ form, set, setVital, appt }) {
-  // Chip helpers (chip arrays + input fields)
-  const addChip = (field, inputField) => {
-    const val = (form[inputField] || '').trim();
-    if (!val) return;
-    set(field, [...form[field], val]);
-    set(inputField, '');
-  };
-  const removeChip = (field, idx) => set(field, form[field].filter((_, i) => i !== idx));
+// ── Severity pills ────────────────────────────────────────────────────────────
 
-  const addDiag = () => {
-    if (!(form.diagInput || '').trim()) return;
+function SeverityPills({ value, onChange }) {
+  return (
+    <div className={styles.severityRow}>
+      {SEVERITIES.map(s => (
+        <button key={s} type="button"
+          className={`${styles.sevBtn} ${value === s ? styles.sevBtnActive : ''}`}
+          onClick={() => onChange(value === s ? '' : s)}>
+          {s}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) {
+
+  // ── Symptom helpers ──────────────────────────────────────────────────────
+  const addSymptom = (nameOrItem) => {
+    const name = typeof nameOrItem === 'object' ? nameOrItem.name : nameOrItem;
+    if (!name?.trim()) return;
+    set('symptoms', [...form.symptoms, {
+      name: name.trim(),
+      code: typeof nameOrItem === 'object' ? (nameOrItem.code || '') : '',
+      since:    form.symptomSince    || '',
+      severity: form.symptomSeverity || '',
+    }]);
+    set('symptomInput', '');
+    set('symptomSince', '');
+    set('symptomSeverity', '');
+  };
+  const removeSymptom = (i) => set('symptoms', form.symptoms.filter((_, j) => j !== i));
+
+  // ── Diagnosis helpers ────────────────────────────────────────────────────
+  const addDiag = (nameOrItem) => {
+    const name = typeof nameOrItem === 'object' ? nameOrItem.name : nameOrItem;
+    if (!name?.trim()) return;
     set('diagnosis', [...form.diagnosis, {
-      display: form.diagInput.trim(), code: '', system: 'http://snomed.info/sct', status: 'active',
+      display:  name.trim(),
+      code:     typeof nameOrItem === 'object' ? (nameOrItem.code || '') : '',
+      system:   'http://snomed.info/sct',
+      status:   'active',
+      since:    form.diagSince    || '',
+      severity: form.diagSeverity || '',
     }]);
     set('diagInput', '');
+    set('diagSince', '');
+    set('diagSeverity', '');
   };
+  const removeDiag = (i) => set('diagnosis', form.diagnosis.filter((_, j) => j !== i));
 
-  const addMed = () =>
-    set('medications', [...form.medications, { name: '', dosage: '', frequency: '', duration: '' }]);
+  // ── Medication helpers ────────────────────────────────────────────────────
+  const addMed = () => set('medications', [...form.medications,
+    { name: '', dose: '', frequency: '', timing: '', duration: '', start_from: '', instructions: '' }
+  ]);
   const updateMed = (i, k, v) => {
     const arr = [...form.medications]; arr[i] = { ...arr[i], [k]: v }; set('medications', arr);
   };
 
+  // ── Lab result helpers ────────────────────────────────────────────────────
   const addLabResult = () =>
     set('lab_results', [...form.lab_results, { test: '', result: '', unit: '', range: '' }]);
   const updateLabResult = (i, k, v) => {
     const arr = [...form.lab_results]; arr[i] = { ...arr[i], [k]: v }; set('lab_results', arr);
   };
 
+  // ── Chip helpers (lab investigations, procedures) ─────────────────────────
+  const addChip = (field, inputField) => {
+    const val = (form[inputField] || '').trim();
+    if (!val) return;
+    set(field, [...form[field], val]);
+    set(inputField, '');
+  };
+  const removeChip = (field, i) => set(field, form[field].filter((_, j) => j !== i));
+
+  // ── Custom section helpers ────────────────────────────────────────────────
   const customSections = form.custom_sections || [];
-  const addCustom = () =>
-    set('custom_sections', [...customSections, { id: Date.now(), title: '', content: '' }]);
+  const addCustom = () => set('custom_sections', [...customSections, { id: Date.now(), title: '', content: '' }]);
   const updateCustom = (id, k, v) =>
     set('custom_sections', customSections.map(s => s.id === id ? { ...s, [k]: v } : s));
-  const removeCustom = (id) =>
-    set('custom_sections', customSections.filter(s => s.id !== id));
+  const removeCustom = (id) => set('custom_sections', customSections.filter(s => s.id !== id));
 
   return (
     <div className={styles.wrap}>
@@ -79,99 +155,180 @@ export default function InferPad({ form, set, setVital, appt }) {
             <div key={key} className={styles.vCell}>
               <label>{label} <span className={styles.unit}>{unit}</span></label>
               <input type="number" value={form.vitals[key] || ''}
-                onChange={e => setVital(key, e.target.value)}
-                placeholder={placeholder} />
+                onChange={e => setVital(key, e.target.value)} placeholder={placeholder} />
             </div>
           ))}
-          {/* BMI — auto-calculated, still editable */}
           <div className={styles.vCell}>
-            <label>
-              BMI <span className={styles.unit}>kg/m²</span>
+            <label>BMI <span className={styles.unit}>kg/m²</span>
               {form.vitals.bmi && <span className={styles.autoTag}>auto</span>}
             </label>
             <input type="number"
               className={form.vitals.bmi ? styles.vInputAuto : ''}
               value={form.vitals.bmi || ''}
-              onChange={e => setVital('bmi', e.target.value)}
-              placeholder="auto" />
+              onChange={e => setVital('bmi', e.target.value)} placeholder="auto" />
           </div>
         </div>
       </ICard>
 
-      {/* 2 — Patient Medical History */}
+      {/* 2 — Patient Medical History (same grid as Check-In) */}
       <ICard title="Patient Medical History" icon="📋" color="#64748b" defaultOpen={false}>
-        {appt?.medical_history?.length > 0 ? (
-          <>
-            <div className={styles.chips}>
-              {appt.medical_history.map((h, i) => (
-                <span key={i} className={`${styles.chip} ${styles.chipRO}`}>
-                  {h.label || h.condition || JSON.stringify(h)}
-                </span>
-              ))}
-            </div>
-            <p className={styles.hint}>From check-in — read only</p>
-          </>
-        ) : (
-          <p className={styles.hint}>No medical history recorded at check-in.</p>
-        )}
+        <MedicalHistorySection
+          value={form.medical_history || []}
+          onChange={v => set('medical_history', v)}
+        />
       </ICard>
 
-      {/* 3 — Symptoms */}
+      {/* 3 — Symptoms (ICD-10 + since + severity) */}
       <ICard title="Symptoms" icon="🤒" color="#f59e0b" defaultOpen={false}>
         <div className={styles.chips}>
-          {form.symptoms.map((s, i) => (
-            <span key={i} className={`${styles.chip} ${styles.chipSymptom}`}>
-              {s}<button onClick={() => removeChip('symptoms', i)}>✕</button>
-            </span>
-          ))}
+          {form.symptoms.map((s, i) => {
+            const name = typeof s === 'string' ? s : s.name;
+            return (
+              <span key={i} className={`${styles.chip} ${styles.chipSymptom}`}>
+                {name}
+                {s.since    && <span className={styles.chipMeta}> · {s.since}</span>}
+                {s.severity && <span className={styles.chipMeta}> · {s.severity}</span>}
+                <button onClick={() => removeSymptom(i)}>✕</button>
+              </span>
+            );
+          })}
         </div>
-        <div className={styles.addRow}>
-          <input placeholder="Type symptom and press Enter…"
-            value={form.symptomInput || ''}
-            onChange={e => set('symptomInput', e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChip('symptoms', 'symptomInput'))} />
-          <button onClick={() => addChip('symptoms', 'symptomInput')}>Add</button>
+        <AutocompleteInput
+          value={form.symptomInput || ''}
+          onChange={v => set('symptomInput', v)}
+          onSelect={addSymptom}
+          onAddChip={addSymptom}
+          fetchSuggestions={fetchICD10}
+          placeholder="Search ICD-10 or type symptom, press Enter…"
+          renderItem={item => (
+            <div className={styles.acItem}>
+              <span className={styles.acCode}>{item.code}</span>
+              <span className={styles.acName}>{item.name}</span>
+            </div>
+          )}
+        />
+        <div className={styles.metaRow}>
+          <div className={styles.metaField}>
+            <label>Since</label>
+            <input placeholder="e.g. 2 days, 1 week"
+              value={form.symptomSince || ''}
+              onChange={e => set('symptomSince', e.target.value)} />
+          </div>
+          <div className={styles.metaField}>
+            <label>Severity</label>
+            <SeverityPills value={form.symptomSeverity || ''} onChange={v => set('symptomSeverity', v)} />
+          </div>
         </div>
       </ICard>
 
-      {/* 4 — Diagnosis */}
+      {/* 4 — Diagnosis (ICD-10 + since + severity) */}
       <ICard title="Diagnosis" icon="🔬" color="#eab308" defaultOpen={false}>
         <div className={styles.chips}>
           {form.diagnosis.map((d, i) => (
             <span key={i} className={`${styles.chip} ${styles.chipDiag}`}>
-              {d.display}<button onClick={() => removeChip('diagnosis', i)}>✕</button>
+              {d.display}
+              {d.code     && <span className={styles.chipCode}> [{d.code}]</span>}
+              {d.since    && <span className={styles.chipMeta}> · {d.since}</span>}
+              {d.severity && <span className={styles.chipMeta}> · {d.severity}</span>}
+              <button onClick={() => removeDiag(i)}>✕</button>
             </span>
           ))}
         </div>
-        <div className={styles.addRow}>
-          <input placeholder="Type diagnosis and press Enter…"
-            value={form.diagInput || ''}
-            onChange={e => set('diagInput', e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addDiag())} />
-          <button onClick={addDiag}>Add</button>
+        <AutocompleteInput
+          value={form.diagInput || ''}
+          onChange={v => set('diagInput', v)}
+          onSelect={addDiag}
+          onAddChip={addDiag}
+          fetchSuggestions={fetchICD10}
+          placeholder="Search ICD-10 or type diagnosis, press Enter…"
+          renderItem={item => (
+            <div className={styles.acItem}>
+              <span className={styles.acCode}>{item.code}</span>
+              <span className={styles.acName}>{item.name}</span>
+            </div>
+          )}
+        />
+        <div className={styles.metaRow}>
+          <div className={styles.metaField}>
+            <label>Since</label>
+            <input placeholder="e.g. 3 years"
+              value={form.diagSince || ''}
+              onChange={e => set('diagSince', e.target.value)} />
+          </div>
+          <div className={styles.metaField}>
+            <label>Severity</label>
+            <SeverityPills value={form.diagSeverity || ''} onChange={v => set('diagSeverity', v)} />
+          </div>
         </div>
       </ICard>
 
-      {/* 5 — Medications */}
+      {/* 5 — Medications (expanded fields) */}
       <ICard title="℞  Medications" icon="💊" color="#8b5cf6" defaultOpen={false}>
-        <div className={styles.tableWrap}>
-          {form.medications.length > 0 && (
-            <div className={styles.table}>
-              <div className={styles.tHead}>
-                <span>Medicine</span><span>Dosage</span><span>Frequency</span><span>Duration</span><span/>
-              </div>
-              {form.medications.map((m, i) => (
-                <div key={i} className={styles.tRow}>
-                  <input placeholder="Medicine name" value={m.name}      onChange={e => updateMed(i, 'name',      e.target.value)} />
-                  <input placeholder="e.g. 500mg"    value={m.dosage}    onChange={e => updateMed(i, 'dosage',    e.target.value)} />
-                  <input placeholder="e.g. TDS"      value={m.frequency} onChange={e => updateMed(i, 'frequency', e.target.value)} />
-                  <input placeholder="e.g. 5 days"   value={m.duration}  onChange={e => updateMed(i, 'duration',  e.target.value)} />
-                  <button className={styles.del}
-                    onClick={() => set('medications', form.medications.filter((_, j) => j !== i))}>✕</button>
+        <div className={styles.medList}>
+          {form.medications.map((m, i) => (
+            <div key={i} className={styles.medCard}>
+              <div className={styles.medCardRow}>
+                {/* Medicine name — RxTerms autocomplete */}
+                <div className={styles.medNameCell}>
+                  <label>Medicine</label>
+                  <AutocompleteInput
+                    value={m.name}
+                    onChange={v => updateMed(i, 'name', v)}
+                    onSelect={item => updateMed(i, 'name', item.name)}
+                    fetchSuggestions={fetchRxTerms}
+                    placeholder="Search or type medicine…"
+                    inputClassName={styles.cellInput}
+                    renderItem={item => (
+                      <div className={styles.acItem}>
+                        <span className={styles.acName}>{item.name}</span>
+                        {item.strength && <span className={styles.acSub}>{item.strength}</span>}
+                      </div>
+                    )}
+                  />
                 </div>
-              ))}
+                <div className={styles.medSmallCell}>
+                  <label>Dose</label>
+                  <input className={styles.cellInput} placeholder="e.g. 1 tablet"
+                    value={m.dose || m.dosage || ''}
+                    onChange={e => updateMed(i, 'dose', e.target.value)} />
+                </div>
+                <div className={styles.medSmallCell}>
+                  <label>Frequency</label>
+                  <input className={styles.cellInput} placeholder="e.g. 1-0-1, TDS"
+                    value={m.frequency || ''}
+                    onChange={e => updateMed(i, 'frequency', e.target.value)} />
+                </div>
+                <button className={`${styles.del} ${styles.delTop}`}
+                  onClick={() => set('medications', form.medications.filter((_, j) => j !== i))}>✕</button>
+              </div>
+              <div className={styles.medCardRow2}>
+                <div className={styles.medSmallCell}>
+                  <label>Timing</label>
+                  <input className={styles.cellInput} placeholder="e.g. After meal"
+                    value={m.timing || ''}
+                    onChange={e => updateMed(i, 'timing', e.target.value)} />
+                </div>
+                <div className={styles.medSmallCell}>
+                  <label>Duration</label>
+                  <input className={styles.cellInput} placeholder="e.g. 5 days"
+                    value={m.duration || ''}
+                    onChange={e => updateMed(i, 'duration', e.target.value)} />
+                </div>
+                <div className={styles.medSmallCell}>
+                  <label>Start From</label>
+                  <input className={styles.cellInput} placeholder="e.g. Today, Day 3"
+                    value={m.start_from || ''}
+                    onChange={e => updateMed(i, 'start_from', e.target.value)} />
+                </div>
+              </div>
+              <div className={styles.medCardRow3}>
+                <label>Instructions</label>
+                <input className={styles.cellInput} placeholder="Special instructions for this medicine…"
+                  value={m.instructions || ''}
+                  onChange={e => updateMed(i, 'instructions', e.target.value)} />
+              </div>
             </div>
-          )}
+          ))}
           <button className={styles.addLine} onClick={addMed}><Plus size={13} /> Add Medicine</button>
         </div>
       </ICard>
@@ -200,14 +357,14 @@ export default function InferPad({ form, set, setVital, appt }) {
           {form.lab_results.length > 0 && (
             <div className={styles.table}>
               <div className={`${styles.tHead} ${styles.tHead4}`}>
-                <span>Test Name</span><span>Result</span><span>Unit</span><span>Normal Range</span><span/>
+                <span>Test Name</span><span>Result</span><span>Unit</span><span>Normal Range</span><span />
               </div>
               {form.lab_results.map((r, i) => (
                 <div key={i} className={`${styles.tRow} ${styles.tRow4}`}>
-                  <input placeholder="e.g. Hb"    value={r.test}   onChange={e => updateLabResult(i, 'test',   e.target.value)} />
-                  <input placeholder="e.g. 12.5"  value={r.result} onChange={e => updateLabResult(i, 'result', e.target.value)} />
-                  <input placeholder="e.g. g/dL"  value={r.unit}   onChange={e => updateLabResult(i, 'unit',   e.target.value)} />
-                  <input placeholder="e.g. 11-16" value={r.range}  onChange={e => updateLabResult(i, 'range',  e.target.value)} />
+                  <input placeholder="e.g. Hb"    value={r.test}   className={styles.cellInput} onChange={e => updateLabResult(i, 'test',   e.target.value)} />
+                  <input placeholder="e.g. 12.5"  value={r.result} className={styles.cellInput} onChange={e => updateLabResult(i, 'result', e.target.value)} />
+                  <input placeholder="e.g. g/dL"  value={r.unit}   className={styles.cellInput} onChange={e => updateLabResult(i, 'unit',   e.target.value)} />
+                  <input placeholder="e.g. 11-16" value={r.range}  className={styles.cellInput} onChange={e => updateLabResult(i, 'range',  e.target.value)} />
                   <button className={styles.del}
                     onClick={() => set('lab_results', form.lab_results.filter((_, j) => j !== i))}>✕</button>
                 </div>
@@ -225,15 +382,48 @@ export default function InferPad({ form, set, setVital, appt }) {
           onChange={e => set('examination_findings', e.target.value)} />
       </ICard>
 
-      {/* 9 — Notes (PRIVATE) */}
-      <ICard title="Notes" icon="🔒" color="#d97706" badge="Private · Not Printed" defaultOpen={false}>
-        <div className={styles.privateBox}>
-          These notes are for internal use only and will <strong>not</strong> appear on the printed prescription.
-          Use for treatment notes, surgical notes, or other private observations.
+      {/* 9 — Notes (current + past) */}
+      <ICard title="Notes" icon="🔒" color="#d97706" badge="Private" defaultOpen={false}>
+        <div className={styles.notesSection}>
+          <div className={styles.notesSectionHead}>
+            <span className={styles.notesSectionTitle}>Current Visit Notes</span>
+            <span className={styles.notesPrintTag}>Prints on prescription</span>
+          </div>
+          <div className={styles.privateBox}>
+            Private notes for this visit — treatment, surgical, or other observations.
+          </div>
+          <textarea rows={4} placeholder="Type your private notes for this visit…"
+            value={form.notes || ''}
+            onChange={e => set('notes', e.target.value)} />
         </div>
-        <textarea rows={4} placeholder="Private notes — treatment / surgical / others…"
-          value={form.notes || ''}
-          onChange={e => set('notes', e.target.value)} />
+
+        <div className={styles.notesDivider} />
+
+        <div className={styles.notesSection}>
+          <div className={styles.notesSectionHead}>
+            <span className={styles.notesSectionTitle}>Past Visit Notes</span>
+            <span className={styles.notesROTag}>Read only · Not printed</span>
+          </div>
+          {pastNotes.length === 0 ? (
+            <p className={styles.hint}>No past visit notes found for this patient.</p>
+          ) : (
+            <div className={styles.pastNotesList}>
+              {pastNotes.map((n, i) => (
+                <div key={i} className={styles.pastNote}>
+                  <div className={styles.pastNoteMeta}>
+                    {n.appointment_date && (
+                      <span>{new Date(n.appointment_date).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                      })}</span>
+                    )}
+                    {n.doctor_name && <span>· Dr. {n.doctor_name}</span>}
+                  </div>
+                  <p className={styles.pastNoteText}>{n.notes}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </ICard>
 
       {/* 10 — Refer to a Doctor */}
@@ -287,16 +477,12 @@ export default function InferPad({ form, set, setVital, appt }) {
 
       {/* 14 — Custom Sections */}
       {customSections.map(section => (
-        <ICard key={section.id}
-          title={section.title || 'Custom Section'}
-          icon="✏️" color="#94a3b8">
+        <ICard key={section.id} title={section.title || 'Custom Section'} icon="✏️" color="#94a3b8">
           <div className={styles.customHead}>
-            <input className={styles.customTitle}
-              placeholder="Section title…"
+            <input className={styles.customTitle} placeholder="Section title…"
               value={section.title}
               onChange={e => updateCustom(section.id, 'title', e.target.value)} />
-            <button className={styles.customDel}
-              onClick={() => removeCustom(section.id)}>Remove</button>
+            <button className={styles.customDel} onClick={() => removeCustom(section.id)}>Remove</button>
           </div>
           <textarea rows={3} placeholder="Section content…"
             value={section.content}

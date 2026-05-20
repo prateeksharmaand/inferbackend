@@ -18,8 +18,9 @@ const EMPTY_FORM = {
     bp_systolic: '', bp_diastolic: '', temp: '', spo2: '', pulse: '',
     respiratory_rate: '', height: '', weight: '', bmi: '',
   },
-  symptoms: [],         symptomInput: '',
-  diagnosis: [],        diagInput: '',
+  medical_history: [],
+  symptoms: [],  symptomInput: '', symptomSince: '', symptomSeverity: '',
+  diagnosis: [], diagInput: '',    diagSince: '',    diagSeverity: '',
   medications: [],
   lab_investigations: [], labInput: '',
   lab_results: [],
@@ -111,7 +112,15 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
               {form.symptoms.length > 0 && (
                 <PrintSection title="Symptoms">
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {form.symptoms.map((s, i) => <span key={i} className={styles.printChip}>{s}</span>)}
+                    {form.symptoms.map((s, i) => {
+                      const name = typeof s === 'string' ? s : s.name;
+                      const meta = [s.since, s.severity].filter(Boolean).join(' · ');
+                      return (
+                        <span key={i} className={styles.printChip}>
+                          {name}{meta && <span style={{ opacity: .7, fontSize: 11 }}> ({meta})</span>}
+                        </span>
+                      );
+                    })}
                   </div>
                 </PrintSection>
               )}
@@ -119,7 +128,15 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
               {/* Diagnosis */}
               {form.diagnosis.length > 0 && (
                 <PrintSection title="Diagnosis">
-                  {form.diagnosis.map((d, i) => <div key={i} className={styles.printBullet}>• {d.display}</div>)}
+                  {form.diagnosis.map((d, i) => {
+                    const meta = [d.code, d.since, d.severity].filter(Boolean).join(' · ');
+                    return (
+                      <div key={i} className={styles.printBullet}>
+                        • {d.display}
+                        {meta && <span style={{ opacity: .65, fontSize: 11 }}> ({meta})</span>}
+                      </div>
+                    );
+                  })}
                 </PrintSection>
               )}
 
@@ -128,16 +145,18 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
                 <PrintSection title="℞  Medications">
                   <table className={styles.printMedTable}>
                     <thead>
-                      <tr><th>#</th><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>Duration</th></tr>
+                      <tr><th>#</th><th>Medicine</th><th>Dose</th><th>Frequency</th><th>Timing</th><th>Duration</th><th>Start</th></tr>
                     </thead>
                     <tbody>
                       {form.medications.map((m, i) => (
                         <tr key={i}>
                           <td>{i + 1}</td>
-                          <td><b>{m.name}</b></td>
-                          <td>{m.dosage}</td>
+                          <td><b>{m.name}</b>{m.instructions && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{m.instructions}</div>}</td>
+                          <td>{m.dose || m.dosage}</td>
                           <td>{m.frequency}</td>
+                          <td>{m.timing}</td>
                           <td>{m.duration}</td>
+                          <td>{m.start_from}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -263,6 +282,7 @@ export default function WriteRx() {
   const { user }  = useAuth();
 
   const [appt,            setAppt]            = useState(null);
+  const [pastNotes,       setPastNotes]       = useState([]);
   const [saving,          setSaving]          = useState(false);
   const [error,           setError]           = useState('');
   const [tab,             setTab]             = useState('Overview');
@@ -293,11 +313,17 @@ export default function WriteRx() {
     if (appointmentId === 'new') return;
     api.get(`/appointments/${appointmentId}`).then(data => {
       setAppt(data);
+      if (data.past_encounter_notes) setPastNotes(data.past_encounter_notes);
+      // Always seed medical_history from appointment (check-in data)
+      if (data.medical_history?.length) {
+        setForm(f => ({ ...f, medical_history: data.medical_history }));
+      }
       if (data.encounter_id) {
         setPrescriptionMode(true);
         setForm(f => ({
           ...f,
           vitals:               data.vitals          ? { ...EMPTY_FORM.vitals, ...data.vitals } : f.vitals,
+          medical_history:      data.medical_history || appt?.medical_history || [],
           symptoms:             data.symptoms        || [],
           diagnosis:            data.diagnosis       || [],
           medications:          data.medications     || [],
@@ -370,6 +396,10 @@ export default function WriteRx() {
   const handleFinish = async () => {
     setSaving(true); setError('');
     try {
+      // Persist any medical_history edits back to the appointment
+      await api.patch(`/appointments/${appointmentId}/status`, {
+        medical_history: form.medical_history,
+      });
       await api.post(`/appointments/${appointmentId}/encounter`, {
         symptoms:             form.symptoms,
         diagnosis:            form.diagnosis,
@@ -469,17 +499,16 @@ export default function WriteRx() {
         {/* Symptoms */}
         <RxSection title="Symptoms">
           <div className={styles.chipsRow}>
-            {form.symptoms.map((s, i) => (
-              <span key={i} className={styles.chip}>{s}
-                <button onClick={() => removeChip('symptoms', i)}>✕</button>
-              </span>
-            ))}
-          </div>
-          <div className={styles.addRow}>
-            <input placeholder="Type symptom and press Enter…" value={form.symptomInput}
-              onChange={e => set('symptomInput', e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChip('symptoms', 'symptomInput'))} />
-            <button onClick={() => addChip('symptoms', 'symptomInput')}>Add</button>
+            {form.symptoms.map((s, i) => {
+              const name = typeof s === 'string' ? s : s.name;
+              return (
+                <span key={i} className={styles.chip}>{name}
+                  {s.since    && <span style={{ opacity:.7, fontSize:10 }}> · {s.since}</span>}
+                  {s.severity && <span style={{ opacity:.7, fontSize:10 }}> · {s.severity}</span>}
+                  <button onClick={() => set('symptoms', form.symptoms.filter((_,j)=>j!==i))}>✕</button>
+                </span>
+              );
+            })}
           </div>
         </RxSection>
 
@@ -488,15 +517,11 @@ export default function WriteRx() {
           <div className={styles.chipsRow}>
             {form.diagnosis.map((d, i) => (
               <span key={i} className={`${styles.chip} ${styles.chipDiag}`}>{d.display}
-                <button onClick={() => removeChip('diagnosis', i)}>✕</button>
+                {d.code     && <span style={{ opacity:.7, fontSize:10 }}> [{d.code}]</span>}
+                {d.severity && <span style={{ opacity:.7, fontSize:10 }}> · {d.severity}</span>}
+                <button onClick={() => set('diagnosis', form.diagnosis.filter((_,j)=>j!==i))}>✕</button>
               </span>
             ))}
-          </div>
-          <div className={styles.addRow}>
-            <input placeholder="Type diagnosis and press Enter…" value={form.diagInput}
-              onChange={e => set('diagInput', e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addDiag())} />
-            <button onClick={addDiag}>Add</button>
           </div>
         </RxSection>
 
@@ -505,15 +530,16 @@ export default function WriteRx() {
           <div className={styles.medTableWrap}>
             {form.medications.length > 0 && (
               <div className={styles.medTable}>
-                <div className={styles.medTableHead}>
-                  <span>Medicine</span><span>Dosage</span><span>Frequency</span><span>Duration</span><span></span>
+                <div className={styles.medTableHead} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 28px' }}>
+                  <span>Medicine</span><span>Dose</span><span>Frequency</span><span>Timing</span><span>Duration</span><span></span>
                 </div>
                 {form.medications.map((m, i) => (
-                  <div key={i} className={styles.medTableRow}>
-                    <input placeholder="Medicine name"        value={m.name}      onChange={e => updateMed(i, 'name',      e.target.value)} />
-                    <input placeholder="e.g. 500mg"           value={m.dosage}    onChange={e => updateMed(i, 'dosage',    e.target.value)} />
-                    <input placeholder="e.g. TDS"             value={m.frequency} onChange={e => updateMed(i, 'frequency', e.target.value)} />
-                    <input placeholder="e.g. 5 days"          value={m.duration}  onChange={e => updateMed(i, 'duration',  e.target.value)} />
+                  <div key={i} className={styles.medTableRow} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 28px' }}>
+                    <input placeholder="Medicine name"      value={m.name}                onChange={e => updateMed(i, 'name',      e.target.value)} />
+                    <input placeholder="e.g. 1 tablet"      value={m.dose||m.dosage||''} onChange={e => updateMed(i, 'dose',      e.target.value)} />
+                    <input placeholder="e.g. 1-0-1"         value={m.frequency||''}      onChange={e => updateMed(i, 'frequency', e.target.value)} />
+                    <input placeholder="e.g. After meal"    value={m.timing||''}         onChange={e => updateMed(i, 'timing',    e.target.value)} />
+                    <input placeholder="e.g. 5 days"        value={m.duration||''}       onChange={e => updateMed(i, 'duration',  e.target.value)} />
                     <button className={styles.removeBtn}
                       onClick={() => set('medications', form.medications.filter((_, j) => j !== i))}>✕</button>
                   </div>
@@ -780,7 +806,7 @@ export default function WriteRx() {
           )}
 
           {tab === 'InferPad' && (
-            <InferPad form={form} set={set} setVital={setVital} appt={appt} />
+            <InferPad form={form} set={set} setVital={setVital} appt={appt} pastNotes={pastNotes} />
           )}
 
           {tab === 'Canvas' && (
