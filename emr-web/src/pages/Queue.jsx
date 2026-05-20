@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useQueueDate } from '../context/QueueDateContext';
-import { Search, SlidersHorizontal, Plus, LayoutList, CalendarDays, X } from 'lucide-react';
+import { Search, SlidersHorizontal, ArrowUpDown, Plus, LayoutList, CalendarDays, X, Check } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
@@ -48,6 +48,28 @@ function filterAppts(list, q, filters) {
   return out;
 }
 
+const SORT_OPTIONS = [
+  { key: 'token_asc',  label: 'Token #',       dir: '↑' },
+  { key: 'token_desc', label: 'Token #',       dir: '↓' },
+  { key: 'time_asc',   label: 'Appt. Time',    dir: '↑' },
+  { key: 'time_desc',  label: 'Appt. Time',    dir: '↓' },
+  { key: 'name_asc',   label: 'Name',          dir: 'A–Z' },
+  { key: 'name_desc',  label: 'Name',          dir: 'Z–A' },
+];
+
+function sortAppts(list, sort) {
+  const s = [...list];
+  switch (sort) {
+    case 'token_asc':  return s.sort((a, b) => (a.token_number || 0) - (b.token_number || 0));
+    case 'token_desc': return s.sort((a, b) => (b.token_number || 0) - (a.token_number || 0));
+    case 'time_asc':   return s.sort((a, b) => (a.appointment_time || '').localeCompare(b.appointment_time || ''));
+    case 'time_desc':  return s.sort((a, b) => (b.appointment_time || '').localeCompare(a.appointment_time || ''));
+    case 'name_asc':   return s.sort((a, b) => (a.patient_name || '').localeCompare(b.patient_name || ''));
+    case 'name_desc':  return s.sort((a, b) => (b.patient_name || '').localeCompare(a.patient_name || ''));
+    default:           return s;
+  }
+}
+
 export default function Queue() {
   const navigate = useNavigate();
   const { queueDate, setQueueDate } = useQueueDate();
@@ -76,6 +98,12 @@ export default function Queue() {
   const [rightFilterOpen,   setRightFilterOpen]   = useState(false);
   const leftFilterBtnRef  = useRef(null);
   const rightFilterBtnRef = useRef(null);
+
+  // Column sort
+  const [leftSort,      setLeftSort]      = useState('token_asc');
+  const [leftSortOpen,  setLeftSortOpen]  = useState(false);
+  const [rightSort,     setRightSort]     = useState('token_asc');
+  const [rightSortOpen, setRightSortOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([api.get('/queues'), api.get('/tags')])
@@ -135,8 +163,8 @@ export default function Queue() {
 
   const rawLeft  = leftTab === 'Booked' ? board.booked : [];
   const rawRight = rightTab === 'MY OPD' ? board.my_opd : board.completed;
-  const leftList  = filterAppts(rawLeft,  leftSearch,  leftFilters);
-  const rightList = filterAppts(rawRight, rightSearch, rightFilters);
+  const leftList  = sortAppts(filterAppts(rawLeft,  leftSearch,  leftFilters),  leftSort);
+  const rightList = sortAppts(filterAppts(rawRight, rightSearch, rightFilters), rightSort);
   const leftFilterCount  = activeFilterCount(leftFilters);
   const rightFilterCount = activeFilterCount(rightFilters);
 
@@ -191,6 +219,23 @@ export default function Queue() {
                   className={`${styles.colAction} ${leftSearchOpen ? styles.colActionActive : ''}`}
                   title="Search" onClick={toggleLeftSearch}
                 ><Search size={14} strokeWidth={2} /></button>
+                <div className={styles.filterWrap}>
+                  <button
+                    className={`${styles.colAction} ${leftSort !== 'token_asc' ? styles.colActionActive : ''}`}
+                    title="Sort" onClick={() => setLeftSortOpen(v => !v)}
+                  ><ArrowUpDown size={14} strokeWidth={2} /></button>
+                  {leftSortOpen && (
+                    <div className={styles.sortDropdown}>
+                      {SORT_OPTIONS.map(o => (
+                        <button key={o.key} className={`${styles.sortOption} ${leftSort === o.key ? styles.sortOptionActive : ''}`}
+                          onClick={() => { setLeftSort(o.key); setLeftSortOpen(false); }}>
+                          {leftSort === o.key && <Check size={11} strokeWidth={3} />}
+                          {o.label} {o.dir}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className={styles.filterWrap}>
                   <button
                     ref={leftFilterBtnRef}
@@ -270,6 +315,23 @@ export default function Queue() {
                   className={`${styles.colAction} ${rightSearchOpen ? styles.colActionActive : ''}`}
                   title="Search" onClick={toggleRightSearch}
                 ><Search size={14} strokeWidth={2} /></button>
+                <div className={styles.filterWrap}>
+                  <button
+                    className={`${styles.colAction} ${rightSort !== 'token_asc' ? styles.colActionActive : ''}`}
+                    title="Sort" onClick={() => setRightSortOpen(v => !v)}
+                  ><ArrowUpDown size={14} strokeWidth={2} /></button>
+                  {rightSortOpen && (
+                    <div className={styles.sortDropdown}>
+                      {SORT_OPTIONS.map(o => (
+                        <button key={o.key} className={`${styles.sortOption} ${rightSort === o.key ? styles.sortOptionActive : ''}`}
+                          onClick={() => { setRightSort(o.key); setRightSortOpen(false); }}>
+                          {rightSort === o.key && <Check size={11} strokeWidth={3} />}
+                          {o.label} {o.dir}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className={styles.filterWrap}>
                   <button
                     ref={rightFilterBtnRef}
