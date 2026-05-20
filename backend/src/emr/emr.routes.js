@@ -5,6 +5,7 @@ const emr     = require('./emr.controller');
 const queue   = require('./emr.queue.controller');
 const appt    = require('./emr.appointment.controller');
 const tags    = require('./emr.tags.controller');
+const uhid    = require('./emr.uhid.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -44,6 +45,11 @@ router.get   ('/tags',     tags.listTags);
 router.post  ('/tags',     tags.createTag);
 router.patch ('/tags/:id', tags.updateTag);
 router.delete('/tags/:id', tags.deleteTag);
+
+// UHID Settings
+router.get ('/settings/uhid',          uhid.getSettings);
+router.patch('/settings/uhid',         uhid.updateSettings);
+router.post ('/settings/uhid/generate', uhid.generateUhid);
 
 // ABDM / HIP activity
 router.get('/pending-otps',    emr.pendingOtps);

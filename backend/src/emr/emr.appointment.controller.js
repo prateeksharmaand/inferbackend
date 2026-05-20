@@ -36,7 +36,7 @@ const createAppointment = async (req, res) => {
   const {
     queue_id, doctor_id, emr_patient_id,
     patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
-    visit_type, channel, appointment_date, appointment_time, notes, tags,
+    visit_type, channel, appointment_date, appointment_time, notes, tags, uhid,
   } = req.body;
 
   if (!patient_name) return res.status(400).json({ error: 'patient_name required' });
@@ -53,8 +53,8 @@ const createAppointment = async (req, res) => {
     `INSERT INTO emr_appointments
        (queue_id, clinic_id, doctor_id, emr_patient_id,
         patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
-        token_number, visit_type, channel, appointment_date, appointment_time, notes, tags)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+        token_number, visit_type, channel, appointment_date, appointment_time, notes, tags, uhid)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
     [
       queue_id || null, req.emrUser.clinic_id, doctor_id || null, emr_patient_id || null,
       patient_name, patient_mobile || null,
@@ -64,6 +64,7 @@ const createAppointment = async (req, res) => {
       appointment_date || new Date().toISOString().slice(0, 10),
       appointment_time || null, notes || null,
       JSON.stringify(tags || []),
+      uhid || null,
     ]
   );
   res.status(201).json(rows[0]);

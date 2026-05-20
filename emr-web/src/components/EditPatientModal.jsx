@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserPen, X, Check } from 'lucide-react';
+import { UserCog, X, Check } from 'lucide-react';
 import { api } from '../api/client';
 import styles from './BookAppointmentModal.module.css';
 

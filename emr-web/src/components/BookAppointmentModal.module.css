@@ -25,6 +25,21 @@
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--color-primary); }
 .field textarea { resize: vertical; }
 
+.uhidRow {
+  display: flex; gap: 0; border: 1px solid var(--color-border); border-radius: 7px; overflow: hidden;
+}
+.uhidInput {
+  flex: 1; border: none !important; border-radius: 0 !important;
+  padding: 8px 10px; font-size: 13px; outline: none; background: #fff;
+}
+.uhidBtn {
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 0 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+  white-space: nowrap; transition: background .12s;
+}
+.uhidBtn:hover    { background: var(--color-primary-dk); }
+.uhidBtn:disabled { opacity: .6; cursor: not-allowed; }
+
 .attrSection { display: flex; flex-direction: column; gap: 12px; }
 .attrBehavior {
   font-size: 10px; font-weight: 500; color: var(--color-text-3);

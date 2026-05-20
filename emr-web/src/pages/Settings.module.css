@@ -1,0 +1,24 @@
+.page    { padding: 24px 32px; display: flex; flex-direction: column; gap: 20px; height: 100%; }
+
+.header  { display: flex; align-items: flex-start; gap: 12px; }
+.headerIcon { color: var(--color-primary); margin-top: 2px; }
+.title   { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.sub     { font-size: 13px; color: var(--color-text-2); line-height: 1.5; }
+
+.tabs {
+  display: flex; gap: 4px;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 0;
+}
+.tab {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border: none; background: none;
+  font-size: 13px; font-weight: 600; color: var(--color-text-2);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; border-radius: 8px 8px 0 0;
+  transition: all .15s;
+}
+.tab:hover    { background: var(--color-bg); color: var(--color-text); }
+.tabActive    { color: var(--color-primary); border-bottom-color: var(--color-primary); background: none; }
+
+.content { flex: 1; overflow-y: auto; }

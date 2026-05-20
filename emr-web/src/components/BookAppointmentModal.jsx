@@ -11,11 +11,12 @@ const ATTR_TYPES = {
 };
 
 export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
-  const [queues,      setQueues]      = useState([]);
-  const [doctors,     setDoctors]     = useState([]);
-  const [clinicTags,  setClinicTags]  = useState([]);
-  const [saving,      setSaving]      = useState(false);
-  const [error,       setError]       = useState('');
+  const [queues,       setQueues]       = useState([]);
+  const [doctors,      setDoctors]      = useState([]);
+  const [clinicTags,   setClinicTags]   = useState([]);
+  const [saving,       setSaving]       = useState(false);
+  const [generatingUhid, setGeneratingUhid] = useState(false);
+  const [error,        setError]        = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
 
   const [form, setForm] = useState({
@@ -24,6 +25,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
     patient_dob:     '',
     patient_gender:  'M',
     patient_abha:    prefill.patient_abha   || '',
+    uhid:            '',
     queue_id:        '',
     doctor_id:       '',
     channel:         prefill.channel        || 'walk_in',
@@ -38,6 +40,18 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
       .then(([q, d, t]) => { setQueues(q); setDoctors(d); setClinicTags(t); })
       .catch(() => {});
   }, []);
+
+  const handleGenerateUhid = async () => {
+    setGeneratingUhid(true);
+    try {
+      const { uhid } = await api.post('/settings/uhid/generate', {});
+      set('uhid', uhid);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGeneratingUhid(false);
+    }
+  };
 
   const toggleTag = (tag) => {
     const isMulti = ATTR_TYPES[tag.attr_type]?.multi ?? true;
@@ -116,6 +130,26 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
             <div className={styles.field}>
               <label>ABHA ID</label>
               <input value={form.patient_abha} onChange={e => set('patient_abha', e.target.value)} placeholder="12-3456-7890-1234" />
+            </div>
+            <div className={styles.field}>
+              <label>UHID</label>
+              <div className={styles.uhidRow}>
+                <input
+                  value={form.uhid}
+                  onChange={e => set('uhid', e.target.value)}
+                  placeholder="Auto-generate or type manually"
+                  className={styles.uhidInput}
+                  readOnly={!!form.uhid && !form.uhid_manual}
+                />
+                <button
+                  type="button"
+                  className={styles.uhidBtn}
+                  onClick={handleGenerateUhid}
+                  disabled={generatingUhid}
+                >
+                  {generatingUhid ? '…' : 'Generate UHID'}
+                </button>
+              </div>
             </div>
             <div className={styles.field}>
               <label>Channel</label>
