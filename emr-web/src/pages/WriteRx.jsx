@@ -45,8 +45,93 @@ const EMPTY_FORM = {
   canvasImage: '',
 };
 
+// ── Prescription helpers ─────────────────────────────────────────────────────
+function getFlag(r) {
+  if (!r.result || !r.range) return '';
+  const val = parseFloat(r.result);
+  const parts = r.range.split('-').map(Number);
+  if (parts.length !== 2 || isNaN(val) || parts.some(isNaN)) return '';
+  if (val > parts[1]) return 'High';
+  if (val < parts[0]) return 'Low';
+  return '';
+}
+
+function RxInlineRow({ label, value }) {
+  return (
+    <div className={styles.rxInlineRow}>
+      <span className={styles.rxInlineLabel}>{label} :&nbsp;</span>
+      <span className={styles.rxInlineValue}>{value}</span>
+    </div>
+  );
+}
+
 // ── Prescription preview / print modal ──────────────────────────────────────
 function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint }) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateStr = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const todayFmt = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+
+  const gender = appt?.patient_gender === 'M' ? 'Male' : appt?.patient_gender === 'F' ? 'Female' : (appt?.patient_gender || '');
+  const age    = appt?.patient_age ? `${appt.patient_age} year(s)` : '';
+
+  // Vitals — "LABEL-value unit | …"
+  const VLABEL = {
+    bp_systolic:'SYSTOLIC BLOOD PRESSURE', bp_diastolic:'DIASTOLIC BLOOD PRESSURE',
+    pulse:'PULSE', spo2:'SPO2', temp:'TEMPERATURE', respiratory_rate:'RESPIRATORY RATE',
+    weight:'WEIGHT', height:'HEIGHT', bmi:'BMI',
+  };
+  const VUNIT = { bp_systolic:'mmHg', bp_diastolic:'mmHg', pulse:'bpm', spo2:'%', temp:'°C', respiratory_rate:'/min', weight:'kg', height:'cm', bmi:'kg/m²' };
+  const vitalsStr = Object.entries(form.vitals)
+    .filter(([k, v]) => v && VLABEL[k])
+    .map(([k, v]) => `${VLABEL[k]}-${v}${VUNIT[k] || ''}`)
+    .join(' | ');
+
+  // Medical history — "Condition (Status: Active, Since: X)"
+  const histStr = (form.medical_history || []).map(h => {
+    const { label, meta } = medHistoryLabel(h);
+    const parts = ['Status: Active'];
+    if (h.since) parts.push(`Since: ${h.since}`);
+    else if (meta) parts.push(meta);
+    return `${label} (${parts.join(', ')})`;
+  }).join(', ');
+
+  // Symptoms — "Name | Code (Since: X | Severity: Y)"
+  const symptomsStr = form.symptoms.map(s => {
+    const name = typeof s === 'string' ? s : s.name;
+    const code = typeof s === 'object' && s.code ? ` | ${s.code}` : '';
+    const mparts = [s.since && `Since: ${s.since}`, s.severity && `Severity: ${s.severity}`].filter(Boolean);
+    return `${name}${code}${mparts.length ? ` (${mparts.join(' | ')})` : ''}`;
+  }).join(', ');
+
+  // Diagnosis — "Name (Since: X | Severity: Y)"
+  const diagStr = form.diagnosis.map(d => {
+    const mparts = [d.since && `Since: ${d.since}`, d.severity && `Severity: ${d.severity}`].filter(Boolean);
+    return `${d.display}${mparts.length ? ` (${mparts.join(' | ')})` : ''}`;
+  }).join(', ');
+
+  // Lab investigations — one per line
+  const labInvLines = form.lab_investigations.map(l => {
+    if (typeof l === 'string') return l;
+    const repeat = l.repeat_on ? ` | Repeat: ${l.repeat_on}` : '';
+    const remark = l.remarks ? ` Remark: ${l.remarks}` : '';
+    return `${l.test} (On: ${todayFmt}${repeat})${remark}`;
+  });
+
+  // Lab results — "Test: value unit [flag] - date"
+  const labResultLines = form.lab_results.map(r => {
+    const flag = getFlag(r);
+    return `${r.test}: ${r.result}${r.unit ? ' ' + r.unit : ''}${flag ? ` [${flag}]` : ''} - ${todayFmt}`;
+  });
+
+  // Follow up
+  const followupStr = form.next_visit_date
+    ? `Visit on ${new Date(form.next_visit_date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}`
+    : '';
+
+  // Procedures — "Name - date"
+  const proceduresStr = form.procedures.map(p => `${p} - ${todayFmt}`).join(', ');
+
   return (
     <div className={styles.previewOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.previewModal}>
@@ -61,6 +146,7 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
         </div>
         <div className={styles.previewBody}>
           <div className={styles.rxPaper} id="rx-print-area">
+
             {/* Header */}
             {rxImages.headerImg ? (
               <div className={styles.rxPaperImgBlock}>
@@ -74,206 +160,106 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
               </div>
             )}
 
-            {/* Patient row */}
-            <div className={styles.rxPaperPatient}>
-              <span><b>Patient:</b> {appt?.patient_name || '—'}</span>
-              <span><b>Date:</b> {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-              {appt?.uhid && <span><b>UHID:</b> {appt.uhid}</span>}
-              {appt?.patient_mobile && <span><b>Mob:</b> {appt.patient_mobile}</span>}
-              {appt?.patient_gender && <span>{appt.patient_gender === 'M' ? 'Male' : 'Female'}</span>}
-              {appt?.doctor_name && <span><b>Dr.</b> {appt.doctor_name}</span>}
+            {/* Patient info row */}
+            <div className={styles.rxPatientHeader}>
+              <div>
+                <span className={styles.rxPatientName}>{appt?.patient_name || '—'}</span>
+                {(gender || age) && (
+                  <span className={styles.rxPatientMeta}>, {[gender, age].filter(Boolean).join(', ')},</span>
+                )}
+                {appt?.uhid && <div className={styles.rxUhid}>UHID : {appt.uhid}.</div>}
+              </div>
+              <div className={styles.rxDateTime}>{dateStr}</div>
             </div>
-            <hr className={styles.rxPaperRule} />
 
-            <div className={styles.rxPaperBody}>
-              {/* Vitals */}
-              {Object.values(form.vitals).some(Boolean) && (
-                <PrintSection title="Vitals">
-                  <div className={styles.printVitalRow}>
-                    {[
-                      ['bp_systolic',      'BP Sys',          'mmHg' ],
-                      ['bp_diastolic',     'BP Dia',          'mmHg' ],
-                      ['pulse',            'Pulse',           'bpm'  ],
-                      ['spo2',             'SpO₂',            '%'    ],
-                      ['temp',             'Temp',            '°C'   ],
-                      ['respiratory_rate', 'Resp Rate',       '/min' ],
-                      ['weight',           'Weight',          'kg'   ],
-                      ['height',           'Height',          'cm'   ],
-                      ['bmi',              'BMI',             'kg/m²'],
-                    ].filter(([k]) => form.vitals[k]).map(([k, label, unit]) => (
-                      <span key={k} className={styles.printVitalChip}>{label}: <b>{form.vitals[k]}</b> {unit}</span>
-                    ))}
-                  </div>
-                </PrintSection>
-              )}
+            <hr className={styles.rxHr} />
 
-              {/* Medical History */}
-              {form.medical_history?.length > 0 && (
-                <PrintSection title="Medical History">
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {form.medical_history.map((h, i) => {
-                      const { label, meta } = medHistoryLabel(h);
-                      return (
-                        <span key={i} className={styles.printChip}>
-                          {label}{meta && <span style={{ opacity:.7, fontSize:11 }}> ({meta})</span>}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </PrintSection>
-              )}
+            {/* Inline clinical content */}
+            <div className={styles.rxBody}>
+              {vitalsStr    && <RxInlineRow label="VITALS"                    value={vitalsStr} />}
+              {histStr      && <RxInlineRow label="PATIENT MEDICAL HISTORY"   value={histStr} />}
+              {symptomsStr  && <RxInlineRow label="SYMPTOMS"                  value={symptomsStr} />}
+              {diagStr      && <RxInlineRow label="DIAGNOSIS"                 value={diagStr} />}
 
-              {/* Symptoms */}
-              {form.symptoms.length > 0 && (
-                <PrintSection title="Symptoms">
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {form.symptoms.map((s, i) => {
-                      const name = typeof s === 'string' ? s : s.name;
-                      const meta = [s.since, s.severity].filter(Boolean).join(' · ');
-                      return (
-                        <span key={i} className={styles.printChip}>
-                          {name}{meta && <span style={{ opacity: .7, fontSize: 11 }}> ({meta})</span>}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </PrintSection>
-              )}
-
-              {/* Diagnosis */}
-              {form.diagnosis.length > 0 && (
-                <PrintSection title="Diagnosis">
-                  {form.diagnosis.map((d, i) => {
-                    const meta = [d.code, d.since, d.severity].filter(Boolean).join(' · ');
-                    return (
-                      <div key={i} className={styles.printBullet}>
-                        • {d.display}
-                        {meta && <span style={{ opacity: .65, fontSize: 11 }}> ({meta})</span>}
-                      </div>
-                    );
-                  })}
-                </PrintSection>
-              )}
-
-              {/* Medications */}
+              {/* Medications table */}
               {form.medications.length > 0 && (
-                <PrintSection title="℞  Medications">
-                  <table className={styles.printMedTable}>
+                <div className={styles.rxMedSection}>
+                  <div className={styles.rxPrescriptionHeading}>
+                    <span className={styles.rxPrescriptionLine} />
+                    PRESCRIPTION
+                    <span className={styles.rxPrescriptionLine} />
+                  </div>
+                  <table className={styles.rxMedTable}>
                     <thead>
-                      <tr><th>#</th><th>Medicine</th><th>Dose</th><th>Frequency</th><th>Timing</th><th>Duration</th><th>Start</th></tr>
+                      <tr>
+                        <th>#</th><th>Medications</th><th>Dose</th>
+                        <th>Frequency</th><th>Duration</th><th>Remarks</th>
+                      </tr>
                     </thead>
                     <tbody>
                       {form.medications.map((m, i) => (
                         <tr key={i}>
-                          <td>{i + 1}</td>
-                          <td><b>{m.name}</b>{m.instructions && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{m.instructions}</div>}</td>
+                          <td className={styles.rxMedNum}>{i + 1}</td>
+                          <td>
+                            <strong>{m.name}</strong>
+                            {m.timing && <div className={styles.rxMedSub}>{m.timing}</div>}
+                          </td>
                           <td>{m.dose || m.dosage}</td>
                           <td>{m.frequency}</td>
-                          <td>{m.timing}</td>
-                          <td>{m.duration}</td>
-                          <td>{m.start_from}</td>
+                          <td className={styles.rxMedDuration}>
+                            {m.duration}
+                            {m.start_from && <div className={styles.rxMedSub}>(From {m.start_from})</div>}
+                          </td>
+                          <td>{m.instructions}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </PrintSection>
+                </div>
               )}
 
-              {/* Lab Investigations */}
-              {form.lab_investigations.length > 0 && (
-                <PrintSection title="Lab Investigations">
-                  {form.lab_investigations.map((l, i) => {
-                    const name = typeof l === 'string' ? l : l.test;
-                    const repeat = typeof l === 'object' && l.repeat_on ? `Repeat: ${l.repeat_on}` : '';
-                    const remarks = typeof l === 'object' && l.remarks ? l.remarks : '';
-                    return (
-                      <div key={i} className={styles.printBullet}>
-                        • <b>{name}</b>
-                        {repeat  && <span style={{ opacity:.7, fontSize:11 }}> · {repeat}</span>}
-                        {remarks && <span style={{ opacity:.7, fontSize:11 }}> — {remarks}</span>}
-                      </div>
-                    );
-                  })}
-                </PrintSection>
+              {labInvLines.length > 0 && (
+                <div className={styles.rxInlineRow}>
+                  <span className={styles.rxInlineLabel}>PRESCRIBED LAB TESTS :&nbsp;</span>
+                  <span className={styles.rxInlineValue}>
+                    {labInvLines.map((l, i) => <div key={i}>{l}</div>)}
+                  </span>
+                </div>
               )}
 
-              {/* Lab Results */}
-              {form.lab_results.length > 0 && (
-                <PrintSection title="Lab Results">
-                  <table className={styles.printMedTable}>
-                    <thead><tr><th>Test</th><th>Result</th><th>Unit</th><th>Normal Range</th></tr></thead>
-                    <tbody>
-                      {form.lab_results.map((r, i) => (
-                        <tr key={i}><td>{r.test}</td><td><b>{r.result}</b></td><td>{r.unit}</td><td>{r.range}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </PrintSection>
+              {labResultLines.length > 0 && (
+                <div className={styles.rxInlineRow}>
+                  <span className={styles.rxInlineLabel}>INVESTIGATIVE READINGS :&nbsp;</span>
+                  <span className={styles.rxInlineValue}>
+                    {labResultLines.map((l, i) => <div key={i}>{l}</div>)}
+                  </span>
+                </div>
               )}
 
-              {/* Examination Findings */}
-              {form.examination_findings && (
-                <PrintSection title="Examination Findings">
-                  <p className={styles.printText}>{form.examination_findings}</p>
-                </PrintSection>
+              {form.examination_findings && <RxInlineRow label="EXAMINATION FINDINGS" value={form.examination_findings} />}
+              {form.notes       && <RxInlineRow label="NOTES"       value={form.notes} />}
+              {form.advices     && <RxInlineRow label="ADVICES"     value={form.advices} />}
+              {form.refer_to    && <RxInlineRow label="REFERRED TO" value={form.refer_to} />}
+              {(followupStr || form.next_visit_notes) && (
+                <RxInlineRow label="FOLLOWUP" value={[followupStr, form.next_visit_notes].filter(Boolean).join(' · ')} />
               )}
+              {proceduresStr && <RxInlineRow label="PROCEDURES" value={proceduresStr} />}
 
-              {/* Notes */}
-              {form.notes && (
-                <PrintSection title="Notes">
-                  <p className={styles.printText}>{form.notes}</p>
-                </PrintSection>
-              )}
-
-              {/* Refer */}
-              {form.refer_to && (
-                <PrintSection title="Refer To">
-                  <p className={styles.printText}>{form.refer_to}</p>
-                </PrintSection>
-              )}
-
-              {/* Follow Up */}
-              {(form.next_visit_date || form.next_visit_notes) && (
-                <PrintSection title="Follow Up">
-                  <p className={styles.printText}>
-                    {form.next_visit_date && <span>Date: <b>{form.next_visit_date}</b>  </span>}
-                    {form.next_visit_notes}
-                  </p>
-                </PrintSection>
-              )}
-
-              {/* Advices */}
-              {form.advices && (
-                <PrintSection title="Advices">
-                  <p className={styles.printText}>{form.advices}</p>
-                </PrintSection>
-              )}
-
-              {/* Procedures */}
-              {form.procedures.length > 0 && (
-                <PrintSection title="Procedures">
-                  {form.procedures.map((p, i) => <div key={i} className={styles.printBullet}>• {p}</div>)}
-                </PrintSection>
-              )}
-
-              {/* Custom sections */}
               {(form.custom_sections || []).filter(s => s.content).map(s => (
-                <PrintSection key={s.id} title={s.title || 'Notes'}>
-                  <p className={styles.printText}>{s.content}</p>
-                </PrintSection>
+                <RxInlineRow key={s.id} label={(s.title || 'NOTES').toUpperCase()} value={s.content} />
               ))}
 
-              {/* Canvas drawing */}
               {form.canvasImage && (
-                <PrintSection title="Drawing / Diagram">
+                <div style={{ marginTop: 8 }}>
                   <img src={form.canvasImage} alt="Clinical drawing"
                     style={{ width: '100%', borderRadius: 4, border: '1px solid #e2e8f0' }} />
-                </PrintSection>
+                </div>
               )}
             </div>
 
+            <hr className={styles.rxHr} />
+
             {/* Footer */}
-            <hr className={styles.rxPaperRule} />
             {rxImages.footerImg ? (
               <div className={styles.rxPaperImgBlock}>
                 <img src={rxImages.footerImg} alt="Footer" className={styles.rxPaperImg} />
@@ -281,22 +267,13 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
             ) : (
               <div className={styles.rxPaperFooter}>
                 <span>{user?.clinic_name || 'Clinic'}</span>
-                {user?.clinic_address && <span>{user.clinic_address}</span>}
-                {user?.clinic_phone   && <span>{user.clinic_phone}</span>}
+                {user?.clinic_address && <span> · {user.clinic_address}</span>}
+                {user?.clinic_phone   && <span> · {user.clinic_phone}</span>}
               </div>
             )}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function PrintSection({ title, children }) {
-  return (
-    <div className={styles.printSection}>
-      <div className={styles.printSectionTitle}>{title}</div>
-      <div className={styles.printSectionBody}>{children}</div>
     </div>
   );
 }

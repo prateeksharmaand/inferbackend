@@ -293,6 +293,26 @@
 }
 .pastNoteText { font-size: 13px; color: var(--color-text-2); margin: 0; line-height: 1.6; white-space: pre-wrap; }
 
+/* ── NumberUnitInput dropdown ── */
+.nuDropdown {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 1000;
+  background: #fff; border: 1px solid var(--color-border);
+  border-radius: 7px; box-shadow: 0 6px 18px rgba(0,0,0,.1);
+  list-style: none; margin: 0; padding: 3px 0;
+}
+.nuItem {
+  padding: 7px 12px; font-size: 13px; cursor: pointer; color: var(--color-text);
+}
+.nuItem:hover { background: #f5f3ff; color: var(--color-primary); }
+
+/* metaField plain input (used alongside NumberUnitInput) */
+.metaInput {
+  border: 1px solid var(--color-border); border-radius: 7px;
+  padding: 6px 10px; font-size: 12px; outline: none;
+  font-family: inherit; width: 100%; box-sizing: border-box;
+}
+.metaInput:focus { border-color: var(--color-primary); }
+
 /* ── Add custom section button ── */
 .addSection {
   display: flex; align-items: center; justify-content: center; gap: 6px;

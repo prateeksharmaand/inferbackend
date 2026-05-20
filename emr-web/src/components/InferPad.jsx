@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import styles from './InferPad.module.css';
 import AutocompleteInput from './AutocompleteInput';
@@ -36,6 +36,48 @@ const VITALS_CONFIG = [
 ];
 
 const SEVERITIES = ['Mild', 'Moderate', 'Severe'];
+
+// ── Number + unit smart input (e.g. "2" → "2 days / 2 weeks / …") ───────────
+const UNITS = ['day', 'week', 'month', 'year'];
+
+function NumberUnitInput({ value, onChange, placeholder, className }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    const fn = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, []);
+
+  const num = parseFloat(value);
+  const suggestions = !isNaN(num) && num > 0
+    ? UNITS.map(u => `${num} ${u}${num !== 1 ? 's' : ''}`)
+    : [];
+
+  return (
+    <div style={{ position: 'relative' }} ref={wrapRef}>
+      <input
+        className={className}
+        value={value}
+        placeholder={placeholder}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => suggestions.length && setOpen(true)}
+        autoComplete="off"
+      />
+      {open && suggestions.length > 0 && (
+        <ul className={styles.nuDropdown}>
+          {suggestions.map(s => (
+            <li key={s} className={styles.nuItem}
+              onMouseDown={e => { e.preventDefault(); onChange(s); setOpen(false); }}>
+              {s}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 // ── Collapsible card ─────────────────────────────────────────────────────────
 
@@ -213,9 +255,10 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
         <div className={styles.metaRow}>
           <div className={styles.metaField}>
             <label>Since</label>
-            <input placeholder="e.g. 2 days, 1 week"
+            <NumberUnitInput placeholder="e.g. 2 days, 1 week"
+              className={styles.metaInput}
               value={form.symptomSince || ''}
-              onChange={e => set('symptomSince', e.target.value)} />
+              onChange={v => set('symptomSince', v)} />
           </div>
           <div className={styles.metaField}>
             <label>Severity</label>
@@ -254,9 +297,10 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
         <div className={styles.metaRow}>
           <div className={styles.metaField}>
             <label>Since</label>
-            <input placeholder="e.g. 3 years"
+            <NumberUnitInput placeholder="e.g. 3 years"
+              className={styles.metaInput}
               value={form.diagSince || ''}
-              onChange={e => set('diagSince', e.target.value)} />
+              onChange={v => set('diagSince', v)} />
           </div>
           <div className={styles.metaField}>
             <label>Severity</label>
@@ -313,15 +357,15 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
                 </div>
                 <div className={styles.medSmallCell}>
                   <label>Duration</label>
-                  <input className={styles.cellInput} placeholder="e.g. 5 days"
+                  <NumberUnitInput className={styles.cellInput} placeholder="e.g. 5 days"
                     value={m.duration || ''}
-                    onChange={e => updateMed(i, 'duration', e.target.value)} />
+                    onChange={v => updateMed(i, 'duration', v)} />
                 </div>
                 <div className={styles.medSmallCell}>
                   <label>Start From</label>
-                  <input className={styles.cellInput} placeholder="e.g. Today, Day 3"
+                  <NumberUnitInput className={styles.cellInput} placeholder="e.g. Today, Day 3"
                     value={m.start_from || ''}
-                    onChange={e => updateMed(i, 'start_from', e.target.value)} />
+                    onChange={v => updateMed(i, 'start_from', v)} />
                 </div>
               </div>
               <div className={styles.medCardRow3}>
