@@ -14,12 +14,31 @@ const STATUS_COLOR = {
 
 function parseTime(t) {
   if (!t) return null;
-  const [timePart, meridiem] = t.trim().split(' ');
+  t = t.trim();
+  // 24h "18:10" — from <input type="time">
+  if (/^\d{1,2}:\d{2}$/.test(t)) {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+  // 12h "6:10 PM"
+  const [timePart, meridiem] = t.split(' ');
   if (!meridiem) return null;
   let [h, m] = timePart.split(':').map(Number);
   if (meridiem === 'PM' && h !== 12) h += 12;
   if (meridiem === 'AM' && h === 12) h = 0;
   return h * 60 + (m || 0);
+}
+
+function fmt12(t) {
+  if (!t) return '';
+  if (/^\d{1,2}:\d{2}$/.test(t.trim())) {
+    let [h, m] = t.split(':').map(Number);
+    const mer = h >= 12 ? 'PM' : 'AM';
+    if (h > 12) h -= 12;
+    if (h === 0) h = 12;
+    return `${h}:${String(m).padStart(2, '0')} ${mer}`;
+  }
+  return t;
 }
 
 function hourLabel(h) {
@@ -137,12 +156,12 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
                 <div
                   key={a.id}
                   className={styles.apptBlock}
-                  style={{ top: top + 2, height, borderLeftColor: color, background: color + '18' }}
+                  style={{ top: top + 2, height, borderLeftColor: color, background: color + '28' }}
                 >
                   <span className={styles.apptDot} style={{ background: color }} />
                   <span className={styles.apptName}>{a.patient_name}</span>
                   {height >= 36 && (
-                    <span className={styles.apptTime}>{a.appointment_time}</span>
+                    <span className={styles.apptTime}>{fmt12(a.appointment_time)}</span>
                   )}
                 </div>
               );
