@@ -207,7 +207,7 @@ export default function BookSlotModal({ prefill = {}, onClose }) {
               <div className={styles.patientInfo}>
                 <span className={styles.patientName}>{patient.name}</span>
                 <span className={styles.patientMeta}>
-                  {[patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender, patient.dob ? `${getAge(patient.dob)}Y` : null, patient.mobile].filter(Boolean).join(' • ')}
+                  {[patient.uhid, patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender, patient.dob ? `${getAge(patient.dob)}Y` : null, patient.mobile].filter(Boolean).join(' • ')}
                 </span>
               </div>
               <button className={styles.changeBtn} onClick={() => { setChangingPt(true); setPtQuery(''); }}>
@@ -233,7 +233,7 @@ export default function BookSlotModal({ prefill = {}, onClose }) {
                       <span className={styles.ptAvatar2}>{p.name[0].toUpperCase()}</span>
                       <div>
                         <div className={styles.ptName}>{p.name}</div>
-                        <div className={styles.ptMeta}>{[p.mobile, p.gender === 'M' ? 'Male' : 'Female', p.dob ? `${getAge(p.dob)}Y` : null].filter(Boolean).join(' • ')}</div>
+                        <div className={styles.ptMeta}>{[p.uhid, p.mobile, p.gender === 'M' ? 'Male' : 'Female', p.dob ? `${getAge(p.dob)}Y` : null].filter(Boolean).join(' • ')}</div>
                       </div>
                     </button>
                   ))}

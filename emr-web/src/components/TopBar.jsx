@@ -194,7 +194,7 @@ export default function TopBar() {
                       <div className={styles.suggText}>
                         <span className={styles.suggMain}>{p.name}</span>
                         <span className={styles.suggSub}>
-                          {[p.mobile, p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : 'Other', age ? `${age}y` : null, p.abha_number].filter(Boolean).join(' • ')}
+                          {[p.uhid, p.mobile, p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : 'Other', age ? `${age}y` : null, p.abha_number].filter(Boolean).join(' • ')}
                         </span>
                       </div>
                       <span className={`${styles.suggBadge} ${checkinMode ? styles.suggBadgeCheckin : ''}`}>

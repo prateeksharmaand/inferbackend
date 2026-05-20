@@ -95,6 +95,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           </div>
 
           <div className={styles.row2}>
+            {appt.uhid && <span className={styles.uhid}>{appt.uhid}</span>}
             <span>{appt.patient_mobile || '—'}</span>
             {appt.patient_gender && <span>• {appt.patient_gender === 'M' ? 'Male' : 'Female'}</span>}
             {appt.visit_type && <span>• {appt.visit_type}</span>}

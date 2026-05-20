@@ -5,11 +5,19 @@ const hip      = require('./hip.service');
 
 const listPatients = async (req, res) => {
   const { q } = req.query;
+  const clinicId = req.emrUser?.clinic_id;
+  const uhidSub = clinicId
+    ? `(SELECT a.uhid FROM emr_appointments a
+        WHERE a.patient_mobile = p.mobile AND a.uhid IS NOT NULL AND a.uhid != ''
+          AND a.clinic_id = ${parseInt(clinicId, 10)}
+        ORDER BY a.created_at DESC LIMIT 1) AS uhid`
+    : `NULL AS uhid`;
+
   if (q && q.trim().length >= 2) {
     const term = `%${q.trim().toLowerCase()}%`;
     const { rows } = await pool.query(
       `SELECT p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
-              COUNT(c.id)::int AS context_count
+              COUNT(c.id)::int AS context_count, ${uhidSub}
        FROM emr_patients p
        LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
        WHERE LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
@@ -19,7 +27,7 @@ const listPatients = async (req, res) => {
     return res.json(rows);
   }
   const { rows } = await pool.query(
-    `SELECT p.*, COUNT(c.id)::int AS context_count
+    `SELECT p.*, COUNT(c.id)::int AS context_count, ${uhidSub}
      FROM emr_patients p
      LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
      GROUP BY p.id ORDER BY p.created_at DESC`
