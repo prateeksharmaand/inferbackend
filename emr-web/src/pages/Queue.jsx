@@ -2,17 +2,21 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import AppointmentCard from '../components/AppointmentCard';
+import CalendarView from '../components/CalendarView';
 import styles from './Queue.module.css';
 
 const STATUS_TABS = ['Booked', 'Follow Ups', 'Others'];
 
 export default function Queue() {
   const navigate = useNavigate();
-  const [queues,      setQueues]      = useState([]);
-  const [activeQueue, setActiveQueue] = useState(null);
-  const [board,       setBoard]       = useState({ booked: [], my_opd: [], completed: [] });
-  const [leftTab,     setLeftTab]     = useState('Booked');
-  const [loading,     setLoading]     = useState(true);
+  const [queues,        setQueues]        = useState([]);
+  const [activeQueue,   setActiveQueue]   = useState(null);
+  const [board,         setBoard]         = useState({ booked: [], my_opd: [], completed: [] });
+  const [leftTab,       setLeftTab]       = useState('Booked');
+  const [loading,       setLoading]       = useState(true);
+  const [viewMode,      setViewMode]      = useState('list');     // 'list' | 'calendar'
+  const [slotDuration,  setSlotDuration]  = useState(10);
+  const [selectedDate,  setSelectedDate]  = useState(new Date());
 
   useEffect(() => {
     api.get('/queues').then(rows => {
@@ -41,7 +45,7 @@ export default function Queue() {
 
   return (
     <div className={styles.page}>
-      {/* Queue selector strip */}
+      {/* Queue selector + view toggle strip */}
       {queues.length > 0 && (
         <div className={styles.queueStrip}>
           {queues.map(q => (
@@ -57,80 +61,110 @@ export default function Queue() {
           <button className={styles.newQueueBtn} onClick={() => navigate('/queue/setup')} title="New queue">
             + Queue
           </button>
+
+          <div className={styles.viewToggle}>
+            <button
+              className={`${styles.viewBtn} ${viewMode === 'list' ? styles.viewBtnActive : ''}`}
+              onClick={() => setViewMode('list')}
+              title="List view"
+            >
+              ≡ List
+            </button>
+            <button
+              className={`${styles.viewBtn} ${viewMode === 'calendar' ? styles.viewBtnActive : ''}`}
+              onClick={() => setViewMode('calendar')}
+              title="Schedule view"
+            >
+              ⊞ Schedule
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Board */}
-      <div className={styles.board}>
-        {/* LEFT — Booked column */}
-        <div className={styles.column}>
-          <div className={styles.colHeader}>
-            {STATUS_TABS.map(t => (
-              <button
-                key={t}
-                className={`${styles.colTab} ${leftTab === t ? styles.colTabActive : ''}`}
-                onClick={() => setLeftTab(t)}
-              >
-                {t} ({t === 'Booked' ? board.booked.length : 0})
+      {/* ── Calendar view ───────────────────────────────── */}
+      {viewMode === 'calendar' && (
+        <CalendarView
+          board={board}
+          slotDuration={slotDuration}
+          setSlotDuration={setSlotDuration}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+        />
+      )}
+
+      {/* ── List / board view ───────────────────────────── */}
+      {viewMode === 'list' && (
+        <div className={styles.board}>
+          {/* LEFT — Booked column */}
+          <div className={styles.column}>
+            <div className={styles.colHeader}>
+              {STATUS_TABS.map(t => (
+                <button
+                  key={t}
+                  className={`${styles.colTab} ${leftTab === t ? styles.colTabActive : ''}`}
+                  onClick={() => setLeftTab(t)}
+                >
+                  {t} ({t === 'Booked' ? board.booked.length : 0})
+                </button>
+              ))}
+              <button className={styles.colAction} title="Search">🔍</button>
+              <button className={styles.colAction} title="Filter">⊟</button>
+            </div>
+
+            <div className={styles.cardList}>
+              {loading && <p className={styles.empty}>Loading…</p>}
+              {!loading && leftList.length === 0 && (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>👤</div>
+                  <p>No booked appointments yet</p>
+                  <small>Future appointments you schedule will appear here</small>
+                </div>
+              )}
+              {leftList.map(a => (
+                <AppointmentCard
+                  key={a.id} appt={a}
+                  onStatusChange={handleStatusChange}
+                  onOpen={() => navigate(`/rx/${a.id}`)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* RIGHT — My OPD + Completed */}
+          <div className={styles.column}>
+            <div className={styles.colHeader}>
+              <button className={`${styles.colTab} ${styles.colTabActive}`}>
+                MY OPD ({board.my_opd.length})
               </button>
-            ))}
-            <button className={styles.colAction} title="Search">🔍</button>
-            <button className={styles.colAction} title="Filter">⊟</button>
-          </div>
+              <button className={styles.colTab}>
+                COMPLETED ({board.completed.length})
+              </button>
+              <button className={styles.colAction} title="Add">+</button>
+              <button className={styles.colAction} title="Search">🔍</button>
+              <button className={styles.colAction} title="Sort">⇅</button>
+              <button className={styles.colAction} title="Filter">⊟</button>
+              <button className={styles.colAction} title="More">⋮</button>
+            </div>
 
-          <div className={styles.cardList}>
-            {loading && <p className={styles.empty}>Loading…</p>}
-            {!loading && leftList.length === 0 && (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>👤</div>
-                <p>No booked appointments yet</p>
-                <small>Future appointments you schedule will appear here</small>
-              </div>
-            )}
-            {leftList.map(a => (
-              <AppointmentCard
-                key={a.id} appt={a}
-                onStatusChange={handleStatusChange}
-                onOpen={() => navigate(`/rx/${a.id}`)}
-              />
-            ))}
+            <div className={styles.cardList}>
+              {!loading && board.my_opd.length === 0 && (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>👤</div>
+                  <p>No patient in the Queue</p>
+                  <small>Click on "Add New" to start adding appointments</small>
+                </div>
+              )}
+              {board.my_opd.map(a => (
+                <AppointmentCard
+                  key={a.id} appt={a}
+                  onStatusChange={handleStatusChange}
+                  onOpen={() => navigate(`/rx/${a.id}`)}
+                />
+              ))}
+            </div>
           </div>
         </div>
-
-        {/* RIGHT — My OPD + Completed */}
-        <div className={styles.column}>
-          <div className={styles.colHeader}>
-            <button className={`${styles.colTab} ${styles.colTabActive}`}>
-              MY OPD ({board.my_opd.length})
-            </button>
-            <button className={styles.colTab}>
-              COMPLETED ({board.completed.length})
-            </button>
-            <button className={styles.colAction} title="Add">+</button>
-            <button className={styles.colAction} title="Search">🔍</button>
-            <button className={styles.colAction} title="Sort">⇅</button>
-            <button className={styles.colAction} title="Filter">⊟</button>
-            <button className={styles.colAction} title="More">⋮</button>
-          </div>
-
-          <div className={styles.cardList}>
-            {!loading && board.my_opd.length === 0 && (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>👤</div>
-                <p>No patient in the Queue</p>
-                <small>Click on "Add New" to start adding appointments</small>
-              </div>
-            )}
-            {board.my_opd.map(a => (
-              <AppointmentCard
-                key={a.id} appt={a}
-                onStatusChange={handleStatusChange}
-                onOpen={() => navigate(`/rx/${a.id}`)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* No queues empty state */}
       {queues.length === 0 && !loading && (

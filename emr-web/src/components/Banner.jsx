@@ -6,7 +6,7 @@ export default function Banner() {
   const max = user?.max_patients ?? 100;
   return (
     <div className={styles.banner}>
-      <span>Welcome to Eka Care. Base plan active. Add up to {max} patients.</span>
+      <span>Welcome to Infer Care. Base plan active. Add up to {max} patients.</span>
       <button className={styles.upgrade}>Upgrade Now</button>
     </div>
   );

@@ -24,6 +24,22 @@
   background: none; color: var(--color-primary); font-size: 13px; font-weight: 500; cursor: pointer;
 }
 
+.viewToggle {
+  margin-left: auto; display: flex; gap: 2px;
+  background: var(--color-bg); border: 1px solid var(--color-border);
+  border-radius: 8px; padding: 3px;
+}
+.viewBtn {
+  padding: 5px 12px; border-radius: 6px; border: none;
+  background: none; color: var(--color-text-2); font-size: 12px;
+  font-weight: 500; cursor: pointer; transition: all .12s;
+}
+.viewBtn:hover { color: var(--color-primary); }
+.viewBtnActive {
+  background: var(--color-surface); color: var(--color-primary);
+  font-weight: 600; box-shadow: var(--shadow);
+}
+
 /* Board */
 .board { display: flex; flex: 1; overflow: hidden; }
 .column {
