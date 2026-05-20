@@ -28,16 +28,18 @@ export default function TopBar() {
   const { user } = useAuth();
   const { queueDate, prevDay, nextDay } = useQueueDate();
   const navigate = useNavigate();
-  const [showAdd,    setShowAdd]    = useState(false);
-  const [showBook,   setShowBook]   = useState(false);
-  const [addMode,    setAddMode]    = useState('');
-  const [prefill,    setPrefill]    = useState({});
-  const [query,      setQuery]      = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [patients,   setPatients]   = useState([]);
-  const [searching,  setSearching]  = useState(false);
-  const searchRef  = useRef(null);
-  const debounceRef = useRef(null);
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [showBook,    setShowBook]    = useState(false);
+  const [addMode,     setAddMode]     = useState('');
+  const [prefill,     setPrefill]     = useState({});
+  const [checkinMode, setCheckinMode] = useState(false);
+  const [query,       setQuery]       = useState('');
+  const [searchOpen,  setSearchOpen]  = useState(false);
+  const [patients,    setPatients]    = useState([]);
+  const [searching,   setSearching]   = useState(false);
+  const searchRef    = useRef(null);
+  const searchInput  = useRef(null);
+  const debounceRef  = useRef(null);
 
   const ADD_OPTIONS = [
     { key: 'checkin', label: 'Add Patient & Check-In' },
@@ -49,33 +51,47 @@ export default function TopBar() {
 
   const handleOption = (key) => {
     setShowAdd(false);
-    if (key === 'book' || key === 'checkin') { setAddMode(key); setPrefill({}); setShowBook(true); }
-    else if (key === 'rx') navigate('/rx/new');
-  };
-
-  const openWithName = (name, via) => {
-    clearSearch();
-    setAddMode('book');
-    setPrefill({ patient_name: name, channel: via === 'abha' ? 'abha' : 'walk_in' });
-    setShowBook(true);
-  };
-
-  const openWithPatient = (p) => {
-    clearSearch();
-    setAddMode('book');
-    setPrefill({
-      patient_name:   p.name,
-      patient_mobile: p.mobile  || '',
-      patient_abha:   p.abha_number || '',
-      channel: 'walk_in',
-    });
-    setShowBook(true);
+    if (key === 'checkin') {
+      setCheckinMode(true);
+      setSearchOpen(true);
+      setTimeout(() => searchInput.current?.focus(), 50);
+    } else if (key === 'book') {
+      setCheckinMode(false);
+      setAddMode('book');
+      setPrefill({});
+      setShowBook(true);
+    } else if (key === 'rx') {
+      navigate('/rx/new');
+    }
   };
 
   const clearSearch = () => {
     setQuery('');
     setSearchOpen(false);
     setPatients([]);
+    setCheckinMode(false);
+  };
+
+  const openWithPatient = (p) => {
+    const isCheckin = checkinMode;
+    clearSearch();
+    const pf = {
+      patient_name:   p.name,
+      patient_mobile: p.mobile        || '',
+      patient_abha:   p.abha_number   || '',
+      channel: 'walk_in',
+    };
+    setAddMode(isCheckin ? 'checkin' : 'book');
+    setPrefill(pf);
+    setShowBook(true);
+  };
+
+  const openWithName = (name, via) => {
+    const isCheckin = checkinMode;
+    clearSearch();
+    setAddMode(isCheckin ? 'checkin' : 'book');
+    setPrefill({ patient_name: name, channel: via === 'abha' ? 'abha' : 'walk_in' });
+    setShowBook(true);
   };
 
   // Debounced patient search
@@ -101,6 +117,7 @@ export default function TopBar() {
     const handler = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setSearchOpen(false);
+        setCheckinMode(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -108,7 +125,7 @@ export default function TopBar() {
   }, []);
 
   const trimmed      = query.trim();
-  const showDropdown = searchOpen && trimmed.length > 0;
+  const showDropdown = searchOpen && (checkinMode || trimmed.length > 0);
 
   return (
     <>
@@ -142,16 +159,22 @@ export default function TopBar() {
 
           {/* Search */}
           <div ref={searchRef} className={`${styles.searchWrap} ${searchOpen ? styles.searchWrapOpen : ''}`}>
-            <div className={styles.searchBox}>
-              <Search size={14} className={styles.searchIcon} strokeWidth={2} />
+            <div className={`${styles.searchBox} ${checkinMode ? styles.searchBoxCheckin : ''}`}>
+              {checkinMode
+                ? <span className={styles.checkinTag}>Check-In</span>
+                : <Search size={14} className={styles.searchIcon} strokeWidth={2} />
+              }
               <input
+                ref={searchInput}
                 className={styles.searchInput}
-                placeholder="Search / Add Patient by Name, Number, UHID, ABHA ID, or Aadhar"
+                placeholder={checkinMode
+                  ? 'Search patient to check in, or type a new name…'
+                  : 'Search / Add Patient by Name, Number, UHID, ABHA ID, or Aadhar'}
                 value={query}
                 onChange={handleQueryChange}
                 onFocus={() => setSearchOpen(true)}
               />
-              {query ? (
+              {(query || checkinMode) ? (
                 <button className={styles.clearBtn} onClick={clearSearch}><X size={13} /></button>
               ) : (
                 <span className={styles.kbd}>⌘K</span>
@@ -160,10 +183,8 @@ export default function TopBar() {
 
             {showDropdown && (
               <ul className={styles.suggestions}>
-                {/* Existing patient results */}
-                {searching && (
-                  <li className={styles.suggHint}>Searching…</li>
-                )}
+                {searching && <li className={styles.suggHint}>Searching…</li>}
+
                 {!searching && patients.map(p => {
                   const age = getAge(p.dob);
                   return (
@@ -176,33 +197,47 @@ export default function TopBar() {
                           {[p.mobile, p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : 'Other', age ? `${age}y` : null, p.abha_number].filter(Boolean).join(' • ')}
                         </span>
                       </div>
-                      <span className={styles.suggBadge}>Book</span>
+                      <span className={`${styles.suggBadge} ${checkinMode ? styles.suggBadgeCheckin : ''}`}>
+                        {checkinMode ? 'Check-In' : 'Book'}
+                      </span>
                     </li>
                   );
                 })}
 
-                {/* Divider if patients found */}
                 {!searching && patients.length > 0 && (
-                  <li className={styles.suggDivider}>Add new patient</li>
+                  <li className={styles.suggDivider}>
+                    {checkinMode ? 'Add new patient & check in' : 'Add new patient'}
+                  </li>
                 )}
 
-                {/* Add new options */}
-                <li className={styles.suggestion} onClick={() => openWithName(trimmed, 'manual')}>
-                  <span className={styles.suggIcon}>👤</span>
-                  <div className={styles.suggText}>
-                    <span className={styles.suggMain}>Add New Patient</span>
-                    <span className={styles.suggSub}>"{trimmed}"</span>
-                  </div>
-                  <span className={styles.suggBadge}>Manual</span>
-                </li>
-                <li className={styles.suggestion} onClick={() => openWithName(trimmed, 'abha')}>
-                  <span className={styles.suggIcon}>🔗</span>
-                  <div className={styles.suggText}>
-                    <span className={styles.suggMain}>Add New Patient</span>
-                    <span className={styles.suggSub}>"{trimmed}"</span>
-                  </div>
-                  <span className={`${styles.suggBadge} ${styles.suggBadgeAbha}`}>via ABHA</span>
-                </li>
+                {/* Show "add new" only when something is typed */}
+                {trimmed.length > 0 && <>
+                  <li className={styles.suggestion} onClick={() => openWithName(trimmed, 'manual')}>
+                    <span className={styles.suggIcon}>👤</span>
+                    <div className={styles.suggText}>
+                      <span className={styles.suggMain}>{checkinMode ? 'Add & Check-In' : 'Add New Patient'}</span>
+                      <span className={styles.suggSub}>"{trimmed}"</span>
+                    </div>
+                    <span className={`${styles.suggBadge} ${checkinMode ? styles.suggBadgeCheckin : ''}`}>
+                      {checkinMode ? 'Check-In' : 'Manual'}
+                    </span>
+                  </li>
+                  {!checkinMode && (
+                    <li className={styles.suggestion} onClick={() => openWithName(trimmed, 'abha')}>
+                      <span className={styles.suggIcon}>🔗</span>
+                      <div className={styles.suggText}>
+                        <span className={styles.suggMain}>Add New Patient</span>
+                        <span className={styles.suggSub}>"{trimmed}"</span>
+                      </div>
+                      <span className={`${styles.suggBadge} ${styles.suggBadgeAbha}`}>via ABHA</span>
+                    </li>
+                  )}
+                </>}
+
+                {/* In checkin mode with no query yet, show a prompt */}
+                {checkinMode && !searching && trimmed.length === 0 && (
+                  <li className={styles.suggHint}>Type a name or number to search…</li>
+                )}
               </ul>
             )}
           </div>
