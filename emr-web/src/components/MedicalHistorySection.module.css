@@ -1,0 +1,38 @@
+.section { display: flex; flex-direction: column; gap: 10px; }
+.title { font-size: 13px; font-weight: 700; color: var(--color-text); }
+
+.group { display: flex; flex-direction: column; gap: 6px; }
+.groupLabel { font-size: 11px; font-weight: 700; color: var(--color-text-2); text-transform: uppercase; letter-spacing: .4px; }
+
+.condRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.habitRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 20px;
+  border: 1.5px solid var(--color-border);
+  background: #fff; color: var(--color-text-2);
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all .12s;
+  white-space: nowrap;
+}
+.chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.chipActive { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.checkIcon { flex-shrink: 0; }
+
+.sinceInput {
+  padding: 5px 10px; border: 1.5px solid var(--color-border); border-radius: 8px;
+  font-size: 12px; outline: none; width: 110px; color: var(--color-text);
+  background: var(--color-bg);
+}
+.sinceInput:focus { border-color: var(--color-primary); }
+
+.freqPills { display: flex; gap: 6px; flex-wrap: wrap; }
+.freqPill {
+  padding: 4px 10px; border-radius: 20px;
+  border: 1.5px solid var(--color-border);
+  background: #fff; color: var(--color-text-2);
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: all .12s;
+  white-space: nowrap;
+}
+.freqPill:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.freqPillActive { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }

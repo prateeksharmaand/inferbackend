@@ -1,17 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import styles from './BookAppointmentModal.module.css';
+import MedicalHistorySection from './MedicalHistorySection';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
-
-const MEDICAL_HISTORY = [
-  { key: 'diabetes',       label: 'Diabetes',       group: 'Conditions' },
-  { key: 'hypertension',   label: 'Hypertension',   group: 'Conditions' },
-  { key: 'hypothyroidism', label: 'Hypothyroidism',  group: 'Conditions' },
-  { key: 'alcohol',        label: 'Alcohol',         group: 'Habits' },
-  { key: 'tobacco',        label: 'Tobacco',         group: 'Habits' },
-  { key: 'smoking',        label: 'Smoking',         group: 'Habits' },
-];
 
 const ATTR_TYPES = {
   1:  { label: 'Tags',                        multi: true  },
@@ -231,31 +223,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
           )}
 
           {mode === 'checkin' && (
-            <div className={styles.medHistSection}>
-              <div className={styles.medHistLabel}>Medical History</div>
-              {['Conditions', 'Habits'].map(group => (
-                <div key={group} className={styles.medHistGroup}>
-                  <span className={styles.medHistGroupName}>{group}</span>
-                  <div className={styles.medHistChips}>
-                    {MEDICAL_HISTORY.filter(m => m.group === group).map(m => {
-                      const active = medicalHistory.includes(m.key);
-                      return (
-                        <button
-                          key={m.key}
-                          type="button"
-                          className={`${styles.medChip} ${active ? styles.medChipActive : ''}`}
-                          onClick={() => setMedicalHistory(prev =>
-                            prev.includes(m.key) ? prev.filter(k => k !== m.key) : [...prev, m.key]
-                          )}
-                        >
-                          {m.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <MedicalHistorySection value={medicalHistory} onChange={setMedicalHistory} />
           )}
 
           <div className={styles.field}>

@@ -2,18 +2,10 @@ import { useState } from 'react';
 import { UserCog, X, Check } from 'lucide-react';
 import { api } from '../api/client';
 import styles from './BookAppointmentModal.module.css';
+import MedicalHistorySection, { normalizeMedHistory } from './MedicalHistorySection';
 
 const CHANNELS    = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 const VISIT_TYPES = ['OPConsultation','FollowUp','Emergency','Procedure','Vaccination'];
-
-const MEDICAL_HISTORY = [
-  { key: 'diabetes',       label: 'Diabetes',       group: 'Conditions' },
-  { key: 'hypertension',   label: 'Hypertension',   group: 'Conditions' },
-  { key: 'hypothyroidism', label: 'Hypothyroidism',  group: 'Conditions' },
-  { key: 'alcohol',        label: 'Alcohol',         group: 'Habits' },
-  { key: 'tobacco',        label: 'Tobacco',         group: 'Habits' },
-  { key: 'smoking',        label: 'Smoking',         group: 'Habits' },
-];
 
 export default function EditPatientModal({ appt, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -27,7 +19,7 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
     notes:          appt.notes          || '',
   });
   const [medicalHistory, setMedicalHistory] = useState(
-    Array.isArray(appt.medical_history) ? appt.medical_history : []
+    normalizeMedHistory(appt.medical_history)
   );
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -103,31 +95,7 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
             </div>
           </div>
 
-          <div className={styles.medHistSection}>
-            <div className={styles.medHistLabel}>Medical History</div>
-            {['Conditions', 'Habits'].map(group => (
-              <div key={group} className={styles.medHistGroup}>
-                <span className={styles.medHistGroupName}>{group}</span>
-                <div className={styles.medHistChips}>
-                  {MEDICAL_HISTORY.filter(m => m.group === group).map(m => {
-                    const active = medicalHistory.includes(m.key);
-                    return (
-                      <button
-                        key={m.key}
-                        type="button"
-                        className={`${styles.medChip} ${active ? styles.medChipActive : ''}`}
-                        onClick={() => setMedicalHistory(prev =>
-                          prev.includes(m.key) ? prev.filter(k => k !== m.key) : [...prev, m.key]
-                        )}
-                      >
-                        {m.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
+          <MedicalHistorySection value={medicalHistory} onChange={setMedicalHistory} />
 
           <div className={styles.field}>
             <label>Notes</label>
