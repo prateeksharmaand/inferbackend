@@ -26,10 +26,9 @@
 .navItem:hover { background: var(--color-sidebar-hover); color: #fff; }
 .active { background: var(--color-sidebar-active) !important; color: #fff !important; }
 
-.icon { font-size: 18px; line-height: 1; }
 .navLabel { font-size: 9px; font-weight: 500; letter-spacing: .3px; }
 
-.bottom { margin-top: auto; }
+.bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-bottom: 4px; }
 .avatar {
   width: 36px; height: 36px; border-radius: 50%;
   background: #374151; color: #fff; border: none;
@@ -37,4 +36,11 @@
   display: flex; align-items: center; justify-content: center;
   transition: background .15s;
 }
-.avatar:hover { background: var(--color-danger); }
+.avatar:hover { background: #4b5563; }
+.logoutBtn {
+  background: none; border: none; cursor: pointer;
+  color: #64748b; padding: 4px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.logoutBtn:hover { color: #ef4444; background: rgba(239,68,68,.1); }

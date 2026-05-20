@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { Search, SlidersHorizontal, ArrowUpDown, MoreVertical, Plus, LayoutList, CalendarDays, X } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
 import CalendarView from '../components/CalendarView';
 import styles from './Queue.module.css';
@@ -101,8 +102,12 @@ export default function Queue() {
           <button className={styles.newQueueBtn} onClick={() => navigate('/queue/setup')}>+ Queue</button>
 
           <div className={styles.viewToggle}>
-            <button className={`${styles.viewBtn} ${viewMode === 'list'     ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('list')}>≡ List</button>
-            <button className={`${styles.viewBtn} ${viewMode === 'calendar' ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('calendar')}>⊞ Schedule</button>
+            <button className={`${styles.viewBtn} ${viewMode === 'list'     ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('list')} title="List view">
+              <LayoutList size={14} /> List
+            </button>
+            <button className={`${styles.viewBtn} ${viewMode === 'calendar' ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('calendar')} title="Schedule view">
+              <CalendarDays size={14} /> Schedule
+            </button>
           </div>
         </div>
       )}
@@ -128,13 +133,13 @@ export default function Queue() {
               <button
                 className={`${styles.colAction} ${leftSearchOpen ? styles.colActionActive : ''}`}
                 title="Search" onClick={toggleLeftSearch}
-              >🔍</button>
-              <button className={styles.colAction} title="Filter">⊟</button>
+              ><Search size={14} strokeWidth={2} /></button>
+              <button className={styles.colAction} title="Filter"><SlidersHorizontal size={14} strokeWidth={2} /></button>
             </div>
 
             {leftSearchOpen && (
               <div className={styles.searchBar}>
-                <span className={styles.searchBarIcon}>🔍</span>
+                <Search size={13} className={styles.searchBarIcon} strokeWidth={2} />
                 <input
                   ref={leftInputRef}
                   className={styles.searchBarInput}
@@ -143,7 +148,7 @@ export default function Queue() {
                   onChange={e => setLeftSearch(e.target.value)}
                 />
                 {leftSearch && (
-                  <button className={styles.searchBarClear} onClick={() => setLeftSearch('')}>✕</button>
+                  <button className={styles.searchBarClear} onClick={() => setLeftSearch('')}><X size={13} /></button>
                 )}
                 <span className={styles.searchBarCount}>
                   {leftList.length} / {rawLeft.length}
@@ -184,19 +189,19 @@ export default function Queue() {
               >
                 COMPLETED ({board.completed.length})
               </button>
-              <button className={styles.colAction} title="Add">+</button>
+              <button className={styles.colAction} title="Add"><Plus size={14} strokeWidth={2.5} /></button>
               <button
                 className={`${styles.colAction} ${rightSearchOpen ? styles.colActionActive : ''}`}
                 title="Search" onClick={toggleRightSearch}
-              >🔍</button>
-              <button className={styles.colAction} title="Sort">⇅</button>
-              <button className={styles.colAction} title="Filter">⊟</button>
-              <button className={styles.colAction} title="More">⋮</button>
+              ><Search size={14} strokeWidth={2} /></button>
+              <button className={styles.colAction} title="Sort"><ArrowUpDown size={14} strokeWidth={2} /></button>
+              <button className={styles.colAction} title="Filter"><SlidersHorizontal size={14} strokeWidth={2} /></button>
+              <button className={styles.colAction} title="More"><MoreVertical size={14} strokeWidth={2} /></button>
             </div>
 
             {rightSearchOpen && (
               <div className={styles.searchBar}>
-                <span className={styles.searchBarIcon}>🔍</span>
+                <Search size={13} className={styles.searchBarIcon} strokeWidth={2} />
                 <input
                   ref={rightInputRef}
                   className={styles.searchBarInput}
@@ -205,7 +210,7 @@ export default function Queue() {
                   onChange={e => setRightSearch(e.target.value)}
                 />
                 {rightSearch && (
-                  <button className={styles.searchBarClear} onClick={() => setRightSearch('')}>✕</button>
+                  <button className={styles.searchBarClear} onClick={() => setRightSearch('')}><X size={13} /></button>
                 )}
                 <span className={styles.searchBarCount}>
                   {rightList.length} / {rawRight.length}

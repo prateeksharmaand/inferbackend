@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
+import { Search, X, ChevronLeft, ChevronRight, Building2, Plus } from 'lucide-react';
 import BookAppointmentModal from './BookAppointmentModal';
 import styles from './TopBar.module.css';
 
@@ -103,12 +104,12 @@ export default function TopBar() {
         <div className={styles.left}>
           <h1 className={styles.title}>Queue</h1>
           <div className={styles.datePill}>
-            <button className={styles.arrow}>‹</button>
+            <button className={styles.arrow}><ChevronLeft size={14} /></button>
             <span className={styles.dateText}>Tdy, {today()}</span>
-            <button className={styles.arrow}>›</button>
+            <button className={styles.arrow}><ChevronRight size={14} /></button>
           </div>
           <div className={styles.clinicPill}>
-            <span className={styles.clinicIcon}>🏥</span>
+            <Building2 size={14} strokeWidth={1.8} />
             <span>{user?.clinic_name ?? 'Clinic'}</span>
           </div>
         </div>
@@ -116,7 +117,7 @@ export default function TopBar() {
         <div className={styles.right}>
           <div className={styles.addWrap}>
             <button className={styles.addBtn} onClick={() => setShowAdd(v => !v)}>
-              Add New <span className={styles.plus}>+</span>
+              Add New <Plus size={16} strokeWidth={2.5} />
             </button>
             {showAdd && (
               <ul className={styles.dropdown}>
@@ -130,7 +131,7 @@ export default function TopBar() {
           {/* Search */}
           <div ref={searchRef} className={`${styles.searchWrap} ${searchOpen ? styles.searchWrapOpen : ''}`}>
             <div className={styles.searchBox}>
-              <span className={styles.searchIcon}>🔍</span>
+              <Search size={14} className={styles.searchIcon} strokeWidth={2} />
               <input
                 className={styles.searchInput}
                 placeholder="Search / Add Patient by Name, Number, UHID, ABHA ID, or Aadhar"
@@ -139,7 +140,7 @@ export default function TopBar() {
                 onFocus={() => setSearchOpen(true)}
               />
               {query ? (
-                <button className={styles.clearBtn} onClick={clearSearch}>✕</button>
+                <button className={styles.clearBtn} onClick={clearSearch}><X size={13} /></button>
               ) : (
                 <span className={styles.kbd}>⌘K</span>
               )}
