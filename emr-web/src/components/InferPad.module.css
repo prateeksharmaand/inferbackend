@@ -1,0 +1,179 @@
+.wrap {
+  padding: 16px 20px 90px;
+  display: flex; flex-direction: column; gap: 10px;
+  max-width: 900px; margin: 0 auto; width: 100%;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--color-surface);
+  border-radius: 10px; border: 1px solid var(--color-border);
+  overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  position: relative;
+}
+
+.cardHead {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 16px; cursor: pointer; user-select: none;
+  transition: background .1s; position: relative;
+}
+.cardHead:hover { background: #fafbff; }
+
+.cardBar {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--cc, #6366f1);
+  border-radius: 10px 0 0 10px;
+}
+
+.cardIcon  { font-size: 17px; flex-shrink: 0; margin-left: 4px; }
+.cardTitle { font-size: 13px; font-weight: 700; color: var(--color-text); flex: 1; }
+
+.badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
+  background: #fef3c7; color: #92400e; border: 1px solid #fde68a;
+}
+
+.chevron { color: var(--color-text-3); transition: transform .15s; flex-shrink: 0; }
+.chevronOpen { transform: rotate(180deg); }
+
+.cardBody {
+  padding: 14px 18px 16px 24px; border-top: 1px solid var(--color-border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* ── Vitals grid ── */
+.vitalsGrid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;
+}
+.vCell { display: flex; flex-direction: column; gap: 4px; }
+.vCell label {
+  font-size: 11px; font-weight: 600; color: var(--color-text-2);
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+.unit    { font-weight: 400; color: var(--color-text-3); font-size: 10px; }
+.autoTag {
+  font-size: 9px; font-weight: 700;
+  background: #ecfdf5; color: #065f46; border: 1px solid #86efac;
+  padding: 1px 5px; border-radius: 8px;
+}
+.vCell input {
+  border: 1px solid var(--color-border); border-radius: 6px;
+  padding: 7px 10px; font-size: 13px; outline: none;
+  text-align: center; font-family: inherit; width: 100%; box-sizing: border-box;
+}
+.vCell input:focus { border-color: var(--color-primary); }
+.vInputAuto { background: #f0fdf4; border-color: #86efac !important; color: #065f46; font-weight: 700; }
+
+/* ── Chips ── */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 4px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  background: #eef2ff; color: #4338ca;
+}
+.chip button { background: none; border: none; cursor: pointer; color: inherit; font-size: 11px; padding: 0; }
+.chipRO       { background: #f1f5f9; color: var(--color-text-2); cursor: default; }
+.chipRO button { display: none; }
+.chipSymptom  { background: #fff7ed; color: #c2410c; }
+.chipDiag     { background: #fefce8; color: #854d0e; }
+.chipLab      { background: #ecfdf5; color: #065f46; }
+.chipProc     { background: #fdf4ff; color: #7e22ce; }
+
+/* ── Add row ── */
+.addRow { display: flex; gap: 8px; }
+.addRow input {
+  flex: 1; border: 1px solid var(--color-border); border-radius: 7px;
+  padding: 7px 12px; font-size: 13px; outline: none; font-family: inherit;
+}
+.addRow input:focus { border-color: var(--color-primary); }
+.addRow button {
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+
+/* ── Table (medications + lab results) ── */
+.tableWrap { display: flex; flex-direction: column; gap: 6px; }
+.table {
+  border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.tHead {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 26px;
+  background: #f8fafc; padding: 7px 10px;
+  font-size: 10px; font-weight: 700; color: var(--color-text-2);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.tHead4 { grid-template-columns: 2fr 1fr 1fr 1.5fr 26px; }
+.tRow {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 26px;
+  gap: 6px; padding: 6px 10px; align-items: center;
+  border-top: 1px solid var(--color-border);
+}
+.tRow4 { grid-template-columns: 2fr 1fr 1fr 1.5fr 26px; }
+.tRow input {
+  border: 1px solid var(--color-border); border-radius: 5px;
+  padding: 5px 8px; font-size: 12px; outline: none;
+  font-family: inherit; width: 100%;
+}
+.tRow input:focus { border-color: var(--color-primary); }
+.del { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; padding: 0; }
+
+.addLine {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 1px dashed var(--color-border);
+  color: var(--color-text-2); padding: 6px 14px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; cursor: pointer; transition: all .1s; width: fit-content;
+}
+.addLine:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
+
+/* ── Shared inputs/textareas ── */
+.cardBody textarea,
+.cardBody > input {
+  border: 1px solid var(--color-border); border-radius: 7px;
+  padding: 8px 12px; font-size: 13px; outline: none;
+  width: 100%; font-family: inherit; resize: vertical;
+  transition: border-color .15s; box-sizing: border-box;
+}
+.cardBody textarea:focus,
+.cardBody > input:focus { border-color: var(--color-primary); }
+
+/* ── Private note box ── */
+.privateBox {
+  font-size: 12px; color: #92400e; background: #fef3c7;
+  border: 1px solid #fde68a; border-radius: 6px;
+  padding: 8px 12px; line-height: 1.5;
+}
+
+/* ── Follow Up two-col ── */
+.twoCol { display: flex; gap: 12px; }
+.fg     { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.fg2    { flex: 2; }
+.fg label { font-size: 11px; font-weight: 600; color: var(--color-text-2); }
+
+/* ── Hint / empty ── */
+.hint { font-size: 11px; color: var(--color-text-3); font-style: italic; margin: 0; }
+
+/* ── Custom section ── */
+.customHead { display: flex; gap: 10px; align-items: center; }
+.customTitle {
+  flex: 1; border: 1px solid var(--color-border); border-radius: 7px;
+  padding: 7px 12px; font-size: 13px; font-weight: 600; outline: none; font-family: inherit;
+}
+.customTitle:focus { border-color: var(--color-primary); }
+.customDel {
+  background: none; border: 1px solid #fecaca; color: #dc2626;
+  padding: 5px 12px; border-radius: 6px; font-size: 12px;
+  font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.customDel:hover { background: #fef2f2; }
+
+/* ── Add custom section button ── */
+.addSection {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: none; border: 2px dashed var(--color-border);
+  color: var(--color-text-2); padding: 10px 20px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all .12s; width: 100%;
+}
+.addSection:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }

@@ -8,12 +8,16 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfigureInferPadModal from '../components/ConfigureInferPadModal';
 import DrawingCanvas from '../components/DrawingCanvas';
+import InferPad from '../components/InferPad';
 import styles from './WriteRx.module.css';
 
 const TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
 
 const EMPTY_FORM = {
-  vitals: { bp_systolic: '', bp_diastolic: '', pulse: '', spo2: '', temp: '', weight: '', height: '' },
+  vitals: {
+    bp_systolic: '', bp_diastolic: '', temp: '', spo2: '', pulse: '',
+    respiratory_rate: '', height: '', weight: '', bmi: '',
+  },
   symptoms: [],         symptomInput: '',
   diagnosis: [],        diagInput: '',
   medications: [],
@@ -26,6 +30,7 @@ const EMPTY_FORM = {
   next_visit_notes: '',
   advices: '',
   procedures: [],       procInput: '',
+  custom_sections: [],
   canvasImage: '',
 };
 
@@ -74,9 +79,16 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
               {Object.values(form.vitals).some(Boolean) && (
                 <PrintSection title="Vitals">
                   <div className={styles.printVitalRow}>
-                    {[['bp_systolic','BP Sys','mmHg'],['bp_diastolic','BP Dia','mmHg'],
-                      ['pulse','Pulse','bpm'],['spo2','SpO₂','%'],
-                      ['temp','Temp','°C'],['weight','Weight','kg'],['height','Height','cm'],
+                    {[
+                      ['bp_systolic',      'BP Sys',          'mmHg' ],
+                      ['bp_diastolic',     'BP Dia',          'mmHg' ],
+                      ['pulse',            'Pulse',           'bpm'  ],
+                      ['spo2',             'SpO₂',            '%'    ],
+                      ['temp',             'Temp',            '°C'   ],
+                      ['respiratory_rate', 'Resp Rate',       '/min' ],
+                      ['weight',           'Weight',          'kg'   ],
+                      ['height',           'Height',          'cm'   ],
+                      ['bmi',              'BMI',             'kg/m²'],
                     ].filter(([k]) => form.vitals[k]).map(([k, label, unit]) => (
                       <span key={k} className={styles.printVitalChip}>{label}: <b>{form.vitals[k]}</b> {unit}</span>
                     ))}
@@ -199,6 +211,13 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
                 </PrintSection>
               )}
 
+              {/* Custom sections */}
+              {(form.custom_sections || []).filter(s => s.content).map(s => (
+                <PrintSection key={s.id} title={s.title || 'Notes'}>
+                  <p className={styles.printText}>{s.content}</p>
+                </PrintSection>
+              ))}
+
               {/* Canvas drawing */}
               {form.canvasImage && (
                 <PrintSection title="Drawing / Diagram">
@@ -278,7 +297,7 @@ export default function WriteRx() {
         setPrescriptionMode(true);
         setForm(f => ({
           ...f,
-          vitals:               data.vitals          ? { ...f.vitals, ...data.vitals } : f.vitals,
+          vitals:               data.vitals          ? { ...EMPTY_FORM.vitals, ...data.vitals } : f.vitals,
           symptoms:             data.symptoms        || [],
           diagnosis:            data.diagnosis       || [],
           medications:          data.medications     || [],
@@ -291,6 +310,7 @@ export default function WriteRx() {
           next_visit_notes:     data.next_visit_notes || '',
           advices:              data.advices || data.instructions || '',
           procedures:           data.procedures || [],
+          custom_sections:      data.custom_sections || [],
           canvasImage:          data.canvas_image || '',
         }));
       }
@@ -299,6 +319,16 @@ export default function WriteRx() {
 
   const set      = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setVital = (k, v) => setForm(f => ({ ...f, vitals: { ...f.vitals, [k]: v } }));
+
+  // Auto-calculate BMI whenever height or weight changes
+  useEffect(() => {
+    const h = parseFloat(form.vitals.height);
+    const w = parseFloat(form.vitals.weight);
+    if (h > 0 && w > 0) {
+      const bmi = (w / ((h / 100) ** 2)).toFixed(1);
+      setForm(f => ({ ...f, vitals: { ...f.vitals, bmi } }));
+    }
+  }, [form.vitals.height, form.vitals.weight]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addChip = (field, inputField) => {
     const val = form[inputField]?.trim();
@@ -355,6 +385,7 @@ export default function WriteRx() {
         notes:                form.notes,
         refer_to:             form.refer_to,
         procedures:           form.procedures,
+        custom_sections:      form.custom_sections || [],
         canvas_image:         form.canvasImage || null,
       });
       navigate('/queue');
@@ -398,15 +429,26 @@ export default function WriteRx() {
         {/* Vitals */}
         <RxSection title="Vitals">
           <div className={styles.vitalsGrid}>
-            {[['bp_systolic','BP Sys','mmHg'],['bp_diastolic','BP Dia','mmHg'],
-              ['pulse','Pulse','bpm'],['spo2','SpO₂','%'],
-              ['temp','Temp','°C'],['weight','Weight','kg'],['height','Height','cm'],
+            {[
+              ['bp_systolic',      'BP Systolic',     'mmHg' ],
+              ['bp_diastolic',     'BP Diastolic',    'mmHg' ],
+              ['temp',             'Temperature',     '°C'   ],
+              ['spo2',             'SpO₂',            '%'    ],
+              ['pulse',            'Pulse',           'bpm'  ],
+              ['respiratory_rate', 'Respiratory Rate','/min' ],
+              ['height',           'Height',          'cm'   ],
+              ['weight',           'Weight',          'kg'   ],
             ].map(([k, label, unit]) => (
               <div key={k} className={styles.vitalCell}>
                 <label>{label} <span className={styles.unit}>{unit}</span></label>
-                <input type="number" value={form.vitals[k]} onChange={e => setVital(k, e.target.value)} placeholder="—" />
+                <input type="number" value={form.vitals[k] || ''} onChange={e => setVital(k, e.target.value)} placeholder="—" />
               </div>
             ))}
+            <div className={styles.vitalCell}>
+              <label>BMI <span className={styles.unit}>kg/m²</span></label>
+              <input type="number" value={form.vitals.bmi || ''} onChange={e => setVital('bmi', e.target.value)}
+                placeholder="auto" style={form.vitals.bmi ? { background: '#f0fdf4', color: '#065f46', fontWeight: 700 } : {}} />
+            </div>
           </div>
         </RxSection>
 
@@ -580,6 +622,14 @@ export default function WriteRx() {
           </div>
         </RxSection>
 
+        {/* Custom sections */}
+        {(form.custom_sections || []).map(s => (
+          <RxSection key={s.id} title={s.title || 'Custom'}>
+            <textarea rows={2} value={s.content}
+              onChange={e => set('custom_sections', form.custom_sections.map(x => x.id === s.id ? { ...x, content: e.target.value } : x))} />
+          </RxSection>
+        ))}
+
         {/* Canvas drawing */}
         {form.canvasImage && (
           <RxSection title="Drawing / Diagram">
@@ -676,13 +726,15 @@ export default function WriteRx() {
                 ) : (
                   <div className={styles.vitalsDisplayGrid}>
                     {[
-                      ['bp_systolic',  'BP Systolic',  'mmHg', '#3b82f6'],
-                      ['bp_diastolic', 'BP Diastolic', 'mmHg', '#6366f1'],
-                      ['pulse',        'Pulse',        'bpm',  '#f59e0b'],
-                      ['spo2',         'SpO₂',         '%',    '#06b6d4'],
-                      ['temp',         'Temp',         '°C',   '#ef4444'],
-                      ['weight',       'Weight',       'kg',   '#8b5cf6'],
-                      ['height',       'Height',       'cm',   '#10b981'],
+                      ['bp_systolic',      'BP Systolic',     'mmHg',  '#3b82f6'],
+                      ['bp_diastolic',     'BP Diastolic',    'mmHg',  '#6366f1'],
+                      ['pulse',            'Pulse',           'bpm',   '#f59e0b'],
+                      ['spo2',             'SpO₂',            '%',     '#06b6d4'],
+                      ['temp',             'Temp',            '°C',    '#ef4444'],
+                      ['respiratory_rate', 'Resp Rate',       '/min',  '#0891b2'],
+                      ['weight',           'Weight',          'kg',    '#8b5cf6'],
+                      ['height',           'Height',          'cm',    '#10b981'],
+                      ['bmi',              'BMI',             'kg/m²', '#16a34a'],
                     ].filter(([k]) => form.vitals[k]).map(([k, label, unit, color]) => (
                       <div key={k} className={styles.vitalDisplayCell}>
                         <div className={styles.vitalDisplayBar} style={{ background: color + '18', borderColor: color + '44' }}>
@@ -728,10 +780,7 @@ export default function WriteRx() {
           )}
 
           {tab === 'InferPad' && (
-            <div className={styles.placeholder}>
-              <span className={styles.placeholderIcon}>📝</span>
-              <p>InferPad coming soon</p>
-            </div>
+            <InferPad form={form} set={set} setVital={setVital} appt={appt} />
           )}
 
           {tab === 'Canvas' && (
