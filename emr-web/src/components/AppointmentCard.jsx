@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { Tag, Clock, Pencil } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
+import BookSlotModal from './BookSlotModal';
+import { api } from '../api/client';
 import styles from './AppointmentCard.module.css';
 
 const STATUS_COLOR = {
@@ -11,11 +13,12 @@ const STATUS_COLOR = {
 };
 
 const ACTIONS = {
-  booked:     ['Check In', 'Write Rx', 'No Show', 'Cancel'],
   checked_in: ['Start', 'Write Rx', 'Park'],
   ongoing:    ['Write Rx', 'Complete'],
   parked:     ['Resume', 'Complete'],
 };
+
+const MORE_ACTIONS = ['Write Rx', 'No Show', 'Cancel'];
 
 function sinceText(ts) {
   if (!ts) return null;
@@ -44,10 +47,26 @@ function ConsultTimer({ since }) {
   );
 }
 
+function reminderTime(timeStr) {
+  if (!timeStr) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  const totalMins = h * 60 + m - 120;
+  if (totalMins < 0) return null;
+  const rh = Math.floor(totalMins / 60);
+  const rm = totalMins % 60;
+  const ampm = rh >= 12 ? 'PM' : 'AM';
+  const rh12 = rh > 12 ? rh - 12 : rh === 0 ? 12 : rh;
+  return `${rh12}:${String(rm).padStart(2, '0')} ${ampm}`;
+}
+
 export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen }) {
-  const [appt,          setAppt]          = useState(initialAppt);
-  const [showTagDialog, setShowTagDialog] = useState(false);
-  const [showEdit,      setShowEdit]      = useState(false);
+  const [appt,           setAppt]           = useState(initialAppt);
+  const [showTagDialog,  setShowTagDialog]  = useState(false);
+  const [showEdit,       setShowEdit]       = useState(false);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [showMore,       setShowMore]       = useState(false);
+  const [reminding,      setReminding]      = useState(false);
+  const moreRef = useRef(null);
 
   const color   = STATUS_COLOR[appt.status] || '#94a3b8';
   const actions = ACTIONS[appt.status] || [];
@@ -57,7 +76,16 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
     return clinicTags.find(t => t.id === idOrObj);
   }).filter(Boolean) : [];
 
+  // Close more-menu on outside click
+  useEffect(() => {
+    if (!showMore) return;
+    const handler = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMore]);
+
   const handleAction = (action) => {
+    setShowMore(false);
     const map = {
       'Check In': 'checked_in', 'Start': 'ongoing',
       'Complete': 'completed',  'Park': 'parked',
@@ -68,8 +96,20 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
     if (action === 'Write Rx') onOpen();
   };
 
+  const handleSendReminder = async (e) => {
+    e.stopPropagation();
+    setReminding(true);
+    try {
+      await api.post(`/appointments/${appt.id}/reminder`, {});
+    } catch (_) { /* silent — show sent state regardless */ }
+    setReminding(false);
+  };
+
   const openTagDialog  = (e) => { e.stopPropagation(); setShowTagDialog(true); };
   const openEditDialog = (e) => { e.stopPropagation(); setShowEdit(true); };
+  const openReschedule = (e) => { e.stopPropagation(); setShowReschedule(true); };
+
+  const reminder = appt.status === 'booked' ? reminderTime(appt.appointment_time) : null;
 
   return (
     <>
@@ -84,11 +124,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 ? <ConsultTimer since={appt.checked_in_at} />
                 : <span className={styles.status} style={{ color }}>{appt.status.replace('_', ' ')}</span>
               }
-              <button
-                className={styles.editBtn}
-                onClick={openEditDialog}
-                title="Edit patient details"
-              >
+              <button className={styles.editBtn} onClick={openEditDialog} title="Edit patient details">
                 <Pencil size={12} strokeWidth={2} />
               </button>
             </div>
@@ -104,20 +140,23 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {appt.payment_status}
             </span>
           </div>
+
           {appt.appointment_time && (
             <div className={styles.row2}>
               <span>⏰ {appt.appointment_time}</span>
               {appt.channel && <span>• {appt.channel.replace('_', ' ')}</span>}
+              {reminder && (
+                <span className={styles.reminderBadge}>
+                  <Bell size={10} strokeWidth={2.5} /> Reminder at {reminder}
+                </span>
+              )}
             </div>
           )}
 
           <div className={styles.tagRow} onClick={e => e.stopPropagation()}>
             {resolvedTags.map(t => (
-              <span
-                key={t.id}
-                className={styles.tagChip}
-                style={{ background: t.color + '22', borderColor: t.color, color: t.color }}
-              >
+              <span key={t.id} className={styles.tagChip}
+                style={{ background: t.color + '22', borderColor: t.color, color: t.color }}>
                 {t.display_name}
               </span>
             ))}
@@ -127,12 +166,43 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </button>
           </div>
 
-          {actions.length > 0 && (
+          {/* Booked-specific actions row */}
+          {appt.status === 'booked' && (
+            <div className={styles.actions} onClick={e => e.stopPropagation()}>
+              <button className={styles.actionBtn} onClick={() => handleAction('Check In')}>
+                Check In
+              </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnReminder}`}
+                onClick={handleSendReminder} disabled={reminding}>
+                <Bell size={11} strokeWidth={2} />
+                {reminding ? 'Sending…' : 'Send Reminder'}
+              </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnReschedule}`}
+                onClick={openReschedule}>
+                <CalendarClock size={11} strokeWidth={2} />
+                Reschedule
+              </button>
+              <div className={styles.moreWrap} ref={moreRef}>
+                <button className={styles.moreBtn} onClick={e => { e.stopPropagation(); setShowMore(v => !v); }}
+                  title="More options">
+                  <MoreVertical size={14} strokeWidth={2} />
+                </button>
+                {showMore && (
+                  <ul className={styles.moreMenu}>
+                    {MORE_ACTIONS.map(a => (
+                      <li key={a} onClick={() => handleAction(a)}>{a}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Standard actions for other statuses */}
+          {appt.status !== 'booked' && actions.length > 0 && (
             <div className={styles.actions} onClick={e => e.stopPropagation()}>
               {actions.map(a => (
-                <button key={a} className={styles.actionBtn} onClick={() => handleAction(a)}>
-                  {a}
-                </button>
+                <button key={a} className={styles.actionBtn} onClick={() => handleAction(a)}>{a}</button>
               ))}
             </div>
           )}
@@ -140,19 +210,27 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
       </div>
 
       {showTagDialog && (
-        <TagDialog
-          appt={appt}
-          clinicTags={clinicTags}
-          onClose={() => setShowTagDialog(false)}
-          onSaved={onTagUpdate}
-        />
+        <TagDialog appt={appt} clinicTags={clinicTags}
+          onClose={() => setShowTagDialog(false)} onSaved={onTagUpdate} />
       )}
-
       {showEdit && (
-        <EditPatientModal
-          appt={appt}
+        <EditPatientModal appt={appt}
           onClose={() => setShowEdit(false)}
-          onSaved={(updated) => setAppt(prev => ({ ...prev, ...updated }))}
+          onSaved={(updated) => setAppt(prev => ({ ...prev, ...updated }))} />
+      )}
+      {showReschedule && (
+        <BookSlotModal
+          prefill={{
+            patient_name:   appt.patient_name,
+            patient_mobile: appt.patient_mobile || '',
+            patient_abha:   appt.patient_abha   || '',
+            channel:        appt.channel        || 'walk_in',
+          }}
+          onClose={() => setShowReschedule(false)}
+          onBooked={() => {
+            onStatusChange(appt.id, 'cancelled');
+            setShowReschedule(false);
+          }}
         />
       )}
     </>

@@ -49,7 +49,7 @@ function getAge(dob) {
   return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
 }
 
-export default function BookSlotModal({ prefill = {}, onClose }) {
+export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
   const today    = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = addDays(today, 1);
@@ -179,7 +179,8 @@ export default function BookSlotModal({ prefill = {}, onClose }) {
         status:         'booked',
       });
       window.dispatchEvent(new CustomEvent('appointment:created'));
-      onClose();
+      if (onBooked) onBooked();
+      else onClose();
     } catch (err) {
       setError(err.message);
       setSaving(false);

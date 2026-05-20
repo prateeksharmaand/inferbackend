@@ -39,6 +39,7 @@ router.post ('/appointments',                    appt.createAppointment);
 router.get  ('/appointments/:id',                appt.getAppointment);
 router.patch('/appointments/:id/status',         appt.updateStatus);
 router.post ('/appointments/:id/encounter',      appt.saveEncounter);
+router.post ('/appointments/:id/reminder',       appt.sendReminder);
 
 // Tags (Custom Attribute Values)
 router.get   ('/tags',     tags.listTags);
