@@ -5,7 +5,7 @@ import MedicalHistorySection from './MedicalHistorySection';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
-export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
+export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCreated }) {
   const [queues,       setQueues]       = useState([]);
   const [doctors,      setDoctors]      = useState([]);
   const [saving,         setSaving]         = useState(false);
@@ -64,7 +64,8 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
       };
       await api.post('/appointments', payload);
       window.dispatchEvent(new CustomEvent('appointment:created', { detail: { queue_id: form.queue_id } }));
-      onClose();
+      if (onCreated) onCreated(form);
+      else onClose();
     } catch (err) {
       setError(err.message);
       setSaving(false);

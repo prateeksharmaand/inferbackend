@@ -28,11 +28,12 @@ export default function TopBar() {
   const { user } = useAuth();
   const { queueDate, prevDay, nextDay } = useQueueDate();
   const navigate = useNavigate();
-  const [showAdd,    setShowAdd]    = useState(false);
-  const [showBook,   setShowBook]   = useState(false);
-  const [addMode,    setAddMode]    = useState('');
-  const [prefill,    setPrefill]    = useState({});
-  const [searchMode, setSearchMode] = useState(null); // 'checkin' | 'book' | null
+  const [showBook,     setShowBook]     = useState(false);
+  const [showAdd,      setShowAdd]      = useState(false);
+  const [addMode,      setAddMode]      = useState('');
+  const [prefill,      setPrefill]      = useState({});
+  const [searchMode,   setSearchMode]   = useState(null); // 'checkin' | 'book' | null
+  const [afterCheckin, setAfterCheckin] = useState(false); // open BookSlotModal after checkin
   const [query,       setQuery]       = useState('');
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [patients,    setPatients]    = useState([]);
@@ -84,9 +85,29 @@ export default function TopBar() {
   const openWithName = (name, via) => {
     const mode = searchMode;
     clearSearch();
-    setAddMode(mode === 'checkin' ? 'checkin' : 'book');
+    if (mode === 'book') {
+      // New patient in book flow: register via checkin first, then auto-open BookSlotModal
+      setAfterCheckin(true);
+      setAddMode('checkin');
+    } else {
+      setAfterCheckin(false);
+      setAddMode(mode === 'checkin' ? 'checkin' : 'book');
+    }
     setPrefill({ patient_name: name, channel: via === 'abha' ? 'abha' : 'walk_in' });
     setShowBook(true);
+  };
+
+  const handleCheckinCreated = (createdForm) => {
+    setShowBook(false);
+    setAfterCheckin(false);
+    setPrefill({
+      patient_name:   createdForm.patient_name,
+      patient_mobile: createdForm.patient_mobile || '',
+      patient_abha:   createdForm.patient_abha   || '',
+      channel: 'walk_in',
+    });
+    setAddMode('book');
+    setTimeout(() => setShowBook(true), 80);
   };
 
   // Debounced patient search
@@ -253,7 +274,8 @@ export default function TopBar() {
         <BookAppointmentModal
           mode="checkin"
           prefill={prefill}
-          onClose={() => { setShowBook(false); setPrefill({}); }}
+          onClose={() => { setShowBook(false); setPrefill({}); setAfterCheckin(false); }}
+          onCreated={afterCheckin ? handleCheckinCreated : undefined}
         />
       )}
       {showBook && addMode === 'book' && (
