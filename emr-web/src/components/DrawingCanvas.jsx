@@ -1,9 +1,8 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Pen2 as Pen, Eraser, Minus, Square, Circle, Undo2, Trash2, Save, Download } from 'lucide-react';
+import { PenLine, Eraser as EraserIcon, Minus as LineIcon, Square as RectIcon, Circle as CircleIcon,
+         Undo2, Trash2, Save, Download, ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react';
 import styles from './DrawingCanvas.module.css';
-
-// lucide doesn't export Pen2 — use PenLine or pencil equivalent
-import { PenLine, Eraser as EraserIcon, Minus as LineIcon, Square as RectIcon, Circle as CircleIcon } from 'lucide-react';
+import { BODY_PARTS } from './bodyParts';
 
 const TOOLS = [
   { id: 'pen',    Icon: PenLine,    label: 'Pen'       },
@@ -23,7 +22,7 @@ const WIDTHS = [1, 2, 4, 6, 10, 16];
 
 export default function DrawingCanvas({ initialImage, onSave }) {
   const canvasRef    = useRef(null);
-  const snapshotRef  = useRef(null);   // pre-stroke snapshot for shape preview
+  const snapshotRef  = useRef(null);
   const [tool,       setTool]       = useState('pen');
   const [color,      setColor]      = useState('#000000');
   const [lineWidth,  setLineWidth]  = useState(2);
@@ -31,8 +30,9 @@ export default function DrawingCanvas({ initialImage, onSave }) {
   const [startPos,   setStartPos]   = useState({ x: 0, y: 0 });
   const [history,    setHistory]    = useState([]);
   const [saved,      setSaved]      = useState(false);
+  const [panelOpen,  setPanelOpen]  = useState(true);
+  const [activeCategory, setActiveCategory] = useState(BODY_PARTS[0].category);
 
-  // Init canvas with white background (or restore saved image)
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx    = canvas.getContext('2d');
@@ -91,7 +91,6 @@ export default function DrawingCanvas({ initialImage, onSave }) {
       return;
     }
 
-    // Shape preview: restore snapshot then redraw
     ctx.putImageData(snapshotRef.current, 0, 0);
     ctx.strokeStyle = color;
     ctx.lineWidth   = lineWidth;
@@ -158,10 +157,59 @@ export default function DrawingCanvas({ initialImage, onSave }) {
     a.click();
   };
 
+  // ── Drag-and-drop stencil handlers ──
+  const handleDragStart = (e, src) => {
+    e.dataTransfer.setData('stencil/src', src);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const src = e.dataTransfer.getData('stencil/src');
+    if (!src) return;
+
+    const canvas = canvasRef.current;
+    const ctx    = canvas.getContext('2d');
+    const rect   = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const dropX  = (e.clientX - rect.left) * scaleX;
+    const dropY  = (e.clientY - rect.top)  * scaleY;
+
+    const img = new Image();
+    img.onload = () => {
+      // Draw stencil centered on drop point, 120×120 max
+      const size = 120;
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.drawImage(img, dropX - size / 2, dropY - size / 2, size, size);
+      ctx.restore();
+      setHistory(h => [...h.slice(-29), ctx.getImageData(0, 0, canvas.width, canvas.height)]);
+      setSaved(false);
+    };
+    img.src = src;
+  };
+
+  const activeParts = BODY_PARTS.find(g => g.category === activeCategory)?.parts ?? [];
+
   return (
     <div className={styles.wrap}>
       {/* ── Toolbar ── */}
       <div className={styles.toolbar}>
+        <button
+          className={`${styles.toolBtn} ${panelOpen ? styles.toolBtnActive : ''}`}
+          title="Body Part Stencils"
+          onClick={() => setPanelOpen(v => !v)}>
+          <LayoutGrid size={16} strokeWidth={1.8} />
+          <span>Stencils</span>
+        </button>
+
+        <div className={styles.sep} />
 
         {/* Drawing tools */}
         <div className={styles.toolGroup}>
@@ -231,25 +279,60 @@ export default function DrawingCanvas({ initialImage, onSave }) {
         </div>
       </div>
 
-      {/* ── Canvas ── */}
-      <div className={styles.canvasWrap}>
-        <canvas
-          ref={canvasRef}
-          width={860}
-          height={520}
-          className={`${styles.canvas} ${styles[`cursor_${tool}`]}`}
-          onMouseDown={onDown}
-          onMouseMove={onMove}
-          onMouseUp={onUp}
-          onMouseLeave={onUp}
-          onTouchStart={onDown}
-          onTouchMove={onMove}
-          onTouchEnd={onUp}
-        />
+      {/* ── Body + stencil panel ── */}
+      <div className={styles.canvasBody}>
+
+        {/* Stencil panel */}
+        {panelOpen && (
+          <div className={styles.stencilPanel}>
+            {/* Category tabs */}
+            <div className={styles.stencilCats}>
+              {BODY_PARTS.map(g => (
+                <button key={g.category}
+                  className={`${styles.stencilCat} ${activeCategory === g.category ? styles.stencilCatActive : ''}`}
+                  onClick={() => setActiveCategory(g.category)}>
+                  {g.category}
+                </button>
+              ))}
+            </div>
+            {/* Thumbnails */}
+            <div className={styles.stencilGrid}>
+              {activeParts.map(part => (
+                <div key={part.id} className={styles.stencilItem}
+                  draggable
+                  onDragStart={e => handleDragStart(e, part.src)}
+                  title={`Drag "${part.label}" onto canvas`}>
+                  <img src={part.src} alt={part.label} className={styles.stencilThumb} draggable={false} />
+                  <span className={styles.stencilLabel}>{part.label}</span>
+                </div>
+              ))}
+            </div>
+            <p className={styles.stencilHint}>Drag any stencil onto the canvas</p>
+          </div>
+        )}
+
+        {/* Canvas area */}
+        <div className={styles.canvasWrap}>
+          <canvas
+            ref={canvasRef}
+            width={860}
+            height={520}
+            className={`${styles.canvas} ${styles[`cursor_${tool}`]}`}
+            onMouseDown={onDown}
+            onMouseMove={onMove}
+            onMouseUp={onUp}
+            onMouseLeave={onUp}
+            onTouchStart={onDown}
+            onTouchMove={onMove}
+            onTouchEnd={onUp}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          />
+        </div>
       </div>
 
       <p className={styles.hint}>
-        Draw anatomical diagrams, body charts, or findings. Click "Save to Prescription" to embed in the prescription.
+        Draw anatomical diagrams or drag body part stencils from the left panel. Click "Save to Prescription" to embed.
       </p>
     </div>
   );
