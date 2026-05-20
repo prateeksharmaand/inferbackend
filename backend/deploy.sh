@@ -83,7 +83,9 @@ $DC exec -T nginx nginx -s reload 2>/dev/null || $DC restart nginx
 
 log "Waiting for backend to be healthy..."
 for i in {1..20}; do
-  if $DC exec -T backend wget -qO- http://localhost:3000/health 2>/dev/null | grep -q '"status"'; then
+  if $DC exec -T backend node -e \
+    "require('http').get('http://localhost:3000/health',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))" \
+    2>/dev/null; then
     log "Health check passed ✓"
     break
   fi
