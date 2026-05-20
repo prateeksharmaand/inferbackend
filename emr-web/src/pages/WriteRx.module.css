@@ -204,6 +204,77 @@
 
 .error { color: var(--color-danger); font-size: 13px; padding: 4px 0; }
 
+/* ── Summary cards (Vitals + Lab Results below prescription) ── */
+.summaryCard {
+  background: var(--color-surface); border-radius: 12px;
+  border: 1px solid var(--color-border); box-shadow: var(--shadow);
+  overflow: hidden; margin-top: 16px;
+}
+.summaryCardHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 20px; border-bottom: 1px solid var(--color-border);
+  background: #fafbff;
+}
+.summaryCardTitle {
+  font-size: 13px; font-weight: 700; color: var(--color-text);
+}
+.summaryAddBtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 1px solid var(--color-primary);
+  color: var(--color-primary); padding: 4px 12px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; cursor: pointer; transition: all .1s;
+}
+.summaryAddBtn:hover { background: #f5f3ff; }
+
+/* Vitals display grid */
+.vitalsDisplayGrid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 12px; padding: 16px 20px;
+}
+.vitalDisplayCell { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+.vitalDisplayBar {
+  width: 100%; border-radius: 10px; border: 1px solid;
+  padding: 10px 8px 6px; display: flex; flex-direction: column;
+  align-items: center; gap: 2px; min-height: 58px; justify-content: center;
+}
+.vitalDisplayValue { font-size: 22px; font-weight: 800; line-height: 1; }
+.vitalEmpty        { font-size: 18px; color: #cbd5e1; }
+.vitalDisplayUnit  { font-size: 10px; font-weight: 600; opacity: .7; }
+.vitalDisplayLabel { font-size: 11px; font-weight: 600; color: var(--color-text-2); text-align: center; }
+.vitalDisplayInput {
+  width: 100%; border: 1px solid var(--color-border); border-radius: 6px;
+  padding: 5px 8px; font-size: 12px; text-align: center; outline: none;
+  color: var(--color-text); font-family: inherit;
+}
+.vitalDisplayInput:focus { border-color: var(--color-primary); }
+
+/* Lab results table */
+.labResultsTable { padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+.labResultsHead {
+  display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.2fr 28px;
+  padding: 6px 8px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3);
+}
+.labResultsRow {
+  display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.2fr 28px;
+  gap: 6px; align-items: center; padding: 4px 0;
+}
+.labResultsRow input {
+  border: 1px solid var(--color-border); border-radius: 6px;
+  padding: 6px 10px; font-size: 13px; outline: none; font-family: inherit;
+  width: 100%;
+}
+.labResultsRow input:focus { border-color: var(--color-primary); }
+.labResultValueFilled { color: var(--color-primary); font-weight: 600; }
+.summaryEmpty {
+  padding: 20px; font-size: 13px; color: var(--color-text-3);
+  display: flex; align-items: center; gap: 10px;
+}
+.summaryEmptyLink {
+  background: none; border: none; color: var(--color-primary);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+}
+
 /* ── Bottom action bar ── */
 .bottomBar {
   display: flex; align-items: center; justify-content: space-between;

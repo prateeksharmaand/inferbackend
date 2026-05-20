@@ -641,6 +641,75 @@ export default function WriteRx() {
               : (
                 <div className={styles.tabBody}>
                   <RxEditor />
+
+                  {/* ── Vitals summary card ── */}
+                  <div className={styles.summaryCard}>
+                    <div className={styles.summaryCardHeader}>
+                      <span className={styles.summaryCardTitle}>Vitals</span>
+                    </div>
+                    <div className={styles.vitalsDisplayGrid}>
+                      {[
+                        ['bp_systolic',  'BP Systolic',  'mmHg', '#3b82f6'],
+                        ['bp_diastolic', 'BP Diastolic', 'mmHg', '#6366f1'],
+                        ['pulse',        'Pulse',        'bpm',  '#f59e0b'],
+                        ['spo2',         'SpO₂',         '%',    '#06b6d4'],
+                        ['temp',         'Temp',         '°C',   '#ef4444'],
+                        ['weight',       'Weight',       'kg',   '#8b5cf6'],
+                        ['height',       'Height',       'cm',   '#10b981'],
+                      ].map(([k, label, unit, color]) => (
+                        <div key={k} className={styles.vitalDisplayCell}>
+                          <div className={styles.vitalDisplayBar} style={{ background: color + '18', borderColor: color + '44' }}>
+                            <span className={styles.vitalDisplayValue} style={{ color }}>
+                              {form.vitals[k] || <span className={styles.vitalEmpty}>—</span>}
+                            </span>
+                            <span className={styles.vitalDisplayUnit}>{unit}</span>
+                          </div>
+                          <span className={styles.vitalDisplayLabel}>{label}</span>
+                          <input
+                            type="number"
+                            className={styles.vitalDisplayInput}
+                            value={form.vitals[k]}
+                            onChange={e => setVital(k, e.target.value)}
+                            placeholder="—"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Lab Results summary card ── */}
+                  <div className={styles.summaryCard}>
+                    <div className={styles.summaryCardHeader}>
+                      <span className={styles.summaryCardTitle}>Lab Results</span>
+                      <button className={styles.summaryAddBtn} onClick={addLabResult}>
+                        <Plus size={13} /> Add Result
+                      </button>
+                    </div>
+                    {form.lab_results.length === 0 ? (
+                      <div className={styles.summaryEmpty}>
+                        No lab results added yet.
+                        <button className={styles.summaryEmptyLink} onClick={addLabResult}>+ Add one</button>
+                      </div>
+                    ) : (
+                      <div className={styles.labResultsTable}>
+                        <div className={styles.labResultsHead}>
+                          <span>Test Name</span><span>Result</span><span>Unit</span><span>Normal Range</span><span></span>
+                        </div>
+                        {form.lab_results.map((r, i) => (
+                          <div key={i} className={styles.labResultsRow}>
+                            <input placeholder="e.g. Haemoglobin" value={r.test}   onChange={e => updateLabResult(i, 'test',   e.target.value)} />
+                            <input placeholder="e.g. 12.5"        value={r.result} onChange={e => updateLabResult(i, 'result', e.target.value)}
+                              className={r.result ? styles.labResultValueFilled : ''} />
+                            <input placeholder="g/dL"             value={r.unit}   onChange={e => updateLabResult(i, 'unit',   e.target.value)} />
+                            <input placeholder="11 – 16"          value={r.range}  onChange={e => updateLabResult(i, 'range',  e.target.value)} />
+                            <button className={styles.removeBtn}
+                              onClick={() => set('lab_results', form.lab_results.filter((_, j) => j !== i))}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   {error && <p className={styles.error}>{error}</p>}
                 </div>
               )
