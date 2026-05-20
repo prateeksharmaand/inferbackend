@@ -5,10 +5,12 @@ import styles from './BookAppointmentModal.module.css';
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
 export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
-  const [queues,   setQueues]   = useState([]);
-  const [doctors,  setDoctors]  = useState([]);
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState('');
+  const [queues,      setQueues]      = useState([]);
+  const [doctors,     setDoctors]     = useState([]);
+  const [clinicTags,  setClinicTags]  = useState([]);
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
 
   const [form, setForm] = useState({
     patient_name:    prefill.patient_name   || '',
@@ -26,10 +28,16 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
   });
 
   useEffect(() => {
-    Promise.all([api.get('/queues'), api.get('/auth/doctors')])
-      .then(([q, d]) => { setQueues(q); setDoctors(d); })
+    Promise.all([api.get('/queues'), api.get('/auth/doctors'), api.get('/tags')])
+      .then(([q, d, t]) => { setQueues(q); setDoctors(d); setClinicTags(t); })
       .catch(() => {});
   }, []);
+
+  const toggleTag = (tagId) => {
+    setSelectedTags(prev =>
+      prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
+    );
+  };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -43,6 +51,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
         queue_id:  form.queue_id  || undefined,
         doctor_id: form.doctor_id || undefined,
         status: mode === 'checkin' ? 'checked_in' : 'booked',
+        tags: selectedTags,
       };
       await api.post('/appointments', payload);
       onClose();
@@ -115,6 +124,29 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
               <input type="time" value={form.appointment_time} onChange={e => set('appointment_time', e.target.value)} />
             </div>
           </div>
+
+          {clinicTags.length > 0 && (
+            <div className={styles.field}>
+              <label>Tags</label>
+              <div className={styles.tagChips}>
+                {clinicTags.map(t => {
+                  const active = selectedTags.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`${styles.tagChip} ${active ? styles.tagChipActive : ''}`}
+                      style={active ? { background: t.color, borderColor: t.color, color: '#fff' }
+                                    : { borderColor: t.color, color: t.color }}
+                      onClick={() => toggleTag(t.id)}
+                    >
+                      {t.display_name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className={styles.field}>
             <label>Notes</label>

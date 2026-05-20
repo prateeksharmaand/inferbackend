@@ -25,6 +25,15 @@
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--color-primary); }
 .field textarea { resize: vertical; }
 
+.tagChips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+.tagChip {
+  padding: 4px 12px; border-radius: 20px; border: 1.5px solid;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  background: transparent; transition: all .12s;
+}
+.tagChip:hover { opacity: .85; }
+.tagChipActive { box-shadow: 0 0 0 2px rgba(0,0,0,.15); }
+
 .error  { color: var(--color-danger); font-size: 13px; }
 .footer { display: flex; gap: 8px; justify-content: flex-end; padding-top: 4px; }
 .btnPrimary  { background: var(--color-primary); color: #fff; border: none; padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }

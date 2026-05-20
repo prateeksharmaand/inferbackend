@@ -13,9 +13,14 @@ const ACTIONS = {
   parked:     ['Resume', 'Complete'],
 };
 
-export default function AppointmentCard({ appt, onStatusChange, onOpen }) {
+export default function AppointmentCard({ appt, clinicTags = [], onStatusChange, onOpen }) {
   const color = STATUS_COLOR[appt.status] || '#94a3b8';
   const actions = ACTIONS[appt.status] || [];
+
+  const resolvedTags = Array.isArray(appt.tags) ? appt.tags.map(idOrObj => {
+    if (typeof idOrObj === 'object' && idOrObj !== null) return idOrObj;
+    return clinicTags.find(t => t.id === idOrObj);
+  }).filter(Boolean) : [];
 
   const handleAction = (action) => {
     const map = {
@@ -51,6 +56,19 @@ export default function AppointmentCard({ appt, onStatusChange, onOpen }) {
           <div className={styles.row2}>
             <span>⏰ {appt.appointment_time}</span>
             {appt.channel && <span>• {appt.channel.replace('_', ' ')}</span>}
+          </div>
+        )}
+        {resolvedTags.length > 0 && (
+          <div className={styles.tagRow}>
+            {resolvedTags.map(t => (
+              <span
+                key={t.id}
+                className={styles.tagChip}
+                style={{ background: t.color + '22', borderColor: t.color, color: t.color }}
+              >
+                {t.display_name}
+              </span>
+            ))}
           </div>
         )}
         {actions.length > 0 && (

@@ -6,6 +6,7 @@ import Queue from './pages/Queue';
 import QueueSetup from './pages/QueueSetup';
 import Patients from './pages/Patients';
 import WriteRx from './pages/WriteRx';
+import Tags from './pages/Tags';
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="queue/setup" element={<QueueSetup />} />
             <Route path="patients"    element={<Patients />} />
             <Route path="rx/:appointmentId" element={<WriteRx />} />
+            <Route path="settings/tags"    element={<Tags />} />
           </Route>
         </Routes>
       </BrowserRouter>

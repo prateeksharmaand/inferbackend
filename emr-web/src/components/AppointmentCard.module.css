@@ -18,6 +18,13 @@
 .billed   { background: #dcfce7; color: #15803d; }
 .unbilled { background: #fef9c3; color: #92400e; }
 
+.tagRow  { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.tagChip {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 12px; border: 1px solid;
+  font-size: 11px; font-weight: 600;
+}
+
 .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .actionBtn {
   padding: 4px 10px; border-radius: 6px; border: 1px solid var(--color-border);

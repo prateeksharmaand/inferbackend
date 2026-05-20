@@ -49,6 +49,7 @@ export default function Queue() {
   const [queues,       setQueues]       = useState([]);
   const [activeQueue,  setActiveQueue]  = useState(null);
   const [board,        setBoard]        = useState({ booked: [], my_opd: [], completed: [] });
+  const [clinicTags,   setClinicTags]   = useState([]);
   const [leftTab,      setLeftTab]      = useState('Booked');
   const [rightTab,     setRightTab]     = useState('MY OPD');
   const [loading,      setLoading]      = useState(true);
@@ -73,11 +74,13 @@ export default function Queue() {
   const rightFilterBtnRef = useRef(null);
 
   useEffect(() => {
-    api.get('/queues').then(rows => {
-      setQueues(rows);
-      if (rows.length) setActiveQueue(rows[0]);
-      else setLoading(false);
-    }).catch(() => setLoading(false));
+    Promise.all([api.get('/queues'), api.get('/tags')])
+      .then(([rows, tags]) => {
+        setClinicTags(tags);
+        setQueues(rows);
+        if (rows.length) setActiveQueue(rows[0]);
+        else setLoading(false);
+      }).catch(() => setLoading(false));
   }, []);
 
   const fetchBoard = useCallback((date) => {
@@ -218,7 +221,7 @@ export default function Queue() {
                 </div>
               )}
               {leftList.map(a => (
-                <AppointmentCard key={a.id} appt={a}
+                <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onOpen={() => navigate(`/rx/${a.id}`)}
                 />
@@ -298,7 +301,7 @@ export default function Queue() {
                 </div>
               )}
               {rightList.map(a => (
-                <AppointmentCard key={a.id} appt={a}
+                <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onOpen={() => navigate(`/rx/${a.id}`)}
                 />

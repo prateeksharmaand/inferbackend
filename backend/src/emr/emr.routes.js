@@ -4,6 +4,7 @@ const auth    = require('./emr.auth.controller');
 const emr     = require('./emr.controller');
 const queue   = require('./emr.queue.controller');
 const appt    = require('./emr.appointment.controller');
+const tags    = require('./emr.tags.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -37,6 +38,12 @@ router.post ('/appointments',                    appt.createAppointment);
 router.get  ('/appointments/:id',                appt.getAppointment);
 router.patch('/appointments/:id/status',         appt.updateStatus);
 router.post ('/appointments/:id/encounter',      appt.saveEncounter);
+
+// Tags (Custom Attribute Values)
+router.get   ('/tags',     tags.listTags);
+router.post  ('/tags',     tags.createTag);
+router.patch ('/tags/:id', tags.updateTag);
+router.delete('/tags/:id', tags.deleteTag);
 
 // ABDM / HIP activity
 router.get('/pending-otps',    emr.pendingOtps);
