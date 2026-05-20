@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { useQueueDate } from '../context/QueueDateContext';
 import { Search, SlidersHorizontal, ArrowUpDown, MoreVertical, Plus, LayoutList, CalendarDays, X } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
 import CalendarView from '../components/CalendarView';
@@ -49,6 +50,7 @@ function filterAppts(list, q, filters) {
 
 export default function Queue() {
   const navigate = useNavigate();
+  const { queueDate, setQueueDate } = useQueueDate();
   const [queues,       setQueues]       = useState([]);
   const [activeQueue,  setActiveQueue]  = useState(null);
   const [board,        setBoard]        = useState({ booked: [], my_opd: [], completed: [] });
@@ -58,7 +60,6 @@ export default function Queue() {
   const [loading,      setLoading]      = useState(true);
   const [viewMode,     setViewMode]     = useState('list');
   const [slotDuration, setSlotDuration] = useState(10);
-  const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Column search
   const [leftSearch,      setLeftSearch]      = useState('');
@@ -86,14 +87,14 @@ export default function Queue() {
       }).catch(() => setLoading(false));
   }, []);
 
-  const fetchBoard = useCallback((date) => {
+  const fetchBoard = useCallback(() => {
     if (!activeQueue) return;
     setLoading(true);
-    const d = date || new Date().toISOString().slice(0, 10);
+    const d = queueDate.toISOString().slice(0, 10);
     api.get(`/appointments?queue_id=${activeQueue.id}&date=${d}`)
       .then(data => { setBoard(data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [activeQueue]);
+  }, [activeQueue, queueDate]);
 
   useEffect(() => { fetchBoard(); }, [fetchBoard]);
 
@@ -102,10 +103,6 @@ export default function Queue() {
     window.addEventListener('appointment:created', handler);
     return () => window.removeEventListener('appointment:created', handler);
   }, [fetchBoard]);
-
-  useEffect(() => {
-    if (viewMode === 'calendar') fetchBoard(selectedDate.toISOString().slice(0, 10));
-  }, [selectedDate, viewMode]);
 
   const handleStatusChange = async (apptId, status) => {
     await api.patch(`/appointments/${apptId}/status`, { status });
@@ -171,7 +168,7 @@ export default function Queue() {
       )}
 
       {viewMode === 'calendar' && (
-        <CalendarView board={board} slotDuration={slotDuration} setSlotDuration={setSlotDuration} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+        <CalendarView board={board} slotDuration={slotDuration} setSlotDuration={setSlotDuration} selectedDate={queueDate} setSelectedDate={setQueueDate} />
       )}
 
       {viewMode === 'list' && (

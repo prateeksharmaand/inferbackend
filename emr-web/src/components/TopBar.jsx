@@ -1,13 +1,23 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useQueueDate } from '../context/QueueDateContext';
 import { api } from '../api/client';
 import { Search, X, ChevronLeft, ChevronRight, Building2, Plus } from 'lucide-react';
 import BookAppointmentModal from './BookAppointmentModal';
 import BookSlotModal from './BookSlotModal';
 import styles from './TopBar.module.css';
 
-const today = () => new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+function formatDateLabel(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const base = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+  if (d.toDateString() === today.toDateString())     return `Tdy, ${base}`;
+  if (d.toDateString() === tomorrow.toDateString())  return `Tmrw, ${base}`;
+  if (d.toDateString() === yesterday.toDateString()) return `Yest, ${base}`;
+  return base;
+}
 
 function getAge(dob) {
   if (!dob) return null;
@@ -16,6 +26,7 @@ function getAge(dob) {
 
 export default function TopBar() {
   const { user } = useAuth();
+  const { queueDate, prevDay, nextDay } = useQueueDate();
   const navigate = useNavigate();
   const [showAdd,    setShowAdd]    = useState(false);
   const [showBook,   setShowBook]   = useState(false);
@@ -105,9 +116,9 @@ export default function TopBar() {
         <div className={styles.left}>
           <h1 className={styles.title}>Queue</h1>
           <div className={styles.datePill}>
-            <button className={styles.arrow}><ChevronLeft size={14} /></button>
-            <span className={styles.dateText}>Tdy, {today()}</span>
-            <button className={styles.arrow}><ChevronRight size={14} /></button>
+            <button className={styles.arrow} onClick={prevDay}><ChevronLeft size={14} /></button>
+            <span className={styles.dateText}>{formatDateLabel(queueDate)}</span>
+            <button className={styles.arrow} onClick={nextDay}><ChevronRight size={14} /></button>
           </div>
           <div className={styles.clinicPill}>
             <Building2 size={14} strokeWidth={1.8} />

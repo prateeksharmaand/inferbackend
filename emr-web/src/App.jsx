@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { QueueDateProvider } from './context/QueueDateContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Queue from './pages/Queue';
@@ -16,6 +17,7 @@ function Protected({ children }) {
 
 export default function App() {
   return (
+    <QueueDateProvider>
     <AuthProvider>
       <BrowserRouter basename="/opd">
         <Routes>
@@ -31,5 +33,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </QueueDateProvider>
   );
 }
