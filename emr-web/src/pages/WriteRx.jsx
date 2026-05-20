@@ -580,8 +580,6 @@ export default function WriteRx() {
           </div>
         </RxSection>
 
-      </div>
-
         {/* Canvas drawing */}
         {form.canvasImage && (
           <RxSection title="Drawing / Diagram">
