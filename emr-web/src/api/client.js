@@ -16,7 +16,7 @@ async function req(method, path, body) {
   if (res.status === 401) {
     localStorage.removeItem('emr_token');
     localStorage.removeItem('emr_user');
-    window.location.href = '/emr/login';
+    window.location.href = '/opd/login';
     return;
   }
 

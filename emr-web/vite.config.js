@@ -9,7 +9,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../backend/public/emr',
+    outDir: '../backend/public/opd',
     emptyOutDir: true,
   },
 });

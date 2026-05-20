@@ -50,6 +50,11 @@ const EMR_CSP = [
 ].join('; ');
 app.use('/emr', (req, res, next) => { res.setHeader('Content-Security-Policy', EMR_CSP); next(); });
 app.use('/emr', express.static(path.join(__dirname, 'public/emr')));
+
+// OPD / Clinic EMR (React app) — SPA with client-side routing
+app.use('/opd', express.static(path.join(__dirname, 'public/opd')));
+app.get('/opd/*', (req, res) => res.sendFile(path.join(__dirname, 'public/opd/index.html')));
+
 app.use('/api/emr', require('./src/emr/emr.routes'));
 
 // Health check

@@ -16,7 +16,7 @@ function Protected({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter basename="/emr">
+      <BrowserRouter basename="/opd">
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<Protected><Layout /></Protected>}>
