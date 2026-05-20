@@ -27,15 +27,23 @@ export default function Queue() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const fetchBoard = useCallback(() => {
+  const fetchBoard = useCallback((date) => {
     if (!activeQueue) return;
     setLoading(true);
-    api.get(`/appointments?queue_id=${activeQueue.id}`)
+    const d = date || new Date().toISOString().slice(0, 10);
+    api.get(`/appointments?queue_id=${activeQueue.id}&date=${d}`)
       .then(data => { setBoard(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, [activeQueue]);
 
   useEffect(() => { fetchBoard(); }, [fetchBoard]);
+
+  // Re-fetch when calendar date changes (calendar view)
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      fetchBoard(selectedDate.toISOString().slice(0, 10));
+    }
+  }, [selectedDate, viewMode]);
 
   const handleStatusChange = async (apptId, status) => {
     await api.patch(`/appointments/${apptId}/status`, { status });
