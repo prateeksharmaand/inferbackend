@@ -1,0 +1,67 @@
+.topbar {
+  height: var(--topbar-h); background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; gap: 12px; flex-shrink: 0; position: relative; z-index: 50;
+}
+.left  { display: flex; align-items: center; gap: 10px; }
+.right { display: flex; align-items: center; gap: 10px; }
+
+.title { font-size: 18px; font-weight: 700; }
+
+.datePill {
+  display: flex; align-items: center; gap: 4px;
+  border: 1px solid var(--color-border); border-radius: 20px; padding: 4px 10px;
+}
+.arrow { background: none; border: none; font-size: 16px; color: var(--color-text-2); padding: 0 2px; }
+.dateText { font-size: 13px; font-weight: 500; }
+
+.clinicPill {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--color-border); border-radius: 20px; padding: 4px 12px;
+  font-size: 13px; max-width: 200px;
+}
+.clinicIcon { font-size: 14px; }
+
+/* Add New button */
+.addWrap { position: relative; }
+.addBtn {
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+}
+.addBtn:hover { background: var(--color-primary-dk); }
+.plus { font-size: 18px; font-weight: 400; }
+.dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: #fff; border: 1px solid var(--color-border);
+  border-radius: 10px; box-shadow: var(--shadow-lg);
+  list-style: none; min-width: 200px; overflow: hidden; z-index: 200;
+}
+.dropdown li {
+  padding: 11px 16px; cursor: pointer; font-size: 13px;
+  transition: background .1s;
+}
+.dropdown li:hover { background: var(--color-bg); }
+
+/* Search */
+.search {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--color-border); border-radius: 8px;
+  padding: 6px 12px; background: var(--color-bg);
+}
+.search input { border: none; background: none; outline: none; width: 120px; font-size: 13px; }
+.kbd { font-size: 11px; color: var(--color-text-3); }
+
+/* User chip */
+.userChip { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.userAvatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--color-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.badge {
+  background: #fef3c7; color: #92400e;
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+}

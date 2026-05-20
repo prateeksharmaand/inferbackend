@@ -98,7 +98,8 @@ if [[ "$SKIP_MIGRATE" == "false" ]]; then
       backend/migrations/002_gmail_sync.sql \
       backend/migrations/003_risk_predictions.sql \
       backend/migrations/004_abdm_m2_sessions.sql \
-      backend/migrations/005_emr.sql; do
+      backend/migrations/005_emr.sql \
+      backend/migrations/007_emr_full.sql; do
 
     if [[ -f "$REPO_ROOT/$migration" ]]; then
       log "  → $migration"
@@ -119,3 +120,7 @@ log "Deployment complete."
 log "  EMR UI  → https://api.inferapp.online/emr"
 log "  API     → https://api.inferapp.online/api"
 log "  Logs    → $DC logs -f backend"
+log ""
+log "First-time EMR setup:"
+log "  Register clinic: POST https://api.inferapp.online/api/emr/auth/register-clinic"
+log "  { clinic_name, admin_email, admin_password }"

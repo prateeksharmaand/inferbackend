@@ -1,0 +1,27 @@
+.card {
+  display: flex; background: var(--color-surface);
+  border-radius: 10px; box-shadow: var(--shadow);
+  cursor: pointer; overflow: hidden; transition: box-shadow .15s;
+}
+.card:hover { box-shadow: var(--shadow-lg); }
+
+.stripe { width: 4px; flex-shrink: 0; }
+.body   { flex: 1; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+
+.row1 { display: flex; align-items: center; gap: 8px; }
+.token { font-size: 11px; font-weight: 700; background: var(--color-bg); border-radius: 4px; padding: 1px 5px; color: var(--color-text-2); }
+.name  { font-size: 14px; font-weight: 600; flex: 1; }
+.status { font-size: 11px; font-weight: 600; text-transform: capitalize; }
+
+.row2  { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-2); flex-wrap: wrap; }
+.pill  { padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
+.billed   { background: #dcfce7; color: #15803d; }
+.unbilled { background: #fef9c3; color: #92400e; }
+
+.actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.actionBtn {
+  padding: 4px 10px; border-radius: 6px; border: 1px solid var(--color-border);
+  background: var(--color-bg); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .1s; color: var(--color-text);
+}
+.actionBtn:hover { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }

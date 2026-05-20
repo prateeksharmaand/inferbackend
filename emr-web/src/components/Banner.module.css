@@ -1,0 +1,12 @@
+.banner {
+  background: #111827; color: #fff;
+  height: var(--banner-h); padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; flex-shrink: 0;
+}
+.upgrade {
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.upgrade:hover { background: var(--color-primary-dk); }
