@@ -167,7 +167,18 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
               {/* Lab Investigations */}
               {form.lab_investigations.length > 0 && (
                 <PrintSection title="Lab Investigations">
-                  {form.lab_investigations.map((l, i) => <div key={i} className={styles.printBullet}>• {l}</div>)}
+                  {form.lab_investigations.map((l, i) => {
+                    const name = typeof l === 'string' ? l : l.test;
+                    const repeat = typeof l === 'object' && l.repeat_on ? `Repeat: ${l.repeat_on}` : '';
+                    const remarks = typeof l === 'object' && l.remarks ? l.remarks : '';
+                    return (
+                      <div key={i} className={styles.printBullet}>
+                        • <b>{name}</b>
+                        {repeat  && <span style={{ opacity:.7, fontSize:11 }}> · {repeat}</span>}
+                        {remarks && <span style={{ opacity:.7, fontSize:11 }}> — {remarks}</span>}
+                      </div>
+                    );
+                  })}
                 </PrintSection>
               )}
 
@@ -553,18 +564,18 @@ export default function WriteRx() {
         {/* Lab Investigations */}
         <RxSection title="Lab Investigations">
           <div className={styles.chipsRow}>
-            {form.lab_investigations.map((l, i) => (
-              <span key={i} className={`${styles.chip} ${styles.chipLab}`}>{l}
-                <button onClick={() => removeChip('lab_investigations', i)}>✕</button>
-              </span>
-            ))}
+            {form.lab_investigations.map((l, i) => {
+              const name = typeof l === 'string' ? l : l.test;
+              const meta = typeof l === 'object' ? [l.repeat_on, l.remarks].filter(Boolean).join(' · ') : '';
+              return (
+                <span key={i} className={`${styles.chip} ${styles.chipLab}`}>
+                  {name}{meta && <span style={{ opacity:.7, fontSize:10 }}> · {meta}</span>}
+                  <button onClick={() => set('lab_investigations', form.lab_investigations.filter((_,j)=>j!==i))}>✕</button>
+                </span>
+              );
+            })}
           </div>
-          <div className={styles.addRow}>
-            <input placeholder="e.g. CBC, HbA1c, Lipid Profile…" value={form.labInput}
-              onChange={e => set('labInput', e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChip('lab_investigations', 'labInput'))} />
-            <button onClick={() => addChip('lab_investigations', 'labInput')}>Add</button>
-          </div>
+          <p className={styles.fieldHint}>Add lab investigations from the InferPad tab.</p>
         </RxSection>
 
         {/* Lab Results */}

@@ -129,7 +129,14 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
     const arr = [...form.lab_results]; arr[i] = { ...arr[i], [k]: v }; set('lab_results', arr);
   };
 
-  // ── Chip helpers (lab investigations, procedures) ─────────────────────────
+  // ── Lab investigation helpers ─────────────────────────────────────────────
+  const addLabInv = () =>
+    set('lab_investigations', [...form.lab_investigations, { test: '', repeat_on: '', remarks: '' }]);
+  const updateLabInv = (i, k, v) => {
+    const arr = [...form.lab_investigations]; arr[i] = { ...arr[i], [k]: v }; set('lab_investigations', arr);
+  };
+
+  // ── Chip helpers (procedures) ─────────────────────────────────────────────
   const addChip = (field, inputField) => {
     const val = (form[inputField] || '').trim();
     if (!val) return;
@@ -335,19 +342,44 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
 
       {/* 6 — Lab Investigations */}
       <ICard title="Lab Investigations" icon="🧪" color="#0891b2" defaultOpen={false}>
-        <div className={styles.chips}>
-          {form.lab_investigations.map((l, i) => (
-            <span key={i} className={`${styles.chip} ${styles.chipLab}`}>
-              {l}<button onClick={() => removeChip('lab_investigations', i)}>✕</button>
-            </span>
-          ))}
-        </div>
-        <div className={styles.addRow}>
-          <input placeholder="e.g. CBC, HbA1c, Lipid Profile…"
-            value={form.labInput || ''}
-            onChange={e => set('labInput', e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChip('lab_investigations', 'labInput'))} />
-          <button onClick={() => addChip('lab_investigations', 'labInput')}>Add</button>
+        <div className={styles.labInvList}>
+          {form.lab_investigations.map((l, i) => {
+            const isStr = typeof l === 'string';
+            return (
+              <div key={i} className={styles.labInvCard}>
+                <div className={styles.labInvRow}>
+                  <div className={styles.labInvName}>
+                    <label>Test</label>
+                    <input className={styles.cellInput}
+                      placeholder="e.g. CBC, HbA1c, Lipid Profile"
+                      value={isStr ? l : (l.test || '')}
+                      onChange={e => isStr
+                        ? set('lab_investigations', form.lab_investigations.map((x,j)=>j===i?e.target.value:x))
+                        : updateLabInv(i, 'test', e.target.value)} />
+                  </div>
+                  <div className={styles.labInvSmall}>
+                    <label>Repeat On</label>
+                    <input className={styles.cellInput}
+                      placeholder="e.g. 2 weeks"
+                      value={isStr ? '' : (l.repeat_on || '')}
+                      onChange={e => updateLabInv(i, 'repeat_on', e.target.value)}
+                      disabled={isStr} />
+                  </div>
+                  <button className={styles.del}
+                    onClick={() => set('lab_investigations', form.lab_investigations.filter((_,j)=>j!==i))}>✕</button>
+                </div>
+                <div className={styles.labInvRemarks}>
+                  <label>Remarks</label>
+                  <input className={styles.cellInput}
+                    placeholder="Special instructions or remarks…"
+                    value={isStr ? '' : (l.remarks || '')}
+                    onChange={e => updateLabInv(i, 'remarks', e.target.value)}
+                    disabled={isStr} />
+                </div>
+              </div>
+            );
+          })}
+          <button className={styles.addLine} onClick={addLabInv}><Plus size={13} /> Add Investigation</button>
         </div>
       </ICard>
 
