@@ -8,7 +8,15 @@ const listAppointments = async (req, res) => {
   const { queue_id, date, status, doctor_id } = req.query;
   const apptDate = date || new Date().toISOString().slice(0, 10);
 
-  let sql = `SELECT a.*, d.name AS doctor_name
+  let sql = `SELECT a.*, d.name AS doctor_name,
+               CASE
+                 WHEN a.patient_mobile IS NOT NULL AND a.patient_mobile != ''
+                 THEN (SELECT COUNT(*) FROM emr_appointments p
+                       WHERE p.clinic_id = a.clinic_id
+                         AND p.patient_mobile = a.patient_mobile
+                         AND p.id < a.id) = 0
+                 ELSE false
+               END AS is_new_patient
              FROM emr_appointments a
              LEFT JOIN emr_doctors d ON d.id = a.doctor_id
              WHERE a.clinic_id = $1 AND a.appointment_date = $2`;

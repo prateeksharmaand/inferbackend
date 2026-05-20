@@ -32,6 +32,7 @@
 .pill  { padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
 .billed   { background: #dcfce7; color: #15803d; }
 .unbilled { background: #fef9c3; color: #92400e; }
+.newBadge { padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; background: #bbf7d0; color: #14532d; letter-spacing: .2px; }
 
 .tagRow  { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; align-items: center; }
 .tagChip {

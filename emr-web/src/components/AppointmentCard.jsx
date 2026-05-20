@@ -98,6 +98,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             <span>{appt.patient_mobile || '—'}</span>
             {appt.patient_gender && <span>• {appt.patient_gender === 'M' ? 'Male' : 'Female'}</span>}
             {appt.visit_type && <span>• {appt.visit_type}</span>}
+            {appt.is_new_patient && <span className={styles.newBadge}>New Patient</span>}
             <span className={`${styles.pill} ${appt.payment_status === 'billed' ? styles.billed : styles.unbilled}`}>
               {appt.payment_status}
             </span>
