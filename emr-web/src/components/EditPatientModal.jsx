@@ -6,6 +6,15 @@ import styles from './BookAppointmentModal.module.css';
 const CHANNELS    = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 const VISIT_TYPES = ['OPConsultation','FollowUp','Emergency','Procedure','Vaccination'];
 
+const MEDICAL_HISTORY = [
+  { key: 'diabetes',       label: 'Diabetes',       group: 'Conditions' },
+  { key: 'hypertension',   label: 'Hypertension',   group: 'Conditions' },
+  { key: 'hypothyroidism', label: 'Hypothyroidism',  group: 'Conditions' },
+  { key: 'alcohol',        label: 'Alcohol',         group: 'Habits' },
+  { key: 'tobacco',        label: 'Tobacco',         group: 'Habits' },
+  { key: 'smoking',        label: 'Smoking',         group: 'Habits' },
+];
+
 export default function EditPatientModal({ appt, onClose, onSaved }) {
   const [form, setForm] = useState({
     patient_name:   appt.patient_name   || '',
@@ -17,6 +26,9 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
     channel:        appt.channel        || 'walk_in',
     notes:          appt.notes          || '',
   });
+  const [medicalHistory, setMedicalHistory] = useState(
+    Array.isArray(appt.medical_history) ? appt.medical_history : []
+  );
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
 
@@ -27,7 +39,7 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
     if (!form.patient_name.trim()) return setError('Patient name is required');
     setSaving(true); setError('');
     try {
-      const updated = await api.patch(`/appointments/${appt.id}/status`, form);
+      const updated = await api.patch(`/appointments/${appt.id}/status`, { ...form, medical_history: medicalHistory });
       onSaved(updated);
       onClose();
     } catch (err) {
@@ -89,6 +101,32 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
                 {CHANNELS.map(c => <option key={c} value={c.toLowerCase().replace(/ /g,'_')}>{c}</option>)}
               </select>
             </div>
+          </div>
+
+          <div className={styles.medHistSection}>
+            <div className={styles.medHistLabel}>Medical History</div>
+            {['Conditions', 'Habits'].map(group => (
+              <div key={group} className={styles.medHistGroup}>
+                <span className={styles.medHistGroupName}>{group}</span>
+                <div className={styles.medHistChips}>
+                  {MEDICAL_HISTORY.filter(m => m.group === group).map(m => {
+                    const active = medicalHistory.includes(m.key);
+                    return (
+                      <button
+                        key={m.key}
+                        type="button"
+                        className={`${styles.medChip} ${active ? styles.medChipActive : ''}`}
+                        onClick={() => setMedicalHistory(prev =>
+                          prev.includes(m.key) ? prev.filter(k => k !== m.key) : [...prev, m.key]
+                        )}
+                      >
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className={styles.field}>

@@ -36,7 +36,7 @@ const createAppointment = async (req, res) => {
   const {
     queue_id, doctor_id, emr_patient_id,
     patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
-    visit_type, channel, appointment_date, appointment_time, notes, tags, uhid,
+    visit_type, channel, appointment_date, appointment_time, notes, tags, uhid, medical_history,
   } = req.body;
 
   if (!patient_name) return res.status(400).json({ error: 'patient_name required' });
@@ -53,8 +53,8 @@ const createAppointment = async (req, res) => {
     `INSERT INTO emr_appointments
        (queue_id, clinic_id, doctor_id, emr_patient_id,
         patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
-        token_number, visit_type, channel, appointment_date, appointment_time, notes, tags, uhid)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+        token_number, visit_type, channel, appointment_date, appointment_time, notes, tags, uhid, medical_history)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
     [
       queue_id || null, req.emrUser.clinic_id, doctor_id || null, emr_patient_id || null,
       patient_name, patient_mobile || null,
@@ -65,6 +65,7 @@ const createAppointment = async (req, res) => {
       appointment_time || null, notes || null,
       JSON.stringify(tags || []),
       uhid || null,
+      JSON.stringify(medical_history || []),
     ]
   );
   res.status(201).json(rows[0]);
@@ -75,7 +76,7 @@ const updateStatus = async (req, res) => {
   const {
     status, payment_status, assessment_status, notes, tags,
     patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
-    visit_type, channel,
+    visit_type, channel, medical_history,
   } = req.body;
   if (status && !VALID_STATUSES.includes(status))
     return res.status(400).json({ error: `Invalid status. Valid: ${VALID_STATUSES.join(', ')}` });
@@ -98,8 +99,9 @@ const updateStatus = async (req, res) => {
   if (patient_dob !== undefined)    { setClauses.push(`patient_dob=$${idx++}`);    params.push(patient_dob || null); }
   if (patient_gender !== undefined) { setClauses.push(`patient_gender=$${idx++}`); params.push(patient_gender); }
   if (patient_abha !== undefined)   { setClauses.push(`patient_abha=$${idx++}`);   params.push(patient_abha); }
-  if (visit_type !== undefined)     { setClauses.push(`visit_type=$${idx++}`);     params.push(visit_type); }
-  if (channel !== undefined)        { setClauses.push(`channel=$${idx++}`);        params.push(channel); }
+  if (visit_type !== undefined)       { setClauses.push(`visit_type=$${idx++}`);       params.push(visit_type); }
+  if (channel !== undefined)          { setClauses.push(`channel=$${idx++}`);          params.push(channel); }
+  if (medical_history !== undefined)  { setClauses.push(`medical_history=$${idx++}`);  params.push(JSON.stringify(medical_history)); }
 
   if (!setClauses.length) return res.status(400).json({ error: 'Nothing to update' });
 
