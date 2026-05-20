@@ -2,6 +2,7 @@
   display: flex; background: var(--color-surface);
   border-radius: 10px; box-shadow: var(--shadow);
   cursor: pointer; overflow: hidden; transition: box-shadow .15s;
+  flex-shrink: 0;
 }
 .card:hover { box-shadow: var(--shadow-lg); }
 
