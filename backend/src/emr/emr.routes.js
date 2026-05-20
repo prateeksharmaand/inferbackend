@@ -6,6 +6,7 @@ const queue   = require('./emr.queue.controller');
 const appt    = require('./emr.appointment.controller');
 const tags    = require('./emr.tags.controller');
 const uhid    = require('./emr.uhid.controller');
+const ac      = require('./emr.autocomplete.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -46,6 +47,10 @@ router.get   ('/tags',     tags.listTags);
 router.post  ('/tags',     tags.createTag);
 router.patch ('/tags/:id', tags.updateTag);
 router.delete('/tags/:id', tags.deleteTag);
+
+// Autocomplete proxy (ICD-10 / RxTerms via NLM — avoids CSP)
+router.get('/autocomplete/icd10',   ac.searchICD10);
+router.get('/autocomplete/rxterms', ac.searchRxTerms);
 
 // UHID Settings
 router.get ('/settings/uhid',          uhid.getSettings);

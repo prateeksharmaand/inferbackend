@@ -4,25 +4,21 @@ import styles from './InferPad.module.css';
 import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
 
-// ── External API helpers ──────────────────────────────────────────────────────
+// ── Backend proxy helpers (avoids CSP restrictions) ──────────────────────────
 
 async function fetchICD10(query) {
   try {
-    const r = await fetch(
-      `https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search?terms=${encodeURIComponent(query)}&maxList=12`
-    );
-    const [, , , rows] = await r.json();
-    return (rows || []).map(([code, name]) => ({ code, name, label: `${code} — ${name}` }));
+    const r = await fetch(`/api/emr/autocomplete/icd10?q=${encodeURIComponent(query)}`);
+    const rows = await r.json();
+    return rows.map(({ code, name }) => ({ code, name, label: `${code} — ${name}` }));
   } catch { return []; }
 }
 
 async function fetchRxTerms(query) {
   try {
-    const r = await fetch(
-      `https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?terms=${encodeURIComponent(query)}&maxList=12`
-    );
-    const [, , , rows] = await r.json();
-    return (rows || []).map(row => ({ name: row[0], strength: row[3] || '', label: row[0] }));
+    const r = await fetch(`/api/emr/autocomplete/rxterms?q=${encodeURIComponent(query)}`);
+    const rows = await r.json();
+    return rows.map(({ name, strength }) => ({ name, strength, label: name }));
   } catch { return []; }
 }
 
