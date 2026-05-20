@@ -241,7 +241,6 @@ export default function Queue() {
               >
                 COMPLETED ({board.completed.length})
               </button>
-              <button className={styles.colAction} title="Add"><Plus size={14} strokeWidth={2.5} /></button>
               <button
                 className={`${styles.colAction} ${rightSearchOpen ? styles.colActionActive : ''}`}
                 title="Search" onClick={toggleRightSearch}
