@@ -34,6 +34,10 @@ function dateLabel(d) {
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+function localDate(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function addDays(d, n) {
   const r = new Date(d);
   r.setDate(r.getDate() + n);
@@ -97,7 +101,7 @@ export default function BookSlotModal({ prefill = {}, onClose }) {
   const loadSlots = useCallback(() => {
     setSelectedSlot(null);
     setLoadingSlots(true);
-    const dateStr = selectedDate.toISOString().slice(0, 10);
+    const dateStr = localDate(selectedDate);
     const params  = `date=${dateStr}${queueId ? `&queue_id=${queueId}` : ''}`;
     api.get(`/appointments?${params}`)
       .then(data => {
@@ -168,7 +172,7 @@ export default function BookSlotModal({ prefill = {}, onClose }) {
         patient_gender: patient.gender || '',
         queue_id:       queueId,
         doctor_id:      doctorId || undefined,
-        appointment_date: selectedDate.toISOString().slice(0, 10),
+        appointment_date: localDate(selectedDate),
         appointment_time: selectedSlot,
         visit_type:     mode === 'tele' ? 'TeleConsultation' : 'OPConsultation',
         channel:        mode === 'tele' ? 'tele_consultation' : 'walk_in',
@@ -300,7 +304,7 @@ export default function BookSlotModal({ prefill = {}, onClose }) {
                 type="date"
                 className={styles.customDateInput}
                 value={customDate}
-                min={new Date().toISOString().slice(0, 10)}
+                min={localDate(new Date())}
                 onChange={handleCustomDate}
                 autoFocus
               />

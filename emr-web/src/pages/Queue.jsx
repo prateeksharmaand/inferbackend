@@ -90,7 +90,8 @@ export default function Queue() {
   const fetchBoard = useCallback(() => {
     if (!activeQueue) return;
     setLoading(true);
-    const d = queueDate.toISOString().slice(0, 10);
+    const q = queueDate;
+    const d = `${q.getFullYear()}-${String(q.getMonth()+1).padStart(2,'0')}-${String(q.getDate()).padStart(2,'0')}`;
     api.get(`/appointments?queue_id=${activeQueue.id}&date=${d}`)
       .then(data => { setBoard(data); setLoading(false); })
       .catch(() => setLoading(false));

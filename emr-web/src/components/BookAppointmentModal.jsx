@@ -24,7 +24,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
     doctor_id:       '',
     channel:         prefill.channel        || 'walk_in',
     visit_type:      'OPConsultation',
-    appointment_date: new Date().toISOString().slice(0,10),
+    appointment_date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
     appointment_time: '',
     notes:           '',
   });
