@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Tag, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { Tag, Clock, Pencil } from 'lucide-react';
 import TagDialog from './TagDialog';
+import EditPatientModal from './EditPatientModal';
 import styles from './AppointmentCard.module.css';
 
 const STATUS_COLOR = {
@@ -28,7 +29,8 @@ function sinceText(ts) {
 
 function ConsultTimer({ since }) {
   const [, tick] = useState(0);
-  useEffect(() => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useState(() => {
     const id = setInterval(() => tick(n => n + 1), 60000);
     return () => clearInterval(id);
   }, []);
@@ -42,8 +44,10 @@ function ConsultTimer({ since }) {
   );
 }
 
-export default function AppointmentCard({ appt, clinicTags = [], onStatusChange, onTagUpdate, onOpen }) {
+export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen }) {
+  const [appt,          setAppt]          = useState(initialAppt);
   const [showTagDialog, setShowTagDialog] = useState(false);
+  const [showEdit,      setShowEdit]      = useState(false);
 
   const color   = STATUS_COLOR[appt.status] || '#94a3b8';
   const actions = ACTIONS[appt.status] || [];
@@ -64,7 +68,8 @@ export default function AppointmentCard({ appt, clinicTags = [], onStatusChange,
     if (action === 'Write Rx') onOpen();
   };
 
-  const openTagDialog = (e) => { e.stopPropagation(); setShowTagDialog(true); };
+  const openTagDialog  = (e) => { e.stopPropagation(); setShowTagDialog(true); };
+  const openEditDialog = (e) => { e.stopPropagation(); setShowEdit(true); };
 
   return (
     <>
@@ -74,11 +79,21 @@ export default function AppointmentCard({ appt, clinicTags = [], onStatusChange,
           <div className={styles.row1}>
             <span className={styles.token}>#{appt.token_number}</span>
             <span className={styles.name}>{appt.patient_name}</span>
-            {appt.status === 'ongoing' && appt.checked_in_at
-              ? <ConsultTimer since={appt.checked_in_at} />
-              : <span className={styles.status} style={{ color }}>{appt.status.replace('_', ' ')}</span>
-            }
+            <div className={styles.row1Right}>
+              {appt.status === 'ongoing' && appt.checked_in_at
+                ? <ConsultTimer since={appt.checked_in_at} />
+                : <span className={styles.status} style={{ color }}>{appt.status.replace('_', ' ')}</span>
+              }
+              <button
+                className={styles.editBtn}
+                onClick={openEditDialog}
+                title="Edit patient details"
+              >
+                <Pencil size={12} strokeWidth={2} />
+              </button>
+            </div>
           </div>
+
           <div className={styles.row2}>
             <span>{appt.patient_mobile || '—'}</span>
             {appt.patient_gender && <span>• {appt.patient_gender === 'M' ? 'Male' : 'Female'}</span>}
@@ -94,7 +109,6 @@ export default function AppointmentCard({ appt, clinicTags = [], onStatusChange,
             </div>
           )}
 
-          {/* Tags row + Add Tag button */}
           <div className={styles.tagRow} onClick={e => e.stopPropagation()}>
             {resolvedTags.map(t => (
               <span
@@ -129,6 +143,14 @@ export default function AppointmentCard({ appt, clinicTags = [], onStatusChange,
           clinicTags={clinicTags}
           onClose={() => setShowTagDialog(false)}
           onSaved={onTagUpdate}
+        />
+      )}
+
+      {showEdit && (
+        <EditPatientModal
+          appt={appt}
+          onClose={() => setShowEdit(false)}
+          onSaved={(updated) => setAppt(prev => ({ ...prev, ...updated }))}
         />
       )}
     </>

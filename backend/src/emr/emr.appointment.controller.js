@@ -71,7 +71,11 @@ const createAppointment = async (req, res) => {
 
 // PATCH /api/emr/appointments/:id/status  { status }
 const updateStatus = async (req, res) => {
-  const { status, payment_status, assessment_status, notes, tags } = req.body;
+  const {
+    status, payment_status, assessment_status, notes, tags,
+    patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
+    visit_type, channel,
+  } = req.body;
   if (status && !VALID_STATUSES.includes(status))
     return res.status(400).json({ error: `Invalid status. Valid: ${VALID_STATUSES.join(', ')}` });
 
@@ -86,8 +90,15 @@ const updateStatus = async (req, res) => {
   }
   if (payment_status)    { setClauses.push(`payment_status=$${idx++}`);    params.push(payment_status); }
   if (assessment_status) { setClauses.push(`assessment_status=$${idx++}`); params.push(assessment_status); }
-  if (notes !== undefined) { setClauses.push(`notes=$${idx++}`); params.push(notes); }
-  if (tags  !== undefined) { setClauses.push(`tags=$${idx++}`);  params.push(JSON.stringify(tags)); }
+  if (notes !== undefined)          { setClauses.push(`notes=$${idx++}`);          params.push(notes); }
+  if (tags  !== undefined)          { setClauses.push(`tags=$${idx++}`);           params.push(JSON.stringify(tags)); }
+  if (patient_name !== undefined)   { setClauses.push(`patient_name=$${idx++}`);   params.push(patient_name); }
+  if (patient_mobile !== undefined) { setClauses.push(`patient_mobile=$${idx++}`); params.push(patient_mobile); }
+  if (patient_dob !== undefined)    { setClauses.push(`patient_dob=$${idx++}`);    params.push(patient_dob || null); }
+  if (patient_gender !== undefined) { setClauses.push(`patient_gender=$${idx++}`); params.push(patient_gender); }
+  if (patient_abha !== undefined)   { setClauses.push(`patient_abha=$${idx++}`);   params.push(patient_abha); }
+  if (visit_type !== undefined)     { setClauses.push(`visit_type=$${idx++}`);     params.push(visit_type); }
+  if (channel !== undefined)        { setClauses.push(`channel=$${idx++}`);        params.push(channel); }
 
   if (!setClauses.length) return res.status(400).json({ error: 'Nothing to update' });
 
