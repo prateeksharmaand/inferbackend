@@ -212,13 +212,6 @@
 .summaryCardTitle {
   font-size: 13px; font-weight: 700; color: var(--color-text);
 }
-.summaryAddBtn {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: none; border: 1px solid var(--color-primary);
-  color: var(--color-primary); padding: 4px 12px; border-radius: 6px;
-  font-size: 12px; font-weight: 500; cursor: pointer; transition: all .1s;
-}
-.summaryAddBtn:hover { background: #f5f3ff; }
 
 /* Vitals display grid */
 .vitalsDisplayGrid {
@@ -235,19 +228,14 @@
 .vitalEmpty        { font-size: 18px; color: #cbd5e1; }
 .vitalDisplayUnit  { font-size: 10px; font-weight: 600; opacity: .7; }
 .vitalDisplayLabel { font-size: 11px; font-weight: 600; color: var(--color-text-2); text-align: center; }
-.vitalDisplayInput {
-  width: 100%; border: 1px solid var(--color-border); border-radius: 6px;
-  padding: 5px 8px; font-size: 12px; text-align: center; outline: none;
-  color: var(--color-text); font-family: inherit;
-}
-.vitalDisplayInput:focus { border-color: var(--color-primary); }
 
 /* Lab results table */
-.labResultsTable { padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+.labResultsTable { padding: 0 20px 12px; display: flex; flex-direction: column; gap: 0; }
 .labResultsHead {
-  display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.2fr 28px;
-  padding: 6px 8px; font-size: 10px; font-weight: 700;
+  display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.5fr;
+  padding: 10px 8px 6px; font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3);
+  border-bottom: 1px solid var(--color-border);
 }
 .labResultsRow {
   display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.2fr 28px;
@@ -259,7 +247,13 @@
   width: 100%;
 }
 .labResultsRow input:focus { border-color: var(--color-primary); }
-.labResultValueFilled { color: var(--color-primary); font-weight: 600; }
+.labResultsRowDisplay {
+  display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.5fr;
+  padding: 9px 8px; font-size: 13px; color: var(--color-text);
+  border-bottom: 1px solid #f1f5f9;
+}
+.labResultsRowDisplay:last-child { border-bottom: none; }
+.labResultValueFilled { color: var(--color-primary); font-weight: 700; }
 .summaryEmptyState {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 28px 20px; gap: 8px;
@@ -268,12 +262,6 @@
 .summaryEmptyText {
   font-size: 14px; font-weight: 600; color: var(--color-text-2);
 }
-.summaryAddInline {
-  margin-top: 4px; background: none; border: 1px dashed var(--color-border);
-  color: var(--color-primary); padding: 6px 16px; border-radius: 6px;
-  font-size: 13px; font-weight: 500; cursor: pointer; transition: all .1s;
-}
-.summaryAddInline:hover { background: #f5f3ff; border-color: var(--color-primary); }
 
 /* ── Bottom action bar ── */
 .bottomBar {
