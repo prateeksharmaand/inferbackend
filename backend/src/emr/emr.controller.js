@@ -4,6 +4,20 @@ const hip      = require('./hip.service');
 // ── Patients ──────────────────────────────────────────────────────────────────
 
 const listPatients = async (req, res) => {
+  const { q } = req.query;
+  if (q && q.trim().length >= 2) {
+    const term = `%${q.trim().toLowerCase()}%`;
+    const { rows } = await pool.query(
+      `SELECT p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
+              COUNT(c.id)::int AS context_count
+       FROM emr_patients p
+       LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
+       WHERE LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
+       GROUP BY p.id ORDER BY p.name LIMIT 10`,
+      [term, q.trim() + '%']
+    );
+    return res.json(rows);
+  }
   const { rows } = await pool.query(
     `SELECT p.*, COUNT(c.id)::int AS context_count
      FROM emr_patients p
