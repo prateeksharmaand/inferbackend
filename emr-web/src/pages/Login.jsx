@@ -32,7 +32,10 @@ export default function Login() {
       <div className={styles.card}>
         <div className={styles.logo}>
           <div className={styles.logoIcon}>I</div>
-          <span className={styles.logoText}>Infer EMR</span>
+          <div className={styles.logoTextWrap}>
+            <span className={styles.logoText}>Infer Care</span>
+            <span className={styles.logoSub}>Doctor Management</span>
+          </div>
         </div>
         <h2 className={styles.title}>Sign in to your clinic</h2>
 

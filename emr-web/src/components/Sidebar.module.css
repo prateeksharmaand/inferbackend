@@ -3,13 +3,19 @@
   flex-direction: column; align-items: center; padding: 12px 0;
   flex-shrink: 0; z-index: 100;
 }
-.logo { margin-bottom: 16px; }
+.logo {
+  margin-bottom: 16px; display: flex; flex-direction: column;
+  align-items: center; gap: 6px; padding: 0 8px;
+}
 .logoIcon {
   width: 40px; height: 40px; border-radius: 12px;
   background: var(--color-primary); color: #fff;
   font-size: 20px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
 }
+.logoTextWrap { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.logoName { font-size: 11px; font-weight: 700; color: #fff; letter-spacing: .3px; }
+.logoSub  { font-size: 9px;  font-weight: 400; color: #94a3b8; letter-spacing: .2px; }
 .nav { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 0 8px; flex: 1; }
 
 .navItem {

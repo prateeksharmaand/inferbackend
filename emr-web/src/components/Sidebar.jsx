@@ -20,6 +20,10 @@ export default function Sidebar() {
     <aside className={styles.sidebar}>
       <div className={styles.logo}>
         <div className={styles.logoIcon}>I</div>
+        <div className={styles.logoTextWrap}>
+          <span className={styles.logoName}>Infer Care</span>
+          <span className={styles.logoSub}>Doctor Management</span>
+        </div>
       </div>
 
       <nav className={styles.nav}>
