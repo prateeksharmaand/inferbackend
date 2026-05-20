@@ -41,7 +41,7 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
       <div className={styles.modal}>
         <div className={styles.header}>
           <h3 style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <UserPen size={17} strokeWidth={1.8} style={{ color:'var(--color-primary)' }} />
+            <UserCog size={17} strokeWidth={1.8} style={{ color:'var(--color-primary)' }} />
             Edit Patient Details
           </h3>
           <button className={styles.close} onClick={onClose}><X size={16} /></button>
