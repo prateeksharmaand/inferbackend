@@ -8,7 +8,7 @@ const searchICD10 = async (req, res) => {
   if (!q) return res.json([]);
   try {
     const { data } = await axios.get(`${NLM}/icd10cm/v3/search`, {
-      params: { terms: q, maxList: 12 },
+      params: { terms: q, sf: 'code,name', maxList: 12 },
       timeout: 5000,
     });
     const rows = data[3] || [];
@@ -24,11 +24,15 @@ const searchRxTerms = async (req, res) => {
   if (!q) return res.json([]);
   try {
     const { data } = await axios.get(`${NLM}/rxterms/v3/search`, {
-      params: { terms: q, maxList: 12 },
+      params: { terms: q, ef: 'STRENGTHS_AND_FORMS', maxList: 12 },
       timeout: 5000,
     });
     const rows = data[3] || [];
-    res.json(rows.map(row => ({ name: row[0], strength: row[3] || '' })));
+    const strengths = (data[2] && data[2].STRENGTHS_AND_FORMS) || [];
+    res.json(rows.map((row, i) => ({
+      name: row[0],
+      strength: (strengths[i] || []).join(', '),
+    })));
   } catch {
     res.json([]);
   }
