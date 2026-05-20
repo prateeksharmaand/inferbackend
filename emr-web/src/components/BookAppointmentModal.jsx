@@ -5,20 +5,12 @@ import MedicalHistorySection from './MedicalHistorySection';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
-const ATTR_TYPES = {
-  1:  { label: 'Tags',                        multi: true  },
-  2:  { label: 'Labels',                       multi: false },
-  16: { label: 'Medical Record Document Type', multi: true  },
-};
-
 export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
   const [queues,       setQueues]       = useState([]);
   const [doctors,      setDoctors]      = useState([]);
-  const [clinicTags,   setClinicTags]   = useState([]);
   const [saving,         setSaving]         = useState(false);
   const [generatingUhid, setGeneratingUhid] = useState(false);
   const [error,          setError]          = useState('');
-  const [selectedTags,   setSelectedTags]   = useState([]);
   const [medicalHistory, setMedicalHistory] = useState([]);
 
   const [form, setForm] = useState({
@@ -38,8 +30,8 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
   });
 
   useEffect(() => {
-    Promise.all([api.get('/queues'), api.get('/auth/doctors'), api.get('/tags')])
-      .then(([q, d, t]) => { setQueues(q); setDoctors(d); setClinicTags(t); })
+    Promise.all([api.get('/queues'), api.get('/auth/doctors')])
+      .then(([q, d]) => { setQueues(q); setDoctors(d); })
       .catch(() => {});
   }, []);
 
@@ -55,28 +47,6 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
     }
   };
 
-  const toggleTag = (tag) => {
-    const isMulti = ATTR_TYPES[tag.attr_type]?.multi ?? true;
-    setSelectedTags(prev => {
-      if (isMulti) {
-        return prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id];
-      }
-      // Single-select: deselect others of same type, toggle this one
-      const sameType = clinicTags.filter(t => t.attr_type === tag.attr_type).map(t => t.id);
-      const withoutType = prev.filter(id => !sameType.includes(id));
-      return prev.includes(tag.id) ? withoutType : [...withoutType, tag.id];
-    });
-  };
-
-  // Group tags by attr_type for display
-  const tagGroups = Object.entries(ATTR_TYPES)
-    .map(([typeId, meta]) => ({
-      typeId: parseInt(typeId, 10),
-      ...meta,
-      items: clinicTags.filter(t => t.attr_type === parseInt(typeId, 10)),
-    }))
-    .filter(g => g.items.length > 0);
-
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e) => {
@@ -90,7 +60,6 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
         queue_id:  form.queue_id  || undefined,
         doctor_id: form.doctor_id || undefined,
         status: mode === 'checkin' ? 'checked_in' : 'booked',
-        tags: selectedTags,
         medical_history: medicalHistory,
       };
       await api.post('/appointments', payload);
@@ -191,36 +160,6 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
               <input type="time" value={form.appointment_time} onChange={e => set('appointment_time', e.target.value)} />
             </div>
           </div>
-
-          {tagGroups.length > 0 && (
-            <div className={styles.attrSection}>
-              {tagGroups.map(group => (
-                <div key={group.typeId} className={styles.field}>
-                  <label>
-                    {group.label}
-                    <span className={styles.attrBehavior}>{group.multi ? 'Multi-select' : 'Single-select'}</span>
-                  </label>
-                  <div className={styles.tagChips}>
-                    {group.items.map(t => {
-                      const active = selectedTags.includes(t.id);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          className={`${styles.tagChip} ${active ? styles.tagChipActive : ''}`}
-                          style={active ? { background: t.color, borderColor: t.color, color: '#fff' }
-                                        : { borderColor: t.color, color: t.color }}
-                          onClick={() => toggleTag(t)}
-                        >
-                          {t.display_name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {mode === 'checkin' && (
             <MedicalHistorySection value={medicalHistory} onChange={setMedicalHistory} />
