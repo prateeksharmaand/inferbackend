@@ -1,8 +1,6 @@
-.root {
-  display: flex; flex: 1; overflow: hidden; background: var(--color-bg);
-}
+.root { display: flex; flex: 1; overflow: hidden; }
 
-/* ── Left panel ───────────────────────────────────── */
+/* ── Left panel ──────────────────────────────────── */
 .left {
   width: 220px; flex-shrink: 0;
   border-right: 1px solid var(--color-border);
@@ -19,26 +17,21 @@
   font-size: 16px; color: var(--color-text-2); padding: 2px 6px; border-radius: 4px;
 }
 .navBtn:hover { background: var(--color-bg); }
-
-.miniGrid {
-  display: grid; grid-template-columns: repeat(7, 1fr);
-  gap: 2px; text-align: center;
-}
+.miniGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
 .dow { font-size: 10px; font-weight: 600; color: var(--color-text-3); padding: 4px 0; }
 .dayBtn {
   font-size: 12px; background: none; border: none; cursor: pointer;
-  border-radius: 50%; width: 26px; height: 26px;
+  border-radius: 50%; width: 26px; height: 26px; margin: auto;
   display: flex; align-items: center; justify-content: center;
   color: var(--color-text); transition: background .1s;
 }
-.dayBtn:hover { background: var(--color-bg); }
-.dayToday    { color: var(--color-primary); font-weight: 700; }
-.daySelected { background: var(--color-primary) !important; color: #fff !important; font-weight: 600; }
-
+.dayBtn:hover    { background: var(--color-bg); }
+.dayToday        { color: var(--color-primary); font-weight: 700; }
+.daySelected     { background: var(--color-primary) !important; color: #fff !important; font-weight: 600; }
 .freeSlots {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 12px; color: var(--color-text-2); cursor: pointer;
-  padding: 8px 4px; border-top: 1px solid var(--color-border);
+  font-size: 12px; color: var(--color-text-2);
+  padding: 8px 4px; border-top: 1px solid var(--color-border); cursor: pointer;
 }
 .toggle {
   width: 32px; height: 18px; border-radius: 9px;
@@ -51,64 +44,69 @@
 }
 
 /* ── Right panel ─────────────────────────────────── */
-.right {
-  flex: 1; display: flex; flex-direction: column;
-  overflow: hidden; background: var(--color-surface);
-}
+.right { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--color-surface); }
 
 .slotBar {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0; background: #f8fafc;
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 8px 16px; border-bottom: 1px solid var(--color-border); background: #f8fafc;
 }
 .slotLabel { font-size: 12px; color: var(--color-text-2); margin-right: 4px; }
 .slotBtn {
   padding: 4px 10px; border-radius: 6px; border: 1px solid var(--color-border);
-  background: none; font-size: 12px; cursor: pointer; color: var(--color-text-2);
-  transition: all .12s;
+  background: none; font-size: 12px; cursor: pointer; color: var(--color-text-2); transition: all .12s;
 }
-.slotBtn:hover   { border-color: var(--color-primary); color: var(--color-primary); }
-.slotBtnActive   { background: var(--color-primary); border-color: var(--color-primary); color: #fff; font-weight: 600; }
+.slotBtn:hover  { border-color: var(--color-primary); color: var(--color-primary); }
+.slotBtnActive  { background: var(--color-primary); border-color: var(--color-primary); color: #fff; font-weight: 600; }
 
-/* Grid */
+/* ── Grid ────────────────────────────────────────── */
 .gridScroll { flex: 1; overflow-y: auto; }
 
-.grid {
-  position: relative;
-  padding-left: 72px;
-  min-height: 100%;
+/* gridContainer: position:relative so apptBlocks are positioned inside it */
+.gridContainer { position: relative; }
+
+/* Each slot row: flex row with time column + cell column */
+.slotRow { display: flex; }
+
+.timeCol {
+  width: 72px;
+  flex-shrink: 0;
+  position: relative;        /* so .timeLabel is positioned relative to this cell */
+  border-right: 1px solid var(--color-border);
+}
+.timeLabel {
+  position: absolute;
+  right: 6px;
+  top: -7px;
+  font-size: 11px;
+  color: var(--color-text-3);
+  white-space: nowrap;
+  user-select: none;
 }
 
-/* Each slot row */
-.slotRow {
-  display: flex; align-items: flex-start;
-  position: relative;
-}
-.slotTimeLabel {
-  position: absolute; left: -72px; width: 64px;
-  text-align: right; padding-right: 8px;
-  font-size: 11px; color: var(--color-text-3);
-  line-height: 1; transform: translateY(-6px);
-  white-space: nowrap;
-}
-.slotCell {
-  flex: 1; height: 100%;
+.cellCol {
+  flex: 1;
   border-top: 1px solid #f0f0f0;
 }
-.slotRowHour .slotCell {
-  border-top-color: var(--color-border);
-}
+.cellHour { border-top-color: #d1d5db; }
 
-/* Appointment blocks */
+/* ── Appointment blocks ──────────────────────────── */
 .apptBlock {
-  position: absolute; left: 0; right: 8px;
-  border-left: 4px solid; border-radius: 0 6px 6px 0;
-  padding: 5px 10px; display: flex; align-items: center; gap: 7px;
-  cursor: pointer; overflow: hidden; z-index: 2;
+  position: absolute;           /* relative to .gridContainer */
+  border-left: 4px solid;
+  border-radius: 0 6px 6px 0;
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.1);
   transition: filter .15s, box-shadow .15s;
-  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  z-index: 2;
 }
-.apptBlock:hover { filter: brightness(.93); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
-.apptDot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.apptName { font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-.apptTime { font-size: 11px; color: var(--color-text-2); flex-shrink: 0; font-weight: 500; }
+.apptBlock:hover { filter: brightness(.93); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+
+.apptDot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.apptName   { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.apptTime   { font-size: 11px; color: #475569; flex-shrink: 0; font-weight: 500; }
+.apptStatus { font-size: 10px; font-weight: 600; flex-shrink: 0; text-transform: capitalize; }

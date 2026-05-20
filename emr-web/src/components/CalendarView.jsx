@@ -4,7 +4,8 @@ import styles from './CalendarView.module.css';
 const SLOT_OPTIONS = [2, 3, 5, 10, 15, 20];
 const START_HOUR   = 8;
 const END_HOUR     = 21;
-const ROW_H        = 44; // px per slot row
+const ROW_H        = 44;
+const TIME_W       = 72;
 
 const STATUS_COLOR = {
   booked:     '#3b82f6', checked_in: '#8b5cf6', ongoing:    '#f59e0b',
@@ -15,12 +16,10 @@ const STATUS_COLOR = {
 function parseTime(t) {
   if (!t) return null;
   t = t.trim();
-  // 24h "18:10" — from <input type="time">
   if (/^\d{1,2}:\d{2}$/.test(t)) {
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
   }
-  // 12h "6:10 PM"
   const [timePart, meridiem] = t.split(' ');
   if (!meridiem) return null;
   let [h, m] = timePart.split(':').map(Number);
@@ -42,16 +41,8 @@ function fmt12(t) {
 }
 
 function hourLabel(h) {
-  if (h === 0)  return '12:00 AM';
   if (h === 12) return '12:00 PM';
   return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`;
-}
-
-function slotTimeLabel(absoluteMin) {
-  const h = Math.floor(absoluteMin / 60);
-  const m = absoluteMin % 60;
-  if (m === 0) return hourLabel(h);
-  return null; // only label the top of each hour
 }
 
 export default function CalendarView({ board, slotDuration, setSlotDuration, selectedDate, setSelectedDate }) {
@@ -64,7 +55,6 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
   const startMin   = START_HOUR * 60;
   const totalSlots = Math.ceil((END_HOUR - START_HOUR) * 60 / slotDuration);
 
-  // Mini-calendar
   const year           = selectedDate.getFullYear();
   const month          = selectedDate.getMonth();
   const daysInMonth    = getDaysInMonth(selectedDate);
@@ -73,7 +63,8 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
 
   return (
     <div className={styles.root}>
-      {/* ── Left ────────────────────────────────────────── */}
+
+      {/* ── Left: mini-calendar ───────────────────────────── */}
       <div className={styles.left}>
         <div className={styles.miniHeader}>
           <button className={styles.navBtn} onClick={() => setSelectedDate(subMonths(selectedDate, 1))}>‹</button>
@@ -108,7 +99,7 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
         </label>
       </div>
 
-      {/* ── Right ───────────────────────────────────────── */}
+      {/* ── Right: schedule ───────────────────────────────── */}
       <div className={styles.right}>
         <div className={styles.slotBar}>
           <span className={styles.slotLabel}>Slot duration:</span>
@@ -124,48 +115,55 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
         </div>
 
         <div className={styles.gridScroll}>
-          {/* Slot rows */}
-          <div className={styles.grid}>
+          {/* One container that everything is positioned inside */}
+          <div className={styles.gridContainer}>
+
+            {/* Slot rows (time column + grid cell) */}
             {Array.from({ length: totalSlots }, (_, i) => {
               const absMin     = startMin + i * slotDuration;
-              const timeLabel  = slotTimeLabel(absMin);
               const isHourLine = absMin % 60 === 0;
+              const label      = isHourLine ? hourLabel(Math.floor(absMin / 60)) : '';
               return (
-                <div
-                  key={i}
-                  className={`${styles.slotRow} ${isHourLine ? styles.slotRowHour : ''}`}
-                  style={{ height: ROW_H }}
-                >
-                  <span className={styles.slotTimeLabel}>
-                    {timeLabel || ''}
-                  </span>
-                  <div className={styles.slotCell} />
+                <div key={i} className={styles.slotRow} style={{ height: ROW_H }}>
+                  <div className={styles.timeCol}>
+                    {label && <span className={styles.timeLabel}>{label}</span>}
+                  </div>
+                  <div className={`${styles.cellCol} ${isHourLine ? styles.cellHour : ''}`} />
                 </div>
               );
             })}
 
-            {/* Appointment blocks — absolutely positioned over the grid */}
+            {/* Appointment blocks — positioned over the cell column */}
             {allAppts.map(a => {
               const min = parseTime(a.appointment_time);
               if (min === null || min < startMin || min >= END_HOUR * 60) return null;
               const slotIdx = Math.floor((min - startMin) / slotDuration);
-              const top     = slotIdx * ROW_H;
-              const height  = Math.max(ROW_H - 4, 28);
+              const top     = slotIdx * ROW_H + 2;
+              const height  = ROW_H - 4;
               const color   = STATUS_COLOR[a.status] || '#3b82f6';
               return (
                 <div
                   key={a.id}
                   className={styles.apptBlock}
-                  style={{ top: top + 2, height, borderLeftColor: color, background: color + '28' }}
+                  style={{
+                    top,
+                    height,
+                    left: TIME_W,
+                    right: 12,
+                    borderLeftColor: color,
+                    background: color + '22',
+                  }}
                 >
                   <span className={styles.apptDot} style={{ background: color }} />
                   <span className={styles.apptName}>{a.patient_name}</span>
-                  {height >= 36 && (
-                    <span className={styles.apptTime}>{fmt12(a.appointment_time)}</span>
-                  )}
+                  <span className={styles.apptTime}>{fmt12(a.appointment_time)}</span>
+                  <span className={styles.apptStatus} style={{ color }}>
+                    {a.status.replace('_', ' ')}
+                  </span>
                 </div>
               );
             })}
+
           </div>
         </div>
       </div>
