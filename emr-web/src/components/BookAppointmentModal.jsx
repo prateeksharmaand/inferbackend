@@ -4,21 +4,21 @@ import styles from './BookAppointmentModal.module.css';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
-export default function BookAppointmentModal({ mode, onClose }) {
+export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
   const [queues,   setQueues]   = useState([]);
   const [doctors,  setDoctors]  = useState([]);
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
   const [form, setForm] = useState({
-    patient_name:    '',
-    patient_mobile:  '',
+    patient_name:    prefill.patient_name   || '',
+    patient_mobile:  prefill.patient_mobile || '',
     patient_dob:     '',
     patient_gender:  'M',
-    patient_abha:    '',
+    patient_abha:    prefill.patient_abha   || '',
     queue_id:        '',
     doctor_id:       '',
-    channel:         'walk_in',
+    channel:         prefill.channel        || 'walk_in',
     visit_type:      'OPConsultation',
     appointment_date: new Date().toISOString().slice(0,10),
     appointment_time: '',

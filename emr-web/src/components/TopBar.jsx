@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BookAppointmentModal from './BookAppointmentModal';
@@ -9,9 +9,13 @@ const today = () => new Date().toLocaleDateString('en-IN', { weekday: 'short', d
 export default function TopBar() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [showAdd,  setShowAdd]  = useState(false);
-  const [showBook, setShowBook] = useState(false);
-  const [addMode,  setAddMode]  = useState('');
+  const [showAdd,   setShowAdd]   = useState(false);
+  const [showBook,  setShowBook]  = useState(false);
+  const [addMode,   setAddMode]   = useState('');
+  const [prefill,   setPrefill]   = useState({});
+  const [query,     setQuery]     = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
 
   const ADD_OPTIONS = [
     { key: 'checkin', label: 'Add Patient & Check-In' },
@@ -23,9 +27,31 @@ export default function TopBar() {
 
   const handleOption = (key) => {
     setShowAdd(false);
-    if (key === 'book' || key === 'checkin') { setAddMode(key); setShowBook(true); }
+    if (key === 'book' || key === 'checkin') { setAddMode(key); setPrefill({}); setShowBook(true); }
     else if (key === 'rx') navigate('/rx/new');
   };
+
+  const openWithName = (name, via) => {
+    setQuery('');
+    setSearchOpen(false);
+    setAddMode('book');
+    setPrefill({ patient_name: name, channel: via === 'abha' ? 'abha' : 'walk_in' });
+    setShowBook(true);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const trimmed = query.trim();
+  const showSuggestions = searchOpen && trimmed.length > 0;
 
   return (
     <>
@@ -57,10 +83,49 @@ export default function TopBar() {
             )}
           </div>
 
-          <div className={styles.search}>
-            <span>🔍</span>
-            <input placeholder="Search" />
-            <span className={styles.kbd}>⌘+K</span>
+          {/* Search */}
+          <div ref={searchRef} className={`${styles.searchWrap} ${searchOpen ? styles.searchWrapOpen : ''}`}>
+            <div className={styles.searchBox}>
+              <span className={styles.searchIcon}>🔍</span>
+              <input
+                className={styles.searchInput}
+                placeholder="Search / Add Patient by Name, Number, UHID, ABHA ID, or Aadhar"
+                value={query}
+                onChange={e => { setQuery(e.target.value); setSearchOpen(true); }}
+                onFocus={() => setSearchOpen(true)}
+              />
+              {query && (
+                <button className={styles.clearBtn} onClick={() => { setQuery(''); setSearchOpen(false); }}>✕</button>
+              )}
+              {!query && <span className={styles.kbd}>⌘K</span>}
+            </div>
+
+            {showSuggestions && (
+              <ul className={styles.suggestions}>
+                <li
+                  className={styles.suggestion}
+                  onClick={() => openWithName(trimmed, 'manual')}
+                >
+                  <span className={styles.suggIcon}>👤</span>
+                  <div className={styles.suggText}>
+                    <span className={styles.suggMain}>Add New Patient</span>
+                    <span className={styles.suggSub}>"{trimmed}"</span>
+                  </div>
+                  <span className={styles.suggBadge}>Manual</span>
+                </li>
+                <li
+                  className={styles.suggestion}
+                  onClick={() => openWithName(trimmed, 'abha')}
+                >
+                  <span className={styles.suggIcon}>🔗</span>
+                  <div className={styles.suggText}>
+                    <span className={styles.suggMain}>Add New Patient</span>
+                    <span className={styles.suggSub}>"{trimmed}"</span>
+                  </div>
+                  <span className={`${styles.suggBadge} ${styles.suggBadgeAbha}`}>via ABHA</span>
+                </li>
+              </ul>
+            )}
           </div>
 
           <div className={styles.userChip}>
@@ -74,7 +139,8 @@ export default function TopBar() {
       {showBook && (
         <BookAppointmentModal
           mode={addMode}
-          onClose={() => setShowBook(false)}
+          prefill={prefill}
+          onClose={() => { setShowBook(false); setPrefill({}); }}
         />
       )}
     </>
