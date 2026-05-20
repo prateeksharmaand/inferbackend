@@ -55,15 +55,9 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 80px 20px; gap: 14px; text-align: center;
 }
-.emptyIcon    { font-size: 52px; }
-.emptyTitle   { font-size: 18px; font-weight: 700; color: var(--color-text); }
-.emptyText    { font-size: 13px; color: var(--color-text-2); max-width: 380px; line-height: 1.6; }
-.createRxBtn  {
-  margin-top: 8px; background: var(--color-primary); color: #fff; border: none;
-  padding: 11px 28px; border-radius: 9px; font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: background .1s;
-}
-.createRxBtn:hover { background: var(--color-primary-dk); }
+.emptyIcon  { font-size: 40px; }
+.emptyTitle { font-size: 16px; font-weight: 700; color: var(--color-text); }
+.emptyText  { font-size: 13px; color: var(--color-text-2); max-width: 360px; line-height: 1.6; }
 
 /* ── Prescription document ── */
 .rxDoc {
@@ -266,14 +260,20 @@
 }
 .labResultsRow input:focus { border-color: var(--color-primary); }
 .labResultValueFilled { color: var(--color-primary); font-weight: 600; }
-.summaryEmpty {
-  padding: 20px; font-size: 13px; color: var(--color-text-3);
-  display: flex; align-items: center; gap: 10px;
+.summaryEmptyState {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 28px 20px; gap: 8px;
 }
-.summaryEmptyLink {
-  background: none; border: none; color: var(--color-primary);
-  font-size: 13px; font-weight: 500; cursor: pointer;
+.summaryEmptyIcon { font-size: 32px; }
+.summaryEmptyText {
+  font-size: 14px; font-weight: 600; color: var(--color-text-2);
 }
+.summaryAddInline {
+  margin-top: 4px; background: none; border: 1px dashed var(--color-border);
+  color: var(--color-primary); padding: 6px 16px; border-radius: 6px;
+  font-size: 13px; font-weight: 500; cursor: pointer; transition: all .1s;
+}
+.summaryAddInline:hover { background: #f5f3ff; border-color: var(--color-primary); }
 
 /* ── Bottom action bar ── */
 .bottomBar {
