@@ -5,7 +5,7 @@ import MedicalHistorySection from './MedicalHistorySection';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
-export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCreated }) {
+export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCreated, registerOnly = false }) {
   const [queues,       setQueues]       = useState([]);
   const [doctors,      setDoctors]      = useState([]);
   const [saving,         setSaving]         = useState(false);
@@ -62,8 +62,10 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
         status: mode === 'checkin' ? 'checked_in' : 'booked',
         medical_history: medicalHistory,
       };
-      await api.post('/appointments', payload);
-      window.dispatchEvent(new CustomEvent('appointment:created', { detail: { queue_id: form.queue_id } }));
+      if (!registerOnly) {
+        await api.post('/appointments', payload);
+        window.dispatchEvent(new CustomEvent('appointment:created', { detail: { queue_id: form.queue_id } }));
+      }
       if (onCreated) onCreated(form);
       else onClose();
     } catch (err) {
@@ -176,7 +178,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
           <div className={styles.footer}>
             <button type="button" className={styles.btnCancel} onClick={onClose}>Cancel</button>
             <button type="submit" className={styles.btnPrimary} disabled={saving}>
-              {saving ? 'Saving…' : mode === 'checkin' ? 'Add & Check-In' : 'Book Appointment'}
+              {saving ? 'Saving…' : registerOnly ? 'Continue to Booking →' : mode === 'checkin' ? 'Add & Check-In' : 'Book Appointment'}
             </button>
           </div>
         </form>

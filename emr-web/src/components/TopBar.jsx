@@ -276,6 +276,7 @@ export default function TopBar() {
           prefill={prefill}
           onClose={() => { setShowBook(false); setPrefill({}); setAfterCheckin(false); }}
           onCreated={afterCheckin ? handleCheckinCreated : undefined}
+          registerOnly={afterCheckin}
         />
       )}
       {showBook && addMode === 'book' && (
