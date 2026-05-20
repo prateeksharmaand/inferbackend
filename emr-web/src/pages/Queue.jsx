@@ -13,6 +13,7 @@ export default function Queue() {
   const [activeQueue,   setActiveQueue]   = useState(null);
   const [board,         setBoard]         = useState({ booked: [], my_opd: [], completed: [] });
   const [leftTab,       setLeftTab]       = useState('Booked');
+  const [rightTab,      setRightTab]      = useState('MY OPD');
   const [loading,       setLoading]       = useState(true);
   const [viewMode,      setViewMode]      = useState('list');     // 'list' | 'calendar'
   const [slotDuration,  setSlotDuration]  = useState(10);
@@ -133,10 +134,16 @@ export default function Queue() {
           {/* RIGHT — My OPD + Completed */}
           <div className={styles.column}>
             <div className={styles.colHeader}>
-              <button className={`${styles.colTab} ${styles.colTabActive}`}>
+              <button
+                className={`${styles.colTab} ${rightTab === 'MY OPD' ? styles.colTabActive : ''}`}
+                onClick={() => setRightTab('MY OPD')}
+              >
                 MY OPD ({board.my_opd.length})
               </button>
-              <button className={styles.colTab}>
+              <button
+                className={`${styles.colTab} ${rightTab === 'COMPLETED' ? styles.colTabActive : ''}`}
+                onClick={() => setRightTab('COMPLETED')}
+              >
                 COMPLETED ({board.completed.length})
               </button>
               <button className={styles.colAction} title="Add">+</button>
@@ -147,20 +154,36 @@ export default function Queue() {
             </div>
 
             <div className={styles.cardList}>
-              {!loading && board.my_opd.length === 0 && (
+              {rightTab === 'MY OPD' && !loading && board.my_opd.length === 0 && (
                 <div className={styles.emptyState}>
                   <div className={styles.emptyIcon}>👤</div>
                   <p>No patient in the Queue</p>
                   <small>Click on "Add New" to start adding appointments</small>
                 </div>
               )}
-              {board.my_opd.map(a => (
-                <AppointmentCard
-                  key={a.id} appt={a}
-                  onStatusChange={handleStatusChange}
-                  onOpen={() => navigate(`/rx/${a.id}`)}
-                />
-              ))}
+              {rightTab === 'COMPLETED' && !loading && board.completed.length === 0 && (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>✓</div>
+                  <p>No completed appointments yet</p>
+                  <small>Completed consultations will appear here</small>
+                </div>
+              )}
+              {rightTab === 'MY OPD'
+                ? board.my_opd.map(a => (
+                    <AppointmentCard
+                      key={a.id} appt={a}
+                      onStatusChange={handleStatusChange}
+                      onOpen={() => navigate(`/rx/${a.id}`)}
+                    />
+                  ))
+                : board.completed.map(a => (
+                    <AppointmentCard
+                      key={a.id} appt={a}
+                      onStatusChange={handleStatusChange}
+                      onOpen={() => navigate(`/rx/${a.id}`)}
+                    />
+                  ))
+              }
             </div>
           </div>
         </div>
