@@ -16,7 +16,7 @@ const login = async (req, res) => {
 
   const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
   const { rows } = await pool.query(
-    `SELECT d.*, c.name AS clinic_name, c.plan, c.max_patients
+    `SELECT d.*, c.name AS clinic_name, c.address AS clinic_address, c.phone AS clinic_phone, c.plan, c.max_patients
      FROM ${table} d
      JOIN emr_clinics c ON c.id = d.clinic_id
      WHERE d.email = $1 AND d.is_active = true`,
@@ -36,10 +36,12 @@ const login = async (req, res) => {
       name: user.name,
       email: user.email,
       role,
-      clinic_id:   user.clinic_id,
-      clinic_name: user.clinic_name,
-      plan:        user.plan,
-      max_patients: user.max_patients,
+      clinic_id:      user.clinic_id,
+      clinic_name:    user.clinic_name,
+      clinic_address: user.clinic_address || '',
+      clinic_phone:   user.clinic_phone   || '',
+      plan:           user.plan,
+      max_patients:   user.max_patients,
       ...(role === 'doctor' ? { specialization: user.specialization, qualification: user.qualification } : {}),
     },
   });
