@@ -84,3 +84,40 @@
   font-weight: 600;
 }
 .check { flex-shrink: 0; color: var(--color-primary); }
+
+/* Tag search inside filter panel */
+.tagSearch { margin-top: 8px; }
+
+.tagSearchInput {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--color-border); border-radius: 7px;
+  padding: 5px 8px; background: var(--color-bg);
+}
+.tagSearchIcon  { color: var(--color-text-3); flex-shrink: 0; }
+.tagSearchField {
+  flex: 1; border: none; outline: none; font-size: 12px;
+  background: transparent; color: var(--color-text);
+}
+.tagSearchClear {
+  background: none; border: none; cursor: pointer; padding: 1px;
+  color: var(--color-text-3); display: flex; align-items: center;
+}
+.tagSearchClear:hover { color: var(--color-text); }
+
+.tagList {
+  max-height: 160px; overflow-y: auto;
+  margin-top: 4px; display: flex; flex-direction: column; gap: 2px;
+}
+.tagEmpty { padding: 8px 4px; font-size: 11px; color: var(--color-text-3); display: block; }
+
+.tagOpt {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 8px; border-radius: 6px; border: 1px solid transparent;
+  background: none; font-size: 12px; font-weight: 500;
+  color: var(--color-text-2); cursor: pointer; text-align: left; transition: all .1s;
+  width: 100%;
+}
+.tagOpt:hover { background: var(--color-bg); border-color: var(--color-border); }
+.tagOptActive  { font-weight: 600; }
+.tagDot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.tagOptLabel { flex: 1; }

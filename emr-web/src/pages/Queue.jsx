@@ -22,9 +22,12 @@ function filterAppts(list, q, filters) {
     );
   }
 
-  // Tags filter (no tags = no tags field set)
+  // Tags filter
   if (filters.tags === 'no_tags') {
     out = out.filter(a => !a.tags || a.tags.length === 0);
+  } else if (typeof filters.tags === 'string' && filters.tags.startsWith('tag:')) {
+    const tagId = parseInt(filters.tags.slice(4), 10);
+    out = out.filter(a => Array.isArray(a.tags) && a.tags.includes(tagId));
   }
 
   // Follow-up filter
@@ -197,6 +200,7 @@ export default function Queue() {
                     filters={leftFilters}
                     onChange={setLeftFilters}
                     onClose={() => setLeftFilterOpen(false)}
+                    clinicTags={clinicTags}
                   />
                 )}
               </div>
@@ -274,6 +278,7 @@ export default function Queue() {
                     filters={rightFilters}
                     onChange={setRightFilters}
                     onClose={() => setRightFilterOpen(false)}
+                    clinicTags={clinicTags}
                   />
                 )}
               </div>
