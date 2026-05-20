@@ -98,6 +98,12 @@ export default function Queue() {
   useEffect(() => { fetchBoard(); }, [fetchBoard]);
 
   useEffect(() => {
+    const handler = () => fetchBoard();
+    window.addEventListener('appointment:created', handler);
+    return () => window.removeEventListener('appointment:created', handler);
+  }, [fetchBoard]);
+
+  useEffect(() => {
     if (viewMode === 'calendar') fetchBoard(selectedDate.toISOString().slice(0, 10));
   }, [selectedDate, viewMode]);
 

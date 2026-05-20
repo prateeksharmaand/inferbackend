@@ -80,6 +80,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.patient_name.trim()) return setError('Patient name is required');
+    if (mode === 'checkin' && !form.queue_id) return setError('Please select a queue to check in');
     setSaving(true); setError('');
     try {
       const payload = {
@@ -90,6 +91,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
         tags: selectedTags,
       };
       await api.post('/appointments', payload);
+      window.dispatchEvent(new CustomEvent('appointment:created', { detail: { queue_id: form.queue_id } }));
       onClose();
     } catch (err) {
       setError(err.message);
@@ -158,8 +160,14 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
               </select>
             </div>
             <div className={styles.field}>
-              <label>Queue</label>
-              <select value={form.queue_id} onChange={e => set('queue_id', e.target.value)}>
+              <label>
+                Queue {mode === 'checkin' && <span className={styles.req}>*</span>}
+              </label>
+              <select
+                value={form.queue_id}
+                onChange={e => { set('queue_id', e.target.value); setError(''); }}
+                style={mode === 'checkin' && !form.queue_id && error ? { borderColor: '#dc2626' } : {}}
+              >
                 <option value="">— Select queue —</option>
                 {queues.map(q => <option key={q.id} value={q.id}>{q.name}</option>)}
               </select>
