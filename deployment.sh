@@ -96,7 +96,7 @@ info "Postgres: ✓"
 # ── Run all migrations (idempotent — safe to re-run) ──────────────────────────
 log "Running database migrations..."
 MIGRATION_COUNT=0
-for migration in migrations/*.sql; do
+for migration in backend/migrations/*.sql; do
   [ -f "$migration" ] || continue
   info "Applying: $migration"
   docker compose exec -T "$POSTGRES_SERVICE" \
