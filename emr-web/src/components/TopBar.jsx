@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { Search, X, ChevronLeft, ChevronRight, Building2, Plus } from 'lucide-react';
 import BookAppointmentModal from './BookAppointmentModal';
+import BookSlotModal from './BookSlotModal';
 import styles from './TopBar.module.css';
 
 const today = () => new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -203,9 +204,15 @@ export default function TopBar() {
         </div>
       </header>
 
-      {showBook && (
+      {showBook && addMode === 'checkin' && (
         <BookAppointmentModal
-          mode={addMode}
+          mode="checkin"
+          prefill={prefill}
+          onClose={() => { setShowBook(false); setPrefill({}); }}
+        />
+      )}
+      {showBook && addMode === 'book' && (
+        <BookSlotModal
           prefill={prefill}
           onClose={() => { setShowBook(false); setPrefill({}); }}
         />
