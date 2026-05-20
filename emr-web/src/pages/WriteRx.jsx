@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, LayoutTemplate, Settings2,
   Printer, Eye, Trash2, SlidersHorizontal, CheckCircle, X, Plus,
+  Share2, Calendar, Download, CreditCard, FileText, Star, LogOut,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -45,7 +46,7 @@ const EMPTY_FORM = {
   canvasImage: '',
 };
 
-// ── Prescription helpers ─────────────────────────────────────────────────────
+// ── Prescription data formatting ─────────────────────────────────────────────
 function getFlag(r) {
   if (!r.result || !r.range) return '';
   const val = parseFloat(r.result);
@@ -65,214 +66,173 @@ function RxInlineRow({ label, value }) {
   );
 }
 
-// ── Prescription preview / print modal ──────────────────────────────────────
-function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint }) {
+// ── Shared prescription document (used in preview modal + post-visit screen) ──
+function RxDocumentBody({ form, appt, user, rxImages = {} }) {
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
-  const dateStr = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const dateStr  = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const todayFmt = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
 
   const gender = appt?.patient_gender === 'M' ? 'Male' : appt?.patient_gender === 'F' ? 'Female' : (appt?.patient_gender || '');
   const age    = appt?.patient_age ? `${appt.patient_age} year(s)` : '';
 
-  // Vitals — "LABEL-value unit | …"
-  const VLABEL = {
-    bp_systolic:'SYSTOLIC BLOOD PRESSURE', bp_diastolic:'DIASTOLIC BLOOD PRESSURE',
-    pulse:'PULSE', spo2:'SPO2', temp:'TEMPERATURE', respiratory_rate:'RESPIRATORY RATE',
-    weight:'WEIGHT', height:'HEIGHT', bmi:'BMI',
-  };
-  const VUNIT = { bp_systolic:'mmHg', bp_diastolic:'mmHg', pulse:'bpm', spo2:'%', temp:'°C', respiratory_rate:'/min', weight:'kg', height:'cm', bmi:'kg/m²' };
-  const vitalsStr = Object.entries(form.vitals)
-    .filter(([k, v]) => v && VLABEL[k])
-    .map(([k, v]) => `${VLABEL[k]}-${v}${VUNIT[k] || ''}`)
-    .join(' | ');
+  const VLABEL = { bp_systolic:'SYSTOLIC BLOOD PRESSURE', bp_diastolic:'DIASTOLIC BLOOD PRESSURE', pulse:'PULSE', spo2:'SPO2', temp:'TEMPERATURE', respiratory_rate:'RESPIRATORY RATE', weight:'WEIGHT', height:'HEIGHT', bmi:'BMI' };
+  const VUNIT  = { bp_systolic:'mmHg', bp_diastolic:'mmHg', pulse:'bpm', spo2:'%', temp:'°C', respiratory_rate:'/min', weight:'kg', height:'cm', bmi:'kg/m²' };
 
-  // Medical history — "Condition (Status: Active, Since: X)"
-  const histStr = (form.medical_history || []).map(h => {
-    const { label, meta } = medHistoryLabel(h);
-    const parts = ['Status: Active'];
-    if (h.since) parts.push(`Since: ${h.since}`);
-    else if (meta) parts.push(meta);
-    return `${label} (${parts.join(', ')})`;
-  }).join(', ');
+  const vitalsStr     = Object.entries(form.vitals).filter(([k,v]) => v && VLABEL[k]).map(([k,v]) => `${VLABEL[k]}-${v}${VUNIT[k]||''}`).join(' | ');
+  const histStr       = (form.medical_history||[]).map(h => { const {label,meta}=medHistoryLabel(h); const p=['Status: Active']; if(h.since) p.push(`Since: ${h.since}`); else if(meta) p.push(meta); return `${label} (${p.join(', ')})`; }).join(', ');
+  const symptomsStr   = form.symptoms.map(s => { const name=typeof s==='string'?s:s.name; const code=typeof s==='object'&&s.code?` | ${s.code}`:''; const mp=[s.since&&`Since: ${s.since}`,s.severity&&`Severity: ${s.severity}`].filter(Boolean); return `${name}${code}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
+  const diagStr       = form.diagnosis.map(d => { const mp=[d.since&&`Since: ${d.since}`,d.severity&&`Severity: ${d.severity}`].filter(Boolean); return `${d.display}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
+  const labInvLines   = form.lab_investigations.map(l => { if(typeof l==='string') return l; const rep=l.repeat_on?` | Repeat: ${l.repeat_on}`:''; const rem=l.remarks?` Remark: ${l.remarks}`:''; return `${l.test} (On: ${todayFmt}${rep})${rem}`;});
+  const labResultLines= form.lab_results.map(r => { const flag=getFlag(r); return `${r.test}: ${r.result}${r.unit?' '+r.unit:''}${flag?` [${flag}]`:''} - ${todayFmt}`;});
+  const followupStr   = form.next_visit_date ? `Visit on ${new Date(form.next_visit_date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}` : '';
+  const proceduresStr = form.procedures.map(p=>`${p} - ${todayFmt}`).join(', ');
 
-  // Symptoms — "Name | Code (Since: X | Severity: Y)"
-  const symptomsStr = form.symptoms.map(s => {
-    const name = typeof s === 'string' ? s : s.name;
-    const code = typeof s === 'object' && s.code ? ` | ${s.code}` : '';
-    const mparts = [s.since && `Since: ${s.since}`, s.severity && `Severity: ${s.severity}`].filter(Boolean);
-    return `${name}${code}${mparts.length ? ` (${mparts.join(' | ')})` : ''}`;
-  }).join(', ');
+  return (
+    <div className={styles.rxPaper} id="rx-print-area">
+      {rxImages.headerImg ? (
+        <div className={styles.rxPaperImgBlock}><img src={rxImages.headerImg} alt="Header" className={styles.rxPaperImg} /></div>
+      ) : (
+        <div className={styles.rxPaperHeader}>
+          <div className={styles.rxPaperClinic}>{user?.clinic_name||'Clinic'}</div>
+          {user?.clinic_address && <div className={styles.rxPaperAddr}>{user.clinic_address}</div>}
+          {user?.clinic_phone   && <div className={styles.rxPaperAddr}>{user.clinic_phone}</div>}
+        </div>
+      )}
 
-  // Diagnosis — "Name (Since: X | Severity: Y)"
-  const diagStr = form.diagnosis.map(d => {
-    const mparts = [d.since && `Since: ${d.since}`, d.severity && `Severity: ${d.severity}`].filter(Boolean);
-    return `${d.display}${mparts.length ? ` (${mparts.join(' | ')})` : ''}`;
-  }).join(', ');
+      <div className={styles.rxPatientHeader}>
+        <div>
+          <span className={styles.rxPatientName}>{appt?.patient_name||'—'}</span>
+          {(gender||age) && <span className={styles.rxPatientMeta}>, {[gender,age].filter(Boolean).join(', ')},</span>}
+          {appt?.uhid && <div className={styles.rxUhid}>UHID : {appt.uhid}.</div>}
+        </div>
+        <div className={styles.rxDateTime}>{dateStr}</div>
+      </div>
+      <hr className={styles.rxHr} />
 
-  // Lab investigations — one per line
-  const labInvLines = form.lab_investigations.map(l => {
-    if (typeof l === 'string') return l;
-    const repeat = l.repeat_on ? ` | Repeat: ${l.repeat_on}` : '';
-    const remark = l.remarks ? ` Remark: ${l.remarks}` : '';
-    return `${l.test} (On: ${todayFmt}${repeat})${remark}`;
-  });
+      <div className={styles.rxBody}>
+        {vitalsStr   && <RxInlineRow label="VITALS"                  value={vitalsStr} />}
+        {histStr     && <RxInlineRow label="PATIENT MEDICAL HISTORY" value={histStr} />}
+        {symptomsStr && <RxInlineRow label="SYMPTOMS"                value={symptomsStr} />}
+        {diagStr     && <RxInlineRow label="DIAGNOSIS"               value={diagStr} />}
 
-  // Lab results — "Test: value unit [flag] - date"
-  const labResultLines = form.lab_results.map(r => {
-    const flag = getFlag(r);
-    return `${r.test}: ${r.result}${r.unit ? ' ' + r.unit : ''}${flag ? ` [${flag}]` : ''} - ${todayFmt}`;
-  });
+        {form.medications.length > 0 && (
+          <div className={styles.rxMedSection}>
+            <div className={styles.rxPrescriptionHeading}>
+              <span className={styles.rxPrescriptionLine} />PRESCRIPTION<span className={styles.rxPrescriptionLine} />
+            </div>
+            <table className={styles.rxMedTable}>
+              <thead><tr><th>#</th><th>Medications</th><th>Dose</th><th>Frequency</th><th>Duration</th><th>Remarks</th></tr></thead>
+              <tbody>
+                {form.medications.map((m,i) => (
+                  <tr key={i}>
+                    <td className={styles.rxMedNum}>{i+1}</td>
+                    <td><strong>{m.name}</strong>{m.timing&&<div className={styles.rxMedSub}>{m.timing}</div>}</td>
+                    <td>{m.dose||m.dosage}</td>
+                    <td>{m.frequency}</td>
+                    <td className={styles.rxMedDuration}>{m.duration}{m.start_from&&<div className={styles.rxMedSub}>(From {m.start_from})</div>}</td>
+                    <td>{m.instructions}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-  // Follow up
-  const followupStr = form.next_visit_date
-    ? `Visit on ${new Date(form.next_visit_date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}`
-    : '';
+        {labInvLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>PRESCRIBED LAB TESTS :&nbsp;</span><span className={styles.rxInlineValue}>{labInvLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
+        {labResultLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>INVESTIGATIVE READINGS :&nbsp;</span><span className={styles.rxInlineValue}>{labResultLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
+        {form.examination_findings && <RxInlineRow label="EXAMINATION FINDINGS" value={form.examination_findings} />}
+        {form.notes    && <RxInlineRow label="NOTES"       value={form.notes} />}
+        {form.advices  && <RxInlineRow label="ADVICES"     value={form.advices} />}
+        {form.refer_to && <RxInlineRow label="REFERRED TO" value={form.refer_to} />}
+        {(followupStr||form.next_visit_notes) && <RxInlineRow label="FOLLOWUP" value={[followupStr,form.next_visit_notes].filter(Boolean).join(' · ')} />}
+        {proceduresStr && <RxInlineRow label="PROCEDURES" value={proceduresStr} />}
+        {(form.custom_sections||[]).filter(s=>s.content).map(s=><RxInlineRow key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}
+        {form.canvasImage && <div style={{marginTop:8}}><img src={form.canvasImage} alt="Clinical drawing" style={{width:'100%',borderRadius:4,border:'1px solid #e2e8f0'}} /></div>}
+      </div>
 
-  // Procedures — "Name - date"
-  const proceduresStr = form.procedures.map(p => `${p} - ${todayFmt}`).join(', ');
+      <hr className={styles.rxHr} />
+      {rxImages.footerImg ? (
+        <div className={styles.rxPaperImgBlock}><img src={rxImages.footerImg} alt="Footer" className={styles.rxPaperImg} /></div>
+      ) : (
+        <div className={styles.rxPaperFooter}>
+          <span>{user?.clinic_name||'Clinic'}</span>
+          {user?.clinic_address && <span> · {user.clinic_address}</span>}
+          {user?.clinic_phone   && <span> · {user.clinic_phone}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
 
+// ── Prescription preview modal (Preview button) ───────────────────────────────
+function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint }) {
   return (
     <div className={styles.previewOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.previewModal}>
         <div className={styles.previewToolbar}>
           <span className={styles.previewTitle}>Prescription Preview</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className={styles.previewPrintBtn} onClick={onPrint}>
-              <Printer size={13} strokeWidth={2} /> Print
-            </button>
+            <button className={styles.previewPrintBtn} onClick={onPrint}><Printer size={13} strokeWidth={2} /> Print</button>
             <button className={styles.previewCloseBtn} onClick={onClose}><X size={15} /></button>
           </div>
         </div>
         <div className={styles.previewBody}>
-          <div className={styles.rxPaper} id="rx-print-area">
-
-            {/* Header */}
-            {rxImages.headerImg ? (
-              <div className={styles.rxPaperImgBlock}>
-                <img src={rxImages.headerImg} alt="Header" className={styles.rxPaperImg} />
-              </div>
-            ) : (
-              <div className={styles.rxPaperHeader}>
-                <div className={styles.rxPaperClinic}>{user?.clinic_name || 'Clinic'}</div>
-                {user?.clinic_address && <div className={styles.rxPaperAddr}>{user.clinic_address}</div>}
-                {user?.clinic_phone   && <div className={styles.rxPaperAddr}>{user.clinic_phone}</div>}
-              </div>
-            )}
-
-            {/* Patient info row */}
-            <div className={styles.rxPatientHeader}>
-              <div>
-                <span className={styles.rxPatientName}>{appt?.patient_name || '—'}</span>
-                {(gender || age) && (
-                  <span className={styles.rxPatientMeta}>, {[gender, age].filter(Boolean).join(', ')},</span>
-                )}
-                {appt?.uhid && <div className={styles.rxUhid}>UHID : {appt.uhid}.</div>}
-              </div>
-              <div className={styles.rxDateTime}>{dateStr}</div>
-            </div>
-
-            <hr className={styles.rxHr} />
-
-            {/* Inline clinical content */}
-            <div className={styles.rxBody}>
-              {vitalsStr    && <RxInlineRow label="VITALS"                    value={vitalsStr} />}
-              {histStr      && <RxInlineRow label="PATIENT MEDICAL HISTORY"   value={histStr} />}
-              {symptomsStr  && <RxInlineRow label="SYMPTOMS"                  value={symptomsStr} />}
-              {diagStr      && <RxInlineRow label="DIAGNOSIS"                 value={diagStr} />}
-
-              {/* Medications table */}
-              {form.medications.length > 0 && (
-                <div className={styles.rxMedSection}>
-                  <div className={styles.rxPrescriptionHeading}>
-                    <span className={styles.rxPrescriptionLine} />
-                    PRESCRIPTION
-                    <span className={styles.rxPrescriptionLine} />
-                  </div>
-                  <table className={styles.rxMedTable}>
-                    <thead>
-                      <tr>
-                        <th>#</th><th>Medications</th><th>Dose</th>
-                        <th>Frequency</th><th>Duration</th><th>Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {form.medications.map((m, i) => (
-                        <tr key={i}>
-                          <td className={styles.rxMedNum}>{i + 1}</td>
-                          <td>
-                            <strong>{m.name}</strong>
-                            {m.timing && <div className={styles.rxMedSub}>{m.timing}</div>}
-                          </td>
-                          <td>{m.dose || m.dosage}</td>
-                          <td>{m.frequency}</td>
-                          <td className={styles.rxMedDuration}>
-                            {m.duration}
-                            {m.start_from && <div className={styles.rxMedSub}>(From {m.start_from})</div>}
-                          </td>
-                          <td>{m.instructions}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {labInvLines.length > 0 && (
-                <div className={styles.rxInlineRow}>
-                  <span className={styles.rxInlineLabel}>PRESCRIBED LAB TESTS :&nbsp;</span>
-                  <span className={styles.rxInlineValue}>
-                    {labInvLines.map((l, i) => <div key={i}>{l}</div>)}
-                  </span>
-                </div>
-              )}
-
-              {labResultLines.length > 0 && (
-                <div className={styles.rxInlineRow}>
-                  <span className={styles.rxInlineLabel}>INVESTIGATIVE READINGS :&nbsp;</span>
-                  <span className={styles.rxInlineValue}>
-                    {labResultLines.map((l, i) => <div key={i}>{l}</div>)}
-                  </span>
-                </div>
-              )}
-
-              {form.examination_findings && <RxInlineRow label="EXAMINATION FINDINGS" value={form.examination_findings} />}
-              {form.notes       && <RxInlineRow label="NOTES"       value={form.notes} />}
-              {form.advices     && <RxInlineRow label="ADVICES"     value={form.advices} />}
-              {form.refer_to    && <RxInlineRow label="REFERRED TO" value={form.refer_to} />}
-              {(followupStr || form.next_visit_notes) && (
-                <RxInlineRow label="FOLLOWUP" value={[followupStr, form.next_visit_notes].filter(Boolean).join(' · ')} />
-              )}
-              {proceduresStr && <RxInlineRow label="PROCEDURES" value={proceduresStr} />}
-
-              {(form.custom_sections || []).filter(s => s.content).map(s => (
-                <RxInlineRow key={s.id} label={(s.title || 'NOTES').toUpperCase()} value={s.content} />
-              ))}
-
-              {form.canvasImage && (
-                <div style={{ marginTop: 8 }}>
-                  <img src={form.canvasImage} alt="Clinical drawing"
-                    style={{ width: '100%', borderRadius: 4, border: '1px solid #e2e8f0' }} />
-                </div>
-              )}
-            </div>
-
-            <hr className={styles.rxHr} />
-
-            {/* Footer */}
-            {rxImages.footerImg ? (
-              <div className={styles.rxPaperImgBlock}>
-                <img src={rxImages.footerImg} alt="Footer" className={styles.rxPaperImg} />
-              </div>
-            ) : (
-              <div className={styles.rxPaperFooter}>
-                <span>{user?.clinic_name || 'Clinic'}</span>
-                {user?.clinic_address && <span> · {user.clinic_address}</span>}
-                {user?.clinic_phone   && <span> · {user.clinic_phone}</span>}
-              </div>
-            )}
-          </div>
+          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Post-visit screen (shown after Finish Prescription) ───────────────────────
+function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint, onEndVisit }) {
+  const actions = [
+    { icon: <Share2    size={20} />, label: 'Send Attachment',       onClick: onPrint,     color: '#6366f1' },
+    { icon: <Calendar  size={20} />, label: 'Book Slot Again',       onClick: onBookAgain, color: '#0891b2' },
+    { icon: <Printer   size={20} />, label: 'Print',                 onClick: onPrint,     color: '#059669' },
+    { icon: <Download  size={20} />, label: 'Download',              onClick: onPrint,     color: '#7c3aed' },
+    { icon: <CreditCard size={20}/>, label: 'Send Payment Link',     onClick: () => {},    color: '#d97706' },
+    { icon: <FileText  size={20} />, label: 'Bill Patient',          onClick: () => {},    color: '#dc2626' },
+    { icon: <Star      size={20} />, label: 'Send Google Review',    onClick: () => {},    color: '#ca8a04' },
+  ];
+
+  return (
+    <div className={styles.postVisitWrap}>
+      {/* Success banner */}
+      <div className={styles.postVisitBanner}>
+        <CheckCircle size={18} strokeWidth={2.5} className={styles.postVisitBannerIcon} />
+        Prescription saved for <strong>{appt?.patient_name || 'Patient'}</strong>
+      </div>
+
+      {/* Two-column layout: prescription + actions */}
+      <div className={styles.postVisitLayout}>
+
+        {/* Left — prescription document */}
+        <div className={styles.postVisitRx}>
+          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} />
+        </div>
+
+        {/* Right — action panel */}
+        <div className={styles.postVisitPanel}>
+          <div className={styles.postVisitPanelTitle}>What's next?</div>
+
+          <div className={styles.postVisitGrid}>
+            {actions.map(({ icon, label, onClick, color }) => (
+              <button key={label} className={styles.postVisitActionBtn} onClick={onClick}
+                style={{ '--ac': color }}>
+                <span className={styles.postVisitActionIcon}>{icon}</span>
+                <span className={styles.postVisitActionLabel}>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          <button className={styles.postVisitEndBtn} onClick={onEndVisit}>
+            <LogOut size={16} strokeWidth={2.5} />
+            End Visit
+          </button>
+        </div>
+
       </div>
     </div>
   );
@@ -292,6 +252,7 @@ export default function WriteRx() {
   const [prescriptionMode,setPrescriptionMode] = useState(false);
   const [showPreview,     setShowPreview]     = useState(false);
   const [showConfigure,   setShowConfigure]   = useState(false);
+  const [showPostVisit,   setShowPostVisit]   = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
 
   const loadRxImages = useCallback(() => {
@@ -421,7 +382,7 @@ export default function WriteRx() {
         custom_sections:      form.custom_sections || [],
         canvas_image:         form.canvasImage || null,
       });
-      navigate('/queue');
+      setShowPostVisit(true);
     } catch (err) {
       setError(err.message);
       setSaving(false);
@@ -688,6 +649,34 @@ export default function WriteRx() {
       )}
     </div>
   );
+
+  const handleBookAgain = () => {
+    navigate(`/queue?bookAgain=${appt?.patient_id || ''}&name=${encodeURIComponent(appt?.patient_name || '')}`);
+  };
+
+  if (showPostVisit) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.topbar}>
+          <button className={styles.back} onClick={() => setShowPostVisit(false)}>
+            <ChevronLeft size={15} strokeWidth={2.5} /> Back
+          </button>
+          <div className={styles.patientInfo}>
+            <span className={styles.patientName}>{appt?.patient_name || 'Visit Complete'}</span>
+            {appt && <span className={styles.patientMeta}>{[appt.uhid, appt.visit_type].filter(Boolean).join(' · ')}</span>}
+          </div>
+        </div>
+        <div className={styles.content} style={{ overflow: 'auto' }}>
+          <PostVisitScreen
+            form={form} appt={appt} user={user} rxImages={rxImages}
+            onBookAgain={handleBookAgain}
+            onPrint={() => { setShowPostVisit(false); setTimeout(() => window.print(), 200); }}
+            onEndVisit={() => navigate('/queue')}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
