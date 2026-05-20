@@ -18,7 +18,9 @@ services:
     restart: unless-stopped
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: phr_backend
     env_file: .env
     environment:

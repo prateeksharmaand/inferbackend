@@ -8,6 +8,7 @@ export default defineConfig({
       '/api/emr': 'http://localhost:3000',
     },
   },
+  base: '/opd',
   build: {
     outDir: '../backend/public/opd',
     emptyOutDir: true,
