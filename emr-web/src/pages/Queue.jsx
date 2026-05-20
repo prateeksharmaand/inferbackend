@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useQueueDate } from '../context/QueueDateContext';
-import { Search, SlidersHorizontal, ArrowUpDown, MoreVertical, Plus, LayoutList, CalendarDays, X } from 'lucide-react';
+import { Search, SlidersHorizontal, Plus, LayoutList, CalendarDays, X } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
@@ -270,7 +270,6 @@ export default function Queue() {
                   className={`${styles.colAction} ${rightSearchOpen ? styles.colActionActive : ''}`}
                   title="Search" onClick={toggleRightSearch}
                 ><Search size={14} strokeWidth={2} /></button>
-                <button className={styles.colAction} title="Sort"><ArrowUpDown size={14} strokeWidth={2} /></button>
                 <div className={styles.filterWrap}>
                   <button
                     ref={rightFilterBtnRef}
@@ -289,7 +288,6 @@ export default function Queue() {
                     />
                   )}
                 </div>
-                <button className={styles.colAction} title="More"><MoreVertical size={14} strokeWidth={2} /></button>
               </div>
             </div>
 
