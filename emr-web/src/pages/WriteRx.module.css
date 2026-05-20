@@ -71,7 +71,12 @@
   box-shadow: var(--shadow); overflow: hidden;
 }
 
-/* Header */
+/* Header — image variant */
+.rxDocImgHeader { line-height: 0; }
+.rxDocImg       { width: 100%; display: block; object-fit: cover; }
+.rxDocImgFooter { border-top: 1px solid var(--color-border); line-height: 0; }
+
+/* Header — text variant */
 .rxDocHeader {
   background: var(--color-primary); color: #fff;
   padding: 18px 24px 14px; position: relative;
@@ -284,6 +289,11 @@
   padding: 0; border-radius: 8px; overflow: hidden;
   box-shadow: 0 4px 24px rgba(0,0,0,.12);
 }
+/* Paper header/footer — image variant */
+.rxPaperImgBlock { line-height: 0; }
+.rxPaperImg      { width: 100%; display: block; object-fit: cover; }
+
+/* Paper header — text variant */
 .rxPaperHeader {
   background: var(--color-primary); color: #fff;
   padding: 18px 28px 14px;

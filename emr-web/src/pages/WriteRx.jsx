@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, LayoutTemplate, Settings2,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import ConfigureInferPadModal from '../components/ConfigureInferPadModal';
 import styles from './WriteRx.module.css';
 
 const TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
@@ -27,7 +28,7 @@ const EMPTY_FORM = {
 };
 
 // ── Prescription preview / print modal ──────────────────────────────────────
-function PrescriptionPreview({ form, appt, user, onClose, onPrint }) {
+function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint }) {
   return (
     <div className={styles.previewOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.previewModal}>
@@ -43,11 +44,17 @@ function PrescriptionPreview({ form, appt, user, onClose, onPrint }) {
         <div className={styles.previewBody}>
           <div className={styles.rxPaper} id="rx-print-area">
             {/* Header */}
-            <div className={styles.rxPaperHeader}>
-              <div className={styles.rxPaperClinic}>{user?.clinic_name || 'Clinic'}</div>
-              {user?.clinic_address && <div className={styles.rxPaperAddr}>{user.clinic_address}</div>}
-              {user?.clinic_phone   && <div className={styles.rxPaperAddr}>{user.clinic_phone}</div>}
-            </div>
+            {rxImages.headerImg ? (
+              <div className={styles.rxPaperImgBlock}>
+                <img src={rxImages.headerImg} alt="Header" className={styles.rxPaperImg} />
+              </div>
+            ) : (
+              <div className={styles.rxPaperHeader}>
+                <div className={styles.rxPaperClinic}>{user?.clinic_name || 'Clinic'}</div>
+                {user?.clinic_address && <div className={styles.rxPaperAddr}>{user.clinic_address}</div>}
+                {user?.clinic_phone   && <div className={styles.rxPaperAddr}>{user.clinic_phone}</div>}
+              </div>
+            )}
 
             {/* Patient row */}
             <div className={styles.rxPaperPatient}>
@@ -193,11 +200,17 @@ function PrescriptionPreview({ form, appt, user, onClose, onPrint }) {
 
             {/* Footer */}
             <hr className={styles.rxPaperRule} />
-            <div className={styles.rxPaperFooter}>
-              <span>{user?.clinic_name || 'Clinic'}</span>
-              {user?.clinic_address && <span>{user.clinic_address}</span>}
-              {user?.clinic_phone   && <span>{user.clinic_phone}</span>}
-            </div>
+            {rxImages.footerImg ? (
+              <div className={styles.rxPaperImgBlock}>
+                <img src={rxImages.footerImg} alt="Footer" className={styles.rxPaperImg} />
+              </div>
+            ) : (
+              <div className={styles.rxPaperFooter}>
+                <span>{user?.clinic_name || 'Clinic'}</span>
+                {user?.clinic_address && <span>{user.clinic_address}</span>}
+                {user?.clinic_phone   && <span>{user.clinic_phone}</span>}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -226,7 +239,26 @@ export default function WriteRx() {
   const [tab,             setTab]             = useState('Overview');
   const [prescriptionMode,setPrescriptionMode] = useState(false);
   const [showPreview,     setShowPreview]     = useState(false);
+  const [showConfigure,   setShowConfigure]   = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
+
+  const loadRxImages = useCallback(() => {
+    const cid = user?.clinic_id || 'default';
+    return {
+      headerImg: localStorage.getItem(`rx_header_${cid}`) || '',
+      footerImg: localStorage.getItem(`rx_footer_${cid}`) || '',
+    };
+  }, [user?.clinic_id]);
+
+  const [rxImages, setRxImages] = useState(() => {
+    const cid = typeof window !== 'undefined'
+      ? (JSON.parse(localStorage.getItem('emr_user') || '{}')?.clinic_id || 'default')
+      : 'default';
+    return {
+      headerImg: localStorage.getItem(`rx_header_${cid}`) || '',
+      footerImg: localStorage.getItem(`rx_footer_${cid}`) || '',
+    };
+  });
 
   useEffect(() => {
     if (appointmentId === 'new') return;
@@ -324,12 +356,18 @@ export default function WriteRx() {
   const RxEditor = () => (
     <div className={styles.rxDoc}>
       {/* Clinic header */}
-      <div className={styles.rxDocHeader}>
-        <div className={styles.rxDocClinic}>{user?.clinic_name || 'Clinic'}</div>
-        {user?.clinic_address && <div className={styles.rxDocAddr}>{user.clinic_address}</div>}
-        {user?.clinic_phone   && <div className={styles.rxDocAddr}>{user.clinic_phone}</div>}
-        <div className={styles.rxDocTitle}>PRESCRIPTION</div>
-      </div>
+      {rxImages.headerImg ? (
+        <div className={styles.rxDocImgHeader}>
+          <img src={rxImages.headerImg} alt="Header" className={styles.rxDocImg} />
+        </div>
+      ) : (
+        <div className={styles.rxDocHeader}>
+          <div className={styles.rxDocClinic}>{user?.clinic_name || 'Clinic'}</div>
+          {user?.clinic_address && <div className={styles.rxDocAddr}>{user.clinic_address}</div>}
+          {user?.clinic_phone   && <div className={styles.rxDocAddr}>{user.clinic_phone}</div>}
+          <div className={styles.rxDocTitle}>PRESCRIPTION</div>
+        </div>
+      )}
 
       {/* Patient info */}
       {appt && (
@@ -533,11 +571,17 @@ export default function WriteRx() {
       </div>
 
       {/* Clinic footer */}
-      <div className={styles.rxDocFooter}>
-        <span>{user?.clinic_name || 'Clinic'}</span>
-        {user?.clinic_address && <span> · {user.clinic_address}</span>}
-        {user?.clinic_phone   && <span> · {user.clinic_phone}</span>}
-      </div>
+      {rxImages.footerImg ? (
+        <div className={styles.rxDocImgFooter}>
+          <img src={rxImages.footerImg} alt="Footer" className={styles.rxDocImg} />
+        </div>
+      ) : (
+        <div className={styles.rxDocFooter}>
+          <span>{user?.clinic_name || 'Clinic'}</span>
+          {user?.clinic_address && <span> · {user.clinic_address}</span>}
+          {user?.clinic_phone   && <span> · {user.clinic_phone}</span>}
+        </div>
+      )}
     </div>
   );
 
@@ -572,7 +616,9 @@ export default function WriteRx() {
           </nav>
           <div className={styles.linkBtns}>
             <button className={styles.linkBtn}><LayoutTemplate size={13} strokeWidth={1.8} /> Templates</button>
-            <button className={styles.linkBtn}><Settings2 size={13} strokeWidth={1.8} /> Configure your InferPad</button>
+            <button className={styles.linkBtn} onClick={() => setShowConfigure(true)}>
+              <Settings2 size={13} strokeWidth={1.8} /> Configure your InferPad
+            </button>
           </div>
         </div>
 
@@ -650,9 +696,19 @@ export default function WriteRx() {
 
       {showPreview && (
         <PrescriptionPreview
-          form={form} appt={appt} user={user}
+          form={form} appt={appt} user={user} rxImages={rxImages}
           onClose={() => setShowPreview(false)}
           onPrint={handlePrint}
+        />
+      )}
+
+      {showConfigure && (
+        <ConfigureInferPadModal
+          clinicId={user?.clinic_id || 'default'}
+          onClose={(saved) => {
+            setShowConfigure(false);
+            if (saved) setRxImages(loadRxImages());
+          }}
         />
       )}
     </>
