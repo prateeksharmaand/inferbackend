@@ -12,6 +12,10 @@ const ac      = require('./emr.autocomplete.controller');
 router.post('/auth/login',           auth.login);
 router.post('/auth/register-clinic', auth.registerClinic);
 
+// Autocomplete proxy (ICD-10 / RxTerms via NLM — public, avoids CSP)
+router.get('/autocomplete/icd10',   ac.searchICD10);
+router.get('/autocomplete/rxterms', ac.searchRxTerms);
+
 // ── Protected (all routes below require EMR JWT) ───────────────────────────
 router.use(emrAuth);
 
@@ -47,10 +51,6 @@ router.get   ('/tags',     tags.listTags);
 router.post  ('/tags',     tags.createTag);
 router.patch ('/tags/:id', tags.updateTag);
 router.delete('/tags/:id', tags.deleteTag);
-
-// Autocomplete proxy (ICD-10 / RxTerms via NLM — avoids CSP)
-router.get('/autocomplete/icd10',   ac.searchICD10);
-router.get('/autocomplete/rxterms', ac.searchRxTerms);
 
 // UHID Settings
 router.get ('/settings/uhid',          uhid.getSettings);

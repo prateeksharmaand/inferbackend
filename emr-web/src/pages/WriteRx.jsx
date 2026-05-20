@@ -13,6 +13,16 @@ import styles from './WriteRx.module.css';
 
 const TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
 
+const MED_HISTORY_LABELS = {
+  diabetes: 'Diabetes', hypertension: 'Hypertension', hypothyroidism: 'Hypothyroidism',
+  alcohol: 'Alcohol', tobacco: 'Tobacco', smoking: 'Smoking',
+};
+function medHistoryLabel(h) {
+  const label = MED_HISTORY_LABELS[h.key] || h.label || h.condition || h.key || '?';
+  const meta = [h.since, h.frequency].filter(Boolean).join(' · ');
+  return { label, meta };
+}
+
 const EMPTY_FORM = {
   vitals: {
     bp_systolic: '', bp_diastolic: '', temp: '', spo2: '', pulse: '',
@@ -98,12 +108,17 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
               )}
 
               {/* Medical History */}
-              {appt?.medical_history?.length > 0 && (
+              {form.medical_history?.length > 0 && (
                 <PrintSection title="Medical History">
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {appt.medical_history.map((h, i) => (
-                      <span key={i} className={styles.printChip}>{h.label || h.condition || JSON.stringify(h)}</span>
-                    ))}
+                    {form.medical_history.map((h, i) => {
+                      const { label, meta } = medHistoryLabel(h);
+                      return (
+                        <span key={i} className={styles.printChip}>
+                          {label}{meta && <span style={{ opacity:.7, fontSize:11 }}> ({meta})</span>}
+                        </span>
+                      );
+                    })}
                   </div>
                 </PrintSection>
               )}
@@ -494,16 +509,19 @@ export default function WriteRx() {
         </RxSection>
 
         {/* Patient Medical History (read-only from check-in) */}
-        {appt?.medical_history?.length > 0 && (
+        {form.medical_history?.length > 0 && (
           <RxSection title="Patient Medical History">
             <div className={styles.chipsRow}>
-              {appt.medical_history.map((h, i) => (
-                <span key={i} className={`${styles.chip} ${styles.chipReadOnly}`}>
-                  {h.label || h.condition || JSON.stringify(h)}
-                </span>
-              ))}
+              {form.medical_history.map((h, i) => {
+                const { label, meta } = medHistoryLabel(h);
+                return (
+                  <span key={i} className={`${styles.chip} ${styles.chipReadOnly}`}>
+                    {label}{meta && <span style={{ opacity:.7, fontSize:10 }}> ({meta})</span>}
+                  </span>
+                );
+              })}
             </div>
-            <p className={styles.fieldHint}>Collected at check-in — read only</p>
+            <p className={styles.fieldHint}>Collected at check-in — editable in InferPad</p>
           </RxSection>
         )}
 

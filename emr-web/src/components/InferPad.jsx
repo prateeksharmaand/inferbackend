@@ -174,7 +174,7 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 2 — Patient Medical History (same grid as Check-In) */}
-      <ICard title="Patient Medical History" icon="📋" color="#64748b" defaultOpen={false}>
+      <ICard title="Patient Medical History" icon="📋" color="#64748b">
         <MedicalHistorySection
           value={form.medical_history || []}
           onChange={v => set('medical_history', v)}
@@ -182,7 +182,7 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 3 — Symptoms (ICD-10 + since + severity) */}
-      <ICard title="Symptoms" icon="🤒" color="#f59e0b" defaultOpen={false}>
+      <ICard title="Symptoms" icon="🤒" color="#f59e0b">
         <div className={styles.chips}>
           {form.symptoms.map((s, i) => {
             const name = typeof s === 'string' ? s : s.name;
@@ -225,7 +225,7 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 4 — Diagnosis (ICD-10 + since + severity) */}
-      <ICard title="Diagnosis" icon="🔬" color="#eab308" defaultOpen={false}>
+      <ICard title="Diagnosis" icon="🔬" color="#eab308">
         <div className={styles.chips}>
           {form.diagnosis.map((d, i) => (
             <span key={i} className={`${styles.chip} ${styles.chipDiag}`}>
@@ -266,7 +266,7 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 5 — Medications (expanded fields) */}
-      <ICard title="℞  Medications" icon="💊" color="#8b5cf6" defaultOpen={false}>
+      <ICard title="℞  Medications" icon="💊" color="#8b5cf6">
         <div className={styles.medList}>
           {form.medications.map((m, i) => (
             <div key={i} className={styles.medCard}>
@@ -337,7 +337,7 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 6 — Lab Investigations */}
-      <ICard title="Lab Investigations" icon="🧪" color="#0891b2" defaultOpen={false}>
+      <ICard title="Lab Investigations" icon="🧪" color="#0891b2">
         <div className={styles.labInvList}>
           {form.lab_investigations.map((l, i) => {
             const isStr = typeof l === 'string';
@@ -380,7 +380,7 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 7 — Lab Results */}
-      <ICard title="Lab Results" icon="📊" color="#06b6d4" defaultOpen={false}>
+      <ICard title="Lab Results" icon="📊" color="#06b6d4">
         <div className={styles.tableWrap}>
           {form.lab_results.length > 0 && (
             <div className={styles.table}>
@@ -404,14 +404,14 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 8 — Examination Findings */}
-      <ICard title="Examination Findings" icon="🩻" color="#6366f1" defaultOpen={false}>
+      <ICard title="Examination Findings" icon="🩻" color="#6366f1">
         <textarea rows={3} placeholder="Clinical findings on examination…"
           value={form.examination_findings || ''}
           onChange={e => set('examination_findings', e.target.value)} />
       </ICard>
 
       {/* 9 — Notes (current + past) */}
-      <ICard title="Notes" icon="🔒" color="#d97706" badge="Private" defaultOpen={false}>
+      <ICard title="Notes" icon="🔒" color="#d97706" badge="Private">
         <div className={styles.notesSection}>
           <div className={styles.notesSectionHead}>
             <span className={styles.notesSectionTitle}>Current Visit Notes</span>
@@ -455,14 +455,14 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 10 — Refer to a Doctor */}
-      <ICard title="Refer to a Doctor" icon="🏥" color="#ef4444" defaultOpen={false}>
+      <ICard title="Refer to a Doctor" icon="🏥" color="#ef4444">
         <input placeholder="e.g. Cardiologist — Dr. Mehta, Apollo Hospital"
           value={form.refer_to || ''}
           onChange={e => set('refer_to', e.target.value)} />
       </ICard>
 
       {/* 11 — Follow Up */}
-      <ICard title="Follow Up" icon="📅" color="#16a34a" defaultOpen={false}>
+      <ICard title="Follow Up" icon="📅" color="#16a34a">
         <div className={styles.twoCol}>
           <div className={styles.fg}>
             <label>Date</label>
@@ -479,14 +479,14 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       </ICard>
 
       {/* 12 — Advices */}
-      <ICard title="Advices" icon="💡" color="#10b981" defaultOpen={false}>
+      <ICard title="Advices" icon="💡" color="#10b981">
         <textarea rows={3} placeholder="Diet, lifestyle, patient instructions…"
           value={form.advices || ''}
           onChange={e => set('advices', e.target.value)} />
       </ICard>
 
       {/* 13 — Procedures */}
-      <ICard title="Procedures" icon="⚕️" color="#7c3aed" defaultOpen={false}>
+      <ICard title="Procedures" icon="⚕️" color="#7c3aed">
         <div className={styles.chips}>
           {form.procedures.map((p, i) => (
             <span key={i} className={`${styles.chip} ${styles.chipProc}`}>
