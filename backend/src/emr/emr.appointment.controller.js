@@ -130,7 +130,7 @@ const getAppointment = async (req, res) => {
        e.chief_complaint, e.symptoms, e.diagnosis, e.medications, e.instructions,
        e.next_visit_date, e.next_visit_notes, e.vitals,
        e.lab_investigations, e.lab_results, e.examination_findings,
-       e.notes, e.refer_to, e.advices, e.procedures
+       e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image
      FROM emr_appointments a
      LEFT JOIN emr_doctors d ON d.id = a.doctor_id
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
@@ -147,7 +147,7 @@ const saveEncounter = async (req, res) => {
     chief_complaint, symptoms, diagnosis, medications,
     instructions, next_visit_date, next_visit_notes, vitals,
     lab_investigations, lab_results, examination_findings,
-    notes, refer_to, advices, procedures,
+    notes, refer_to, advices, procedures, canvas_image,
   } = req.body;
 
   const appt = await pool.query(
@@ -200,8 +200,8 @@ const saveEncounter = async (req, res) => {
         chief_complaint, symptoms, diagnosis, medications,
         instructions, next_visit_date, next_visit_notes, vitals, fhir_bundle,
         lab_investigations, lab_results, examination_findings,
-        notes, refer_to, advices, procedures)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+        notes, refer_to, advices, procedures, canvas_image)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
      ON CONFLICT (appointment_id) DO UPDATE SET
        chief_complaint      = EXCLUDED.chief_complaint,
        symptoms             = EXCLUDED.symptoms,
@@ -219,6 +219,7 @@ const saveEncounter = async (req, res) => {
        refer_to             = EXCLUDED.refer_to,
        advices              = EXCLUDED.advices,
        procedures           = EXCLUDED.procedures,
+       canvas_image         = EXCLUDED.canvas_image,
        updated_at           = NOW()
      RETURNING *`,
     [
@@ -237,6 +238,7 @@ const saveEncounter = async (req, res) => {
       refer_to || null,
       advices || null,
       JSON.stringify(procedures || []),
+      canvas_image || null,
     ]
   );
 

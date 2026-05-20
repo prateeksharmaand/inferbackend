@@ -7,6 +7,7 @@ import {
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfigureInferPadModal from '../components/ConfigureInferPadModal';
+import DrawingCanvas from '../components/DrawingCanvas';
 import styles from './WriteRx.module.css';
 
 const TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
@@ -25,6 +26,7 @@ const EMPTY_FORM = {
   next_visit_notes: '',
   advices: '',
   procedures: [],       procInput: '',
+  canvasImage: '',
 };
 
 // ── Prescription preview / print modal ──────────────────────────────────────
@@ -196,6 +198,14 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
                   {form.procedures.map((p, i) => <div key={i} className={styles.printBullet}>• {p}</div>)}
                 </PrintSection>
               )}
+
+              {/* Canvas drawing */}
+              {form.canvasImage && (
+                <PrintSection title="Drawing / Diagram">
+                  <img src={form.canvasImage} alt="Clinical drawing"
+                    style={{ width: '100%', borderRadius: 4, border: '1px solid #e2e8f0' }} />
+                </PrintSection>
+              )}
             </div>
 
             {/* Footer */}
@@ -281,6 +291,7 @@ export default function WriteRx() {
           next_visit_notes:     data.next_visit_notes || '',
           advices:              data.advices || data.instructions || '',
           procedures:           data.procedures || [],
+          canvasImage:          data.canvas_image || '',
         }));
       }
     }).catch(() => {});
@@ -344,6 +355,7 @@ export default function WriteRx() {
         notes:                form.notes,
         refer_to:             form.refer_to,
         procedures:           form.procedures,
+        canvas_image:         form.canvasImage || null,
       });
       navigate('/queue');
     } catch (err) {
@@ -570,6 +582,18 @@ export default function WriteRx() {
 
       </div>
 
+        {/* Canvas drawing */}
+        {form.canvasImage && (
+          <RxSection title="Drawing / Diagram">
+            <img src={form.canvasImage} alt="Clinical drawing"
+              style={{ width: '100%', borderRadius: 6, border: '1px solid #e2e8f0' }} />
+            <button style={{ marginTop: 6, background: 'none', border: 'none', color: '#dc2626', fontSize: 12, cursor: 'pointer' }}
+              onClick={() => set('canvasImage', '')}>✕ Remove drawing</button>
+          </RxSection>
+        )}
+
+      </div>
+
       {/* Clinic footer */}
       {rxImages.footerImg ? (
         <div className={styles.rxDocImgFooter}>
@@ -713,10 +737,10 @@ export default function WriteRx() {
           )}
 
           {tab === 'Canvas' && (
-            <div className={styles.placeholder}>
-              <span className={styles.placeholderIcon}>🎨</span>
-              <p>Canvas coming soon</p>
-            </div>
+            <DrawingCanvas
+              initialImage={form.canvasImage || null}
+              onSave={img => set('canvasImage', img)}
+            />
           )}
 
           {tab === 'Medical Records' && (
