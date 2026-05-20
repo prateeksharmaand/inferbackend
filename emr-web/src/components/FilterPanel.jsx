@@ -92,7 +92,7 @@ export default function FilterPanel({ filters, onChange, onClose, clinicTags = [
               )}
             </div>
 
-            <div className={styles.tagList}>
+            {(tagSearch.trim() || activeTagId) && <div className={styles.tagList}>
               {filteredTags.length === 0 && (
                 <span className={styles.tagEmpty}>No tags match</span>
               )}
@@ -111,7 +111,7 @@ export default function FilterPanel({ filters, onChange, onClose, clinicTags = [
                   </button>
                 );
               })}
-            </div>
+            </div>}
           </div>
         )}
       </div>
