@@ -4,6 +4,12 @@ import styles from './BookAppointmentModal.module.css';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
+const ATTR_TYPES = {
+  1:  { label: 'Tags',                        multi: true  },
+  2:  { label: 'Labels',                       multi: false },
+  16: { label: 'Medical Record Document Type', multi: true  },
+};
+
 export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
   const [queues,      setQueues]      = useState([]);
   const [doctors,     setDoctors]     = useState([]);
@@ -33,11 +39,27 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
       .catch(() => {});
   }, []);
 
-  const toggleTag = (tagId) => {
-    setSelectedTags(prev =>
-      prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
-    );
+  const toggleTag = (tag) => {
+    const isMulti = ATTR_TYPES[tag.attr_type]?.multi ?? true;
+    setSelectedTags(prev => {
+      if (isMulti) {
+        return prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id];
+      }
+      // Single-select: deselect others of same type, toggle this one
+      const sameType = clinicTags.filter(t => t.attr_type === tag.attr_type).map(t => t.id);
+      const withoutType = prev.filter(id => !sameType.includes(id));
+      return prev.includes(tag.id) ? withoutType : [...withoutType, tag.id];
+    });
   };
+
+  // Group tags by attr_type for display
+  const tagGroups = Object.entries(ATTR_TYPES)
+    .map(([typeId, meta]) => ({
+      typeId: parseInt(typeId, 10),
+      ...meta,
+      items: clinicTags.filter(t => t.attr_type === parseInt(typeId, 10)),
+    }))
+    .filter(g => g.items.length > 0);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -125,26 +147,33 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {} }) {
             </div>
           </div>
 
-          {clinicTags.length > 0 && (
-            <div className={styles.field}>
-              <label>Tags</label>
-              <div className={styles.tagChips}>
-                {clinicTags.map(t => {
-                  const active = selectedTags.includes(t.id);
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      className={`${styles.tagChip} ${active ? styles.tagChipActive : ''}`}
-                      style={active ? { background: t.color, borderColor: t.color, color: '#fff' }
-                                    : { borderColor: t.color, color: t.color }}
-                      onClick={() => toggleTag(t.id)}
-                    >
-                      {t.display_name}
-                    </button>
-                  );
-                })}
-              </div>
+          {tagGroups.length > 0 && (
+            <div className={styles.attrSection}>
+              {tagGroups.map(group => (
+                <div key={group.typeId} className={styles.field}>
+                  <label>
+                    {group.label}
+                    <span className={styles.attrBehavior}>{group.multi ? 'Multi-select' : 'Single-select'}</span>
+                  </label>
+                  <div className={styles.tagChips}>
+                    {group.items.map(t => {
+                      const active = selectedTags.includes(t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          className={`${styles.tagChip} ${active ? styles.tagChipActive : ''}`}
+                          style={active ? { background: t.color, borderColor: t.color, color: '#fff' }
+                                        : { borderColor: t.color, color: t.color }}
+                          onClick={() => toggleTag(t)}
+                        >
+                          {t.display_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
