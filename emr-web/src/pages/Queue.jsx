@@ -105,6 +105,8 @@ export default function Queue() {
   const [leftSortOpen,  setLeftSortOpen]  = useState(false);
   const [rightSort,     setRightSort]     = useState('token_asc');
   const [rightSortOpen, setRightSortOpen] = useState(false);
+  const leftSortRef  = useRef(null);
+  const rightSortRef = useRef(null);
 
   const [vitalsAppt, setVitalsAppt] = useState(null);
 
@@ -150,6 +152,20 @@ export default function Queue() {
       completed: update(prev.completed),
     }));
   };
+
+  useEffect(() => {
+    if (!leftSortOpen) return;
+    const h = (e) => { if (leftSortRef.current && !leftSortRef.current.contains(e.target)) setLeftSortOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [leftSortOpen]);
+
+  useEffect(() => {
+    if (!rightSortOpen) return;
+    const h = (e) => { if (rightSortRef.current && !rightSortRef.current.contains(e.target)) setRightSortOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [rightSortOpen]);
 
   const toggleLeftSearch = () => {
     const next = !leftSearchOpen;
@@ -222,7 +238,7 @@ export default function Queue() {
                   className={`${styles.colAction} ${leftSearchOpen ? styles.colActionActive : ''}`}
                   title="Search" onClick={toggleLeftSearch}
                 ><Search size={14} strokeWidth={2} /></button>
-                <div className={styles.filterWrap}>
+                <div className={styles.filterWrap} ref={leftSortRef}>
                   <button
                     className={`${styles.colAction} ${leftSort !== 'token_asc' ? styles.colActionActive : ''}`}
                     title="Sort" onClick={() => setLeftSortOpen(v => !v)}
@@ -318,7 +334,7 @@ export default function Queue() {
                   className={`${styles.colAction} ${rightSearchOpen ? styles.colActionActive : ''}`}
                   title="Search" onClick={toggleRightSearch}
                 ><Search size={14} strokeWidth={2} /></button>
-                <div className={styles.filterWrap}>
+                <div className={styles.filterWrap} ref={rightSortRef}>
                   <button
                     className={`${styles.colAction} ${rightSort !== 'token_asc' ? styles.colActionActive : ''}`}
                     title="Sort" onClick={() => setRightSortOpen(v => !v)}

@@ -38,6 +38,7 @@ export default function TopBar() {
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [patients,    setPatients]    = useState([]);
   const [searching,   setSearching]   = useState(false);
+  const addRef       = useRef(null);
   const searchRef    = useRef(null);
   const searchInput  = useRef(null);
   const debounceRef  = useRef(null);
@@ -128,7 +129,15 @@ export default function TopBar() {
     debounceRef.current = setTimeout(() => doSearch(val), 300);
   };
 
-  // Close on outside click
+  // Close Add New on outside click
+  useEffect(() => {
+    if (!showAdd) return;
+    const h = (e) => { if (addRef.current && !addRef.current.contains(e.target)) setShowAdd(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [showAdd]);
+
+  // Close search on outside click
   useEffect(() => {
     const handler = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
@@ -160,7 +169,7 @@ export default function TopBar() {
         </div>
 
         <div className={styles.right}>
-          <div className={styles.addWrap}>
+          <div className={styles.addWrap} ref={addRef}>
             <button className={styles.addBtn} onClick={() => setShowAdd(v => !v)}>
               Add New <Plus size={16} strokeWidth={2.5} />
             </button>
