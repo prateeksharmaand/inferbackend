@@ -144,6 +144,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
   const reminder = appt.status === 'booked' ? reminderTime(appt.appointment_time) : null;
   const gender   = appt.patient_gender === 'M' ? 'Male' : appt.patient_gender === 'F' ? 'Female' : appt.patient_gender;
+  const age      = appt.patient_dob
+    ? Math.floor((Date.now() - new Date(appt.patient_dob)) / (365.25 * 24 * 60 * 60 * 1000))
+    : null;
 
   return (
     <>
@@ -154,7 +157,14 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           {/* ── Row 1: token · name · status · edit ── */}
           <div className={styles.row1}>
             <span className={styles.token}>#{appt.token_number}</span>
-            <span className={styles.name}>{appt.patient_name}</span>
+            <span className={styles.name}>
+              {appt.patient_name}
+              {(appt.patient_gender || age !== null) && (
+                <span className={styles.nameMeta}>
+                  {appt.patient_gender && appt.patient_gender}{age !== null && `, ${age}y`}
+                </span>
+              )}
+            </span>
             <div className={styles.row1Right}>
               {appt.status === 'ongoing' && appt.checked_in_at
                 ? <ConsultTimer since={appt.checked_in_at} />
