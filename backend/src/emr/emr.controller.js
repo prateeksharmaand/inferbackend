@@ -188,12 +188,27 @@ const createConsentRequest = async (req, res) => {
   );
 
   const requestId = result.consentRequest?.id ?? abdmSvc.uuid();
+
   await pool.query(
     `INSERT INTO emr_consent_requests
        (clinic_id, request_id, patient_abha, hip_id, hiu_id, purpose, hi_types)
      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
     [clinicId, requestId, patientAbha, hipId, hiuId, purpose, hiTypes]
   );
+
+  // Mirror into consent_requests so the patient sees it in the Flutter app
+  const { rows: userRows } = await pool.query(
+    `SELECT user_id FROM abha_accounts WHERE abha_address=$1 LIMIT 1`,
+    [patientAbha]
+  );
+  if (userRows.length) {
+    await pool.query(
+      `INSERT INTO consent_requests (user_id, request_id, hiu_id, purpose, status)
+       VALUES ($1,$2,$3,$4,'REQUESTED') ON CONFLICT (request_id) DO NOTHING`,
+      [userRows[0].user_id, requestId, hiuId, purpose]
+    );
+  }
+
   res.json({ requestId, ...result });
 };
 
