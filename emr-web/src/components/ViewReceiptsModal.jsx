@@ -222,11 +222,17 @@ export default function ViewReceiptsModal({ appt, receipts: initialReceipts, onC
                     </span>
                     <span className={styles.tdAmount}>₹{parseFloat(r.grand_total || 0).toFixed(0)}</span>
                     <span className={styles.tdActions}>
-                      <button className={styles.actView}   onClick={() => setViewReceipt(r)}>View</button>
-                      <button className={styles.actEdit}   onClick={() => {}}>Edit</button>
-                      <button className={styles.actDelete} onClick={() => handleDelete(r)} disabled={deleting === r.id}>
-                        {deleting === r.id ? '…' : 'Delete'}
-                      </button>
+                      <button className={styles.actView} onClick={() => setViewReceipt(r)}>View</button>
+                      {r.payment_status === 'unbilled' ? (
+                        <>
+                          <button className={styles.actEdit} onClick={() => {}}>Edit</button>
+                          <button className={styles.actDelete} onClick={() => handleDelete(r)} disabled={deleting === r.id}>
+                            {deleting === r.id ? '…' : 'Delete'}
+                          </button>
+                        </>
+                      ) : (
+                        <span className={styles.actLocked} title="Cannot edit or delete a settled receipt">Locked</span>
+                      )}
                     </span>
                   </div>
                 );
