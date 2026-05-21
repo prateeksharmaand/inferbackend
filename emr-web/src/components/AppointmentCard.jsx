@@ -125,7 +125,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
   return (
     <>
-      <div className={styles.card} onClick={() => onOpen('rx')}>
+      <div className={styles.card}>
         <div className={styles.stripe} style={{ background: color }} />
         <div className={styles.body}>
 
