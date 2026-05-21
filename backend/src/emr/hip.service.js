@@ -65,14 +65,14 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, 
   const body = {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
-    acknowledgement: { status: 'SUCCESS', abhaAddress },
+    acknowledgement: { status: 'SUCCESS' },
     response: { requestId },
     profile: {
       patient: {
-        healthId: abhaAddress,
+        abhaAddress,
         name,
         gender,
-        yearOfBirth,
+        yearOfBirth: yearOfBirth ? parseInt(yearOfBirth, 10) : null,
       },
       hip: { id: HIP_ID },
     },
