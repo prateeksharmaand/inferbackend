@@ -5,6 +5,7 @@ import { useQueueDate } from '../context/QueueDateContext';
 import { Search, SlidersHorizontal, ArrowUpDown, Plus, LayoutList, CalendarDays, X, Check } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
 import QuickVitalsModal from '../components/QuickVitalsModal';
+import RxPrintModal from '../components/RxPrintModal';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
 import styles from './Queue.module.css';
@@ -109,6 +110,7 @@ export default function Queue() {
   const rightSortRef = useRef(null);
 
   const [vitalsAppt, setVitalsAppt] = useState(null);
+  const [printAppt,  setPrintAppt]  = useState(null);
 
   useEffect(() => {
     Promise.all([api.get('/queues'), api.get('/tags')])
@@ -308,7 +310,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
-                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else navigate(action === 'print' ? `/rx/${a.id}?print=1` : `/rx/${a.id}`); }}
+                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else navigate(`/rx/${a.id}`); }}
                 />
               ))}
             </div>
@@ -407,7 +409,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
-                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else navigate(action === 'print' ? `/rx/${a.id}?print=1` : `/rx/${a.id}`); }}
+                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else navigate(`/rx/${a.id}`); }}
                 />
               ))}
             </div>
@@ -428,6 +430,12 @@ export default function Queue() {
           appt={vitalsAppt}
           onClose={() => setVitalsAppt(null)}
           onSaved={() => { setVitalsAppt(null); fetchBoard(); }}
+        />
+      )}
+      {printAppt && (
+        <RxPrintModal
+          appt={printAppt}
+          onClose={() => setPrintAppt(null)}
         />
       )}
     </div>
