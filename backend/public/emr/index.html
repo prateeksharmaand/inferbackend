@@ -625,15 +625,16 @@
       <div class="modal-body">
         <!-- Method tabs -->
         <ul class="nav nav-pills nav-fill mb-3" id="verify-tabs">
-          <li class="nav-item"><a class="nav-link active" href="#" onclick="switchVerifyTab('abha-num',this);return false"><i class="bi bi-123 me-1"></i>By ABHA Number</a></li>
+          <li class="nav-item"><a class="nav-link active" href="#" onclick="switchVerifyTab('abha-num',this);return false"><i class="bi bi-at me-1"></i>By ABHA Address</a></li>
           <li class="nav-item"><a class="nav-link" href="#" onclick="switchVerifyTab('mobile',this);return false"><i class="bi bi-phone me-1"></i>By Mobile</a></li>
         </ul>
 
         <!-- By ABHA Number -->
         <div id="verify-tab-abha-num">
           <div class="mb-3">
-            <label class="form-label fw-semibold">ABHA Number <span class="text-danger">*</span></label>
-            <input id="verify-abha-id" type="text" class="form-control" placeholder="91-1234-5678-9012">
+            <label class="form-label fw-semibold">ABHA Address <span class="text-danger">*</span></label>
+            <input id="verify-abha-id" type="text" class="form-control" placeholder="yourname@abdm">
+            <div class="form-text">e.g. pksharma@abdm — OTP will be sent to linked mobile</div>
           </div>
           <div id="verify-otp-row-num" class="mb-3 d-none">
             <label class="form-label fw-semibold">OTP <span class="text-danger">*</span></label>

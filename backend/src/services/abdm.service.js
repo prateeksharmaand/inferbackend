@@ -164,7 +164,7 @@ async function verifyAadhaarOtp(otp, txnId, mobile) {
 async function generateMobileLoginOtp(mobile) {
   const encryptedId = await rsaEncrypt(mobile);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    scope: ['profile'],
+    scope: 'abha-login',
     loginHint: 'mobile',
     loginId: encryptedId,
     otpSystem: 'abdm',
@@ -174,7 +174,7 @@ async function generateMobileLoginOtp(mobile) {
 async function verifyMobileLoginOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
-    scope: ['profile'],
+    scope: 'abha-login',
     authData: {
       authMethods: ['otp'],
       otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
@@ -184,12 +184,11 @@ async function verifyMobileLoginOtp(otp, txnId) {
 
 // ─── M1: ABHA Login ───────────────────────────────────────────────────────────
 
-async function loginRequestOtp(abhaId) {
-  const normalised = abhaId.replace(/-/g, '');
-  const encryptedId = await rsaEncrypt(normalised);
+async function loginRequestOtp(abhaAddress) {
+  const encryptedId = await rsaEncrypt(abhaAddress);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
     scope: 'abha-login',
-    loginHint: 'abha-number',
+    loginHint: 'abha-address',
     loginId: encryptedId,
     otpSystem: 'abdm',
   });
