@@ -272,51 +272,74 @@ async function linkConfirm(linkRefNumber, token) {
 
 async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, yearOfBirth) {
   const token = await getGatewayToken();
-  const res = await axios.post(
-    `${ABDM_HIECM}/v3/token/generate-token`,
-    { abhaNumber: Number(String(abhaNumber).replace(/-/g, '')), abhaAddress, name, gender, yearOfBirth },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-CM-ID': 'sbx',
-        'X-HIP-ID': hipId,
-        'REQUEST-ID': uuid(),
-        TIMESTAMP: new Date().toISOString(),
-      },
-    }
-  );
-  return res.data;
+  const cleanAbha = String(abhaNumber).replace(/-/g, '');
+  const body = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) ?? 1990 };
+  logger.info('generateLinkToken request', { hipId, cleanAbha, abhaAddress, gender, yearOfBirth });
+  try {
+    const res = await axios.post(
+      `${ABDM_HIECM}/v3/token/generate-token`,
+      body,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-CM-ID': 'sbx',
+          'X-HIP-ID': hipId,
+          'REQUEST-ID': uuid(),
+          TIMESTAMP: new Date().toISOString(),
+        },
+      }
+    );
+    return res.data;
+  } catch (err) {
+    const body = err.response?.data;
+    logger.error('generateLinkToken FAILED', { status: err.response?.status, body });
+    const fwd = new Error(`ABDM link token failed: ${body ? JSON.stringify(body) : err.message}`);
+    fwd.status = err.response?.status ?? 502;
+    throw fwd;
+  }
 }
 
-async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, careContexts) {
+async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts) {
   const token = await getGatewayToken();
-  const res = await axios.post(
-    `${ABDM_HIECM}/hip/v3/link/carecontext`,
-    {
-      abhaNumber: String(abhaNumber).replace(/-/g, ''),
-      abhaAddress,
-      patient: careContexts.map(ctx => ({
+  const cleanAbha = String(abhaNumber).replace(/-/g, '');
+  const body = {
+    abhaNumber: cleanAbha,
+    abhaAddress,
+    patient: {
+      referenceNumber: cleanAbha,
+      display: name ?? abhaAddress ?? cleanAbha,
+      careContexts: careContexts.map(ctx => ({
         referenceNumber: ctx.referenceNumber,
         display: ctx.display,
-        careContexts: [{ referenceNumber: ctx.referenceNumber, display: ctx.display }],
-        hiType: ctx.hiType ?? 'OPConsultation',
-        count: 1,
       })),
     },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-CM-ID': 'sbx',
-        'X-HIP-ID': hipId,
-        'X-LINK-TOKEN': linkToken,
-        'REQUEST-ID': uuid(),
-        TIMESTAMP: new Date().toISOString(),
-      },
-    }
-  );
-  return res.data;
+  };
+  logger.info('linkCareContexts request', { hipId, cleanAbha, contextCount: careContexts.length });
+  try {
+    const res = await axios.post(
+      `${ABDM_HIECM}/hip/v3/link/carecontext`,
+      body,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-CM-ID': 'sbx',
+          'X-HIP-ID': hipId,
+          'X-LINK-TOKEN': linkToken,
+          'REQUEST-ID': uuid(),
+          TIMESTAMP: new Date().toISOString(),
+        },
+      }
+    );
+    return res.data;
+  } catch (err) {
+    const errBody = err.response?.data;
+    logger.error('linkCareContexts FAILED', { status: err.response?.status, body: errBody });
+    const fwd = new Error(`ABDM link carecontext failed: ${errBody ? JSON.stringify(errBody) : err.message}`);
+    fwd.status = err.response?.status ?? 502;
+    throw fwd;
+  }
 }
 
 // ─── M2: Consent request ──────────────────────────────────────────────────────

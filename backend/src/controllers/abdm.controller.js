@@ -357,7 +357,7 @@ const linkCareContexts = async (req, res) => {
     hipId, abha_number, abha_address, name,
     patientGender ?? 'M', patientYearOfBirth ?? 1990
   );
-  const result = await abdm.linkCareContexts(hipId, tokenRes.linkToken, abha_number, abha_address, careContexts);
+  const result = await abdm.linkCareContexts(hipId, tokenRes.linkToken, abha_number, abha_address, name, careContexts);
 
   for (const ctx of careContexts) {
     await pool.query(
