@@ -62,13 +62,16 @@ async function hiecmPost(path, body) {
 }
 
 async function sendShareProfileAck({ requestId, tokenNumber }) {
+  const expiry = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   await hiecmPost('/patient-share/v3/on-share', {
-    requestId,
+    requestId: uuid(),
     timestamp: new Date().toISOString(),
     acknowledgement: { status: 'SUCCESS' },
+    response: { requestId },
     token: {
       number: String(tokenNumber),
       type: 'OPD',
+      expiry,
     },
   });
 }
