@@ -226,7 +226,7 @@
     </div>
     <div class="card-body p-0">
       <table class="table table-sm mb-0">
-        <thead><tr><th>Request ID</th><th>Patient ABHA</th><th>HIP</th><th>Purpose</th><th>Status</th><th>Created</th></tr></thead>
+        <thead><tr><th>Request ID</th><th>Patient ABHA</th><th>HIP</th><th>Purpose</th><th>Status</th><th>Source</th><th>Created</th></tr></thead>
         <tbody id="consents-tbody"><tr><td colspan="6" class="text-center py-4 text-muted">No consent requests yet</td></tr></tbody>
       </table>
     </div>
@@ -710,7 +710,7 @@ async function loadConsents() {
   const tbody = document.getElementById('consents-tbody');
   try {
     const consents = await api('GET', '/consents');
-    if (!consents.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No consent requests yet</td></tr>'; return; }
+    if (!consents.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No consent requests yet</td></tr>'; return; }
     tbody.innerHTML = consents.map(c => `
       <tr>
         <td class="small font-monospace">${c.request_id?.slice(0,16)}…</td>
@@ -718,9 +718,10 @@ async function loadConsents() {
         <td class="small">${esc(c.hip_id || '—')}</td>
         <td class="small">${esc(c.purpose || '—')}</td>
         <td><span class="badge bg-${STATUS_COLOR[c.status] || 'secondary'}">${c.status}</span></td>
+        <td><span class="badge bg-${c.source==='app'?'info':'accent'} text-dark">${c.source==='app'?'Flutter App':'EMR'}</span></td>
         <td class="small">${new Date(c.created_at).toLocaleString()}</td>
       </tr>`).join('');
-  } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="text-danger p-3">${e.message}</td></tr>`; }
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="7" class="text-danger p-3">${e.message}</td></tr>`; }
 }
 
 async function loadConsentHealthRecords() {

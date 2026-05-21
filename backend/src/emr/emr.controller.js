@@ -199,7 +199,12 @@ const createConsentRequest = async (req, res) => {
 
 const listConsentRequests = async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT * FROM emr_consent_requests WHERE clinic_id=$1 ORDER BY created_at DESC LIMIT 50`,
+    `SELECT request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, status, transaction_id, artefacts, created_at, updated_at, 'emr' AS source
+     FROM emr_consent_requests WHERE clinic_id=$1
+     UNION ALL
+     SELECT request_id, NULL AS patient_abha, NULL AS hip_id, hiu_id, purpose, NULL AS hi_types, status, transaction_id, NULL AS artefacts, created_at, updated_at, 'app' AS source
+     FROM consent_requests
+     ORDER BY created_at DESC LIMIT 100`,
     [req.emrUser.clinic_id]
   );
   res.json(rows);
@@ -209,8 +214,11 @@ const getConsentHealthRecords = async (req, res) => {
   const { rows } = await pool.query(
     `SELECT hr.*
      FROM health_records hr
-     JOIN emr_consent_requests ecr ON ecr.transaction_id = hr.transaction_id
-     WHERE ecr.clinic_id=$1
+     WHERE hr.transaction_id IN (
+       SELECT transaction_id FROM emr_consent_requests WHERE clinic_id=$1 AND transaction_id IS NOT NULL
+       UNION
+       SELECT transaction_id FROM consent_requests WHERE transaction_id IS NOT NULL
+     )
      ORDER BY hr.received_at DESC LIMIT 100`,
     [req.emrUser.clinic_id]
   );
