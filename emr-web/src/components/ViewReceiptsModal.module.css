@@ -150,8 +150,9 @@
 .rxTable td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; color: #374151; }
 .rxThN  { width: 44px; text-align: center; }
 .rxThR  { width: 80px; text-align: right; }
-.rxTdN  { text-align: center; }
-.rxTdR  { text-align: right; }
+.rxTdN      { text-align: center; }
+.rxTdR      { text-align: right; }
+.capitalize { text-transform: capitalize; }
 .rxTotals {
   padding: 10px 18px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #e2e8f0;
 }

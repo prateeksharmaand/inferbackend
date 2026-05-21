@@ -68,7 +68,7 @@ function ReceiptDocumentView({ receipt, appt, user, rxImages, onClose }) {
             {items.map((item, i) => (
               <tr key={i}>
                 <td className={styles.rxTdN}>{String(i+1).padStart(2,'0')}</td>
-                <td>{item.service_name}</td>
+                <td className={styles.capitalize}>{item.service_name}</td>
                 <td className={styles.rxTdR}>{String(item.qty||1).padStart(2,'0')}</td>
                 <td className={styles.rxTdR}>Rs. {parseFloat(item.amount||0).toFixed(0)}</td>
                 <td className={styles.rxTdR}>{parseFloat(item.discount||0)>0?`Rs. ${parseFloat(item.discount).toFixed(0)}`:'0'}</td>

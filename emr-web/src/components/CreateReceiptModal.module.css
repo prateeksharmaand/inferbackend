@@ -258,7 +258,7 @@
 .rxThService { }
 .rxThAmt  { width: 80px; text-align: right; }
 .rxTdNum  { text-align: center; }
-.rxTdService { }
+.rxTdService { text-transform: capitalize; }
 .rxTdAmt  { text-align: right; }
 
 .rxTotals {

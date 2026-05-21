@@ -13,7 +13,7 @@
 .row1Right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .token  { font-size: 11px; font-weight: 700; background: var(--color-bg); border-radius: 4px; padding: 1px 6px; color: var(--color-text-2); flex-shrink: 0; }
 .name     { font-size: 14px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nameLink { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.nameLink { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-transform: capitalize; }
 .nameLink:hover { color: var(--color-primary); }
 .nameMeta { font-size: 11px; font-weight: 500; color: var(--color-text-3); margin-left: 5px; }
 .status { font-size: 11px; font-weight: 600; text-transform: capitalize; }
@@ -88,7 +88,7 @@
 .tagChip {
   display: inline-flex; align-items: center;
   padding: 1px 7px; border-radius: 10px; border: 1px solid;
-  font-size: 11px; font-weight: 600;
+  font-size: 11px; font-weight: 600; text-transform: capitalize;
 }
 .addTagBtn {
   display: inline-flex; align-items: center; gap: 3px;
