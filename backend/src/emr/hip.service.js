@@ -62,7 +62,7 @@ async function hiecmPost(path, body) {
 }
 
 async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, gender, yearOfBirth }) {
-  await hiecmPost('/patient-share/v3/on-share', {
+  const body = {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
     acknowledgement: { status: 'SUCCESS', abhaAddress },
@@ -80,7 +80,9 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, 
       number: String(tokenNumber),
       type: 'OPD',
     },
-  });
+  };
+  logger.info('on-share request body', body);
+  await hiecmPost('/patient-share/v3/on-share', body);
 }
 
 // ── Gateway callbacks ─────────────────────────────────────────────────────────
