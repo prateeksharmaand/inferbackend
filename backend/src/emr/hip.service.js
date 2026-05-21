@@ -69,12 +69,8 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber }) {
     acknowledgement: {
       status: 'SUCCESS',
       healthId: abhaAddress,
-    },
-    profile: {
-      patient: {
-        tokenNumber: String(tokenNumber),
-        expiry: expiryISO,
-      },
+      tokenNumber: String(tokenNumber),
+      expiry: expiryISO,
     },
     error: null,
     resp: { requestId },
