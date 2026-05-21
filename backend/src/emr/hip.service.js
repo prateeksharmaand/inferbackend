@@ -62,6 +62,7 @@ async function hiecmPost(path, body) {
 }
 
 async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, gender, yearOfBirth }) {
+  const token = await getToken();
   const body = {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
@@ -82,7 +83,17 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, 
     },
   };
   logger.info('on-share request body', body);
-  await hiecmPost('/patient-share/v3/on-share', body);
+  try {
+    await axios.post(`${HIECM}/patient-share/v3/on-share`, body, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (err) {
+    logger.error('HIP HIECM callback failed', { body: err.response?.data, path: '/patient-share/v3/on-share', status: err.response?.status, timestamp: new Date().toISOString() });
+    throw err;
+  }
 }
 
 // ── Gateway callbacks ─────────────────────────────────────────────────────────
