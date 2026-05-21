@@ -164,7 +164,7 @@ async function verifyAadhaarOtp(otp, txnId, mobile) {
 async function generateMobileLoginOtp(mobile) {
   const encryptedId = await rsaEncrypt(mobile);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    scope: 'abha-login',
+    scope: 'mobile',
     loginHint: 'mobile',
     loginId: encryptedId,
     otpSystem: 'abdm',
@@ -174,7 +174,7 @@ async function generateMobileLoginOtp(mobile) {
 async function verifyMobileLoginOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
-    scope: 'abha-login',
+    scope: 'mobile',
     authData: {
       authMethods: ['otp'],
       otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
