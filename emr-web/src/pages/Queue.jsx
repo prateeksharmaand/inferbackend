@@ -289,7 +289,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
-                  onOpen={() => navigate(`/rx/${a.id}`)}
+                  onOpen={(action) => navigate(action === 'print' ? `/rx/${a.id}?print=1` : `/rx/${a.id}`)}
                 />
               ))}
             </div>
@@ -388,7 +388,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
-                  onOpen={() => navigate(`/rx/${a.id}`)}
+                  onOpen={(action) => navigate(action === 'print' ? `/rx/${a.id}?print=1` : `/rx/${a.id}`)}
                 />
               ))}
             </div>

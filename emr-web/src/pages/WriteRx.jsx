@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, LayoutTemplate, Settings2,
   Printer, Eye, Trash2, SlidersHorizontal, CheckCircle, X, Plus,
@@ -243,6 +243,7 @@ function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint
 export default function WriteRx() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user }  = useAuth();
 
   const [appt,            setAppt]            = useState(null);
@@ -307,6 +308,9 @@ export default function WriteRx() {
           custom_sections:      data.custom_sections || [],
           canvasImage:          data.canvas_image || '',
         }));
+        if (searchParams.get('print') === '1') {
+          setTimeout(() => { setShowPreview(true); window.print(); }, 400);
+        }
       }
     }).catch(() => {});
   }, [appointmentId]);

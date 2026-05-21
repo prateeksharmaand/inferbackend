@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee } from 'lucide-react';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
@@ -106,7 +106,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
       'Cancel':   'cancelled',
     };
     if (map[action]) onStatusChange(appt.id, map[action]);
-    if (action === 'Write Rx') onOpen();
+    if (action === 'Write Rx') onOpen('rx');
   };
 
   const handleSendReminder = async (e) => {
@@ -125,7 +125,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
   return (
     <>
-      <div className={styles.card} onClick={onOpen}>
+      <div className={styles.card} onClick={() => onOpen('rx')}>
         <div className={styles.stripe} style={{ background: color }} />
         <div className={styles.body}>
 
@@ -235,11 +235,25 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           )}
 
           {/* ── Other status actions ── */}
-          {appt.status !== 'booked' && actions.length > 0 && (
+          {appt.status !== 'booked' && appt.status !== 'completed' && actions.length > 0 && (
             <div className={styles.actions} onClick={e => e.stopPropagation()}>
               {actions.map(a => (
                 <button key={a} className={styles.actionBtn} onClick={() => handleAction(a)}>{a}</button>
               ))}
+            </div>
+          )}
+
+          {/* ── Completed actions ── */}
+          {appt.status === 'completed' && (
+            <div className={styles.actions} onClick={e => e.stopPropagation()}>
+              <button className={`${styles.actionBtn} ${styles.actionBtnVitals}`}
+                onClick={() => onOpen('vitals')}>
+                <Activity size={12} strokeWidth={2} /> Add Vitals
+              </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
+                onClick={() => onOpen('print')}>
+                <Printer size={12} strokeWidth={2} /> Rx Print
+              </button>
             </div>
           )}
         </div>

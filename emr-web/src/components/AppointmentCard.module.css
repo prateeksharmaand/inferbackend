@@ -109,6 +109,12 @@
 .actionBtnReschedule { border-color: #bfdbfe; color: #2563eb; background: #eff6ff; }
 .actionBtnReschedule:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
 
+.actionBtnVitals { border-color: #a7f3d0; color: #059669; background: #ecfdf5; }
+.actionBtnVitals:hover { background: #059669; border-color: #059669; color: #fff; }
+
+.actionBtnPrint  { border-color: #ddd6fe; color: #7c3aed; background: #f5f3ff; }
+.actionBtnPrint:hover  { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+
 /* 3-dots more menu */
 .moreWrap { position: relative; margin-left: auto; flex-shrink: 0; }
 .moreBtn {
