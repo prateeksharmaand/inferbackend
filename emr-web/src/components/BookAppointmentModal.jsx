@@ -16,10 +16,10 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
   const [form, setForm] = useState({
     patient_name:    prefill.patient_name   || '',
     patient_mobile:  prefill.patient_mobile || '',
-    patient_dob:     '',
-    patient_gender:  'M',
+    patient_dob:     prefill.patient_dob    || '',
+    patient_gender:  prefill.patient_gender || 'M',
     patient_abha:    prefill.patient_abha   || '',
-    uhid:            '',
+    uhid:            prefill.uhid           || '',
     queue_id:        '',
     doctor_id:       '',
     channel:         prefill.channel        || 'walk_in',

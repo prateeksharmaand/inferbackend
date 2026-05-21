@@ -74,8 +74,11 @@ export default function TopBar() {
     clearSearch();
     const pf = {
       patient_name:   p.name,
-      patient_mobile: p.mobile      || '',
-      patient_abha:   p.abha_number || '',
+      patient_mobile: p.mobile        || '',
+      patient_abha:   p.abha_number   || '',
+      patient_gender: p.gender        || '',
+      patient_dob:    p.dob           ? p.dob.slice(0, 10) : '',
+      uhid:           p.uhid          || '',
       channel: 'walk_in',
     };
     setAddMode(mode === 'checkin' ? 'checkin' : 'book');
