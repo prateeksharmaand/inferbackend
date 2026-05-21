@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer } from 'lucide-react';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
 import ViewReceiptsModal from './ViewReceiptsModal';
+import MedicalDocumentsModal from './MedicalDocumentsModal';
 import { api } from '../api/client';
 import styles from './AppointmentCard.module.css';
 
@@ -68,6 +69,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const [reminding,      setReminding]      = useState(false);
   const [receipts,       setReceipts]       = useState(null);
   const [showReceipts,   setShowReceipts]   = useState(false);
+  const [showDocs,       setShowDocs]       = useState(false);
   const moreRef = useRef(null);
 
   const color   = STATUS_COLOR[appt.status] || '#94a3b8';
@@ -240,6 +242,10 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {actions.map(a => (
                 <button key={a} className={styles.actionBtn} onClick={() => handleAction(a)}>{a}</button>
               ))}
+              <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
+                onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
+                <Paperclip size={12} strokeWidth={2} /> Docs
+              </button>
             </div>
           )}
 
@@ -254,11 +260,18 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); onOpen('print'); }}>
                 <Printer size={12} strokeWidth={2} /> Rx Print
               </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
+                onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
+                <Paperclip size={12} strokeWidth={2} /> Docs
+              </button>
             </div>
           )}
         </div>
       </div>
 
+      {showDocs && (
+        <MedicalDocumentsModal appt={appt} onClose={() => setShowDocs(false)} />
+      )}
       {showReceipts && (
         <ViewReceiptsModal
           appt={appt}

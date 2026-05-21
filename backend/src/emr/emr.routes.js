@@ -8,6 +8,7 @@ const tags    = require('./emr.tags.controller');
 const uhid    = require('./emr.uhid.controller');
 const svc     = require('./emr.services.controller');
 const rec     = require('./emr.receipts.controller');
+const docs    = require('./emr.documents.controller');
 const ac      = require('./emr.autocomplete.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
@@ -60,6 +61,11 @@ router.get   ('/services',     svc.listServices);
 router.post  ('/services',     svc.createService);
 router.patch ('/services/:id', svc.updateService);
 router.delete('/services/:id', svc.deleteService);
+
+// Medical Documents
+router.get   ('/appointments/:id/documents',        docs.listDocuments);
+router.post  ('/appointments/:id/documents',        docs.uploadDocument);
+router.delete('/appointments/:id/documents/:docId', docs.deleteDocument);
 
 // Receipts
 router.get  ('/receipts',     rec.listReceipts);

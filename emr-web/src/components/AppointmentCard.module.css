@@ -114,6 +114,9 @@
 .actionBtnPrint  { border-color: #ddd6fe; color: #7c3aed; background: #f5f3ff; }
 .actionBtnPrint:hover  { background: #7c3aed; border-color: #7c3aed; color: #fff; }
 
+.actionBtnDoc  { border-color: #bae6fd; color: #0369a1; background: #f0f9ff; }
+.actionBtnDoc:hover  { background: #0369a1; border-color: #0369a1; color: #fff; }
+
 /* 3-dots more menu */
 .moreWrap { position: relative; margin-left: auto; flex-shrink: 0; }
 .moreBtn {
