@@ -186,15 +186,15 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
 }
 
 // ── Post-visit screen (shown after Finish Prescription) ───────────────────────
-function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint, onEndVisit }) {
+function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint, onGoogleReview, onEndVisit }) {
   const actions = [
-    { icon: <Share2    size={20} />, label: 'Send Attachment',       onClick: onPrint,     color: '#6366f1' },
-    { icon: <Calendar  size={20} />, label: 'Book Slot Again',       onClick: onBookAgain, color: '#0891b2' },
-    { icon: <Printer   size={20} />, label: 'Print',                 onClick: onPrint,     color: '#059669' },
-    { icon: <Download  size={20} />, label: 'Download',              onClick: onPrint,     color: '#7c3aed' },
-    { icon: <CreditCard size={20}/>, label: 'Send Payment Link',     onClick: () => {},    color: '#d97706' },
-    { icon: <FileText  size={20} />, label: 'Bill Patient',          onClick: () => {},    color: '#dc2626' },
-    { icon: <Star      size={20} />, label: 'Send Google Review',    onClick: () => {},    color: '#ca8a04' },
+    { icon: <Share2     size={20} />, label: 'Send Attachment',    onClick: onPrint,         color: '#6366f1' },
+    { icon: <Calendar   size={20} />, label: 'Book Slot Again',    onClick: onBookAgain,     color: '#0891b2' },
+    { icon: <Printer    size={20} />, label: 'Print',              onClick: onPrint,         color: '#059669' },
+    { icon: <Download   size={20} />, label: 'Download',           onClick: onPrint,         color: '#7c3aed' },
+    { icon: <CreditCard size={20} />, label: 'Send Payment Link',  onClick: () => {},        color: '#d97706' },
+    { icon: <FileText   size={20} />, label: 'Bill Patient',       onClick: () => {},        color: '#dc2626' },
+    { icon: <Star       size={20} />, label: 'Send Google Review', onClick: onGoogleReview,  color: '#ca8a04' },
   ];
 
   return (
@@ -258,8 +258,9 @@ export default function WriteRx() {
   const loadRxImages = useCallback(() => {
     const cid = user?.clinic_id || 'default';
     return {
-      headerImg: localStorage.getItem(`rx_header_${cid}`) || '',
-      footerImg: localStorage.getItem(`rx_footer_${cid}`) || '',
+      headerImg:         localStorage.getItem(`rx_header_${cid}`)         || '',
+      footerImg:         localStorage.getItem(`rx_footer_${cid}`)         || '',
+      googleReviewLink:  localStorage.getItem(`rx_google_review_${cid}`)  || '',
     };
   }, [user?.clinic_id]);
 
@@ -268,8 +269,9 @@ export default function WriteRx() {
       ? (JSON.parse(localStorage.getItem('emr_user') || '{}')?.clinic_id || 'default')
       : 'default';
     return {
-      headerImg: localStorage.getItem(`rx_header_${cid}`) || '',
-      footerImg: localStorage.getItem(`rx_footer_${cid}`) || '',
+      headerImg:        localStorage.getItem(`rx_header_${cid}`)        || '',
+      footerImg:        localStorage.getItem(`rx_footer_${cid}`)        || '',
+      googleReviewLink: localStorage.getItem(`rx_google_review_${cid}`) || '',
     };
   });
 
@@ -670,7 +672,11 @@ export default function WriteRx() {
           <PostVisitScreen
             form={form} appt={appt} user={user} rxImages={rxImages}
             onBookAgain={handleBookAgain}
-            onPrint={() => { setShowPostVisit(false); setTimeout(() => window.print(), 200); }}
+            onPrint={() => window.print()}
+            onGoogleReview={() => {
+              const link = rxImages.googleReviewLink;
+              link ? window.open(link, '_blank') : alert('No Google review link set. Add it in Configure → InferPad Settings.');
+            }}
             onEndVisit={() => navigate('/queue')}
           />
         </div>

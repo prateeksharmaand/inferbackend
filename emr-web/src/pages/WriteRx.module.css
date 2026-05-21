@@ -504,9 +504,14 @@
 }
 .postVisitEndBtn:hover { background: #b91c1c; }
 
-/* Print media */
+/* Print media — show only the prescription document */
 @media print {
-  .previewOverlay, .previewToolbar, .previewModal { all: unset; }
-  .previewBody     { padding: 0; background: #fff; }
-  .rxPaper         { box-shadow: none; border-radius: 0; }
+  body * { visibility: hidden; }
+  #rx-print-area,
+  #rx-print-area * { visibility: visible; }
+  #rx-print-area {
+    position: absolute; left: 0; top: 0;
+    width: 100%; max-width: none;
+    box-shadow: none; border-radius: 0; border: none;
+  }
 }

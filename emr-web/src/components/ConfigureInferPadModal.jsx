@@ -42,12 +42,14 @@ function ImageUploadSection({ title, hint, value, onChange }) {
 
 export default function ConfigureInferPadModal({ clinicId, onClose }) {
   const key   = (t) => `rx_${t}_${clinicId}`;
-  const [headerImg, setHeaderImg] = useState(() => localStorage.getItem(key('header')) || '');
-  const [footerImg, setFooterImg] = useState(() => localStorage.getItem(key('footer')) || '');
+  const [headerImg,        setHeaderImg]        = useState(() => localStorage.getItem(key('header'))        || '');
+  const [footerImg,        setFooterImg]        = useState(() => localStorage.getItem(key('footer'))        || '');
+  const [googleReviewLink, setGoogleReviewLink] = useState(() => localStorage.getItem(key('google_review')) || '');
 
   const handleSave = () => {
-    headerImg ? localStorage.setItem(key('header'), headerImg) : localStorage.removeItem(key('header'));
-    footerImg ? localStorage.setItem(key('footer'), footerImg) : localStorage.removeItem(key('footer'));
+    headerImg        ? localStorage.setItem(key('header'),        headerImg)        : localStorage.removeItem(key('header'));
+    footerImg        ? localStorage.setItem(key('footer'),        footerImg)        : localStorage.removeItem(key('footer'));
+    googleReviewLink ? localStorage.setItem(key('google_review'), googleReviewLink) : localStorage.removeItem(key('google_review'));
     onClose(true);
   };
 
@@ -72,6 +74,21 @@ export default function ConfigureInferPadModal({ clinicId, onClose }) {
             value={footerImg}
             onChange={setFooterImg}
           />
+
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Google Review Link</div>
+            <div className={styles.sectionHint}>
+              Shared with patients after each visit via the "Send Google Review" button.
+              Copy your link from Google Business Profile → Get more reviews.
+            </div>
+            <input
+              type="url"
+              className={styles.textInput}
+              placeholder="https://g.page/r/XXXXXXXX/review"
+              value={googleReviewLink}
+              onChange={e => setGoogleReviewLink(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className={styles.footer}>
