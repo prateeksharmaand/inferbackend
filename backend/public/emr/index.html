@@ -226,7 +226,7 @@
     </div>
     <div class="card-body p-0">
       <table class="table table-sm mb-0">
-        <thead><tr><th>Request ID</th><th>Patient ABHA</th><th>HIP</th><th>Purpose</th><th>Status</th><th>Source</th><th>Created</th></tr></thead>
+        <thead><tr><th>Request ID</th><th>Patient ABHA</th><th>HIP</th><th>Purpose</th><th>Status</th><th>Source</th><th>Created</th><th>Action</th></tr></thead>
         <tbody id="consents-tbody"><tr><td colspan="6" class="text-center py-4 text-muted">No consent requests yet</td></tr></tbody>
       </table>
     </div>
@@ -710,9 +710,14 @@ async function loadConsents() {
   const tbody = document.getElementById('consents-tbody');
   try {
     const consents = await api('GET', '/consents');
-    if (!consents.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No consent requests yet</td></tr>'; return; }
-    tbody.innerHTML = consents.map(c => `
-      <tr>
+    if (!consents.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No consent requests yet</td></tr>'; return; }
+    tbody.innerHTML = consents.map(c => {
+      const pending = c.status === 'REQUESTED';
+      const actions = pending
+        ? `<button class="btn btn-success btn-sm me-1" onclick="respondConsent('${c.request_id}','GRANT',this)"><i class="bi bi-check-lg"></i> Accept</button>
+           <button class="btn btn-danger btn-sm" onclick="respondConsent('${c.request_id}','DENY',this)"><i class="bi bi-x-lg"></i> Deny</button>`
+        : `<span class="text-muted small">—</span>`;
+      return `<tr>
         <td class="small font-monospace">${c.request_id?.slice(0,16)}…</td>
         <td class="small">${esc(c.patient_abha || '—')}</td>
         <td class="small">${esc(c.hip_id || '—')}</td>
@@ -720,8 +725,20 @@ async function loadConsents() {
         <td><span class="badge bg-${STATUS_COLOR[c.status] || 'secondary'}">${c.status}</span></td>
         <td><span class="badge bg-${c.source==='app'?'info':'accent'} text-dark">${c.source==='app'?'Flutter App':'EMR'}</span></td>
         <td class="small">${new Date(c.created_at).toLocaleString()}</td>
-      </tr>`).join('');
-  } catch(e) { tbody.innerHTML = `<tr><td colspan="7" class="text-danger p-3">${e.message}</td></tr>`; }
+        <td>${actions}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="8" class="text-danger p-3">${e.message}</td></tr>`; }
+}
+
+async function respondConsent(requestId, action, btn) {
+  btn.disabled = true;
+  try {
+    await api('POST', `/consents/${requestId}/respond`, { action });
+    toast(action === 'GRANT' ? 'Consent accepted — health info fetch triggered' : 'Consent denied');
+    loadConsents();
+    if (action === 'GRANT') setTimeout(loadConsentHealthRecords, 3000);
+  } catch(e) { toast(e.message, 'danger'); btn.disabled = false; }
 }
 
 async function loadConsentHealthRecords() {

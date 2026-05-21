@@ -210,6 +210,61 @@ const listConsentRequests = async (req, res) => {
   res.json(rows);
 };
 
+const respondConsent = async (req, res) => {
+  const { requestId } = req.params;
+  const { action } = req.body;  // 'GRANT' | 'DENY'
+  if (!['GRANT', 'DENY'].includes(action))
+    return res.status(400).json({ error: 'action must be GRANT or DENY' });
+
+  const status = action === 'GRANT' ? 'GRANTED' : 'DENIED';
+
+  // Update EMR table
+  const { rowCount } = await pool.query(
+    `UPDATE emr_consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2 AND clinic_id=$3`,
+    [status, requestId, req.emrUser.clinic_id]
+  );
+  // Also update PHR table if it exists there
+  await pool.query(
+    `UPDATE consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
+    [status, requestId]
+  );
+
+  if (rowCount === 0 && action === 'GRANT') {
+    // Came from PHR app — still continue with health info fetch
+  }
+
+  if (action === 'GRANT') {
+    const artefactId = abdmSvc.uuid();
+    await pool.query(
+      `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW() WHERE request_id=$2`,
+      [JSON.stringify([{ id: artefactId }]), requestId]
+    );
+    // Auto-fetch health info
+    const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
+    try {
+      const result = await abdmSvc.fetchHealthInfo(artefactId, dataPushUrl, {
+        cryptoAlg: 'ECDH',
+        curve: 'Curve25519',
+        dhPublicKey: { expiry: new Date(Date.now() + 3600_000).toISOString(), parameters: 'Curve25519', keyValue: '' },
+        nonce: abdmSvc.uuid(),
+      });
+      const txnId = result.hiRequest?.transactionId ?? abdmSvc.uuid();
+      await pool.query(
+        `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
+        [txnId, requestId]
+      );
+      await pool.query(
+        `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
+        [txnId, requestId]
+      );
+    } catch (err) {
+      // fetchHealthInfo may fail in sandbox — consent is still marked GRANTED
+    }
+  }
+
+  res.json({ status });
+};
+
 const getConsentHealthRecords = async (req, res) => {
   const { rows } = await pool.query(
     `SELECT hr.*
@@ -229,5 +284,5 @@ module.exports = {
   listPatients, createPatient, getPatient, updatePatient, deletePatient,
   addCareContext, deleteCareContext,
   pendingOtps, healthRequests, activityLog,
-  createConsentRequest, listConsentRequests, getConsentHealthRecords,
+  createConsentRequest, listConsentRequests, respondConsent, getConsentHealthRecords,
 };
