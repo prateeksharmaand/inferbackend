@@ -52,6 +52,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.patient_name.trim()) return setError('Patient name is required');
+    if (!form.patient_mobile.trim()) return setError('Mobile number is required');
     if (mode === 'checkin' && !form.queue_id) return setError('Please select a queue to check in');
     setSaving(true); setError('');
     try {
@@ -89,8 +90,8 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
               <input required value={form.patient_name} onChange={e => set('patient_name', e.target.value)} placeholder="Full name" />
             </div>
             <div className={styles.field}>
-              <label>Mobile</label>
-              <input value={form.patient_mobile} onChange={e => set('patient_mobile', e.target.value)} placeholder="+91 9999999999" />
+              <label>Mobile *</label>
+              <input required value={form.patient_mobile} onChange={e => set('patient_mobile', e.target.value)} placeholder="+91 9999999999" />
             </div>
             <div className={styles.field}>
               <label>Date of Birth</label>
