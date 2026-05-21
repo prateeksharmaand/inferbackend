@@ -184,11 +184,12 @@ async function verifyMobileLoginOtp(otp, txnId) {
 
 // ─── M1: ABHA Login ───────────────────────────────────────────────────────────
 
-async function loginRequestOtp(abhaAddress) {
-  const encryptedId = await rsaEncrypt(abhaAddress);
+async function loginRequestOtp(abhaNumber) {
+  const normalised = abhaNumber.replace(/-/g, '');
+  const encryptedId = await rsaEncrypt(normalised);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    scope: 'abha-login',
-    loginHint: 'abha-address',
+    scope: ['abha-login', 'mobile-verify'],
+    loginHint: 'abha-number',
     loginId: encryptedId,
     otpSystem: 'abdm',
   });
