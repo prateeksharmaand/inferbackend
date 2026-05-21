@@ -158,7 +158,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           <div className={styles.row1}>
             <span className={styles.token}>#{appt.token_number}</span>
             <span className={styles.name}>
-              {appt.patient_name}
+              <span className={styles.nameLink} onClick={e => { e.stopPropagation(); onOpen('rx'); }}>
+                {appt.patient_name}
+              </span>
               {(appt.patient_gender || age !== null) && (
                 <span className={styles.nameMeta}>
                   {appt.patient_gender && appt.patient_gender}{age !== null && `, ${age}y`}
