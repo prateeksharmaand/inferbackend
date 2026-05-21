@@ -214,7 +214,7 @@ const handlePatientShareProfile = async (req, res) => {
   try {
     await _ensureSharesTable;
     const { requestId, profile } = req.body;
-    logger.info('HIP patient share profile', { requestId, bodyKeys: Object.keys(req.body) });
+    logger.info('HIP patient share profile', { bodyKeys: Object.keys(req.body), headers: req.headers });
 
     const p           = profile?.patient ?? {};
     const abhaNumber  = p.abhaNumber  || p.ABHANumber  || null;
