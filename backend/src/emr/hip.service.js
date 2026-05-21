@@ -65,7 +65,7 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, 
   await hiecmPost('/patient-share/v3/on-share', {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
-    acknowledgement: { status: 'SUCCESS' },
+    acknowledgement: { status: 'SUCCESS', abhaAddress },
     response: { requestId },
     profile: {
       patient: {
