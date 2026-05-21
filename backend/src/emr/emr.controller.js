@@ -36,9 +36,9 @@ const listPatients = async (req, res) => {
     );
 
     // 2. Search appointments for patients not yet in the registry
-    const knownMobiles = regRows.map(r => r.mobile).filter(Boolean);
+    const knownMobiles = new Set(regRows.map(r => r.mobile).filter(Boolean));
     const { rows: apptRows } = await pool.query(
-      `SELECT NULL       AS id,
+      `SELECT NULL           AS id,
               patient_name   AS name,
               patient_mobile AS mobile,
               patient_dob    AS dob,
@@ -53,14 +53,15 @@ const listPatients = async (req, res) => {
               OR patient_mobile   LIKE $2
               OR LOWER(uhid)      LIKE $1
               OR patient_abha     LIKE $2)
-         AND NOT (patient_mobile = ANY($4::text[]))
        GROUP BY patient_name, patient_mobile, patient_dob, patient_gender, patient_abha
        ORDER BY patient_name
-       LIMIT ${Math.max(1, 10 - regRows.length)}`,
-      [term, prefix, cid, knownMobiles.length ? knownMobiles : ['\x00']]
+       LIMIT 10`,
+      [term, prefix, cid]
     );
 
-    return res.json([...regRows, ...apptRows]);
+    // Deduplicate in JS — avoids NULL-mobile issues with SQL ANY()
+    const unique = apptRows.filter(r => !r.mobile || !knownMobiles.has(r.mobile));
+    return res.json([...regRows, ...unique].slice(0, 10));
   }
 
   const { rows } = await pool.query(
