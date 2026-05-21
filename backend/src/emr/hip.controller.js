@@ -213,8 +213,9 @@ const handlePatientShareProfile = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
     await _ensureSharesTable;
-    const { requestId, profile } = req.body;
-    logger.info('HIP patient share profile', { bodyKeys: Object.keys(req.body), headers: req.headers });
+    const requestId = req.headers['request-id'] || req.body.requestId;
+    const { profile } = req.body;
+    logger.info('HIP patient share profile', { requestId });
 
     const p           = profile?.patient ?? {};
     const abhaNumber  = p.abhaNumber  || p.ABHANumber  || null;
