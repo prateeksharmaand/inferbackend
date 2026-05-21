@@ -51,6 +51,20 @@
 }
 .addTagBtn:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
 
+.receiptBadge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 10px; border: none; cursor: pointer;
+  font-size: 11px; font-weight: 700;
+  background: #dcfce7; color: #15803d;
+  transition: background .12s;
+}
+.receiptBadge:hover { background: #bbf7d0; }
+.receiptPaymode { font-weight: 500; opacity: .85; }
+.receiptCount {
+  font-size: 10px; font-weight: 600; opacity: .7;
+  background: rgba(0,0,0,.08); padding: 1px 5px; border-radius: 6px;
+}
+
 .reminderBadge {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 11px; font-weight: 600; color: #d97706;

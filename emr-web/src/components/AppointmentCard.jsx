@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock } from 'lucide-react';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
+import ViewReceiptsModal from './ViewReceiptsModal';
 import { api } from '../api/client';
 import styles from './AppointmentCard.module.css';
 
@@ -66,7 +67,22 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const [showReschedule, setShowReschedule] = useState(false);
   const [showMore,       setShowMore]       = useState(false);
   const [reminding,      setReminding]      = useState(false);
+  const [receipts,       setReceipts]       = useState(null);   // null = not loaded
+  const [showReceipts,   setShowReceipts]   = useState(false);
   const moreRef = useRef(null);
+
+  // Load receipt summary for completed/ongoing appointments
+  useEffect(() => {
+    if (!['completed', 'ongoing', 'parked'].includes(appt.status)) return;
+    api.get(`/receipts?appointment_id=${appt.id}`)
+      .then(rows => setReceipts(rows))
+      .catch(() => setReceipts([]));
+  }, [appt.id, appt.status]);
+
+  const receiptTotal = receipts?.reduce((s, r) => s + parseFloat(r.grand_total || 0), 0) || 0;
+  const receiptPaymodes = receipts?.length
+    ? [...new Set(receipts.map(r => r.paymode).filter(Boolean))].join(' / ')
+    : '';
 
   const color   = STATUS_COLOR[appt.status] || '#94a3b8';
   const actions = ACTIONS[appt.status] || [];
@@ -153,6 +169,18 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </div>
           )}
 
+          {/* Receipt badge */}
+          {receipts && receipts.length > 0 && (
+            <div className={styles.row2} onClick={e => e.stopPropagation()}>
+              <button className={styles.receiptBadge} onClick={() => setShowReceipts(true)}>
+                <IndianRupee size={11} strokeWidth={2.5} />
+                {receiptTotal.toFixed(0)}
+                {receiptPaymodes && <span className={styles.receiptPaymode}>• {receiptPaymodes}</span>}
+                <span className={styles.receiptCount}>{receipts.length} receipt{receipts.length > 1 ? 's' : ''}</span>
+              </button>
+            </div>
+          )}
+
           <div className={styles.tagRow} onClick={e => e.stopPropagation()}>
             {resolvedTags.map(t => (
               <span key={t.id} className={styles.tagChip}
@@ -217,6 +245,14 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
         <EditPatientModal appt={appt}
           onClose={() => setShowEdit(false)}
           onSaved={(updated) => setAppt(prev => ({ ...prev, ...updated }))} />
+      )}
+      {showReceipts && (
+        <ViewReceiptsModal
+          appt={appt}
+          receipts={receipts || []}
+          onClose={() => setShowReceipts(false)}
+          onReceiptsChange={(updated) => setReceipts(updated)}
+        />
       )}
       {showReschedule && (
         <BookSlotModal
