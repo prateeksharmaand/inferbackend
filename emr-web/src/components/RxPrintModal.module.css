@@ -32,7 +32,7 @@
 
 /* ── Prescription paper ────────────────────────────────────────────────────── */
 .rxPaper {
-  max-width: 640px; margin: 0 auto;
+  max-width: 640px; margin: 0 auto; min-height: 297mm;
   font-family: 'Times New Roman', serif; font-size: 13px;
   line-height: 1.5; color: #1e293b;
 }
