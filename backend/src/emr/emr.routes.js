@@ -99,6 +99,11 @@ router.get('/pending-otps',    emr.pendingOtps);
 router.get('/health-requests', emr.healthRequests);
 router.get('/activity',        emr.activityLog);
 
+// Patient profile shares (QR walk-in — SHARE_PATIENT_PROFILE_701)
+router.get   ('/profile-shares',                        emr.listProfileShares);
+router.patch ('/profile-shares/:id/dismiss',            emr.dismissProfileShare);
+router.post  ('/profile-shares/:id/link-patient',       emr.linkProfileShareToPatient);
+
 // Consent management (EMR acting as HIU)
 router.post('/consents',                        emr.createConsentRequest);
 router.get ('/consents',                        emr.listConsentRequests);

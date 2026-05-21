@@ -83,6 +83,7 @@
     <li class="nav-item"><a class="nav-link" href="#" data-page="health-reqs"><i class="bi bi-activity"></i>Health Requests</a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="consents"><i class="bi bi-file-earmark-check"></i>Consent Mgmt</a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="m3-hiu"><i class="bi bi-database-down"></i>M3 Data Exchange</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" data-page="checkin"><i class="bi bi-qr-code-scan"></i>Patient Check-In <span id="checkin-badge" class="badge bg-danger ms-1 d-none">0</span></a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="activity"><i class="bi bi-clock-history"></i>Activity Log</a></li>
     <li class="nav-item mt-auto"><a class="nav-link" href="#" data-page="setup"><i class="bi bi-gear"></i>HIP Setup Guide</a></li>
   </ul>
@@ -359,6 +360,44 @@
         </ul>
         <div id="record-tab-rendered" style="max-height:70vh;overflow-y:auto"></div>
         <div id="record-tab-raw" class="d-none"><pre id="record-content" class="small" style="max-height:70vh;overflow:auto;white-space:pre-wrap;word-break:break-word"></pre></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Patient Check-In (QR share — SHARE_PATIENT_PROFILE_701) ───────────── -->
+<div id="page-checkin" class="page">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="fw-bold mb-0">Patient Check-In <span class="fs-6 fw-normal text-muted">(QR Walk-in)</span></h5>
+      <div class="text-muted small mt-1">Patients who scanned your facility QR code in the ABHA app appear here.</div>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm" onclick="loadCheckins()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+  </div>
+
+  <div class="alert alert-info small mb-3">
+    <i class="bi bi-info-circle me-1"></i>
+    ABDM calls <code>POST /v3/hip/patient/share/profile</code> on your registered HIP URL when a patient scans your QR.
+    Staff can then register the patient or link them to an existing record.
+  </div>
+
+  <div id="checkin-list">
+    <div class="text-center py-5 text-muted"><i class="bi bi-qr-code-scan fs-1 d-block mb-2"></i>No walk-in profiles yet</div>
+  </div>
+</div>
+
+<!-- Link share to existing patient modal -->
+<div class="modal fade" id="linkShareModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title fw-bold">Link to Existing Patient</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="link-share-id">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Search patient by name or mobile</label>
+          <input id="link-share-search" type="text" class="form-control" placeholder="Type to search…" oninput="searchPatientsForLink(this.value)">
+        </div>
+        <div id="link-share-results" class="list-group"></div>
       </div>
     </div>
   </div>
@@ -710,6 +749,7 @@ function showPage(name) {
   if (name === 'health-reqs')  loadHealthReqs();
   if (name === 'consents')     { loadConsents(); loadConsentHealthRecords(); }
   if (name === 'm3-hiu')       loadM3Page();
+  if (name === 'checkin')      loadCheckins();
   if (name === 'activity')     loadActivity();
   if (name === 'setup')        loadSetup();
 }
@@ -839,12 +879,18 @@ async function openPatient(id) {
 
 async function savePatient() {
   try {
-    await api('POST', '/patients', {
+    const newPt = await api('POST', '/patients', {
       name: val('pt-name'), mobile: val('pt-mobile'), dob: val('pt-dob'),
       gender: val('pt-gender'), abha_number: val('pt-abha-num'), abha_address: val('pt-abha-addr'),
     });
     bootstrap.Modal.getInstance(document.getElementById('addPatientModal')).hide();
     ['pt-name','pt-mobile','pt-dob','pt-abha-num','pt-abha-addr'].forEach(id => document.getElementById(id).value='');
+    // Auto-link walk-in share if registration was triggered from check-in page
+    if (window._pendingShareId && newPt?.id) {
+      await api('POST', `/profile-shares/${window._pendingShareId}/link-patient`, { patientId: newPt.id }).catch(() => {});
+      window._pendingShareId = null;
+      loadCheckins();
+    }
     toast('Patient added'); loadPatients();
   } catch(e) { toast(e.message, 'danger'); }
 }
@@ -1600,6 +1646,108 @@ function showRecordTab(tab, link) {
   return false;
 }
 
+// ── Patient Check-In (SHARE_PATIENT_PROFILE_701) ──────────────────────────────
+async function loadCheckins() {
+  const el = document.getElementById('checkin-list');
+  try {
+    const shares = await api('GET', '/profile-shares');
+    const pending = shares.filter(s => s.status === 'pending');
+
+    // Update sidebar badge
+    const badge = document.getElementById('checkin-badge');
+    if (pending.length) { badge.textContent = pending.length; badge.classList.remove('d-none'); }
+    else badge.classList.add('d-none');
+
+    if (!shares.length) {
+      el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-qr-code-scan fs-1 d-block mb-2"></i>No walk-in profiles yet</div>';
+      return;
+    }
+
+    const STATUS_BG = { pending: 'warning', linked: 'success', dismissed: 'secondary' };
+    el.innerHTML = shares.map(s => `
+      <div class="card mb-3 ${s.status === 'dismissed' ? 'opacity-50' : ''}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="fw-bold fs-6">${esc(s.name || 'Unknown')}</span>
+                <span class="badge bg-${STATUS_BG[s.status] || 'secondary'}">${s.status}</span>
+              </div>
+              <div class="row g-1 small text-muted">
+                <div class="col-auto"><i class="bi bi-phone me-1"></i>${esc(s.mobile || '—')}</div>
+                <div class="col-auto"><i class="bi bi-person me-1"></i>${s.gender === 'M' ? 'Male' : s.gender === 'F' ? 'Female' : esc(s.gender || '—')}</div>
+                ${s.dob ? `<div class="col-auto"><i class="bi bi-calendar me-1"></i>${new Date(s.dob).toLocaleDateString()}</div>` : ''}
+              </div>
+              <div class="mt-1 small font-monospace text-muted">${esc(s.abha_number || '')}${s.abha_address ? ' · ' + esc(s.abha_address) : ''}</div>
+              <div class="text-muted" style="font-size:11px"><i class="bi bi-clock me-1"></i>${new Date(s.created_at).toLocaleString()}</div>
+            </div>
+            ${s.status === 'pending' ? `
+            <div class="d-flex flex-column gap-2">
+              <button class="btn btn-success btn-sm" onclick="registerFromShare(${s.id},'${esc(s.name||'')}','${esc(s.mobile||'')}','${s.gender||''}','${s.dob?s.dob.slice(0,10):''}','${esc(s.abha_number||'')}','${esc(s.abha_address||'')}')">
+                <i class="bi bi-person-plus me-1"></i>Register
+              </button>
+              <button class="btn btn-outline-primary btn-sm" onclick="openLinkShare(${s.id})">
+                <i class="bi bi-link-45deg me-1"></i>Link
+              </button>
+              <button class="btn btn-outline-secondary btn-sm" onclick="dismissShare(${s.id})">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>` : s.status === 'linked' ? `<div class="text-success small"><i class="bi bi-check-circle me-1"></i>Linked</div>` : ''}
+          </div>
+        </div>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = `<div class="text-danger p-3">${e.message}</div>`; }
+}
+
+function registerFromShare(shareId, name, mobile, gender, dob, abhaNum, abhaAddr) {
+  // Pre-fill Add Patient modal with share data, then on save link the share
+  document.getElementById('pt-name').value  = name;
+  document.getElementById('pt-mobile').value = mobile;
+  document.getElementById('pt-dob').value   = dob;
+  document.getElementById('pt-gender').value = gender || 'M';
+  document.getElementById('pt-abha-num').value  = abhaNum;
+  document.getElementById('pt-abha-addr').value = abhaAddr;
+  // Store share ID so savePatient can auto-link after creation
+  window._pendingShareId = shareId;
+  new bootstrap.Modal(document.getElementById('addPatientModal')).show();
+}
+
+async function dismissShare(id) {
+  try {
+    await api('PATCH', `/profile-shares/${id}/dismiss`, {});
+    loadCheckins();
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+function openLinkShare(id) {
+  document.getElementById('link-share-id').value = id;
+  document.getElementById('link-share-search').value = '';
+  document.getElementById('link-share-results').innerHTML = '';
+  new bootstrap.Modal(document.getElementById('linkShareModal')).show();
+}
+
+async function searchPatientsForLink(q) {
+  if (q.length < 2) { document.getElementById('link-share-results').innerHTML = ''; return; }
+  try {
+    const pts = await api('GET', `/patients?q=${encodeURIComponent(q)}`);
+    const shareId = document.getElementById('link-share-id').value;
+    document.getElementById('link-share-results').innerHTML = pts.map(p => `
+      <a href="#" class="list-group-item list-group-item-action" onclick="confirmLinkShare(${shareId},${p.id});return false">
+        <div class="fw-semibold">${esc(p.name)}</div>
+        <div class="text-muted small">${esc(p.mobile||'—')} · ${esc(p.abha_address||p.abha_number||'No ABHA')}</div>
+      </a>`).join('') || '<div class="list-group-item text-muted">No patients found</div>';
+  } catch(e) { /* ignore */ }
+}
+
+async function confirmLinkShare(shareId, patientId) {
+  try {
+    await api('POST', `/profile-shares/${shareId}/link-patient`, { patientId });
+    bootstrap.Modal.getInstance(document.getElementById('linkShareModal')).hide();
+    toast('Patient linked to walk-in profile');
+    loadCheckins();
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
 // ── M1: Create ABHA Wizard ────────────────────────────────────────────────────
 let _abhaWiz = { patientId: null, step: 1, txnId: null, xToken: null, suggestions: [], profile: null };
 let _abhaResendTimer = null;
@@ -1867,8 +2015,20 @@ async function verifyDownloadCard() {
 
 let prevOtpIds = new Set();
 
+// Poll for pending check-ins every 30s to keep badge fresh
+function _pollCheckinBadge() {
+  if (!emrToken) return;
+  api('GET', '/profile-shares').then(shares => {
+    const n = shares.filter(s => s.status === 'pending').length;
+    const badge = document.getElementById('checkin-badge');
+    if (n) { badge.textContent = n; badge.classList.remove('d-none'); }
+    else badge.classList.add('d-none');
+  }).catch(() => {});
+}
+
 // Initial load
-if (!emrToken) showLogin(); else loadPatients();
+if (!emrToken) showLogin(); else { loadPatients(); setTimeout(_pollCheckinBadge, 2000); }
+setInterval(_pollCheckinBadge, 30000);
 </script>
 </body>
 </html>

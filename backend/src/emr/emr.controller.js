@@ -328,6 +328,41 @@ const getConsentHealthRecords = async (req, res) => {
   res.json(rows);
 };
 
+// ── M1: Patient profile shares (QR walk-in — SHARE_PATIENT_PROFILE_701) ──────
+
+const listProfileShares = async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM hip_profile_shares ORDER BY created_at DESC LIMIT 50`
+  );
+  res.json(rows);
+};
+
+const dismissProfileShare = async (req, res) => {
+  await pool.query(
+    `UPDATE hip_profile_shares SET status='dismissed' WHERE id=$1`,
+    [req.params.id]
+  );
+  res.json({ ok: true });
+};
+
+const linkProfileShareToPatient = async (req, res) => {
+  const { patientId } = req.body;
+  const { rows } = await pool.query(
+    `UPDATE hip_profile_shares SET status='linked', patient_id=$1 WHERE id=$2 RETURNING *`,
+    [patientId, req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Share not found' });
+  // Also update the patient's ABHA fields from the share
+  const s = rows[0];
+  if (s.abha_number || s.abha_address) {
+    await pool.query(
+      `UPDATE emr_patients SET abha_number=COALESCE($1,abha_number), abha_address=COALESCE($2,abha_address) WHERE id=$3`,
+      [s.abha_number, s.abha_address, patientId]
+    );
+  }
+  res.json(rows[0]);
+};
+
 // ── M1: ABHA Creation & Verification (EMR patient workflow) ───────────────────
 
 // Step 1 – send Aadhaar OTP (creates new ABHA)
@@ -481,4 +516,5 @@ module.exports = {
   abhaCreateOtp, abhaCreateVerify, abhaCreateMobileOtp, abhaCreateMobileVerify,
   abhaGetSuggestions, abhaSetAddress, abhaGetCard,
   abhaVerifyOtp, abhaVerifyConfirm,
+  listProfileShares, dismissProfileShare, linkProfileShareToPatient,
 };

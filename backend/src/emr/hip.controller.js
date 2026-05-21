@@ -180,4 +180,54 @@ const handleHealthInfoRequest = async (req, res) => {
   }
 };
 
-module.exports = { handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest };
+// ── ABDM → HIP: patient shares profile via QR scan (SHARE_PATIENT_PROFILE_701) ─
+
+const _ensureSharesTable = pool.query(`
+  CREATE TABLE IF NOT EXISTS hip_profile_shares (
+    id           SERIAL PRIMARY KEY,
+    request_id   TEXT UNIQUE,
+    share_code   TEXT,
+    abha_number  TEXT,
+    abha_address TEXT,
+    name         TEXT,
+    mobile       TEXT,
+    gender       TEXT,
+    dob          DATE,
+    raw_profile  JSONB,
+    status       TEXT NOT NULL DEFAULT 'pending',
+    patient_id   INT REFERENCES emr_patients(id) ON DELETE SET NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(err => logger.error('hip_profile_shares table init error', err));
+
+const handlePatientShareProfile = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    await _ensureSharesTable;
+    const { requestId, timestamp, profile } = req.body;
+    logger.info('HIP patient share profile', { requestId });
+
+    const p           = profile?.patient ?? {};
+    const abhaNumber  = p.abhaNumber  ?? p.ABHANumber  ?? null;
+    const abhaAddress = p.abhaAddress ?? p.preferredAbhaAddress ?? null;
+    const name        = p.name ?? [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || null;
+    const mobile      = p.mobile ?? null;
+    const gender      = p.gender ?? null;
+    const dob         = (p.yearOfBirth && p.monthOfBirth && p.dayOfBirth)
+      ? `${p.yearOfBirth}-${String(p.monthOfBirth).padStart(2,'0')}-${String(p.dayOfBirth).padStart(2,'0')}`
+      : (p.dateOfBirth ?? null);
+
+    await pool.query(
+      `INSERT INTO hip_profile_shares
+         (request_id, share_code, abha_number, abha_address, name, mobile, gender, dob, raw_profile)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (request_id) DO NOTHING`,
+      [requestId, profile?.shareCode ?? null, abhaNumber, abhaAddress, name, mobile, gender, dob, profile ?? {}]
+    );
+    logger.info('Patient profile share stored', { name, abhaNumber, abhaAddress });
+  } catch (err) {
+    logger.error('handlePatientShareProfile error', err);
+  }
+};
+
+module.exports = { handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest, handlePatientShareProfile };
