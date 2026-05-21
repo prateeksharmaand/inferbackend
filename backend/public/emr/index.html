@@ -299,10 +299,40 @@
 
   <!-- Received FHIR records -->
   <div class="card">
-    <div class="card-header py-2 fw-semibold small">Received Health Records (FHIR)</div>
-    <div class="card-body p-0">
-      <div id="m3-records-list" class="p-3 text-muted text-center">Loading…</div>
+    <div class="card-header py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+            <input id="m3-search" type="text" class="form-control border-start-0"
+              placeholder="Search patient, record type, care context…" oninput="renderM3Records()">
+            <button class="btn btn-outline-secondary" onclick="document.getElementById('m3-search').value='';renderM3Records()" title="Clear"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select id="m3-sort" class="form-select form-select-sm" onchange="renderM3Records()">
+            <option value="received_at|desc">Newest first</option>
+            <option value="received_at|asc">Oldest first</option>
+            <option value="patient|asc">Patient A → Z</option>
+            <option value="patient|desc">Patient Z → A</option>
+            <option value="title|asc">Record type A → Z</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select id="m3-page-size" class="form-select form-select-sm" onchange="_m3Page=1;renderM3Records()">
+            <option value="6">6 / page</option>
+            <option value="12" selected>12 / page</option>
+            <option value="24">24 / page</option>
+          </select>
+        </div>
+        <div class="col-md-2 text-end">
+          <span id="m3-records-count" class="text-muted small"></span>
+          <button class="btn btn-outline-secondary btn-sm ms-1" onclick="loadM3Records()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+      </div>
     </div>
+    <div id="m3-records-list" class="p-3 text-muted text-center">Loading…</div>
+    <div id="m3-pagination" class="card-footer bg-white border-top py-2"></div>
   </div>
 </div>
 
@@ -825,21 +855,23 @@ async function fetchConsentData(requestId, btn) {
   finally { if (btn) btn.disabled = false; }
 }
 
+let _consentRecords = [];
 async function loadConsentHealthRecords() {
   const tbody = document.getElementById('health-records-tbody');
   try {
     const records = await api('GET', '/consents/health-records');
+    _consentRecords = records;
     if (!records.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No health records yet</td></tr>'; return; }
-    tbody.innerHTML = records.map(r => {
-      const summary = parseFhirSummary(r.content);
+    tbody.innerHTML = records.map((r, i) => {
+      const s = parseFhirSummary(r.content);
       return `<tr>
         <td>
-          <div class="fw-semibold small">${esc(summary.patient || '—')}</div>
-          <div class="text-muted" style="font-size:11px">${esc(summary.title || r.media || '—')}</div>
+          <div class="fw-semibold small">${esc(s.patient || '—')}</div>
+          <div class="text-muted" style="font-size:11px">${esc(s.title || r.media || '—')}</div>
         </td>
         <td class="small font-monospace">${esc(r.care_context_reference?.slice(0,20) || '—')}</td>
         <td class="small">${new Date(r.received_at).toLocaleString()}</td>
-        <td><button class="btn btn-outline-primary btn-sm" onclick='viewRecord(${JSON.stringify(r)})'>View FHIR</button></td>
+        <td><button class="btn btn-outline-primary btn-sm" onclick="viewRecord(_consentRecords[${i}])">View FHIR</button></td>
       </tr>`;
     }).join('');
   } catch(e) { tbody.innerHTML = `<tr><td colspan="4" class="text-danger p-3">${e.message}</td></tr>`; }
@@ -870,35 +902,141 @@ async function loadM3Consents() {
   } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="text-danger p-3">${e.message}</td></tr>`; }
 }
 
+// ── M3 records: data store + pagination state ─────────────────────────────────
+let _allM3Records = [];
+let _m3Page = 1;
+
 async function loadM3Records() {
   const el = document.getElementById('m3-records-list');
+  el.innerHTML = '<div class="py-4 text-center text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Loading…</div>';
   try {
     const records = await api('GET', '/consents/health-records');
-    if (!records.length) { el.innerHTML = '<p class="text-muted py-3">No health records received yet. Fetch data from a granted consent above.</p>'; return; }
-    el.innerHTML = `<div class="row g-3 p-3">${records.map(r => {
-      const s = parseFhirSummary(r.content);
-      return `<div class="col-md-6 col-lg-4">
-        <div class="card h-100 border-0 shadow-sm">
-          <div class="card-body">
-            <div class="d-flex align-items-center gap-2 mb-2">
-              <span class="badge bg-primary">${esc(s.resourceType || 'FHIR')}</span>
-              <span class="badge bg-light text-dark">${esc(s.hiType || '')}</span>
-            </div>
-            <div class="fw-semibold">${esc(s.title || s.patient || 'Health Record')}</div>
-            <div class="text-muted small">${esc(s.patient || '')}</div>
-            <div class="text-muted" style="font-size:11px">${esc(r.care_context_reference || '')}</div>
-            <div class="text-muted" style="font-size:11px">${new Date(r.received_at).toLocaleString()}</div>
-          </div>
-          <div class="card-footer bg-transparent border-0 pt-0">
-            <button class="btn btn-sm btn-outline-primary w-100" onclick='viewRecord(${JSON.stringify(r)})'>
-              <i class="bi bi-eye me-1"></i>View FHIR Record
-            </button>
-          </div>
-        </div>
-      </div>`;
-    }).join('')}</div>`;
+    _allM3Records = records.map((r, i) => ({ ...r, _idx: i, _summary: parseFhirSummary(r.content) }));
+    _m3Page = 1;
+    renderM3Records();
   } catch(e) { el.innerHTML = `<p class="text-danger p-3">${e.message}</p>`; }
 }
+
+function renderM3Records() {
+  const el       = document.getElementById('m3-records-list');
+  const pagEl    = document.getElementById('m3-pagination');
+  const countEl  = document.getElementById('m3-records-count');
+  const query    = (document.getElementById('m3-search')?.value || '').toLowerCase().trim();
+  const sortVal  = document.getElementById('m3-sort')?.value  || 'received_at|desc';
+  const pageSize = parseInt(document.getElementById('m3-page-size')?.value || '12');
+  const [sortKey, sortDir] = sortVal.split('|');
+
+  // ── filter ──
+  const filtered = _allM3Records.filter(r => {
+    if (!query) return true;
+    const s = r._summary;
+    return [s.patient, s.title, s.hiType, r.care_context_reference, r.transaction_id]
+      .some(v => (v || '').toLowerCase().includes(query));
+  });
+
+  // ── sort ──
+  filtered.sort((a, b) => {
+    let va, vb;
+    if (sortKey === 'received_at') {
+      va = new Date(a.received_at).getTime();
+      vb = new Date(b.received_at).getTime();
+    } else if (sortKey === 'patient') {
+      va = (a._summary.patient || '').toLowerCase();
+      vb = (b._summary.patient || '').toLowerCase();
+    } else {
+      va = (a._summary.title || a._summary.hiType || '').toLowerCase();
+      vb = (b._summary.title || b._summary.hiType || '').toLowerCase();
+    }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  // ── pagination ──
+  const total      = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (_m3Page > totalPages) _m3Page = totalPages;
+  const start = (_m3Page - 1) * pageSize;
+  const page  = filtered.slice(start, start + pageSize);
+
+  countEl.textContent = total === _allM3Records.length
+    ? `${total} record${total !== 1 ? 's' : ''}`
+    : `${total} of ${_allM3Records.length} record${_allM3Records.length !== 1 ? 's' : ''}`;
+
+  // ── empty state ──
+  if (!total) {
+    el.innerHTML = `<div class="py-5 text-center text-muted">
+      <i class="bi bi-database-x fs-1 d-block mb-2"></i>
+      ${query ? 'No records match your search.' : 'No health records received yet. Fetch data from a granted consent above.'}
+    </div>`;
+    pagEl.innerHTML = '';
+    return;
+  }
+
+  // ── cards ──
+  const HI_COLOR = { OPConsultation:'warning', Prescription:'success', DiagnosticReport:'info',
+                     DischargeSummary:'secondary', ImmunizationRecord:'success', WellnessRecord:'danger' };
+  el.innerHTML = `<div class="row g-3 p-3">${page.map(r => {
+    const s  = r._summary;
+    const hc = HI_COLOR[s.hiType] || 'primary';
+    return `<div class="col-sm-6 col-xl-4">
+      <div class="card h-100 border-0 shadow-sm" style="cursor:pointer" onclick="viewRecordByIdx(${r._idx})">
+        <div class="card-body pb-2">
+          <div class="d-flex align-items-center gap-1 mb-2 flex-wrap">
+            <span class="badge bg-${hc} bg-opacity-75">${esc(s.hiType || s.resourceType || 'FHIR')}</span>
+          </div>
+          <div class="fw-semibold small mb-1" style="line-height:1.3">${esc(s.title || 'Health Record')}</div>
+          ${s.patient ? `<div class="text-muted small"><i class="bi bi-person me-1"></i>${esc(s.patient)}</div>` : ''}
+          <div class="text-muted mt-1" style="font-size:11px;font-family:monospace">${esc((r.care_context_reference || '').slice(0, 30))}</div>
+          <div class="text-muted mt-1" style="font-size:11px"><i class="bi bi-clock me-1"></i>${new Date(r.received_at).toLocaleString()}</div>
+        </div>
+        <div class="card-footer bg-transparent border-top-0 pt-0 pb-2 px-3">
+          <button class="btn btn-sm btn-outline-primary w-100" onclick="event.stopPropagation();viewRecordByIdx(${r._idx})">
+            <i class="bi bi-eye me-1"></i>View FHIR
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+
+  // ── pagination ──
+  if (totalPages <= 1) { pagEl.innerHTML = ''; return; }
+
+  const MAX_BTNS = 5;
+  let lo = Math.max(1, _m3Page - Math.floor(MAX_BTNS / 2));
+  let hi = Math.min(totalPages, lo + MAX_BTNS - 1);
+  if (hi - lo < MAX_BTNS - 1) lo = Math.max(1, hi - MAX_BTNS + 1);
+
+  let btns = '';
+  if (lo > 1) btns += `<li class="page-item"><a class="page-link" href="#" onclick="goM3Page(1);return false">1</a></li>
+    ${lo > 2 ? '<li class="page-item disabled"><span class="page-link">…</span></li>' : ''}`;
+  for (let p = lo; p <= hi; p++)
+    btns += `<li class="page-item${p === _m3Page ? ' active' : ''}"><a class="page-link" href="#" onclick="goM3Page(${p});return false">${p}</a></li>`;
+  if (hi < totalPages) btns +=
+    `${hi < totalPages - 1 ? '<li class="page-item disabled"><span class="page-link">…</span></li>' : ''}
+     <li class="page-item"><a class="page-link" href="#" onclick="goM3Page(${totalPages});return false">${totalPages}</a></li>`;
+
+  pagEl.innerHTML = `<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <span class="text-muted small">Showing ${start + 1}–${Math.min(start + pageSize, total)} of ${total}</span>
+    <nav><ul class="pagination pagination-sm mb-0">
+      <li class="page-item${_m3Page === 1 ? ' disabled' : ''}">
+        <a class="page-link" href="#" onclick="goM3Page(${_m3Page - 1});return false">‹ Prev</a>
+      </li>
+      ${btns}
+      <li class="page-item${_m3Page === totalPages ? ' disabled' : ''}">
+        <a class="page-link" href="#" onclick="goM3Page(${_m3Page + 1});return false">Next ›</a>
+      </li>
+    </ul></nav>
+  </div>`;
+}
+
+function goM3Page(p) {
+  _m3Page = p;
+  renderM3Records();
+  document.getElementById('m3-records-list').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function viewRecordByIdx(idx) { viewRecord(_allM3Records[idx]); }
 
 // ── FHIR Viewer ───────────────────────────────────────────────────────────────
 function parseFhirSummary(content) {
