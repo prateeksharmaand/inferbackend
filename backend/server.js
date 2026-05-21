@@ -104,6 +104,9 @@ app.post('/v3/hip/links/link/confirm',              hipCtrl.handleLinkConfirm);
 app.post('/v3/hip/health-information/request',      hipCtrl.handleHealthInfoRequest);
 // M1: Patient shares profile by scanning facility QR (SHARE_PATIENT_PROFILE_701)
 app.post('/v3/hip/patient/share/profile',           hipCtrl.handlePatientShareProfile);
+app.post('/v3/hip/patient/share',                   hipCtrl.handlePatientShareProfile);
+app.post('/api/v3/hip/patient/share/profile',       hipCtrl.handlePatientShareProfile);
+app.post('/api/v3/hip/patient/share',               hipCtrl.handlePatientShareProfile);
 
 // Error handler
 app.use(errorHandler);
