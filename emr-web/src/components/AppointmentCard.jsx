@@ -62,6 +62,7 @@ function reminderTime(timeStr) {
 
 export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen }) {
   const [appt,           setAppt]           = useState(initialAppt);
+  useEffect(() => { setAppt(initialAppt); }, [initialAppt.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showTagDialog,  setShowTagDialog]  = useState(false);
   const [showEdit,       setShowEdit]       = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
