@@ -686,8 +686,10 @@ export default function WriteRx() {
         {showReceipt && appt && (
           <CreateReceiptModal
             appt={appt}
+            user={user}
+            rxImages={rxImages}
             onClose={() => setShowReceipt(false)}
-            onSaved={() => setShowReceipt(false)}
+            onSaved={() => {}}
           />
         )}
       </div>

@@ -9,6 +9,7 @@
   display: flex; flex-direction: column;
   box-shadow: 0 20px 60px rgba(0,0,0,.22); overflow: hidden;
 }
+.modalWide { max-width: 920px; }
 
 /* Header */
 .header {
@@ -16,21 +17,12 @@
   padding: 14px 20px; border-bottom: 1px solid var(--color-border);
   font-size: 15px; font-weight: 700; flex-shrink: 0;
 }
-.closeBtn {
-  background: none; border: none; cursor: pointer;
-  color: var(--color-text-2); display: flex; padding: 2px;
-}
+.closeBtn { background: none; border: none; cursor: pointer; color: var(--color-text-2); display: flex; padding: 2px; }
 
-/* Body */
-.body {
-  flex: 1; overflow-y: auto; padding: 18px 20px;
-  display: flex; flex-direction: column; gap: 16px;
-}
+/* ── Form view ─────────────────────────────────── */
+.body { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
 
-/* Patient row */
-.patientRow {
-  display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 1fr; gap: 12px;
-}
+.patientRow { display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 1fr; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 11px; font-weight: 700; color: var(--color-text-2); text-transform: uppercase; letter-spacing: .4px; }
 .req { color: #ef4444; }
@@ -46,11 +38,9 @@
 
 .phoneWrap { display: flex; align-items: stretch; }
 .phoneCode {
-  display: flex; align-items: center;
-  padding: 7px 8px; background: #f1f5f9;
-  border: 1px solid var(--color-border); border-right: none;
-  border-radius: 7px 0 0 7px; font-size: 12px; font-weight: 600;
-  color: var(--color-text-2); white-space: nowrap;
+  display: flex; align-items: center; padding: 7px 8px;
+  background: #f1f5f9; border: 1px solid var(--color-border); border-right: none;
+  border-radius: 7px 0 0 7px; font-size: 12px; font-weight: 600; color: var(--color-text-2);
 }
 .phoneInput { border-radius: 0 7px 7px 0; flex: 1; }
 
@@ -63,54 +53,41 @@
   width: 100%; font-family: inherit;
 }
 .select:focus { border-color: var(--color-primary); }
-.selectArrow {
-  position: absolute; right: 8px; pointer-events: none; color: var(--color-text-3);
-}
+.selectArrow { position: absolute; right: 8px; pointer-events: none; color: var(--color-text-3); }
 
 /* Table */
-.tableWrap {
-  border: 1px solid var(--color-border); border-radius: 10px; overflow: visible;
-}
+.tableWrap { border: 1px solid var(--color-border); border-radius: 10px; overflow: visible; }
 .tableHead {
-  display: grid;
-  grid-template-columns: 1fr 70px 130px 150px 110px 36px;
-  padding: 8px 10px; background: #f1f5f9;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 11px; font-weight: 700; color: var(--color-text-2);
-  text-transform: uppercase; letter-spacing: .4px;
+  display: grid; grid-template-columns: 1fr 70px 130px 150px 110px 36px;
+  padding: 8px 10px; background: #f1f5f9; border-bottom: 1px solid var(--color-border);
+  font-size: 11px; font-weight: 700; color: var(--color-text-2); text-transform: uppercase; letter-spacing: .4px;
 }
 .tableRow {
-  display: grid;
-  grid-template-columns: 1fr 70px 130px 150px 110px 36px;
-  padding: 8px 10px; align-items: center;
-  border-bottom: 1px solid var(--color-border);
+  display: grid; grid-template-columns: 1fr 70px 130px 150px 110px 36px;
+  padding: 8px 10px; align-items: center; border-bottom: 1px solid var(--color-border);
 }
 .tableRow:last-of-type { border-bottom: none; }
 
-/* Service autocomplete */
 .serviceInputWrap { position: relative; }
 .serviceInput {
   width: 100%; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px;
-  font-size: 12px; outline: none; background: var(--color-bg); font-family: inherit;
-  box-sizing: border-box;
+  font-size: 12px; outline: none; background: var(--color-bg); font-family: inherit; box-sizing: border-box;
 }
 .serviceInput:focus { border-color: var(--color-primary); }
 .serviceInput::placeholder { color: var(--color-text-3); font-size: 11px; }
 .serviceDropdown {
-  position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 400;
+  position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 800;
   background: #fff; border: 1px solid var(--color-border);
   border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
   max-height: 180px; overflow-y: auto; list-style: none; margin: 0; padding: 4px 0;
 }
 .serviceOption {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 12px; cursor: pointer; transition: background .1s;
+  padding: 8px 12px; cursor: pointer; font-size: 13px; transition: background .1s;
 }
 .serviceOption:hover { background: #f5f3ff; }
-.serviceOptName  { font-size: 13px; color: var(--color-text); }
-.serviceOptPrice { font-size: 12px; color: var(--color-primary); font-weight: 600; }
+.serviceOptPrice { color: var(--color-primary); font-weight: 600; font-size: 12px; }
 
-/* Cell inputs */
 .cellInput {
   width: 100%; padding: 6px 6px; border: 1px solid var(--color-border); border-radius: 6px;
   font-size: 12px; outline: none; background: var(--color-bg); font-family: inherit;
@@ -118,7 +95,6 @@
 }
 .cellInput:focus { border-color: var(--color-primary); }
 .cellInputMuted::placeholder { color: var(--color-text-3); font-size: 11px; }
-
 .amountCell { display: flex; align-items: center; gap: 4px; }
 .rupee { font-size: 12px; color: var(--color-text-2); flex-shrink: 0; }
 .totalVal { font-size: 13px; font-weight: 600; color: var(--color-text); }
@@ -132,12 +108,10 @@
 
 .delBtn {
   background: none; border: none; cursor: pointer;
-  color: var(--color-text-3); padding: 4px; border-radius: 4px;
-  display: flex; transition: color .1s;
+  color: var(--color-text-3); padding: 4px; border-radius: 4px; display: flex; transition: color .1s;
 }
 .delBtn:hover:not(:disabled) { color: #dc2626; }
 .delBtn:disabled { opacity: .3; cursor: not-allowed; }
-
 .addRowBtn {
   display: flex; align-items: center; gap: 5px;
   background: none; border: none; cursor: pointer;
@@ -147,10 +121,7 @@
 .addRowBtn:hover { color: var(--color-primary-dk); }
 
 /* Bottom section */
-.bottomSection {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;
-}
-
+.bottomSection { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .payFields { display: flex; flex-direction: column; gap: 10px; }
 .payRow { display: flex; align-items: center; gap: 8px; }
 .payLabel {
@@ -161,49 +132,31 @@
 .payInputFull { flex: 1; }
 .paymodeSelect { width: 110px; }
 
-/* Summary */
 .summary {
-  background: #fafbff; border: 1px solid #e0e7ff;
-  border-radius: 10px; padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 6px;
+  background: #fafbff; border: 1px solid #e0e7ff; border-radius: 10px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
 }
-.summaryRow {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 13px;
-}
+.summaryRow { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
 .summaryLabel { color: var(--color-text-2); }
 .summaryVal   { font-weight: 600; color: var(--color-text); }
 .summaryDiscount { color: #16a34a; }
 .summaryIndent { padding-left: 12px; }
 .summaryIndent .summaryLabel { font-size: 12px; color: var(--color-text-3); }
 .summaryIndent .summaryVal   { font-size: 12px; font-weight: 500; }
-.summaryGrand {
-  border-top: 1px solid #e0e7ff; padding-top: 8px; margin-top: 2px;
-}
+.summaryGrand { border-top: 1px solid #e0e7ff; padding-top: 8px; margin-top: 2px; }
 .summaryGrand .summaryLabel { font-weight: 700; color: var(--color-text); font-size: 14px; }
 .summaryGrand .summaryVal   { font-size: 15px; font-weight: 800; color: var(--color-primary); }
 
-/* Remarks */
 .remarksRow { display: flex; gap: 12px; align-items: flex-start; }
-.remarksLabel {
-  font-size: 11px; font-weight: 700; color: var(--color-text-2);
-  text-transform: uppercase; letter-spacing: .4px; width: 64px; flex-shrink: 0;
-  padding-top: 8px;
-}
-.remarksInput {
-  flex: 1; padding: 8px 10px; border: 1px solid var(--color-border);
-  border-radius: 7px; font-size: 13px; outline: none; resize: vertical;
-  font-family: inherit; background: var(--color-bg);
-}
+.remarksLabel { font-size: 11px; font-weight: 700; color: var(--color-text-2); text-transform: uppercase; letter-spacing: .4px; width: 64px; flex-shrink: 0; padding-top: 8px; }
+.remarksInput { flex: 1; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 7px; font-size: 13px; outline: none; resize: vertical; font-family: inherit; background: var(--color-bg); }
 .remarksInput:focus { border-color: var(--color-primary); }
 
 .error { color: #dc2626; font-size: 12px; }
 
-/* Footer */
 .footer {
   display: flex; justify-content: flex-end; gap: 10px;
-  padding: 12px 20px; border-top: 1px solid var(--color-border);
-  flex-shrink: 0;
+  padding: 12px 20px; border-top: 1px solid var(--color-border); flex-shrink: 0;
 }
 .btnCancel {
   background: none; border: 1px solid var(--color-border);
@@ -217,3 +170,144 @@
 }
 .btnSave:hover    { background: var(--color-primary-dk); }
 .btnSave:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ── Post-receipt view ─────────────────────────── */
+.createdBody {
+  display: grid; grid-template-columns: 280px 1fr;
+  flex: 1; overflow: hidden; min-height: 0;
+}
+
+.createdLeft {
+  border-right: 1px solid var(--color-border);
+  display: flex; flex-direction: column; gap: 0;
+  overflow-y: auto;
+}
+.createdBanner {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 16px 18px; background: #f0fdf4; border-bottom: 1px solid #bbf7d0;
+  font-size: 13px; color: #15803d; line-height: 1.4;
+}
+.createdCheck { color: #16a34a; flex-shrink: 0; margin-top: 1px; }
+
+.actionList { display: flex; flex-direction: column; padding: 8px 0; }
+.actionItem {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; background: none; border: none;
+  cursor: pointer; text-align: left; transition: background .1s;
+  border-bottom: 1px solid var(--color-border);
+}
+.actionItem:last-child { border-bottom: none; }
+.actionItem:hover { background: #f8fafc; }
+.actionIcon {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #ede9fe; color: var(--color-primary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.actionText { display: flex; flex-direction: column; gap: 2px; }
+.actionLabel { font-size: 14px; font-weight: 600; color: var(--color-text); }
+.actionSub   { font-size: 12px; color: var(--color-text-3); }
+
+.createdRight {
+  overflow-y: auto; background: #f4f6f8; padding: 16px;
+}
+
+/* Receipt document */
+.rxDoc {
+  background: #fff; max-width: 540px; margin: 0 auto;
+  box-shadow: 0 2px 12px rgba(0,0,0,.1); border-radius: 4px;
+  overflow: hidden; font-size: 12px;
+}
+.rxImgBlock { width: 100%; }
+.rxImg      { width: 100%; display: block; object-fit: contain; }
+
+.rxHeader {
+  background: #1e293b; color: #fff;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+}
+.rxHeaderLeft   { display: flex; flex-direction: column; gap: 3px; }
+.rxClinicName   { font-size: 15px; font-weight: 700; }
+.rxClinicAddress { font-size: 11px; opacity: .7; }
+.rxHeaderRight  { font-size: 12px; font-weight: 600; opacity: .85; }
+
+.rxMetaRow {
+  display: flex; justify-content: space-between;
+  padding: 10px 18px; background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #374151;
+}
+.rxBilledTo {
+  padding: 10px 18px; font-size: 12px; color: #374151;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.rxTable {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+  margin: 0;
+}
+.rxTable th {
+  background: #f1f5f9; padding: 8px 10px;
+  text-align: left; font-weight: 700; font-size: 11px;
+  color: #64748b; text-transform: uppercase; letter-spacing: .3px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.rxTable td {
+  padding: 9px 10px; border-bottom: 1px solid #f1f5f9; color: #374151;
+}
+.rxThNum  { width: 44px; text-align: center; }
+.rxThService { }
+.rxThAmt  { width: 80px; text-align: right; }
+.rxTdNum  { text-align: center; }
+.rxTdService { }
+.rxTdAmt  { text-align: right; }
+
+.rxTotals {
+  padding: 10px 18px; display: flex; flex-direction: column; gap: 6px;
+  border-top: 1px solid #e2e8f0;
+}
+.rxTotalRow {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: #374151; padding: 2px 0;
+}
+.rxGrandTotal {
+  background: #1e293b; color: #fff; font-weight: 700;
+  padding: 8px 10px; border-radius: 4px; margin: 4px -10px;
+  font-size: 13px;
+}
+
+.rxFooter {
+  padding: 10px 18px; text-align: center;
+  font-size: 11px; color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Created footer */
+.createdFooter {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; border-top: 1px solid var(--color-border); flex-shrink: 0;
+}
+.createdFooterLeft { display: flex; gap: 10px; }
+.btnOutline {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: 1px solid var(--color-border);
+  color: var(--color-text-2); padding: 8px 16px; border-radius: 7px;
+  font-size: 13px; font-weight: 500; cursor: pointer; transition: all .1s;
+}
+.btnOutline:hover { background: var(--color-bg); color: var(--color-text); }
+.btnDone {
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 9px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background .1s;
+}
+.btnDone:hover { background: var(--color-primary-dk); }
+
+/* ── Print: only receipt document ─────────────── */
+@media print {
+  body * { visibility: hidden; }
+  #receipt-print-area,
+  #receipt-print-area * { visibility: visible; }
+  #receipt-print-area {
+    position: absolute; left: 0; top: 0;
+    width: 100%; max-width: none;
+    box-shadow: none; border-radius: 0;
+  }
+}
