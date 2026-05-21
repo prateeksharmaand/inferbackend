@@ -85,11 +85,13 @@
 
 /* Print isolation — only show the prescription */
 @media print {
+  @page { size: A4 portrait; margin: 0; }
   body * { visibility: hidden; }
   #rx-print-modal-area,
   #rx-print-modal-area * { visibility: visible; }
   #rx-print-modal-area {
     position: fixed; top: 0; left: 0;
-    width: 100%; padding: 24px; box-sizing: border-box;
+    width: 210mm; min-height: 297mm;
+    box-shadow: none; border-radius: 0; border: none;
   }
 }

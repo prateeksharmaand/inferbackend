@@ -507,12 +507,13 @@
 
 /* Print media — show only the prescription document */
 @media print {
+  @page { size: A4 portrait; margin: 0; }
   body * { visibility: hidden; }
   #rx-print-area,
   #rx-print-area * { visibility: visible; }
   #rx-print-area {
-    position: absolute; left: 0; top: 0;
-    width: 100%; max-width: none;
+    position: fixed; top: 0; left: 0;
+    width: 210mm; min-height: 297mm;
     box-shadow: none; border-radius: 0; border: none;
   }
 }
