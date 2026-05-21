@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const hip      = require('./hip.service');
+const abdmSvc  = require('../services/abdm.service');
 
 // ── Patients ──────────────────────────────────────────────────────────────────
 
@@ -171,8 +172,54 @@ const activityLog = async (req, res) => {
   res.json(merged);
 };
 
+// ── Consent management (EMR acting as HIU) ────────────────────────────────────
+
+const createConsentRequest = async (req, res) => {
+  const { patientAbha, hipId, purpose, hiTypes, dateFrom, dateTo } = req.body;
+  if (!patientAbha || !hipId || !purpose || !hiTypes?.length)
+    return res.status(400).json({ error: 'patientAbha, hipId, purpose, hiTypes required' });
+
+  const clinicId = req.emrUser.clinic_id;
+  const hiuId    = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+
+  const result = await abdmSvc.createConsentRequest(
+    patientAbha, hiuId, purpose, hiTypes,
+    { from: dateFrom ?? new Date(0).toISOString(), to: dateTo ?? new Date().toISOString() }
+  );
+
+  const requestId = result.consentRequest?.id ?? abdmSvc.uuid();
+  await pool.query(
+    `INSERT INTO emr_consent_requests
+       (clinic_id, request_id, patient_abha, hip_id, hiu_id, purpose, hi_types)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [clinicId, requestId, patientAbha, hipId, hiuId, purpose, hiTypes]
+  );
+  res.json({ requestId, ...result });
+};
+
+const listConsentRequests = async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM emr_consent_requests WHERE clinic_id=$1 ORDER BY created_at DESC LIMIT 50`,
+    [req.emrUser.clinic_id]
+  );
+  res.json(rows);
+};
+
+const getConsentHealthRecords = async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT hr.*
+     FROM health_records hr
+     JOIN emr_consent_requests ecr ON ecr.transaction_id = hr.transaction_id
+     WHERE ecr.clinic_id=$1
+     ORDER BY hr.received_at DESC LIMIT 100`,
+    [req.emrUser.clinic_id]
+  );
+  res.json(rows);
+};
+
 module.exports = {
   listPatients, createPatient, getPatient, updatePatient, deletePatient,
   addCareContext, deleteCareContext,
   pendingOtps, healthRequests, activityLog,
+  createConsentRequest, listConsentRequests, getConsentHealthRecords,
 };

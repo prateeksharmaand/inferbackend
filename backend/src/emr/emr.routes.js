@@ -86,4 +86,9 @@ router.get('/pending-otps',    emr.pendingOtps);
 router.get('/health-requests', emr.healthRequests);
 router.get('/activity',        emr.activityLog);
 
+// Consent management (EMR acting as HIU)
+router.post('/consents',              emr.createConsentRequest);
+router.get ('/consents',              emr.listConsentRequests);
+router.get ('/consents/health-records', emr.getConsentHealthRecords);
+
 module.exports = router;

@@ -234,6 +234,24 @@ async function initializeDatabase() {
       )
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_consent_requests (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        clinic_id        INTEGER NOT NULL,
+        request_id       VARCHAR(100) UNIQUE,
+        transaction_id   VARCHAR(100),
+        patient_abha     VARCHAR(100),
+        hip_id           VARCHAR(100),
+        hiu_id           VARCHAR(100),
+        purpose          VARCHAR(50),
+        hi_types         TEXT[],
+        status           VARCHAR(30) DEFAULT 'REQUESTED',
+        artefacts        JSONB,
+        created_at       TIMESTAMPTZ DEFAULT NOW(),
+        updated_at       TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_consents_clinic ON emr_consent_requests(clinic_id)`);
+    await client.query(`
       CREATE OR REPLACE FUNCTION update_updated_at()
       RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ language 'plpgsql'
     `);

@@ -73,6 +73,7 @@
     <li class="nav-item"><a class="nav-link active" href="#" data-page="patients"><i class="bi bi-people"></i>Patients</a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="otps"><i class="bi bi-shield-lock"></i>Pending OTPs <span id="otp-count" class="badge bg-danger ms-1 d-none">0</span></a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="health-reqs"><i class="bi bi-activity"></i>Health Requests</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" data-page="consents"><i class="bi bi-file-earmark-check"></i>Consent Mgmt</a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="activity"><i class="bi bi-clock-history"></i>Activity Log</a></li>
     <li class="nav-item mt-auto"><a class="nav-link" href="#" data-page="setup"><i class="bi bi-gear"></i>HIP Setup Guide</a></li>
   </ul>
@@ -154,6 +155,104 @@
         <thead class="table-light"><tr><th>Transaction ID</th><th>Consent ID</th><th>Status</th><th>Time</th></tr></thead>
         <tbody id="health-reqs-tbody"><tr><td colspan="4" class="text-center py-4 text-muted">Loading…</td></tr></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Consent management page ───────────────────────────────────────────── -->
+<div id="page-consents" class="page">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0">Consent Management <span class="fs-6 fw-normal text-muted">(EMR as HIU)</span></h5>
+    <button class="btn btn-accent btn-sm" onclick="document.getElementById('consent-form-card').classList.toggle('d-none')">
+      <i class="bi bi-plus-lg me-1"></i>New Consent Request
+    </button>
+  </div>
+
+  <!-- Create consent form -->
+  <div id="consent-form-card" class="card mb-4 d-none">
+    <div class="card-body">
+      <h6 class="fw-semibold mb-3">Request Patient Consent</h6>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Patient ABHA Address</label>
+          <input id="c-abha" type="text" class="form-control form-control-sm" placeholder="patient@abdm">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">HIP ID (data source)</label>
+          <input id="c-hip" type="text" class="form-control form-control-sm" value="noushealthhip">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Purpose</label>
+          <select id="c-purpose" class="form-select form-select-sm">
+            <option value="CAREMGT">Care Management</option>
+            <option value="BTG">Break the Glass</option>
+            <option value="PUBHLTH">Public Health</option>
+            <option value="HPAYMT">Healthcare Payment</option>
+            <option value="DSRCH">Disease Specific Research</option>
+            <option value="PATRQT">Patient Request</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">From Date</label>
+          <input id="c-from" type="date" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">To Date</label>
+          <input id="c-to" type="date" class="form-control form-control-sm">
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">HI Types</label>
+          <div class="d-flex flex-wrap gap-2">
+            <div class="form-check"><input class="form-check-input hi-type" type="checkbox" value="OPConsultation" checked id="hi-op"><label class="form-check-label small" for="hi-op">OPConsultation</label></div>
+            <div class="form-check"><input class="form-check-input hi-type" type="checkbox" value="Prescription" id="hi-rx"><label class="form-check-label small" for="hi-rx">Prescription</label></div>
+            <div class="form-check"><input class="form-check-input hi-type" type="checkbox" value="DiagnosticReport" id="hi-dr"><label class="form-check-label small" for="hi-dr">DiagnosticReport</label></div>
+            <div class="form-check"><input class="form-check-input hi-type" type="checkbox" value="DischargeSummary" id="hi-ds"><label class="form-check-label small" for="hi-ds">DischargeSummary</label></div>
+            <div class="form-check"><input class="form-check-input hi-type" type="checkbox" value="ImmunizationRecord" id="hi-ir"><label class="form-check-label small" for="hi-ir">ImmunizationRecord</label></div>
+          </div>
+        </div>
+        <div class="col-12 mt-2">
+          <button class="btn btn-accent btn-sm" onclick="submitConsent()"><i class="bi bi-send me-1"></i>Send Consent Request</button>
+          <button class="btn btn-outline-secondary btn-sm ms-2" onclick="document.getElementById('consent-form-card').classList.add('d-none')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Consent requests list -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+      <span class="fw-semibold small">Consent Requests</span>
+      <button class="btn btn-outline-secondary btn-sm" onclick="loadConsents()"><i class="bi bi-arrow-clockwise"></i></button>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Request ID</th><th>Patient ABHA</th><th>HIP</th><th>Purpose</th><th>Status</th><th>Created</th></tr></thead>
+        <tbody id="consents-tbody"><tr><td colspan="6" class="text-center py-4 text-muted">No consent requests yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Health records received -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+      <span class="fw-semibold small">Health Records Received</span>
+      <button class="btn btn-outline-secondary btn-sm" onclick="loadConsentHealthRecords()"><i class="bi bi-arrow-clockwise"></i></button>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Transaction ID</th><th>Care Context</th><th>Media</th><th>Received</th><th>Action</th></tr></thead>
+        <tbody id="health-records-tbody"><tr><td colspan="5" class="text-center py-4 text-muted">No health records yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Health record viewer modal -->
+<div class="modal fade" id="recordModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Health Record</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><pre id="record-content" class="small" style="max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word"></pre></div>
     </div>
   </div>
 </div>
@@ -300,6 +399,7 @@ function showPage(name) {
   if (name === 'patients')     loadPatients();
   if (name === 'otps')         loadOtps();
   if (name === 'health-reqs')  loadHealthReqs();
+  if (name === 'consents')     { loadConsents(); loadConsentHealthRecords(); }
   if (name === 'activity')     loadActivity();
   if (name === 'setup')        loadSetup();
 }
@@ -582,6 +682,71 @@ HIU health push: POST ${base}/v0.5/health-information/transfer`;
 function val(id) { return document.getElementById(id)?.value?.trim() || null; }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+
+// ── Consent Management ────────────────────────────────────────────────────────
+const STATUS_COLOR = { REQUESTED: 'warning', GRANTED: 'success', DENIED: 'danger', REVOKED: 'secondary', EXPIRED: 'secondary' };
+
+async function submitConsent() {
+  const abha    = val('c-abha');
+  const hipId   = val('c-hip');
+  const purpose = document.getElementById('c-purpose').value;
+  const dateFrom = document.getElementById('c-from').value || null;
+  const dateTo   = document.getElementById('c-to').value || null;
+  const hiTypes  = [...document.querySelectorAll('.hi-type:checked')].map(el => el.value);
+  if (!abha || !hipId || !hiTypes.length) return toast('Fill patient ABHA, HIP ID, and at least one HI type', 'danger');
+  try {
+    await api('POST', '/consents', {
+      patientAbha: abha, hipId, purpose, hiTypes,
+      dateFrom: dateFrom ? new Date(dateFrom).toISOString() : null,
+      dateTo:   dateTo   ? new Date(dateTo + 'T23:59:59').toISOString() : null,
+    });
+    toast('Consent request sent — patient must approve in ABHA app');
+    document.getElementById('consent-form-card').classList.add('d-none');
+    loadConsents();
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+async function loadConsents() {
+  const tbody = document.getElementById('consents-tbody');
+  try {
+    const consents = await api('GET', '/consents');
+    if (!consents.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No consent requests yet</td></tr>'; return; }
+    tbody.innerHTML = consents.map(c => `
+      <tr>
+        <td class="small font-monospace">${c.request_id?.slice(0,16)}…</td>
+        <td class="small">${esc(c.patient_abha || '—')}</td>
+        <td class="small">${esc(c.hip_id || '—')}</td>
+        <td class="small">${esc(c.purpose || '—')}</td>
+        <td><span class="badge bg-${STATUS_COLOR[c.status] || 'secondary'}">${c.status}</span></td>
+        <td class="small">${new Date(c.created_at).toLocaleString()}</td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="text-danger p-3">${e.message}</td></tr>`; }
+}
+
+async function loadConsentHealthRecords() {
+  const tbody = document.getElementById('health-records-tbody');
+  try {
+    const records = await api('GET', '/consents/health-records');
+    if (!records.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No health records yet</td></tr>'; return; }
+    tbody.innerHTML = records.map(r => `
+      <tr>
+        <td class="small font-monospace">${r.transaction_id?.slice(0,16)}…</td>
+        <td class="small">${esc(r.care_context_reference || '—')}</td>
+        <td class="small">${esc(r.media || '—')}</td>
+        <td class="small">${new Date(r.received_at).toLocaleString()}</td>
+        <td><button class="btn btn-outline-primary btn-sm" onclick="viewRecord(${JSON.stringify(r.content).replace(/'/g, '&#39;')})">View</button></td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="5" class="text-danger p-3">${e.message}</td></tr>`; }
+}
+
+function viewRecord(content) {
+  try {
+    const decoded = atob(content);
+    try { document.getElementById('record-content').textContent = JSON.stringify(JSON.parse(decoded), null, 2); }
+    catch { document.getElementById('record-content').textContent = decoded; }
+  } catch { document.getElementById('record-content').textContent = content; }
+  new bootstrap.Modal(document.getElementById('recordModal')).show();
+}
 
 // Initial load
 if (!emrToken) showLogin(); else loadPatients();

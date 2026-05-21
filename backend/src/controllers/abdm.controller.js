@@ -400,14 +400,23 @@ const consentNotify = async (req, res) => {
     logger.info('ABDM consent notification', notification);
     if (!notification?.consentRequestId) return;
 
+    // Update PHR consent table
     await pool.query(
-      `UPDATE consent_requests SET status=$1, updated_at=NOW()
-       WHERE request_id=$2`,
+      `UPDATE consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
+      [notification.status, notification.consentRequestId]
+    );
+    // Update EMR consent table
+    await pool.query(
+      `UPDATE emr_consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
       [notification.status, notification.consentRequestId]
     );
 
     // When granted, automatically request health info from HIP
     if (notification.status === 'GRANTED' && notification.consentArtefacts?.length) {
+      await pool.query(
+        `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW() WHERE request_id=$2`,
+        [JSON.stringify(notification.consentArtefacts), notification.consentRequestId]
+      );
       const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
       for (const artefact of notification.consentArtefacts) {
         try {
@@ -419,8 +428,11 @@ const consentNotify = async (req, res) => {
           });
           const txnId = result.hiRequest?.transactionId ?? abdm.uuid();
           await pool.query(
-            `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW()
-             WHERE request_id=$2`,
+            `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
+            [txnId, notification.consentRequestId]
+          );
+          await pool.query(
+            `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
             [txnId, notification.consentRequestId]
           );
           logger.info('Health info requested', { txnId, artefactId: artefact.id });
