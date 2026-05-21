@@ -210,7 +210,7 @@ const handlePatientShareProfile = async (req, res) => {
     const p           = profile?.patient ?? {};
     const abhaNumber  = p.abhaNumber  ?? p.ABHANumber  ?? null;
     const abhaAddress = p.abhaAddress ?? p.preferredAbhaAddress ?? null;
-    const name        = p.name ?? [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || null;
+    const name        = p.name || [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || null;
     const mobile      = p.mobile ?? null;
     const gender      = p.gender ?? null;
     const dob         = (p.yearOfBirth && p.monthOfBirth && p.dayOfBirth)
