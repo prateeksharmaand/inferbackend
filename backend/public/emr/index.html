@@ -74,6 +74,7 @@
     <li class="nav-item"><a class="nav-link" href="#" data-page="otps"><i class="bi bi-shield-lock"></i>Pending OTPs <span id="otp-count" class="badge bg-danger ms-1 d-none">0</span></a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="health-reqs"><i class="bi bi-activity"></i>Health Requests</a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="consents"><i class="bi bi-file-earmark-check"></i>Consent Mgmt</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" data-page="m3-hiu"><i class="bi bi-database-down"></i>M3 Data Exchange</a></li>
     <li class="nav-item"><a class="nav-link" href="#" data-page="activity"><i class="bi bi-clock-history"></i>Activity Log</a></li>
     <li class="nav-item mt-auto"><a class="nav-link" href="#" data-page="setup"><i class="bi bi-gear"></i>HIP Setup Guide</a></li>
   </ul>
@@ -235,24 +236,92 @@
   <!-- Health records received -->
   <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center py-2">
-      <span class="fw-semibold small">Health Records Received</span>
+      <span class="fw-semibold small">Health Records Received (via M3 Data Exchange)</span>
       <button class="btn btn-outline-secondary btn-sm" onclick="loadConsentHealthRecords()"><i class="bi bi-arrow-clockwise"></i></button>
     </div>
     <div class="card-body p-0">
       <table class="table table-sm mb-0">
-        <thead><tr><th>Transaction ID</th><th>Care Context</th><th>Media</th><th>Received</th><th>Action</th></tr></thead>
-        <tbody id="health-records-tbody"><tr><td colspan="5" class="text-center py-4 text-muted">No health records yet</td></tr></tbody>
+        <thead><tr><th>Patient / Record</th><th>Care Context</th><th>Received</th><th>Action</th></tr></thead>
+        <tbody id="health-records-tbody"><tr><td colspan="4" class="text-center py-4 text-muted">No health records yet</td></tr></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── M3 Data Exchange page ──────────────────────────────────────────────── -->
+<div id="page-m3-hiu" class="page">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0">M3 Health Data Exchange <span class="fs-6 fw-normal text-muted">(EMR as HIU)</span></h5>
+    <button class="btn btn-outline-secondary btn-sm" onclick="loadM3Page()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+  </div>
+
+  <!-- Flow guide -->
+  <div class="card mb-4">
+    <div class="card-body py-3">
+      <div class="d-flex align-items-start gap-3 flex-wrap">
+        <div class="text-center" style="min-width:120px">
+          <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-1" style="width:36px;height:36px;font-weight:700">1</div>
+          <div class="small fw-semibold">Create Consent</div>
+          <div class="text-muted" style="font-size:11px">Consent Mgmt → New</div>
+        </div>
+        <div class="text-muted align-self-center">→</div>
+        <div class="text-center" style="min-width:120px">
+          <div class="rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center mb-1" style="width:36px;height:36px;font-weight:700">2</div>
+          <div class="small fw-semibold">Patient Grants</div>
+          <div class="text-muted" style="font-size:11px">Flutter app → Consents</div>
+        </div>
+        <div class="text-muted align-self-center">→</div>
+        <div class="text-center" style="min-width:120px">
+          <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center mb-1" style="width:36px;height:36px;font-weight:700">3</div>
+          <div class="small fw-semibold">Fetch Data</div>
+          <div class="text-muted" style="font-size:11px">Click "Fetch" below</div>
+        </div>
+        <div class="text-muted align-self-center">→</div>
+        <div class="text-center" style="min-width:120px">
+          <div class="rounded-circle bg-info text-white d-inline-flex align-items-center justify-content-center mb-1" style="width:36px;height:36px;font-weight:700">4</div>
+          <div class="small fw-semibold">View FHIR Data</div>
+          <div class="text-muted" style="font-size:11px">Records appear below</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Granted consents with fetch button -->
+  <div class="card mb-4">
+    <div class="card-header py-2 fw-semibold small">Granted Consents — Ready to Fetch</div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Request ID</th><th>Patient ABHA</th><th>Purpose</th><th>Status</th><th>Records</th><th>Action</th></tr></thead>
+        <tbody id="m3-consents-tbody"><tr><td colspan="6" class="text-center py-4 text-muted">No granted consents</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Received FHIR records -->
+  <div class="card">
+    <div class="card-header py-2 fw-semibold small">Received Health Records (FHIR)</div>
+    <div class="card-body p-0">
+      <div id="m3-records-list" class="p-3 text-muted text-center">Loading…</div>
     </div>
   </div>
 </div>
 
 <!-- Health record viewer modal -->
 <div class="modal fade" id="recordModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Health Record</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body"><pre id="record-content" class="small" style="max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word"></pre></div>
+      <div class="modal-header">
+        <h5 class="modal-title" id="record-modal-title">Health Record</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="nav nav-tabs mb-3" id="record-tabs">
+          <li class="nav-item"><a class="nav-link active" href="#" onclick="showRecordTab('summary',this)">Summary</a></li>
+          <li class="nav-item"><a class="nav-link" href="#" onclick="showRecordTab('raw',this)">Raw FHIR JSON</a></li>
+        </ul>
+        <div id="record-tab-summary"></div>
+        <div id="record-tab-raw" class="d-none"><pre id="record-content" class="small" style="max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word"></pre></div>
+      </div>
     </div>
   </div>
 </div>
@@ -400,6 +469,7 @@ function showPage(name) {
   if (name === 'otps')         loadOtps();
   if (name === 'health-reqs')  loadHealthReqs();
   if (name === 'consents')     { loadConsents(); loadConsentHealthRecords(); }
+  if (name === 'm3-hiu')       loadM3Page();
   if (name === 'activity')     loadActivity();
   if (name === 'setup')        loadSetup();
 }
@@ -712,11 +782,14 @@ async function loadConsents() {
     const consents = await api('GET', '/consents');
     if (!consents.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No consent requests yet</td></tr>'; return; }
     tbody.innerHTML = consents.map(c => {
-      const pending = c.status === 'REQUESTED';
-      const actions = pending
+      const pending  = c.status === 'REQUESTED';
+      const granted  = c.status === 'GRANTED';
+      const actions  = pending
         ? `<button class="btn btn-success btn-sm me-1" onclick="respondConsent('${c.request_id}','GRANT',this)"><i class="bi bi-check-lg"></i> Accept</button>
-           <button class="btn btn-danger btn-sm" onclick="respondConsent('${c.request_id}','DENY',this)"><i class="bi bi-x-lg"></i> Deny</button>`
-        : `<span class="text-muted small">—</span>`;
+           <button class="btn btn-danger btn-sm"  onclick="respondConsent('${c.request_id}','DENY',this)"><i class="bi bi-x-lg"></i> Deny</button>`
+        : granted
+          ? `<button class="btn btn-primary btn-sm" onclick="fetchConsentData('${c.request_id}',this)"><i class="bi bi-database-down me-1"></i>Fetch Data</button>`
+          : `<span class="text-muted small">—</span>`;
       return `<tr>
         <td class="small font-monospace">${c.request_id?.slice(0,16)}…</td>
         <td class="small">${esc(c.patient_abha || '—')}</td>
@@ -735,35 +808,153 @@ async function respondConsent(requestId, action, btn) {
   btn.disabled = true;
   try {
     await api('POST', `/consents/${requestId}/respond`, { action });
-    toast(action === 'GRANT' ? 'Consent accepted — health info fetch triggered' : 'Consent denied');
+    toast(action === 'GRANT' ? 'Consent accepted — health data auto-fetched from EMR' : 'Consent denied');
     loadConsents();
-    if (action === 'GRANT') setTimeout(loadConsentHealthRecords, 3000);
+    if (action === 'GRANT') setTimeout(() => { loadConsentHealthRecords(); }, 1000);
   } catch(e) { toast(e.message, 'danger'); btn.disabled = false; }
+}
+
+async function fetchConsentData(requestId, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const result = await api('POST', `/consents/${requestId}/pull-data`, {});
+    toast(result.message || 'Health data fetched');
+    loadConsentHealthRecords();
+    loadM3Records();
+  } catch(e) { toast(e.message, 'danger'); }
+  finally { if (btn) btn.disabled = false; }
 }
 
 async function loadConsentHealthRecords() {
   const tbody = document.getElementById('health-records-tbody');
   try {
     const records = await api('GET', '/consents/health-records');
-    if (!records.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No health records yet</td></tr>'; return; }
-    tbody.innerHTML = records.map(r => `
-      <tr>
-        <td class="small font-monospace">${r.transaction_id?.slice(0,16)}…</td>
-        <td class="small">${esc(r.care_context_reference || '—')}</td>
-        <td class="small">${esc(r.media || '—')}</td>
+    if (!records.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No health records yet</td></tr>'; return; }
+    tbody.innerHTML = records.map(r => {
+      const summary = parseFhirSummary(r.content);
+      return `<tr>
+        <td>
+          <div class="fw-semibold small">${esc(summary.patient || '—')}</div>
+          <div class="text-muted" style="font-size:11px">${esc(summary.title || r.media || '—')}</div>
+        </td>
+        <td class="small font-monospace">${esc(r.care_context_reference?.slice(0,20) || '—')}</td>
         <td class="small">${new Date(r.received_at).toLocaleString()}</td>
-        <td><button class="btn btn-outline-primary btn-sm" onclick="viewRecord(${JSON.stringify(r.content).replace(/'/g, '&#39;')})">View</button></td>
-      </tr>`).join('');
-  } catch(e) { tbody.innerHTML = `<tr><td colspan="5" class="text-danger p-3">${e.message}</td></tr>`; }
+        <td><button class="btn btn-outline-primary btn-sm" onclick='viewRecord(${JSON.stringify(r)})'>View FHIR</button></td>
+      </tr>`;
+    }).join('');
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="4" class="text-danger p-3">${e.message}</td></tr>`; }
 }
 
-function viewRecord(content) {
+// ── M3 HIU Page ───────────────────────────────────────────────────────────────
+async function loadM3Page() { await Promise.all([loadM3Consents(), loadM3Records()]); }
+
+async function loadM3Consents() {
+  const tbody = document.getElementById('m3-consents-tbody');
+  try {
+    const consents = await api('GET', '/consents');
+    const granted = consents.filter(c => c.status === 'GRANTED');
+    if (!granted.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No granted consents — ask patient to approve in Flutter app</td></tr>'; return; }
+    tbody.innerHTML = granted.map(c => `
+      <tr>
+        <td class="small font-monospace">${c.request_id?.slice(0,16)}…</td>
+        <td class="small">${esc(c.patient_abha || '—')}</td>
+        <td><span class="badge bg-light text-dark">${esc(c.purpose || '—')}</span></td>
+        <td><span class="badge bg-success">GRANTED</span></td>
+        <td class="small text-muted">${c.transaction_id ? '✓ fetched' : 'pending'}</td>
+        <td>
+          <button class="btn btn-primary btn-sm" onclick="fetchConsentData('${c.request_id}',this)">
+            <i class="bi bi-database-down me-1"></i>${c.transaction_id ? 'Re-fetch' : 'Fetch Health Data'}
+          </button>
+        </td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="text-danger p-3">${e.message}</td></tr>`; }
+}
+
+async function loadM3Records() {
+  const el = document.getElementById('m3-records-list');
+  try {
+    const records = await api('GET', '/consents/health-records');
+    if (!records.length) { el.innerHTML = '<p class="text-muted py-3">No health records received yet. Fetch data from a granted consent above.</p>'; return; }
+    el.innerHTML = `<div class="row g-3 p-3">${records.map(r => {
+      const s = parseFhirSummary(r.content);
+      return `<div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-primary">${esc(s.resourceType || 'FHIR')}</span>
+              <span class="badge bg-light text-dark">${esc(s.hiType || '')}</span>
+            </div>
+            <div class="fw-semibold">${esc(s.title || s.patient || 'Health Record')}</div>
+            <div class="text-muted small">${esc(s.patient || '')}</div>
+            <div class="text-muted" style="font-size:11px">${esc(r.care_context_reference || '')}</div>
+            <div class="text-muted" style="font-size:11px">${new Date(r.received_at).toLocaleString()}</div>
+          </div>
+          <div class="card-footer bg-transparent border-0 pt-0">
+            <button class="btn btn-sm btn-outline-primary w-100" onclick='viewRecord(${JSON.stringify(r)})'>
+              <i class="bi bi-eye me-1"></i>View FHIR Record
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<p class="text-danger p-3">${e.message}</p>`; }
+}
+
+// ── FHIR Viewer ───────────────────────────────────────────────────────────────
+let _currentFhir = null;
+
+function parseFhirSummary(content) {
   try {
     const decoded = atob(content);
+    const bundle  = JSON.parse(decoded);
+    const entries = bundle.entry ?? [];
+    const comp    = entries.find(e => e.resource?.resourceType === 'Composition')?.resource;
+    const pat     = entries.find(e => e.resource?.resourceType === 'Patient')?.resource;
+    const enc     = entries.find(e => e.resource?.resourceType === 'Encounter')?.resource;
+    return {
+      resourceType: bundle.resourceType,
+      title:   comp?.title ?? bundle.type,
+      patient: pat?.name?.[0]?.text ?? pat?.id ?? '',
+      hiType:  enc?.type?.[0]?.coding?.[0]?.display ?? comp?.type?.coding?.[0]?.display ?? '',
+    };
+  } catch { return { resourceType: 'FHIR', title: '', patient: '', hiType: '' }; }
+}
+
+function viewRecord(r) {
+  if (typeof r === 'string') r = JSON.parse(r);
+  const summary = parseFhirSummary(r.content);
+  document.getElementById('record-modal-title').textContent = summary.title || 'Health Record';
+
+  // Summary tab
+  const sumEl = document.getElementById('record-tab-summary');
+  sumEl.innerHTML = `
+    <div class="row g-3 mb-3">
+      <div class="col-sm-6"><label class="text-muted small">Patient</label><div class="fw-semibold">${esc(summary.patient || '—')}</div></div>
+      <div class="col-sm-6"><label class="text-muted small">Record Type</label><div class="fw-semibold">${esc(summary.hiType || '—')}</div></div>
+      <div class="col-sm-6"><label class="text-muted small">Care Context</label><div class="fw-semibold small font-monospace">${esc(r.care_context_reference || '—')}</div></div>
+      <div class="col-sm-6"><label class="text-muted small">Received</label><div class="fw-semibold">${new Date(r.received_at).toLocaleString()}</div></div>
+      <div class="col-sm-6"><label class="text-muted small">Transaction ID</label><div class="small font-monospace">${esc(r.transaction_id || '—')}</div></div>
+      <div class="col-sm-6"><label class="text-muted small">Media</label><div class="small">${esc(r.media || '—')}</div></div>
+    </div>`;
+
+  // Raw tab
+  try {
+    const decoded = atob(r.content);
     try { document.getElementById('record-content').textContent = JSON.stringify(JSON.parse(decoded), null, 2); }
     catch { document.getElementById('record-content').textContent = decoded; }
-  } catch { document.getElementById('record-content').textContent = content; }
+  } catch { document.getElementById('record-content').textContent = r.content; }
+
+  _currentFhir = r;
+  showRecordTab('summary', document.querySelector('#record-tabs .nav-link'));
   new bootstrap.Modal(document.getElementById('recordModal')).show();
+}
+
+function showRecordTab(tab, link) {
+  document.querySelectorAll('#record-tabs .nav-link').forEach(l => l.classList.remove('active'));
+  if (link) link.classList.add('active');
+  document.getElementById('record-tab-summary').classList.toggle('d-none', tab !== 'summary');
+  document.getElementById('record-tab-raw').classList.toggle('d-none', tab !== 'raw');
+  return false;
 }
 
 // Initial load

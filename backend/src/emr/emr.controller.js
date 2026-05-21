@@ -1,3 +1,4 @@
+const crypto   = require('crypto');
 const { pool } = require('../config/database');
 const hip      = require('./hip.service');
 const abdmSvc  = require('../services/abdm.service');
@@ -249,35 +250,67 @@ const respondConsent = async (req, res) => {
   }
 
   if (action === 'GRANT') {
-    const artefactId = abdmSvc.uuid();
-    await pool.query(
-      `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW() WHERE request_id=$2`,
-      [JSON.stringify([{ id: artefactId }]), requestId]
-    );
-    // Auto-fetch health info
-    const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
-    try {
-      const result = await abdmSvc.fetchHealthInfo(artefactId, dataPushUrl, {
-        cryptoAlg: 'ECDH',
-        curve: 'Curve25519',
-        dhPublicKey: { expiry: new Date(Date.now() + 3600_000).toISOString(), parameters: 'Curve25519', keyValue: '' },
-        nonce: abdmSvc.uuid(),
-      });
-      const txnId = result.hiRequest?.transactionId ?? abdmSvc.uuid();
-      await pool.query(
-        `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
-        [txnId, requestId]
-      );
-      await pool.query(
-        `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
-        [txnId, requestId]
-      );
-    } catch (err) {
-      // fetchHealthInfo may fail in sandbox — consent is still marked GRANTED
-    }
+    // Directly pull health data from EMR (sandbox shortcut — no ABDM gateway needed)
+    await _pullHealthData(requestId, req.emrUser.clinic_id).catch(() => {});
   }
 
   res.json({ status });
+};
+
+// ── Direct health data pull (sandbox bypass — reads from EMR's own care contexts) ──
+async function _pullHealthData(requestId, clinicId) {
+  const { rows: [consent] } = await pool.query(
+    'SELECT * FROM emr_consent_requests WHERE request_id=$1 AND clinic_id=$2',
+    [requestId, clinicId]
+  );
+  if (!consent || consent.status !== 'GRANTED') return { count: 0, txnId: null };
+
+  const patientAbha = consent.patient_abha;
+  if (!patientAbha) return { count: 0, txnId: null };
+
+  const { rows: ctxRows } = await pool.query(
+    `SELECT ecc.*, ep.name AS patient_name, ep.gender, ep.dob, ep.mobile
+     FROM emr_care_contexts ecc
+     JOIN emr_patients ep ON ep.id = ecc.patient_id
+     WHERE ep.abha_address=$1 OR ep.abha_number=$1
+     ORDER BY ecc.created_at DESC`,
+    [patientAbha]
+  );
+  if (!ctxRows.length) return { count: 0, txnId: null };
+
+  const txnId = consent.transaction_id ?? abdmSvc.uuid();
+
+  for (const ctx of ctxRows) {
+    const patient     = { name: ctx.patient_name, gender: ctx.gender, dob: ctx.dob, mobile: ctx.mobile };
+    const careContext = { display: ctx.display, hi_type: ctx.hi_type, created_at: ctx.created_at, reference_number: ctx.reference_number };
+    const fhir = ctx.fhir_content
+      ? (typeof ctx.fhir_content === 'string' ? ctx.fhir_content : JSON.stringify(ctx.fhir_content))
+      : hip.buildFhirBundle(patient, careContext);
+    const content  = Buffer.from(fhir).toString('base64');
+    const checksum = crypto.createHash('md5').update(fhir).digest('hex');
+
+    await pool.query(
+      `INSERT INTO health_records (transaction_id, care_context_reference, content, media, checksum)
+       VALUES ($1,$2,$3,'application/fhir+json',$4)
+       ON CONFLICT (transaction_id, care_context_reference)
+       DO UPDATE SET content=$3, checksum=$4`,
+      [txnId, ctx.reference_number, content, checksum]
+    );
+  }
+
+  await pool.query(
+    'UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2',
+    [txnId, requestId]
+  );
+  return { count: ctxRows.length, txnId };
+}
+
+const pullConsentData = async (req, res) => {
+  const { requestId } = req.params;
+  const clinicId = req.emrUser.clinic_id;
+  const result = await _pullHealthData(requestId, clinicId);
+  if (!result.txnId) return res.status(400).json({ error: 'Consent not found, not GRANTED, or patient has no care contexts' });
+  res.json({ message: `Fetched ${result.count} health record(s) from EMR`, ...result });
 };
 
 const getConsentHealthRecords = async (req, res) => {
@@ -299,5 +332,5 @@ module.exports = {
   listPatients, createPatient, getPatient, updatePatient, deletePatient,
   addCareContext, deleteCareContext,
   pendingOtps, healthRequests, activityLog,
-  createConsentRequest, listConsentRequests, respondConsent, getConsentHealthRecords,
+  createConsentRequest, listConsentRequests, respondConsent, pullConsentData, getConsentHealthRecords,
 };
