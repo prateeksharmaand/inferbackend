@@ -66,7 +66,7 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, shareC
     ? String(shareCode).replace(/[^a-zA-Z0-9.\-]/g, '').replace(/^[.\-]+|[.\-]+$/g, '') || 'share'
     : 'share';
   await hiecmPost('/patient-share/v3/on-share', {
-    requestId: uuid(),
+    requestId: '',
     timestamp: new Date().toISOString(),
     acknowledgement: {
       abhaAddress,
