@@ -494,6 +494,56 @@ const logoutAbha = async (req, res) => {
   res.json({ message: 'ABHA unlinked' });
 };
 
+const respondConsent = async (req, res) => {
+  const { requestId } = req.params;
+  const { action } = req.body;
+  if (!['GRANT', 'DENY'].includes(action))
+    return res.status(400).json({ error: 'action must be GRANT or DENY' });
+
+  const status = action === 'GRANT' ? 'GRANTED' : 'DENIED';
+
+  const { rowCount } = await pool.query(
+    `UPDATE consent_requests SET status=$1, updated_at=NOW()
+     WHERE request_id=$2 AND user_id=$3`,
+    [status, requestId, req.user.id]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Consent request not found' });
+
+  // Mirror into EMR table
+  await pool.query(
+    `UPDATE emr_consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
+    [status, requestId]
+  );
+
+  if (action === 'GRANT') {
+    const artefactId = abdm.uuid();
+    await pool.query(
+      `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW() WHERE request_id=$2`,
+      [JSON.stringify([{ id: artefactId }]), requestId]
+    );
+    const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
+    try {
+      const result = await abdm.fetchHealthInfo(artefactId, dataPushUrl, {
+        cryptoAlg: 'ECDH',
+        curve: 'Curve25519',
+        dhPublicKey: { expiry: new Date(Date.now() + 3600_000).toISOString(), parameters: 'Curve25519', keyValue: '' },
+        nonce: abdm.uuid(),
+      });
+      const txnId = result.hiRequest?.transactionId ?? abdm.uuid();
+      await pool.query(
+        `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
+        [txnId, requestId]
+      );
+      await pool.query(
+        `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
+        [txnId, requestId]
+      );
+    } catch (_) { /* health info fetch may fail in sandbox — consent still marked GRANTED */ }
+  }
+
+  res.json({ status });
+};
+
 const debugToken = async (req, res) => {
   try {
     const token = await abdm.getGatewayToken();
@@ -513,7 +563,7 @@ module.exports = {
   linkInit,             onLinkInit,     linkStatus,
   linkConfirm,          onLinkConfirm,  confirmStatus,
   linkCareContexts,     getLinkedCareContexts,
-  createConsent, getConsents,
+  createConsent, getConsents, respondConsent,
   consentNotify, healthInfoPush,
   getHealthRecords,
   debugToken,

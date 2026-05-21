@@ -38,8 +38,9 @@ router.post('/care-contexts/link',     auth, ctrl.linkCareContexts);
 router.get('/care-contexts',           auth, ctrl.getLinkedCareContexts);
 
 // ── M2: Consent management ────────────────────────────────────────────────────
-router.post('/consents', auth, ctrl.createConsent);
-router.get('/consents',  auth, ctrl.getConsents);
+router.post('/consents',                    auth, ctrl.createConsent);
+router.get('/consents',                     auth, ctrl.getConsents);
+router.post('/consents/:requestId/respond', auth, ctrl.respondConsent);
 
 // ── M3: Callbacks – called by ABDM gateway (no auth) ─────────────────────────
 router.post('/consent/notify',     ctrl.consentNotify);
