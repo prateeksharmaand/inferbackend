@@ -198,10 +198,10 @@ async function loginRequestOtp(abhaNumber) {
 async function loginVerifyOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
-    scope: 'abha-login',
+    scope: ['abha-login', 'mobile-verify'],
     authData: {
       authMethods: ['otp'],
-      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
+      otp: { txnId, otpValue: encOtp },
     },
   });
 }
