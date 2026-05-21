@@ -170,7 +170,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           </div>
 
           {/* ── Badges row: payment pill · new patient · receipt ── */}
-          <div className={styles.badgeRow} onClick={e => e.stopPropagation()}>
+          <div className={styles.badgeRow}>
             <span className={`${styles.pill} ${appt.payment_status === 'billed' ? styles.billed : styles.unbilled}`}>
               {appt.payment_status}
             </span>
@@ -178,7 +178,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             {receipts !== null && (
               <button
                 className={`${styles.receiptBadge} ${receipts.length === 0 ? styles.receiptBadgeEmpty : ''}`}
-                onClick={() => setShowReceipts(true)}
+                onClick={e => { e.stopPropagation(); setShowReceipts(true); }}
               >
                 <IndianRupee size={10} strokeWidth={2.5} />
                 {receiptTotal.toFixed(0)}
@@ -245,13 +245,13 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
           {/* ── Completed actions ── */}
           {appt.status === 'completed' && (
-            <div className={styles.actions} onClick={e => e.stopPropagation()}>
+            <div className={styles.actions}>
               <button className={`${styles.actionBtn} ${styles.actionBtnVitals}`}
-                onClick={() => onOpen('vitals')}>
+                onClick={e => { e.stopPropagation(); onOpen('vitals'); }}>
                 <Activity size={12} strokeWidth={2} /> Add Vitals
               </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
-                onClick={() => onOpen('print')}>
+                onClick={e => { e.stopPropagation(); onOpen('print'); }}>
                 <Printer size={12} strokeWidth={2} /> Rx Print
               </button>
             </div>

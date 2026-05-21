@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useQueueDate } from '../context/QueueDateContext';
 import { Search, SlidersHorizontal, ArrowUpDown, Plus, LayoutList, CalendarDays, X, Check } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
+import QuickVitalsModal from '../components/QuickVitalsModal';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
 import styles from './Queue.module.css';
@@ -104,6 +105,8 @@ export default function Queue() {
   const [leftSortOpen,  setLeftSortOpen]  = useState(false);
   const [rightSort,     setRightSort]     = useState('token_asc');
   const [rightSortOpen, setRightSortOpen] = useState(false);
+
+  const [vitalsAppt, setVitalsAppt] = useState(null);
 
   useEffect(() => {
     Promise.all([api.get('/queues'), api.get('/tags')])
@@ -289,7 +292,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
-                  onOpen={(action) => navigate(action === 'print' ? `/rx/${a.id}?print=1` : `/rx/${a.id}`)}
+                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else navigate(action === 'print' ? `/rx/${a.id}?print=1` : `/rx/${a.id}`); }}
                 />
               ))}
             </div>
@@ -388,7 +391,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
-                  onOpen={(action) => navigate(action === 'print' ? `/rx/${a.id}?print=1` : `/rx/${a.id}`)}
+                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else navigate(action === 'print' ? `/rx/${a.id}?print=1` : `/rx/${a.id}`); }}
                 />
               ))}
             </div>
@@ -402,6 +405,14 @@ export default function Queue() {
           <p>Queues help you organise today's patients by doctor, mode, or shift.</p>
           <button className={styles.setupBtn} onClick={() => navigate('/queue/setup')}>Create Queue</button>
         </div>
+      )}
+
+      {vitalsAppt && (
+        <QuickVitalsModal
+          appt={vitalsAppt}
+          onClose={() => setVitalsAppt(null)}
+          onSaved={() => { setVitalsAppt(null); fetchBoard(); }}
+        />
       )}
     </div>
   );
