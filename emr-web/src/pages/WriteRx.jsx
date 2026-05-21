@@ -836,7 +836,7 @@ export default function WriteRx() {
 
           {tab === 'Medical Records' && (
             <div className={styles.tabBody}>
-              <MedicalRecordsTab apptId={appointmentId} />
+              <MedicalRecordsTab apptId={appointmentId} patientMobile={appt?.patient_mobile} />
             </div>
           )}
         </div>
