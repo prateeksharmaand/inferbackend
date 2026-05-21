@@ -14,18 +14,55 @@ const listPatients = async (req, res) => {
     : `NULL AS uhid`;
 
   if (q && q.trim().length >= 2) {
-    const term = `%${q.trim().toLowerCase()}%`;
-    const { rows } = await pool.query(
+    const term   = `%${q.trim().toLowerCase()}%`;
+    const prefix = `${q.trim()}%`;
+    const cid    = parseInt(clinicId, 10);
+
+    // 1. Search the patient registry (name, mobile, ABHA, or UHID from appointments)
+    const { rows: regRows } = await pool.query(
       `SELECT p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
-              COUNT(c.id)::int AS context_count, ${uhidSub}
+              COUNT(DISTINCT c.id)::int AS context_count, ${uhidSub}
        FROM emr_patients p
        LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
        WHERE LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
+          OR EXISTS (
+            SELECT 1 FROM emr_appointments ax
+            WHERE ax.patient_mobile = p.mobile
+              AND LOWER(ax.uhid) LIKE $1
+              AND ax.clinic_id = $3
+          )
        GROUP BY p.id ORDER BY p.name LIMIT 10`,
-      [term, q.trim() + '%']
+      [term, prefix, cid]
     );
-    return res.json(rows);
+
+    // 2. Search appointments for patients not yet in the registry
+    const knownMobiles = regRows.map(r => r.mobile).filter(Boolean);
+    const { rows: apptRows } = await pool.query(
+      `SELECT NULL       AS id,
+              patient_name   AS name,
+              patient_mobile AS mobile,
+              patient_dob    AS dob,
+              patient_gender AS gender,
+              patient_abha   AS abha_number,
+              NULL           AS abha_address,
+              0              AS context_count,
+              MAX(uhid)      AS uhid
+       FROM emr_appointments
+       WHERE clinic_id = $3
+         AND (LOWER(patient_name) LIKE $1
+              OR patient_mobile   LIKE $2
+              OR LOWER(uhid)      LIKE $1
+              OR patient_abha     LIKE $2)
+         AND NOT (patient_mobile = ANY($4::text[]))
+       GROUP BY patient_name, patient_mobile, patient_dob, patient_gender, patient_abha
+       ORDER BY patient_name
+       LIMIT ${Math.max(1, 10 - regRows.length)}`,
+      [term, prefix, cid, knownMobiles.length ? knownMobiles : ['\x00']]
+    );
+
+    return res.json([...regRows, ...apptRows]);
   }
+
   const { rows } = await pool.query(
     `SELECT p.*, COUNT(c.id)::int AS context_count, ${uhidSub}
      FROM emr_patients p
