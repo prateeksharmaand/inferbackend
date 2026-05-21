@@ -1679,7 +1679,13 @@ async function loadCheckins() {
                 ${s.dob ? `<div class="col-auto"><i class="bi bi-calendar me-1"></i>${new Date(s.dob).toLocaleDateString()}</div>` : ''}
               </div>
               <div class="mt-1 small font-monospace text-muted">${esc(s.abha_number || '')}${s.abha_address ? ' · ' + esc(s.abha_address) : ''}</div>
-              <div class="text-muted" style="font-size:11px"><i class="bi bi-clock me-1"></i>${new Date(s.created_at).toLocaleString()}</div>
+              ${s.token ? `
+              <div class="mt-2 d-inline-flex align-items-center gap-2 px-3 py-1 rounded-3" style="background:#f0eeff">
+                <i class="bi bi-ticket-perforated text-accent"></i>
+                <span class="fw-bold fs-5 font-monospace" style="color:var(--accent);letter-spacing:4px">${esc(s.token)}</span>
+                <span class="text-muted small">${s.token_expires_at && new Date(s.token_expires_at) > new Date() ? 'valid until ' + new Date(s.token_expires_at).toLocaleTimeString() : '<span class="text-danger">expired</span>'}</span>
+              </div>` : ''}
+              <div class="text-muted mt-1" style="font-size:11px"><i class="bi bi-clock me-1"></i>${new Date(s.created_at).toLocaleString()}</div>
             </div>
             ${s.status === 'pending' ? `
             <div class="d-flex flex-column gap-2">

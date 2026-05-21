@@ -41,6 +41,46 @@ async function gwPost(path, body) {
   }
 }
 
+async function hiecmPost(path, body) {
+  const token = await getToken();
+  try {
+    const res = await axios.post(`${HIECM}${path}`, body, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-CM-ID': 'sbx',
+        'X-HIP-ID': HIP_ID,
+        'REQUEST-ID': uuid(),
+        TIMESTAMP: new Date().toISOString(),
+      },
+    });
+    return res.data;
+  } catch (err) {
+    logger.error('HIP HIECM callback failed', { path, status: err.response?.status, body: err.response?.data });
+    throw err;
+  }
+}
+
+async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber }) {
+  const expiryISO = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  await hiecmPost('/v3/hip/patient/share/on-share', {
+    requestId: uuid(),
+    timestamp: new Date().toISOString(),
+    acknowledgement: {
+      status: 'SUCCESS',
+      healthId: abhaAddress,
+    },
+    profile: {
+      patient: {
+        tokenNumber: String(tokenNumber),
+        expiry: expiryISO,
+      },
+    },
+    error: null,
+    resp: { requestId },
+  });
+}
+
 // ── Gateway callbacks ─────────────────────────────────────────────────────────
 
 async function sendDiscoverResult({ requestId, transactionId, patientId, careContexts }) {
@@ -213,4 +253,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   logger.info('HIP health data pushed', { transactionId, entries: entries.length });
 }
 
-module.exports = { uuid, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, pushHealthData, buildFhirBundle };
+module.exports = { uuid, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, pushHealthData, buildFhirBundle, sendShareProfileAck };

@@ -184,47 +184,64 @@ const handleHealthInfoRequest = async (req, res) => {
 
 const _ensureSharesTable = pool.query(`
   CREATE TABLE IF NOT EXISTS hip_profile_shares (
-    id           SERIAL PRIMARY KEY,
-    request_id   TEXT UNIQUE,
-    share_code   TEXT,
-    abha_number  TEXT,
-    abha_address TEXT,
-    name         TEXT,
-    mobile       TEXT,
-    gender       TEXT,
-    dob          DATE,
-    raw_profile  JSONB,
-    status       TEXT NOT NULL DEFAULT 'pending',
-    patient_id   INT REFERENCES emr_patients(id) ON DELETE SET NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id               SERIAL PRIMARY KEY,
+    request_id       TEXT UNIQUE,
+    share_code       TEXT,
+    abha_number      TEXT,
+    abha_address     TEXT,
+    name             TEXT,
+    mobile           TEXT,
+    gender           TEXT,
+    dob              DATE,
+    raw_profile      JSONB,
+    token            TEXT,
+    token_expires_at TIMESTAMPTZ,
+    status           TEXT NOT NULL DEFAULT 'pending',
+    patient_id       INT REFERENCES emr_patients(id) ON DELETE SET NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )
-`).catch(err => logger.error('hip_profile_shares table init error', err));
+`).then(() =>
+  // Add columns if table already existed without them
+  pool.query(`
+    ALTER TABLE hip_profile_shares
+      ADD COLUMN IF NOT EXISTS token TEXT,
+      ADD COLUMN IF NOT EXISTS token_expires_at TIMESTAMPTZ
+  `)
+).catch(err => logger.error('hip_profile_shares table init error', err));
 
 const handlePatientShareProfile = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
     await _ensureSharesTable;
-    const { requestId, timestamp, profile } = req.body;
+    const { requestId, profile } = req.body;
     logger.info('HIP patient share profile', { requestId });
 
     const p           = profile?.patient ?? {};
-    const abhaNumber  = p.abhaNumber  ?? p.ABHANumber  ?? null;
-    const abhaAddress = p.abhaAddress ?? p.preferredAbhaAddress ?? null;
+    const abhaNumber  = p.abhaNumber  || p.ABHANumber  || null;
+    const abhaAddress = p.abhaAddress || p.preferredAbhaAddress || null;
     const name        = p.name || [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || null;
-    const mobile      = p.mobile ?? null;
-    const gender      = p.gender ?? null;
+    const mobile      = p.mobile || null;
+    const gender      = p.gender || null;
     const dob         = (p.yearOfBirth && p.monthOfBirth && p.dayOfBirth)
       ? `${p.yearOfBirth}-${String(p.monthOfBirth).padStart(2,'0')}-${String(p.dayOfBirth).padStart(2,'0')}`
-      : (p.dateOfBirth ?? null);
+      : (p.dateOfBirth || null);
+
+    // Generate a 6-digit token valid for 30 minutes
+    const token          = String(Math.floor(100000 + Math.random() * 900000));
+    const tokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
     await pool.query(
       `INSERT INTO hip_profile_shares
-         (request_id, share_code, abha_number, abha_address, name, mobile, gender, dob, raw_profile)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         (request_id, share_code, abha_number, abha_address, name, mobile, gender, dob, raw_profile, token, token_expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        ON CONFLICT (request_id) DO NOTHING`,
-      [requestId, profile?.shareCode ?? null, abhaNumber, abhaAddress, name, mobile, gender, dob, profile ?? {}]
+      [requestId, profile?.shareCode || null, abhaNumber, abhaAddress, name, mobile, gender, dob, profile || {}, token, tokenExpiresAt]
     );
-    logger.info('Patient profile share stored', { name, abhaNumber, abhaAddress });
+
+    // Call ABDM back — this makes ABHA app show the token to the patient
+    await hip.sendShareProfileAck({ requestId, abhaAddress: abhaAddress || abhaNumber, tokenNumber: token });
+
+    logger.info('Patient profile share stored + ack sent', { name, abhaNumber, token });
   } catch (err) {
     logger.error('handlePatientShareProfile error', err);
   }
