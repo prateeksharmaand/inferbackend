@@ -42,7 +42,7 @@
   padding: 10px 14px 12px;
   border-bottom: 1px solid #f1f5f9;
 }
-.section:last-child { border-bottom: none; }
+.section:last-child { border-bottom: none; padding-bottom: 20px; }
 
 .sectionLabel {
   display: flex;
