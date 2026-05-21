@@ -6,6 +6,7 @@ import { Search, SlidersHorizontal, ArrowUpDown, Plus, LayoutList, CalendarDays,
 import AppointmentCard from '../components/AppointmentCard';
 import QuickVitalsModal from '../components/QuickVitalsModal';
 import RxPrintModal from '../components/RxPrintModal';
+import PatientProfilePanel from '../components/PatientProfilePanel';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
 import styles from './Queue.module.css';
@@ -109,8 +110,9 @@ export default function Queue() {
   const leftSortRef  = useRef(null);
   const rightSortRef = useRef(null);
 
-  const [vitalsAppt, setVitalsAppt] = useState(null);
-  const [printAppt,  setPrintAppt]  = useState(null);
+  const [vitalsAppt,   setVitalsAppt]   = useState(null);
+  const [printAppt,    setPrintAppt]    = useState(null);
+  const [profileAppt,  setProfileAppt]  = useState(null);
 
   useEffect(() => {
     Promise.all([api.get('/queues'), api.get('/tags')])
@@ -310,7 +312,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
-                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else navigate(`/rx/${a.id}`); }}
+                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
                 />
               ))}
             </div>
@@ -409,7 +411,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
-                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else navigate(`/rx/${a.id}`); }}
+                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
                 />
               ))}
             </div>
@@ -436,6 +438,16 @@ export default function Queue() {
         <RxPrintModal
           appt={printAppt}
           onClose={() => setPrintAppt(null)}
+        />
+      )}
+      {profileAppt && (
+        <PatientProfilePanel
+          appt={profileAppt}
+          onClose={() => setProfileAppt(null)}
+          onNewVisit={(a) => {
+            setProfileAppt(null);
+            window.dispatchEvent(new CustomEvent('checkin:prefill', { detail: a }));
+          }}
         />
       )}
     </div>

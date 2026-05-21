@@ -30,6 +30,7 @@ router.get ('/auth/doctors',    auth.listDoctors);
 // Patients (existing EMR patient store)
 router.get   ('/patients',                         emr.listPatients);
 router.post  ('/patients',                         emr.createPatient);
+router.get   ('/patients/history',                 appt.listPatientHistory);
 router.get   ('/patients/:id',                     emr.getPatient);
 router.patch ('/patients/:id',                     emr.updatePatient);
 router.delete('/patients/:id',                     emr.deletePatient);

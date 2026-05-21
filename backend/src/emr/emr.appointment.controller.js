@@ -283,4 +283,35 @@ const sendReminder = async (req, res) => {
   res.json({ ok: true, message: 'Reminder queued' });
 };
 
-module.exports = { listAppointments, createAppointment, updateStatus, getAppointment, saveEncounter, sendReminder };
+// GET /api/emr/patients/history?mobile=&name=
+const listPatientHistory = async (req, res) => {
+  const { mobile, name } = req.query;
+  const cid = req.emrUser.clinic_id;
+  if (!mobile && !name) return res.json([]);
+
+  const condition = mobile ? `a.patient_mobile = $2` : `LOWER(a.patient_name) = LOWER($2)`;
+  const param     = mobile || name;
+
+  const { rows } = await pool.query(
+    `SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+            a.patient_name, a.patient_mobile, a.patient_gender, a.patient_dob,
+            a.patient_abha, a.uhid, a.visit_type, a.channel,
+            a.medical_history, a.checked_in_at, a.completed_at,
+            d.name AS doctor_name,
+            e.id             AS encounter_id,
+            e.chief_complaint, e.symptoms, e.diagnosis, e.medications,
+            e.vitals, e.lab_investigations, e.lab_results,
+            e.advices, e.notes AS encounter_notes,
+            e.next_visit_date, e.procedures, e.examination_findings, e.refer_to
+     FROM emr_appointments a
+     LEFT JOIN emr_doctors    d ON d.id = a.doctor_id
+     LEFT JOIN emr_encounters e ON e.appointment_id = a.id
+     WHERE a.clinic_id = $1 AND ${condition}
+     ORDER BY a.appointment_date DESC, a.created_at DESC
+     LIMIT 50`,
+    [cid, param]
+  );
+  res.json(rows);
+};
+
+module.exports = { listAppointments, createAppointment, updateStatus, getAppointment, saveEncounter, sendReminder, listPatientHistory };
