@@ -35,6 +35,7 @@
   max-width: 640px; margin: 0 auto; min-height: 297mm;
   font-family: 'Times New Roman', serif; font-size: 13px;
   line-height: 1.5; color: #1e293b;
+  display: flex; flex-direction: column;
 }
 .imgBlock  { width: 100%; margin-bottom: 12px; }
 .paperImg  { width: 100%; display: block; }
@@ -54,7 +55,7 @@
 
 .hr { border: none; border-top: 1px solid #cbd5e1; margin: 10px 0; }
 
-.rxBody { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+.rxBody { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; flex: 1; }
 
 .inlineRow   { display: flex; align-items: flex-start; font-size: 12px; }
 .inlineLabel { font-weight: 700; white-space: nowrap; color: #334155; flex-shrink: 0; }

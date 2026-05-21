@@ -344,9 +344,10 @@
 
 /* ── Prescription paper (preview + print) ── */
 .rxPaper {
-  background: #fff; max-width: 680px; margin: 0 auto;
+  background: #fff; max-width: 680px; margin: 0 auto; min-height: 297mm;
   padding: 0; border-radius: 8px; overflow: hidden;
   box-shadow: 0 4px 24px rgba(0,0,0,.12);
+  display: flex; flex-direction: column;
 }
 /* Paper header/footer — image variant */
 .rxPaperImgBlock { line-height: 0; }
@@ -365,7 +366,7 @@
   border-bottom: 1px solid #e2e8f0; font-size: 13px;
 }
 .rxPaperRule { border: none; border-top: 1px solid #e2e8f0; margin: 0; }
-.rxPaperBody { padding: 4px 0; }
+.rxPaperBody { padding: 4px 0; flex: 1; }
 .rxPaperFooter {
   background: #f8fafc; padding: 10px 28px;
   font-size: 11px; color: #94a3b8; text-align: center;
