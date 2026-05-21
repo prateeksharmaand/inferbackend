@@ -169,14 +169,19 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </div>
           )}
 
-          {/* Receipt badge */}
-          {receipts && receipts.length > 0 && (
+          {/* Receipt badge — shown once data loads; ₹0 • Cash if no receipts yet */}
+          {receipts !== null && (
             <div className={styles.row2} onClick={e => e.stopPropagation()}>
-              <button className={styles.receiptBadge} onClick={() => setShowReceipts(true)}>
+              <button
+                className={`${styles.receiptBadge} ${receipts.length === 0 ? styles.receiptBadgeEmpty : ''}`}
+                onClick={() => setShowReceipts(true)}
+              >
                 <IndianRupee size={11} strokeWidth={2.5} />
                 {receiptTotal.toFixed(0)}
-                {receiptPaymodes && <span className={styles.receiptPaymode}>• {receiptPaymodes}</span>}
-                <span className={styles.receiptCount}>{receipts.length} receipt{receipts.length > 1 ? 's' : ''}</span>
+                <span className={styles.receiptPaymode}>• {receiptPaymodes || 'Cash'}</span>
+                {receipts.length > 0 && (
+                  <span className={styles.receiptCount}>{receipts.length} receipt{receipts.length > 1 ? 's' : ''}</span>
+                )}
               </button>
             </div>
           )}

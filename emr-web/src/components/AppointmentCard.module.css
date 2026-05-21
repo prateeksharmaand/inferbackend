@@ -59,6 +59,8 @@
   transition: background .12s;
 }
 .receiptBadge:hover { background: #bbf7d0; }
+.receiptBadgeEmpty { background: #f1f5f9; color: #64748b; }
+.receiptBadgeEmpty:hover { background: #e2e8f0; }
 .receiptPaymode { font-weight: 500; opacity: .85; }
 .receiptCount {
   font-size: 10px; font-weight: 600; opacity: .7;
