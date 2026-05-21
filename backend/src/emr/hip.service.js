@@ -63,7 +63,7 @@ async function hiecmPost(path, body) {
 
 async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber }) {
   const expiryISO = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-  await hiecmPost('/v3/hip/patient/share/on-share', {
+  await hiecmPost('/gateway/v3/hip/patient/share/on-share', {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
     acknowledgement: {
