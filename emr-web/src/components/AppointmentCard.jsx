@@ -22,6 +22,25 @@ const ACTIONS = {
 
 const MORE_ACTIONS = ['Write Rx', 'No Show', 'Cancel'];
 
+function durationText(from, to) {
+  if (!from || !to) return null;
+  const mins = Math.round((new Date(to) - new Date(from)) / 60000);
+  if (mins < 1) return '< 1 min';
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function fmt12(ts) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  let h = d.getHours(), m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
 function sinceText(ts) {
   if (!ts) return null;
   const mins = Math.floor((Date.now() - new Date(ts)) / 60000);
@@ -156,7 +175,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {gender && <span className={styles.infoText}>{gender}</span>}
               {appt.visit_type && <span className={styles.infoText}>{appt.visit_type}</span>}
             </div>
-            {/* Right col: time / channel / reminder */}
+            {/* Right col: time / channel / reminder / completed duration */}
             <div className={styles.infoCol}>
               {appt.appointment_time && (
                 <span className={styles.infoText}>⏰ {appt.appointment_time}</span>
@@ -167,6 +186,15 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {reminder && (
                 <span className={styles.reminderBadge}>
                   <Bell size={10} strokeWidth={2.5} /> {reminder}
+                </span>
+              )}
+              {appt.status === 'completed' && appt.completed_at && (
+                <span className={styles.durationBadge}>
+                  <Clock size={10} strokeWidth={2.5} />
+                  {durationText(appt.checked_in_at, appt.completed_at)
+                    ? `${durationText(appt.checked_in_at, appt.completed_at)} · `
+                    : ''}
+                  Done {fmt12(appt.completed_at)}
                 </span>
               )}
             </div>

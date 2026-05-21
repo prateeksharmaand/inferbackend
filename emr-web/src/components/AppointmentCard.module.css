@@ -50,6 +50,12 @@
   background: #fef3c7; border: 1px solid #fde68a;
   padding: 1px 6px; border-radius: 10px;
 }
+.durationBadge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: #16a34a;
+  background: #dcfce7; border: 1px solid #bbf7d0;
+  padding: 1px 7px; border-radius: 10px;
+}
 
 /* ── Badges row: payment · new · receipt · tags ── */
 .badgeRow {
