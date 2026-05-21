@@ -226,16 +226,15 @@ async function getAbhaPngCard(xToken) {
 }
 
 // ─── M2: Care-context discovery ───────────────────────────────────────────────
+// NOTE: gateway/v0.5/care-contexts/discover is removed from ABDM sandbox.
+// In ABDM v3, discovery is HIP-initiated: use generateLinkToken + linkCareContexts instead.
+// ABDM still calls our HIP at /v3/hip/patient/care-context/discover when the patient
+// initiates from the ABHA app — that callback is handled by hip.controller.js.
 
-async function discoverCareContexts(patient, hipId) {
-  const requestId = uuid();
-  await gwReq('POST', `${ABDM_GATEWAY}/v0.5/care-contexts/discover`, {
-    requestId,
-    timestamp: new Date().toISOString(),
-    patient,
-    hip: { id: hipId },
-  });
-  return requestId;  // ABDM responds 202; real results arrive via on-discover callback
+async function discoverCareContexts(_patient, _hipId) {
+  const err = new Error('ABDM gateway v0.5 care-context discovery is no longer available. Use HIP-initiated linking (generateLinkToken + linkCareContexts) instead.');
+  err.status = 410;
+  throw err;
 }
 
 // ─── M2: Patient-initiated link (gateway v0.5) ────────────────────────────────

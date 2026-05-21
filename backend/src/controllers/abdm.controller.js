@@ -135,30 +135,11 @@ const getAbhaCard = async (req, res) => {
 // ─── M2: Care-context discovery (async — ABDM calls on-discover callback) ─────
 
 const discoverCareContexts = async (req, res) => {
-  const { hipId, patientMobile, patientName, dateOfBirth, gender } = req.body;
-  if (!hipId) return res.status(400).json({ error: 'hipId required' });
-
-  const { rows } = await pool.query(
-    'SELECT abha_address FROM abha_accounts WHERE user_id=$1',
-    [req.user.id]
-  );
-  if (!rows.length) return res.status(400).json({ error: 'ABHA not linked' });
-
-  const patient = {
-    id: rows[0].abha_address,
-    name: patientName,
-    gender: gender ?? 'M',
-    dateOfBirth,
-    verifiedIdentifiers: patientMobile ? [{ type: 'MOBILE', value: patientMobile }] : [],
-    unverifiedIdentifiers: [],
-  };
-
-  const requestId = await abdm.discoverCareContexts(patient, hipId);
-  await pool.query(
-    `INSERT INTO discover_sessions (user_id, request_id, hip_id) VALUES ($1,$2,$3)`,
-    [req.user.id, requestId, hipId]
-  );
-  res.json({ requestId });
+  // gateway/v0.5/care-contexts/discover removed from ABDM sandbox.
+  // Use POST /api/abdm/care-contexts/link (HIP-initiated) instead.
+  res.status(410).json({
+    error: 'ABDM gateway discover endpoint is no longer available in v3. Use HIP-initiated linking: POST /api/abdm/care-contexts/link',
+  });
 };
 
 // Called by ABDM gateway with discovered care contexts
