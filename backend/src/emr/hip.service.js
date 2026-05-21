@@ -65,7 +65,7 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, shareC
   const expiry = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   await hiecmPost('/patient-share/v3/on-share', {
     transactionId: uuid(),
-    response: { requestId },
+    response: { requestId: requestId || '' },
     patient: { id: abhaAddress },
     token: {
       number: String(tokenNumber),
