@@ -61,20 +61,14 @@ async function hiecmPost(path, body) {
   }
 }
 
-async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, shareCode }) {
-  const expiry = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+async function sendShareProfileAck({ requestId, tokenNumber }) {
   await hiecmPost('/patient-share/v3/on-share', {
-    transactionId: uuid(),
-    response: { requestId: requestId || '' },
-    patient: { id: abhaAddress },
+    requestId,
+    timestamp: new Date().toISOString(),
+    acknowledgement: { status: 'SUCCESS' },
     token: {
       number: String(tokenNumber),
       type: 'OPD',
-      expiry,
-      facility: {
-        id: HIP_ID,
-        name: process.env.ABDM_FACILITY_NAME || HIP_ID,
-      },
     },
   });
 }
