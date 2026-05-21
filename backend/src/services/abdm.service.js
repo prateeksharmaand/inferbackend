@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 
 const ABDM_GATEWAY   = process.env.ABDM_GATEWAY_URL  || 'https://dev.abdm.gov.in/gateway';
-const ABHA_BASE      = process.env.ABHA_BASE_URL      || 'https://abhasbx.abdm.gov.in/abha/api/v3';
+const ABHA_BASE      = process.env.ABHA_BASE_URL      || 'https://abhasbx.abdm.gov.in/api/v3';
 const ABDM_HIECM     = process.env.ABDM_HIECM_URL     || 'https://dev.abdm.gov.in/api/hiecm';
 const ABDM_SESSION_URL = `${ABDM_HIECM}/gateway/v3/sessions`;
 const CLIENT_ID      = process.env.ABDM_CLIENT_ID;
