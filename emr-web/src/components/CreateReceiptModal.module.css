@@ -1,0 +1,219 @@
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 700; padding: 16px;
+}
+.modal {
+  background: #fff; border-radius: 12px;
+  width: 100%; max-width: 760px; max-height: 92vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.22); overflow: hidden;
+}
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--color-border);
+  font-size: 15px; font-weight: 700; flex-shrink: 0;
+}
+.closeBtn {
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-2); display: flex; padding: 2px;
+}
+
+/* Body */
+.body {
+  flex: 1; overflow-y: auto; padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+/* Patient row */
+.patientRow {
+  display: grid; grid-template-columns: 1.5fr 1fr 1.5fr 1fr; gap: 12px;
+}
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--color-text-2); text-transform: uppercase; letter-spacing: .4px; }
+.req { color: #ef4444; }
+
+.input {
+  padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 7px;
+  font-size: 13px; outline: none; background: var(--color-bg);
+  transition: border-color .15s; font-family: inherit;
+}
+.input:focus { border-color: var(--color-primary); }
+.inputMuted { color: var(--color-text-3); }
+.inputMuted:focus { color: var(--color-text); }
+
+.phoneWrap { display: flex; align-items: stretch; }
+.phoneCode {
+  display: flex; align-items: center;
+  padding: 7px 8px; background: #f1f5f9;
+  border: 1px solid var(--color-border); border-right: none;
+  border-radius: 7px 0 0 7px; font-size: 12px; font-weight: 600;
+  color: var(--color-text-2); white-space: nowrap;
+}
+.phoneInput { border-radius: 0 7px 7px 0; flex: 1; }
+
+.selectWrap { position: relative; display: flex; align-items: center; }
+.select {
+  appearance: none; padding: 7px 28px 7px 10px;
+  border: 1px solid var(--color-border); border-radius: 7px;
+  font-size: 13px; font-weight: 500; color: var(--color-text);
+  background: var(--color-bg); outline: none; cursor: pointer;
+  width: 100%; font-family: inherit;
+}
+.select:focus { border-color: var(--color-primary); }
+.selectArrow {
+  position: absolute; right: 8px; pointer-events: none; color: var(--color-text-3);
+}
+
+/* Table */
+.tableWrap {
+  border: 1px solid var(--color-border); border-radius: 10px; overflow: visible;
+}
+.tableHead {
+  display: grid;
+  grid-template-columns: 1fr 70px 130px 150px 110px 36px;
+  padding: 8px 10px; background: #f1f5f9;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px; font-weight: 700; color: var(--color-text-2);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.tableRow {
+  display: grid;
+  grid-template-columns: 1fr 70px 130px 150px 110px 36px;
+  padding: 8px 10px; align-items: center;
+  border-bottom: 1px solid var(--color-border);
+}
+.tableRow:last-of-type { border-bottom: none; }
+
+/* Service autocomplete */
+.serviceInputWrap { position: relative; }
+.serviceInput {
+  width: 100%; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px;
+  font-size: 12px; outline: none; background: var(--color-bg); font-family: inherit;
+  box-sizing: border-box;
+}
+.serviceInput:focus { border-color: var(--color-primary); }
+.serviceInput::placeholder { color: var(--color-text-3); font-size: 11px; }
+.serviceDropdown {
+  position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 400;
+  background: #fff; border: 1px solid var(--color-border);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  max-height: 180px; overflow-y: auto; list-style: none; margin: 0; padding: 4px 0;
+}
+.serviceOption {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; cursor: pointer; transition: background .1s;
+}
+.serviceOption:hover { background: #f5f3ff; }
+.serviceOptName  { font-size: 13px; color: var(--color-text); }
+.serviceOptPrice { font-size: 12px; color: var(--color-primary); font-weight: 600; }
+
+/* Cell inputs */
+.cellInput {
+  width: 100%; padding: 6px 6px; border: 1px solid var(--color-border); border-radius: 6px;
+  font-size: 12px; outline: none; background: var(--color-bg); font-family: inherit;
+  box-sizing: border-box; text-align: right;
+}
+.cellInput:focus { border-color: var(--color-primary); }
+.cellInputMuted::placeholder { color: var(--color-text-3); font-size: 11px; }
+
+.amountCell { display: flex; align-items: center; gap: 4px; }
+.rupee { font-size: 12px; color: var(--color-text-2); flex-shrink: 0; }
+.totalVal { font-size: 13px; font-weight: 600; color: var(--color-text); }
+
+.colService  { padding-right: 8px; }
+.colQty      { padding: 0 4px; }
+.colAmount   { padding: 0 4px; }
+.colDiscount { padding: 0 4px; }
+.colTotal    { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+.colDel      { display: flex; justify-content: center; }
+
+.delBtn {
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-3); padding: 4px; border-radius: 4px;
+  display: flex; transition: color .1s;
+}
+.delBtn:hover:not(:disabled) { color: #dc2626; }
+.delBtn:disabled { opacity: .3; cursor: not-allowed; }
+
+.addRowBtn {
+  display: flex; align-items: center; gap: 5px;
+  background: none; border: none; cursor: pointer;
+  color: var(--color-primary); font-size: 12px; font-weight: 600;
+  padding: 10px 14px; transition: color .1s;
+}
+.addRowBtn:hover { color: var(--color-primary-dk); }
+
+/* Bottom section */
+.bottomSection {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;
+}
+
+.payFields { display: flex; flex-direction: column; gap: 10px; }
+.payRow { display: flex; align-items: center; gap: 8px; }
+.payLabel {
+  font-size: 10px; font-weight: 700; color: var(--color-text-2); text-transform: uppercase;
+  letter-spacing: .4px; width: 100px; flex-shrink: 0; line-height: 1.3;
+}
+.payInput { width: 110px; flex-shrink: 0; }
+.payInputFull { flex: 1; }
+.paymodeSelect { width: 110px; }
+
+/* Summary */
+.summary {
+  background: #fafbff; border: 1px solid #e0e7ff;
+  border-radius: 10px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.summaryRow {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px;
+}
+.summaryLabel { color: var(--color-text-2); }
+.summaryVal   { font-weight: 600; color: var(--color-text); }
+.summaryDiscount { color: #16a34a; }
+.summaryIndent { padding-left: 12px; }
+.summaryIndent .summaryLabel { font-size: 12px; color: var(--color-text-3); }
+.summaryIndent .summaryVal   { font-size: 12px; font-weight: 500; }
+.summaryGrand {
+  border-top: 1px solid #e0e7ff; padding-top: 8px; margin-top: 2px;
+}
+.summaryGrand .summaryLabel { font-weight: 700; color: var(--color-text); font-size: 14px; }
+.summaryGrand .summaryVal   { font-size: 15px; font-weight: 800; color: var(--color-primary); }
+
+/* Remarks */
+.remarksRow { display: flex; gap: 12px; align-items: flex-start; }
+.remarksLabel {
+  font-size: 11px; font-weight: 700; color: var(--color-text-2);
+  text-transform: uppercase; letter-spacing: .4px; width: 64px; flex-shrink: 0;
+  padding-top: 8px;
+}
+.remarksInput {
+  flex: 1; padding: 8px 10px; border: 1px solid var(--color-border);
+  border-radius: 7px; font-size: 13px; outline: none; resize: vertical;
+  font-family: inherit; background: var(--color-bg);
+}
+.remarksInput:focus { border-color: var(--color-primary); }
+
+.error { color: #dc2626; font-size: 12px; }
+
+/* Footer */
+.footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 12px 20px; border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.btnCancel {
+  background: none; border: 1px solid var(--color-border);
+  color: var(--color-text-2); padding: 8px 18px; border-radius: 7px;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.btnSave {
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 9px 24px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background .1s;
+}
+.btnSave:hover    { background: var(--color-primary-dk); }
+.btnSave:disabled { opacity: .6; cursor: not-allowed; }
