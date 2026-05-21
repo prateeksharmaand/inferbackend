@@ -42,8 +42,7 @@ function ConsultTimer({ since }) {
   if (!text) return null;
   return (
     <span className={styles.consultTimer}>
-      <Clock size={11} strokeWidth={2} />
-      Since {text}
+      <Clock size={11} strokeWidth={2} /> Since {text}
     </span>
   );
 }
@@ -67,22 +66,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const [showReschedule, setShowReschedule] = useState(false);
   const [showMore,       setShowMore]       = useState(false);
   const [reminding,      setReminding]      = useState(false);
-  const [receipts,       setReceipts]       = useState(null);   // null = not loaded
+  const [receipts,       setReceipts]       = useState(null);
   const [showReceipts,   setShowReceipts]   = useState(false);
   const moreRef = useRef(null);
-
-  // Load receipt summary for completed/ongoing appointments
-  useEffect(() => {
-    if (!['completed', 'ongoing', 'parked'].includes(appt.status)) return;
-    api.get(`/receipts?appointment_id=${appt.id}`)
-      .then(rows => setReceipts(rows))
-      .catch(() => setReceipts([]));
-  }, [appt.id, appt.status]);
-
-  const receiptTotal = receipts?.reduce((s, r) => s + parseFloat(r.grand_total || 0), 0) || 0;
-  const receiptPaymodes = receipts?.length
-    ? [...new Set(receipts.map(r => r.paymode).filter(Boolean))].join(' / ')
-    : '';
 
   const color   = STATUS_COLOR[appt.status] || '#94a3b8';
   const actions = ACTIONS[appt.status] || [];
@@ -92,13 +78,24 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
     return clinicTags.find(t => t.id === idOrObj);
   }).filter(Boolean) : [];
 
-  // Close more-menu on outside click
   useEffect(() => {
     if (!showMore) return;
     const handler = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showMore]);
+
+  useEffect(() => {
+    if (!['completed', 'ongoing', 'parked'].includes(appt.status)) return;
+    api.get(`/receipts?appointment_id=${appt.id}`)
+      .then(rows => setReceipts(rows))
+      .catch(() => setReceipts([]));
+  }, [appt.id, appt.status]);
+
+  const receiptTotal    = receipts?.reduce((s, r) => s + parseFloat(r.grand_total || 0), 0) || 0;
+  const receiptPaymodes = receipts?.length
+    ? [...new Set(receipts.map(r => r.paymode).filter(Boolean))].join(' / ')
+    : '';
 
   const handleAction = (action) => {
     setShowMore(false);
@@ -115,9 +112,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const handleSendReminder = async (e) => {
     e.stopPropagation();
     setReminding(true);
-    try {
-      await api.post(`/appointments/${appt.id}/reminder`, {});
-    } catch (_) { /* silent — show sent state regardless */ }
+    try { await api.post(`/appointments/${appt.id}/reminder`, {}); } catch (_) {}
     setReminding(false);
   };
 
@@ -126,12 +121,15 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const openReschedule = (e) => { e.stopPropagation(); setShowReschedule(true); };
 
   const reminder = appt.status === 'booked' ? reminderTime(appt.appointment_time) : null;
+  const gender   = appt.patient_gender === 'M' ? 'Male' : appt.patient_gender === 'F' ? 'Female' : appt.patient_gender;
 
   return (
     <>
       <div className={styles.card} onClick={onOpen}>
         <div className={styles.stripe} style={{ background: color }} />
         <div className={styles.body}>
+
+          {/* ── Row 1: token · name · status · edit ── */}
           <div className={styles.row1}>
             <span className={styles.token}>#{appt.token_number}</span>
             <span className={styles.name}>{appt.patient_name}</span>
@@ -146,47 +144,51 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </div>
           </div>
 
-          <div className={styles.row2}>
-            {appt.uhid && <span className={styles.uhid}>{appt.uhid}</span>}
-            <span>{appt.patient_mobile || '—'}</span>
-            {appt.patient_gender && <span>• {appt.patient_gender === 'M' ? 'Male' : 'Female'}</span>}
-            {appt.visit_type && <span>• {appt.visit_type}</span>}
-            {appt.is_new_patient && <span className={styles.newBadge}>New Patient</span>}
-            <span className={`${styles.pill} ${appt.payment_status === 'billed' ? styles.billed : styles.unbilled}`}>
-              {appt.payment_status}
-            </span>
-          </div>
-
-          {appt.appointment_time && (
-            <div className={styles.row2}>
-              <span>⏰ {appt.appointment_time}</span>
-              {appt.channel && <span>• {appt.channel.replace('_', ' ')}</span>}
+          {/* ── Info grid: 2 columns fill full width ── */}
+          <div className={styles.infoGrid}>
+            {/* Left col: patient identifiers */}
+            <div className={styles.infoCol}>
+              {appt.uhid && <span className={styles.uhid}>{appt.uhid}</span>}
+              {appt.patient_mobile && <span className={styles.infoText}>{appt.patient_mobile}</span>}
+              {gender && <span className={styles.infoText}>{gender}</span>}
+              {appt.visit_type && <span className={styles.infoText}>{appt.visit_type}</span>}
+            </div>
+            {/* Right col: time / channel / reminder */}
+            <div className={styles.infoCol}>
+              {appt.appointment_time && (
+                <span className={styles.infoText}>⏰ {appt.appointment_time}</span>
+              )}
+              {appt.channel && (
+                <span className={styles.infoText}>{appt.channel.replace('_', ' ')}</span>
+              )}
               {reminder && (
                 <span className={styles.reminderBadge}>
-                  <Bell size={10} strokeWidth={2.5} /> Reminder at {reminder}
+                  <Bell size={10} strokeWidth={2.5} /> {reminder}
                 </span>
               )}
             </div>
-          )}
+          </div>
 
-          {/* Receipt badge — shown once data loads; ₹0 • Cash if no receipts yet */}
-          {receipts !== null && (
-            <div className={styles.row2} onClick={e => e.stopPropagation()}>
+          {/* ── Badges row: payment pill · new patient · receipt ── */}
+          <div className={styles.badgeRow} onClick={e => e.stopPropagation()}>
+            <span className={`${styles.pill} ${appt.payment_status === 'billed' ? styles.billed : styles.unbilled}`}>
+              {appt.payment_status}
+            </span>
+            {appt.is_new_patient && <span className={styles.newBadge}>New</span>}
+            {receipts !== null && (
               <button
                 className={`${styles.receiptBadge} ${receipts.length === 0 ? styles.receiptBadgeEmpty : ''}`}
                 onClick={() => setShowReceipts(true)}
               >
-                <IndianRupee size={11} strokeWidth={2.5} />
+                <IndianRupee size={10} strokeWidth={2.5} />
                 {receiptTotal.toFixed(0)}
-                <span className={styles.receiptPaymode}>• {receiptPaymodes || 'Cash'}</span>
+                <span className={styles.receiptPaymode}>· {receiptPaymodes || 'Cash'}</span>
                 {receipts.length > 0 && (
-                  <span className={styles.receiptCount}>{receipts.length} receipt{receipts.length > 1 ? 's' : ''}</span>
+                  <span className={styles.receiptCount}>{receipts.length}</span>
                 )}
               </button>
-            </div>
-          )}
-
-          <div className={styles.tagRow} onClick={e => e.stopPropagation()}>
+            )}
+            {/* Tags inline */}
             {resolvedTags.map(t => (
               <span key={t.id} className={styles.tagChip}
                 style={{ background: t.color + '22', borderColor: t.color, color: t.color }}>
@@ -194,12 +196,12 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               </span>
             ))}
             <button className={styles.addTagBtn} onClick={openTagDialog}>
-              <Tag size={11} strokeWidth={2} />
-              {resolvedTags.length === 0 ? 'Add Tag' : '+'}
+              <Tag size={10} strokeWidth={2} />
+              {resolvedTags.length === 0 ? 'Tag' : '+'}
             </button>
           </div>
 
-          {/* Booked-specific actions row */}
+          {/* ── Booked actions ── */}
           {appt.status === 'booked' && (
             <div className={styles.actions} onClick={e => e.stopPropagation()}>
               <button className={styles.actionBtn} onClick={() => handleAction('Check In')}>
@@ -208,7 +210,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               <button className={`${styles.actionBtn} ${styles.actionBtnReminder}`}
                 onClick={handleSendReminder} disabled={reminding}>
                 <Bell size={11} strokeWidth={2} />
-                {reminding ? 'Sending…' : 'Send Reminder'}
+                {reminding ? 'Sending…' : 'Remind'}
               </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnReschedule}`}
                 onClick={openReschedule}>
@@ -216,7 +218,8 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 Reschedule
               </button>
               <div className={styles.moreWrap} ref={moreRef}>
-                <button className={styles.moreBtn} onClick={e => { e.stopPropagation(); setShowMore(v => !v); }}
+                <button className={styles.moreBtn}
+                  onClick={e => { e.stopPropagation(); setShowMore(v => !v); }}
                   title="More options">
                   <MoreVertical size={14} strokeWidth={2} />
                 </button>
@@ -231,7 +234,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </div>
           )}
 
-          {/* Standard actions for other statuses */}
+          {/* ── Other status actions ── */}
           {appt.status !== 'booked' && actions.length > 0 && (
             <div className={styles.actions} onClick={e => e.stopPropagation()}>
               {actions.map(a => (
@@ -242,6 +245,14 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
         </div>
       </div>
 
+      {showReceipts && (
+        <ViewReceiptsModal
+          appt={appt}
+          receipts={receipts || []}
+          onClose={() => setShowReceipts(false)}
+          onReceiptsChange={(updated) => setReceipts(updated)}
+        />
+      )}
       {showTagDialog && (
         <TagDialog appt={appt} clinicTags={clinicTags}
           onClose={() => setShowTagDialog(false)} onSaved={onTagUpdate} />
@@ -250,14 +261,6 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
         <EditPatientModal appt={appt}
           onClose={() => setShowEdit(false)}
           onSaved={(updated) => setAppt(prev => ({ ...prev, ...updated }))} />
-      )}
-      {showReceipts && (
-        <ViewReceiptsModal
-          appt={appt}
-          receipts={receipts || []}
-          onClose={() => setShowReceipts(false)}
-          onReceiptsChange={(updated) => setReceipts(updated)}
-        />
       )}
       {showReschedule && (
         <BookSlotModal
@@ -268,10 +271,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             channel:        appt.channel        || 'walk_in',
           }}
           onClose={() => setShowReschedule(false)}
-          onBooked={() => {
-            onStatusChange(appt.id, 'cancelled');
-            setShowReschedule(false);
-          }}
+          onBooked={() => { onStatusChange(appt.id, 'cancelled'); setShowReschedule(false); }}
         />
       )}
     </>
