@@ -22,6 +22,14 @@ export default function FilterPanel({ filters, onChange, onClose, clinicTags = [
     return () => document.removeEventListener('mousedown', h);
   }, [onClose]);
 
+  // Clamp max-height to available space below the panel's top edge
+  useEffect(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const available = window.innerHeight - rect.top - 8;
+    ref.current.style.maxHeight = `${Math.min(480, available)}px`;
+  }, []);
+
   const set   = (key, value) => onChange({ ...filters, [key]: value });
   const reset = () => onChange({ ...DEFAULT_FILTERS });
   const count = activeFilterCount(filters);
