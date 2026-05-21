@@ -92,10 +92,16 @@ app.post('/v0.5/health-information/hiu/on-request', (req, res) => {
 app.post('/v0.5/health-information/transfer', abdmCtrl.healthInfoPush);
 
 // ── HIP callbacks (gateway → our EMR acting as HIP) ──────────────────────────
+// v0.5 paths (ABDM gateway standard)
 app.post('/v0.5/care-contexts/discover',            hipCtrl.handleDiscovery);
 app.post('/v0.5/links/link/init',                   hipCtrl.handleLinkInit);
 app.post('/v0.5/links/link/confirm',                hipCtrl.handleLinkConfirm);
 app.post('/v0.5/health-information/hip/request',    hipCtrl.handleHealthInfoRequest);
+// v3 paths (ABDM HIECM v3 — same handlers; gateway v3 on-discover callback is 404, falls back to v0.5)
+app.post('/v3/hip/patient/care-context/discover',   hipCtrl.handleDiscovery);
+app.post('/v3/hip/links/link/init',                 hipCtrl.handleLinkInit);
+app.post('/v3/hip/links/link/confirm',              hipCtrl.handleLinkConfirm);
+app.post('/v3/hip/health-information/request',      hipCtrl.handleHealthInfoRequest);
 
 // Error handler
 app.use(errorHandler);
