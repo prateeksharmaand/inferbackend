@@ -328,9 +328,157 @@ const getConsentHealthRecords = async (req, res) => {
   res.json(rows);
 };
 
+// ── M1: ABHA Creation & Verification (EMR patient workflow) ───────────────────
+
+// Step 1 – send Aadhaar OTP (creates new ABHA)
+const abhaCreateOtp = async (req, res) => {
+  const { aadhaar } = req.body;
+  const clean = (aadhaar || '').replace(/\D/g, '');
+  if (clean.length !== 12) return res.status(400).json({ error: 'Valid 12-digit Aadhaar number required' });
+  try {
+    const result = await abdmSvc.generateAadhaarOtp(clean);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Step 2 – verify Aadhaar OTP → receive xToken + profile
+const abhaCreateVerify = async (req, res) => {
+  const { otp, txnId, mobile } = req.body;
+  if (!otp || !txnId) return res.status(400).json({ error: 'otp and txnId required' });
+  try {
+    const result = await abdmSvc.verifyAadhaarOtp(otp, txnId, mobile || null);
+    // result.tokens.token is the enrollment X-Token
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Step 3a – mobile OTP (if Aadhaar-linked mobile differs from patient mobile)
+const abhaCreateMobileOtp = async (req, res) => {
+  const { mobile } = req.body;
+  if (!mobile) return res.status(400).json({ error: 'mobile required' });
+  try {
+    const result = await abdmSvc.generateMobileLoginOtp(mobile);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Step 3b – verify mobile OTP
+const abhaCreateMobileVerify = async (req, res) => {
+  const { otp, txnId } = req.body;
+  if (!otp || !txnId) return res.status(400).json({ error: 'otp and txnId required' });
+  try {
+    const result = await abdmSvc.verifyMobileLoginOtp(otp, txnId);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Step 4 – ABHA address suggestions
+const abhaGetSuggestions = async (req, res) => {
+  const { xToken } = req.body;
+  if (!xToken) return res.status(400).json({ error: 'xToken required' });
+  try {
+    const result = await abdmSvc.getAbhaSuggestions(xToken);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Step 5 – set ABHA address and save to patient record
+const abhaSetAddress = async (req, res) => {
+  const { xToken, abhaAddress, txnId } = req.body;
+  if (!xToken || !abhaAddress) return res.status(400).json({ error: 'xToken and abhaAddress required' });
+  try {
+    const result = await abdmSvc.setAbhaAddress(xToken, abhaAddress, txnId);
+    // Fetch full profile to get ABHA number
+    const profile = await abdmSvc.getAbhaProfile(xToken);
+    const abhaNum = profile.ABHANumber || profile.abhaNumber || null;
+    if (abhaNum) {
+      await pool.query(
+        'UPDATE emr_patients SET abha_number=$1, abha_address=$2 WHERE id=$3',
+        [abhaNum, abhaAddress, req.params.id]
+      );
+    }
+    res.json({ ...result, profile });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// ABHA card PNG → base64 JSON response
+const abhaGetCard = async (req, res) => {
+  const xToken = req.query.xToken || req.body?.xToken;
+  if (!xToken) return res.status(400).json({ error: 'xToken required' });
+  try {
+    const imgBuf = await abdmSvc.getAbhaPngCard(xToken);
+    res.json({ image: Buffer.from(imgBuf).toString('base64'), mimeType: 'image/png' });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Verify/link ABHA – Step 1: request login OTP by ABHA number or mobile
+const abhaVerifyOtp = async (req, res) => {
+  const { abhaId, mobile } = req.body;
+  try {
+    let result;
+    if (abhaId) {
+      result = await abdmSvc.loginRequestOtp(abhaId);
+    } else if (mobile) {
+      result = await abdmSvc.generateMobileLoginOtp(mobile);
+    } else {
+      return res.status(400).json({ error: 'abhaId or mobile required' });
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Verify/link ABHA – Step 2: confirm OTP, fetch profile, link to patient
+const abhaVerifyConfirm = async (req, res) => {
+  const { otp, txnId, byMobile } = req.body;
+  if (!otp || !txnId) return res.status(400).json({ error: 'otp and txnId required' });
+  try {
+    let verifyResult;
+    if (byMobile) {
+      verifyResult = await abdmSvc.verifyMobileLoginOtp(otp, txnId);
+    } else {
+      verifyResult = await abdmSvc.loginVerifyOtp(otp, txnId);
+    }
+    const xToken = verifyResult.token || verifyResult.tokens?.token;
+    if (!xToken) return res.status(502).json({ error: 'No token returned from ABDM' });
+
+    const profile = await abdmSvc.getAbhaProfile(xToken);
+    const abhaNum  = profile.ABHANumber   || profile.abhaNumber   || null;
+    const abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
+
+    if (abhaNum || abhaAddr) {
+      await pool.query(
+        'UPDATE emr_patients SET abha_number=COALESCE($1,abha_number), abha_address=COALESCE($2,abha_address) WHERE id=$3',
+        [abhaNum, abhaAddr, req.params.id]
+      );
+    }
+    res.json({ profile, xToken });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
 module.exports = {
   listPatients, createPatient, getPatient, updatePatient, deletePatient,
   addCareContext, deleteCareContext,
   pendingOtps, healthRequests, activityLog,
   createConsentRequest, listConsentRequests, respondConsent, pullConsentData, getConsentHealthRecords,
+  abhaCreateOtp, abhaCreateVerify, abhaCreateMobileOtp, abhaCreateMobileVerify,
+  abhaGetSuggestions, abhaSetAddress, abhaGetCard,
+  abhaVerifyOtp, abhaVerifyConfirm,
 };

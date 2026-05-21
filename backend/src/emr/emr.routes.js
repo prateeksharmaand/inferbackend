@@ -37,6 +37,19 @@ router.delete('/patients/:id',                     emr.deletePatient);
 router.post  ('/patients/:id/care-contexts',       emr.addCareContext);
 router.delete('/patients/:id/care-contexts/:ctxId',emr.deleteCareContext);
 
+// ABHA Creation (M1)
+router.post('/patients/:id/abha/create-otp',        emr.abhaCreateOtp);
+router.post('/patients/:id/abha/create-verify',     emr.abhaCreateVerify);
+router.post('/patients/:id/abha/mobile-otp',        emr.abhaCreateMobileOtp);
+router.post('/patients/:id/abha/mobile-verify',     emr.abhaCreateMobileVerify);
+router.post('/patients/:id/abha/suggestions',       emr.abhaGetSuggestions);
+router.post('/patients/:id/abha/set-address',       emr.abhaSetAddress);
+router.get ('/patients/:id/abha/card',              emr.abhaGetCard);
+
+// ABHA Verification / Linking (M1)
+router.post('/patients/:id/abha/verify-otp',        emr.abhaVerifyOtp);
+router.post('/patients/:id/abha/verify-confirm',    emr.abhaVerifyConfirm);
+
 // Queues
 router.get   ('/queues',     queue.listQueues);
 router.post  ('/queues',     queue.createQueue);

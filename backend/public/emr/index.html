@@ -30,6 +30,14 @@
   #otp-panel { position: fixed; bottom: 20px; right: 20px; width: 320px; z-index: 9999; }
   #login-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 10000; align-items: center; justify-content: center; }
   #login-box { background: #fff; border-radius: 16px; padding: 36px 32px; width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+  /* ABHA wizard step indicators */
+  .abha-step { display:flex; align-items:center; }
+  .abha-step .step-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:#e9ecef; color:#6c757d; border:2px solid #dee2e6; }
+  .abha-step.active .step-num { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .abha-step.done .step-num { background:#198754; color:#fff; border-color:#198754; }
+  .abha-step.done .step-num::before { content:'✓'; }
+  .abha-step.done span.step-num { font-size:0; }
+  .abha-step.done span.step-num::before { font-size:13px; }
 </style>
 </head>
 <body>
@@ -484,6 +492,207 @@
   </div>
 </div>
 
+<!-- ── Create ABHA Wizard Modal ─────────────────────────────────────────────── -->
+<div class="modal fade" id="createAbhaModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-person-plus-fill me-2 text-success"></i>Create ABHA</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="resetAbhaWiz()"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Step progress -->
+        <div class="d-flex align-items-center mb-4 gap-1" id="abha-wiz-steps">
+          <div class="abha-step active" data-s="1"><span class="step-num">1</span><span class="step-label d-none d-sm-inline ms-1">Consent</span></div>
+          <div class="flex-grow-1 border-top mx-1"></div>
+          <div class="abha-step" data-s="2"><span class="step-num">2</span><span class="step-label d-none d-sm-inline ms-1">Aadhaar OTP</span></div>
+          <div class="flex-grow-1 border-top mx-1"></div>
+          <div class="abha-step" data-s="3"><span class="step-num">3</span><span class="step-label d-none d-sm-inline ms-1">Verify OTP</span></div>
+          <div class="flex-grow-1 border-top mx-1"></div>
+          <div class="abha-step" data-s="4"><span class="step-num">4</span><span class="step-label d-none d-sm-inline ms-1">Choose Address</span></div>
+          <div class="flex-grow-1 border-top mx-1"></div>
+          <div class="abha-step" data-s="5"><span class="step-num">5</span><span class="step-label d-none d-sm-inline ms-1">Done</span></div>
+        </div>
+
+        <!-- Step 1: Consent -->
+        <div id="abha-step-1" class="abha-wiz-panel">
+          <div class="alert alert-info mb-3">
+            <strong>Ayushman Bharat Health Account (ABHA)</strong> is a unique health ID issued by the Government of India under the National Digital Health Mission (NDHM).
+            By creating an ABHA, the patient agrees to share their health data through the ABDM ecosystem under the following terms:
+          </div>
+          <ul class="small text-muted mb-3">
+            <li>Aadhaar number will be used solely for identity verification.</li>
+            <li>Patient consent is required before any health data is shared.</li>
+            <li>The patient can revoke consent at any time through the ABHA app.</li>
+            <li>Health data is stored securely as per NDHM data privacy policies.</li>
+          </ul>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="abha-consent-check">
+            <label class="form-check-label fw-semibold" for="abha-consent-check">
+              I confirm that the patient has read and agreed to the ABDM terms and conditions.
+            </label>
+          </div>
+          <button class="btn btn-accent" onclick="abhaWizNext1()">Next <i class="bi bi-arrow-right ms-1"></i></button>
+        </div>
+
+        <!-- Step 2: Aadhaar entry -->
+        <div id="abha-step-2" class="abha-wiz-panel d-none">
+          <div class="alert alert-warning small mb-3"><i class="bi bi-shield-lock me-1"></i>Aadhaar is encrypted before being sent to ABDM — it is never stored.</div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Aadhaar Number <span class="text-danger">*</span></label>
+            <input id="abha-aadhaar" type="text" class="form-control" placeholder="1234 5678 9012" maxlength="14"
+              oninput="this.value=this.value.replace(/[^\d]/g,'').replace(/(\d{4})(?=\d)/g,'$1 ').trim()">
+            <div class="form-text">12-digit Aadhaar number of the patient</div>
+          </div>
+          <div id="abha-step2-err" class="text-danger small mb-2"></div>
+          <button class="btn btn-outline-secondary btn-sm me-2" onclick="abhaWizGoTo(1)"><i class="bi bi-arrow-left me-1"></i>Back</button>
+          <button class="btn btn-accent" id="abha-send-otp-btn" onclick="abhaSendOtp()"><i class="bi bi-send me-1"></i>Send OTP</button>
+        </div>
+
+        <!-- Step 3: OTP verification -->
+        <div id="abha-step-3" class="abha-wiz-panel d-none">
+          <div class="alert alert-info small mb-3" id="abha-otp-hint">We sent an OTP to the mobile number linked with your Aadhaar.</div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">OTP <span class="text-danger">*</span></label>
+            <input id="abha-otp" type="text" class="form-control" placeholder="6-digit OTP" maxlength="6"
+              oninput="this.value=this.value.replace(/\D/g,'')">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Patient Mobile (optional — if different from Aadhaar-linked mobile)</label>
+            <input id="abha-mobile" type="text" class="form-control" placeholder="10-digit mobile" maxlength="10"
+              oninput="this.value=this.value.replace(/\D/g,'')">
+          </div>
+          <div id="abha-step3-err" class="text-danger small mb-2"></div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary btn-sm" onclick="abhaWizGoTo(2)"><i class="bi bi-arrow-left me-1"></i>Back</button>
+            <button class="btn btn-accent" id="abha-verify-otp-btn" onclick="abhaVerifyOtpStep()">Verify OTP</button>
+            <button class="btn btn-link btn-sm text-muted" id="abha-resend-btn" onclick="abhaResendOtp()" disabled>Resend OTP (<span id="abha-resend-timer">60</span>s)</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Choose ABHA address -->
+        <div id="abha-step-4" class="abha-wiz-panel d-none">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Choose an ABHA Address</label>
+            <div id="abha-suggestions-list" class="d-flex flex-column gap-2 mb-3"></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Or enter a custom ABHA address</label>
+            <div class="input-group">
+              <input id="abha-custom-addr" type="text" class="form-control" placeholder="yourname">
+              <span class="input-group-text">@abdm</span>
+            </div>
+            <div class="form-text">3–50 characters, letters, digits, dots, underscores only</div>
+          </div>
+          <div id="abha-step4-err" class="text-danger small mb-2"></div>
+          <button class="btn btn-accent" onclick="abhaSetAddressStep()"><i class="bi bi-check-circle me-1"></i>Create ABHA</button>
+        </div>
+
+        <!-- Step 5: Success -->
+        <div id="abha-step-5" class="abha-wiz-panel d-none text-center py-3">
+          <i class="bi bi-check-circle-fill text-success" style="font-size:3rem"></i>
+          <h5 class="fw-bold mt-3">ABHA Created Successfully!</h5>
+          <div class="card mx-auto mt-3" style="max-width:360px">
+            <div class="card-body">
+              <div class="row g-2 text-start">
+                <div class="col-5 text-muted small">ABHA Number</div><div class="col-7 small fw-semibold font-monospace" id="abha-result-num">—</div>
+                <div class="col-5 text-muted small">ABHA Address</div><div class="col-7 small fw-semibold" id="abha-result-addr">—</div>
+                <div class="col-5 text-muted small">Name</div><div class="col-7 small" id="abha-result-name">—</div>
+                <div class="col-5 text-muted small">Gender</div><div class="col-7 small" id="abha-result-gender">—</div>
+                <div class="col-5 text-muted small">DOB</div><div class="col-7 small" id="abha-result-dob">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 d-flex gap-2 justify-content-center flex-wrap">
+            <button class="btn btn-outline-primary" onclick="abhaDownloadCard()"><i class="bi bi-download me-1"></i>Download ABHA Card</button>
+            <button class="btn btn-accent" data-bs-dismiss="modal" onclick="resetAbhaWiz();openPatient(currentPatientId)">Close &amp; Refresh Patient</button>
+          </div>
+          <div id="abha-card-preview" class="mt-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Verify / Link ABHA Modal ────────────────────────────────────────────── -->
+<div class="modal fade" id="verifyAbhaModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-link-45deg me-2 text-primary"></i>Verify &amp; Link ABHA</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="resetVerifyWiz()"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Method tabs -->
+        <ul class="nav nav-pills nav-fill mb-3" id="verify-tabs">
+          <li class="nav-item"><a class="nav-link active" href="#" onclick="switchVerifyTab('abha-num',this);return false"><i class="bi bi-123 me-1"></i>By ABHA Number</a></li>
+          <li class="nav-item"><a class="nav-link" href="#" onclick="switchVerifyTab('mobile',this);return false"><i class="bi bi-phone me-1"></i>By Mobile</a></li>
+        </ul>
+
+        <!-- By ABHA Number -->
+        <div id="verify-tab-abha-num">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">ABHA Number <span class="text-danger">*</span></label>
+            <input id="verify-abha-id" type="text" class="form-control" placeholder="91-1234-5678-9012">
+          </div>
+          <div id="verify-otp-row-num" class="mb-3 d-none">
+            <label class="form-label fw-semibold">OTP <span class="text-danger">*</span></label>
+            <input id="verify-otp-num" type="text" class="form-control" placeholder="6-digit OTP" maxlength="6"
+              oninput="this.value=this.value.replace(/\D/g,'')">
+            <div class="form-text">OTP sent to mobile linked with your ABHA account</div>
+          </div>
+          <div id="verify-num-err" class="text-danger small mb-2"></div>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary" id="verify-send-otp-num-btn" onclick="verifySendOtp('abha-num')">Send OTP</button>
+            <button class="btn btn-accent d-none" id="verify-confirm-num-btn" onclick="verifyConfirmOtp('abha-num')">Verify &amp; Link</button>
+            <button class="btn btn-link btn-sm text-muted d-none" id="verify-resend-num-btn" onclick="verifySendOtp('abha-num')" disabled>Resend (<span id="verify-resend-num-timer">60</span>s)</button>
+          </div>
+        </div>
+
+        <!-- By Mobile -->
+        <div id="verify-tab-mobile" class="d-none">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Mobile Number <span class="text-danger">*</span></label>
+            <input id="verify-mobile" type="text" class="form-control" placeholder="10-digit mobile" maxlength="10"
+              oninput="this.value=this.value.replace(/\D/g,'')">
+          </div>
+          <div id="verify-otp-row-mobile" class="mb-3 d-none">
+            <label class="form-label fw-semibold">OTP <span class="text-danger">*</span></label>
+            <input id="verify-otp-mobile" type="text" class="form-control" placeholder="6-digit OTP" maxlength="6"
+              oninput="this.value=this.value.replace(/\D/g,'')">
+          </div>
+          <div id="verify-mob-err" class="text-danger small mb-2"></div>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary" id="verify-send-otp-mob-btn" onclick="verifySendOtp('mobile')">Send OTP</button>
+            <button class="btn btn-accent d-none" id="verify-confirm-mob-btn" onclick="verifyConfirmOtp('mobile')">Verify &amp; Link</button>
+            <button class="btn btn-link btn-sm text-muted d-none" id="verify-resend-mob-btn" onclick="verifySendOtp('mobile')" disabled>Resend (<span id="verify-resend-mob-timer">60</span>s)</button>
+          </div>
+        </div>
+
+        <!-- Success panel (shared) -->
+        <div id="verify-success" class="d-none text-center py-3">
+          <i class="bi bi-check-circle-fill text-success" style="font-size:2.5rem"></i>
+          <h6 class="fw-bold mt-2">ABHA Linked!</h6>
+          <div class="card mt-2 text-start">
+            <div class="card-body py-2">
+              <div class="row g-1 small">
+                <div class="col-5 text-muted">ABHA Number</div><div class="col-7 font-monospace fw-semibold" id="v-result-num">—</div>
+                <div class="col-5 text-muted">ABHA Address</div><div class="col-7 fw-semibold" id="v-result-addr">—</div>
+                <div class="col-5 text-muted">Name</div><div class="col-7" id="v-result-name">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 d-flex gap-2 justify-content-center">
+            <button class="btn btn-outline-primary btn-sm" onclick="verifyDownloadCard()"><i class="bi bi-download me-1"></i>Download Card</button>
+            <button class="btn btn-accent btn-sm" data-bs-dismiss="modal" onclick="resetVerifyWiz();openPatient(currentPatientId)">Close &amp; Refresh</button>
+          </div>
+          <div id="verify-card-preview" class="mt-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const API = '/api/emr';
@@ -569,15 +778,25 @@ async function loadPatients() {
   try {
     const pts = await api('GET', '/patients');
     if (!pts.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">No patients yet. Add one!</td></tr>'; return; }
-    tbody.innerHTML = pts.map(p => `
+    tbody.innerHTML = pts.map(p => {
+      const hasAbha = !!(p.abha_number || p.abha_address);
+      const abhaCell = hasAbha
+        ? `<span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:11px"><i class="bi bi-check-circle me-1"></i>${esc(p.abha_address||p.abha_number)}</span>`
+        : `<span class="badge bg-light text-muted" style="font-size:11px"><i class="bi bi-x-circle me-1"></i>Not linked</span>`;
+      return `
       <tr style="cursor:pointer" onclick="openPatient(${p.id})">
         <td class="fw-semibold">${esc(p.name)}</td>
         <td>${esc(p.mobile||'—')}</td>
-        <td><span class="text-muted" style="font-size:12px">${esc(p.abha_address||p.abha_number||'—')}</span></td>
+        <td>${abhaCell}</td>
         <td>${p.gender==='M'?'Male':p.gender==='F'?'Female':'Other'}</td>
         <td><span class="badge bg-light text-dark">${p.context_count} record(s)</span></td>
-        <td><button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();openPatient(${p.id})"><i class="bi bi-chevron-right"></i></button></td>
-      </tr>`).join('');
+        <td class="text-end">
+          ${!hasAbha ? `<button class="btn btn-sm btn-outline-success me-1" onclick="event.stopPropagation();openCreateAbha(${p.id})" title="Create ABHA"><i class="bi bi-person-plus-fill"></i></button>` : ''}
+          <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation();openVerifyAbha(${p.id})" title="${hasAbha?'Re-link ABHA':'Link ABHA'}"><i class="bi bi-link-45deg"></i></button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();openPatient(${p.id})"><i class="bi bi-chevron-right"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
   } catch(e) { tbody.innerHTML = `<tr><td colspan="6" class="text-danger p-3">${e.message}</td></tr>`; }
 }
 
@@ -587,14 +806,19 @@ async function openPatient(id) {
   try {
     const p = await api('GET', `/patients/${id}`);
     document.getElementById('detail-name').textContent = p.name;
+    const hasAbha = !!(p.abha_number || p.abha_address);
     document.getElementById('patient-info').innerHTML = `
       <dl class="row mb-0">
         <dt class="col-5 text-muted">Mobile</dt><dd class="col-7">${esc(p.mobile||'—')}</dd>
         <dt class="col-5 text-muted">Date of Birth</dt><dd class="col-7">${p.dob ? new Date(p.dob).toLocaleDateString() : '—'}</dd>
         <dt class="col-5 text-muted">Gender</dt><dd class="col-7">${p.gender==='M'?'Male':p.gender==='F'?'Female':'Other'}</dd>
-        <dt class="col-5 text-muted">ABHA Number</dt><dd class="col-7 small">${esc(p.abha_number||'—')}</dd>
+        <dt class="col-5 text-muted">ABHA Number</dt><dd class="col-7 small font-monospace">${esc(p.abha_number||'—')}</dd>
         <dt class="col-5 text-muted">ABHA Address</dt><dd class="col-7 small">${esc(p.abha_address||'—')}</dd>
-      </dl>`;
+      </dl>
+      <div class="mt-3 d-flex flex-wrap gap-2" id="abha-action-btns">
+        ${!hasAbha ? `<button class="btn btn-success btn-sm" onclick="openCreateAbha(${p.id})"><i class="bi bi-person-plus-fill me-1"></i>Create ABHA</button>` : ''}
+        <button class="btn btn-outline-primary btn-sm" onclick="openVerifyAbha(${p.id})"><i class="bi bi-link-45deg me-1"></i>${hasAbha?'Re-link ABHA':'Link ABHA'}</button>
+      </div>`;
     const ctxList = document.getElementById('care-contexts-list');
     if (!p.care_contexts.length) {
       ctxList.innerHTML = '<p class="text-muted text-center py-3">No records yet</p>';
@@ -1374,6 +1598,273 @@ function showRecordTab(tab, link) {
   document.getElementById('record-tab-raw').classList.toggle('d-none', tab !== 'raw');
   return false;
 }
+
+// ── M1: Create ABHA Wizard ────────────────────────────────────────────────────
+let _abhaWiz = { patientId: null, step: 1, txnId: null, xToken: null, suggestions: [], profile: null };
+let _abhaResendTimer = null;
+
+function openCreateAbha(patientId) {
+  resetAbhaWiz();
+  _abhaWiz.patientId = patientId;
+  new bootstrap.Modal(document.getElementById('createAbhaModal')).show();
+}
+
+function resetAbhaWiz() {
+  _abhaWiz = { patientId: _abhaWiz.patientId, step: 1, txnId: null, xToken: null, suggestions: [], profile: null };
+  if (_abhaResendTimer) { clearInterval(_abhaResendTimer); _abhaResendTimer = null; }
+  ['2','3','4','5'].forEach(s => document.getElementById('abha-step-' + s).classList.add('d-none'));
+  document.getElementById('abha-step-1').classList.remove('d-none');
+  document.getElementById('abha-consent-check').checked = false;
+  ['abha-aadhaar','abha-otp','abha-mobile','abha-custom-addr'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['abha-step2-err','abha-step3-err','abha-step4-err'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+  document.getElementById('abha-card-preview').innerHTML = '';
+  _updateAbhaStepProgress(1);
+}
+
+function _updateAbhaStepProgress(step) {
+  document.querySelectorAll('.abha-step').forEach(el => {
+    const s = parseInt(el.dataset.s);
+    el.classList.toggle('active', s === step);
+    el.classList.toggle('done',   s < step);
+  });
+}
+
+function abhaWizGoTo(step) {
+  [1,2,3,4,5].forEach(s => document.getElementById('abha-step-' + s).classList.toggle('d-none', s !== step));
+  _abhaWiz.step = step;
+  _updateAbhaStepProgress(step);
+}
+
+function abhaWizNext1() {
+  if (!document.getElementById('abha-consent-check').checked)
+    return alert('Please confirm the patient has agreed to the ABDM terms.');
+  abhaWizGoTo(2);
+}
+
+async function abhaSendOtp() {
+  const aadhaar = document.getElementById('abha-aadhaar').value.replace(/\D/g,'');
+  if (aadhaar.length !== 12) { document.getElementById('abha-step2-err').textContent = 'Enter a valid 12-digit Aadhaar number'; return; }
+  document.getElementById('abha-step2-err').textContent = '';
+  const btn = document.getElementById('abha-send-otp-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+  try {
+    const res = await api('POST', `/patients/${_abhaWiz.patientId}/abha/create-otp`, { aadhaar });
+    _abhaWiz.txnId = res.txnId;
+    abhaWizGoTo(3);
+    _startAbhaResendTimer();
+  } catch(e) { document.getElementById('abha-step2-err').textContent = e.message; }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send me-1"></i>Send OTP'; }
+}
+
+function _startAbhaResendTimer(seconds = 60) {
+  const resendBtn = document.getElementById('abha-resend-btn');
+  const timerEl   = document.getElementById('abha-resend-timer');
+  resendBtn.disabled = true;
+  let remaining = seconds;
+  timerEl.textContent = remaining;
+  if (_abhaResendTimer) clearInterval(_abhaResendTimer);
+  _abhaResendTimer = setInterval(() => {
+    remaining--;
+    timerEl.textContent = remaining;
+    if (remaining <= 0) {
+      clearInterval(_abhaResendTimer); _abhaResendTimer = null;
+      resendBtn.disabled = false;
+    }
+  }, 1000);
+}
+
+async function abhaResendOtp() {
+  // Resend is max 2 times — tracked server-side by ABDM. Just re-trigger the OTP.
+  const aadhaar = document.getElementById('abha-aadhaar').value.replace(/\D/g,'');
+  document.getElementById('abha-step3-err').textContent = '';
+  try {
+    const res = await api('POST', `/patients/${_abhaWiz.patientId}/abha/create-otp`, { aadhaar });
+    _abhaWiz.txnId = res.txnId;
+    document.getElementById('abha-resend-btn').disabled = true;
+    _startAbhaResendTimer();
+    toast('OTP resent');
+  } catch(e) { document.getElementById('abha-step3-err').textContent = e.message; }
+}
+
+async function abhaVerifyOtpStep() {
+  const otp    = document.getElementById('abha-otp').value.trim();
+  const mobile = document.getElementById('abha-mobile').value.trim() || null;
+  if (!otp) { document.getElementById('abha-step3-err').textContent = 'Enter the OTP'; return; }
+  document.getElementById('abha-step3-err').textContent = '';
+  const btn = document.getElementById('abha-verify-otp-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verifying…';
+  try {
+    const res = await api('POST', `/patients/${_abhaWiz.patientId}/abha/create-verify`, { otp, txnId: _abhaWiz.txnId, mobile });
+    // tokens.token is the X-Token for subsequent calls
+    _abhaWiz.xToken = res.tokens?.token || res.token;
+    _abhaWiz.profile = res.ABHAProfile || res.abhaProfile || {};
+    // Load suggestions
+    const sugRes = await api('POST', `/patients/${_abhaWiz.patientId}/abha/suggestions`, { xToken: _abhaWiz.xToken });
+    _abhaWiz.suggestions = sugRes.abhaAddressList || sugRes.suggestionList || [];
+    _renderSuggestions();
+    abhaWizGoTo(4);
+  } catch(e) { document.getElementById('abha-step3-err').textContent = e.message; }
+  finally { btn.disabled = false; btn.innerHTML = 'Verify OTP'; }
+}
+
+function _renderSuggestions() {
+  const el = document.getElementById('abha-suggestions-list');
+  el.innerHTML = _abhaWiz.suggestions.slice(0, 5).map((addr, i) => `
+    <div class="form-check">
+      <input class="form-check-input" type="radio" name="abha-suggestion" id="sug-${i}" value="${esc(addr)}" ${i===0?'checked':''}>
+      <label class="form-check-label fw-semibold" for="sug-${i}">${esc(addr)}</label>
+    </div>`).join('') || '<div class="text-muted small">No suggestions returned — use custom address below.</div>';
+}
+
+async function abhaSetAddressStep() {
+  const customAddr = document.getElementById('abha-custom-addr').value.trim();
+  const selectedRadio = document.querySelector('input[name="abha-suggestion"]:checked');
+  const chosen = customAddr ? (customAddr.includes('@') ? customAddr : customAddr + '@abdm') : selectedRadio?.value;
+  if (!chosen) { document.getElementById('abha-step4-err').textContent = 'Select or enter an ABHA address'; return; }
+  document.getElementById('abha-step4-err').textContent = '';
+  const btn = event.target.closest('button');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating…';
+  try {
+    const res = await api('POST', `/patients/${_abhaWiz.patientId}/abha/set-address`, { xToken: _abhaWiz.xToken, abhaAddress: chosen, txnId: _abhaWiz.txnId });
+    _abhaWiz.profile = res.profile || _abhaWiz.profile;
+    const p = _abhaWiz.profile;
+    document.getElementById('abha-result-num').textContent  = p.ABHANumber   || p.abhaNumber   || '—';
+    document.getElementById('abha-result-addr').textContent = p.preferredAbhaAddress || p.abhaAddress || chosen;
+    document.getElementById('abha-result-name').textContent = [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || '—';
+    document.getElementById('abha-result-gender').textContent = p.gender || '—';
+    document.getElementById('abha-result-dob').textContent   = p.dayOfBirth && p.monthOfBirth && p.yearOfBirth
+      ? `${p.dayOfBirth}/${p.monthOfBirth}/${p.yearOfBirth}` : p.dateOfBirth || '—';
+    abhaWizGoTo(5);
+  } catch(e) { document.getElementById('abha-step4-err').textContent = e.message; }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Create ABHA'; }
+}
+
+async function abhaDownloadCard() {
+  if (!_abhaWiz.xToken) { toast('Session expired — please re-link ABHA to download card', 'warning'); return; }
+  try {
+    const res = await api('GET', `/patients/${_abhaWiz.patientId}/abha/card?xToken=${encodeURIComponent(_abhaWiz.xToken)}`);
+    const img = document.createElement('img');
+    img.src = `data:${res.mimeType};base64,${res.image}`;
+    img.className = 'img-fluid rounded shadow-sm';
+    document.getElementById('abha-card-preview').innerHTML = '';
+    document.getElementById('abha-card-preview').appendChild(img);
+    // Trigger download
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = 'abha-card.png';
+    a.click();
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+// ── M1: Verify / Link ABHA Wizard ─────────────────────────────────────────────
+let _verifyWiz = { patientId: null, txnId: null, xToken: null, tab: 'abha-num' };
+let _verifyResendTimers = {};
+
+function openVerifyAbha(patientId) {
+  resetVerifyWiz();
+  _verifyWiz.patientId = patientId;
+  new bootstrap.Modal(document.getElementById('verifyAbhaModal')).show();
+}
+
+function resetVerifyWiz() {
+  _verifyWiz = { patientId: _verifyWiz.patientId, txnId: null, xToken: null, tab: 'abha-num' };
+  Object.values(_verifyResendTimers).forEach(t => clearInterval(t));
+  _verifyResendTimers = {};
+  ['verify-abha-id','verify-otp-num','verify-mobile','verify-otp-mobile'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['verify-otp-row-num','verify-otp-row-mobile','verify-success'].forEach(id => document.getElementById(id)?.classList.add('d-none'));
+  ['verify-confirm-num-btn','verify-confirm-mob-btn','verify-resend-num-btn','verify-resend-mob-btn'].forEach(id => document.getElementById(id)?.classList.add('d-none'));
+  ['verify-send-otp-num-btn','verify-send-otp-mob-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = false; });
+  ['verify-num-err','verify-mob-err'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+  document.getElementById('verify-card-preview').innerHTML = '';
+  // Re-show both tab panels correctly
+  document.getElementById('verify-tab-abha-num').classList.remove('d-none');
+  document.getElementById('verify-tab-mobile').classList.add('d-none');
+  document.querySelectorAll('#verify-tabs .nav-link').forEach((l,i) => l.classList.toggle('active', i===0));
+}
+
+function switchVerifyTab(tab, link) {
+  _verifyWiz.tab = tab;
+  document.getElementById('verify-tab-abha-num').classList.toggle('d-none', tab !== 'abha-num');
+  document.getElementById('verify-tab-mobile').classList.toggle('d-none', tab !== 'mobile');
+  document.querySelectorAll('#verify-tabs .nav-link').forEach(l => l.classList.remove('active'));
+  if (link) link.classList.add('active');
+  document.getElementById('verify-success').classList.add('d-none');
+}
+
+async function verifySendOtp(tab) {
+  const isNum = tab === 'abha-num';
+  const errEl = document.getElementById(isNum ? 'verify-num-err' : 'verify-mob-err');
+  errEl.textContent = '';
+  const btn = document.getElementById(isNum ? 'verify-send-otp-num-btn' : 'verify-send-otp-mob-btn');
+  const resendBtn = document.getElementById(isNum ? 'verify-resend-num-btn' : 'verify-resend-mob-btn');
+  btn.disabled = true;
+
+  const body = isNum
+    ? { abhaId: document.getElementById('verify-abha-id').value.trim() }
+    : { mobile: document.getElementById('verify-mobile').value.trim(), byMobile: true };
+  if (isNum && !body.abhaId) { errEl.textContent = 'Enter ABHA number'; btn.disabled = false; return; }
+  if (!isNum && !body.mobile) { errEl.textContent = 'Enter mobile number'; btn.disabled = false; return; }
+
+  try {
+    const res = await api('POST', `/patients/${_verifyWiz.patientId}/abha/verify-otp`, body);
+    _verifyWiz.txnId = res.txnId;
+    document.getElementById(isNum ? 'verify-otp-row-num' : 'verify-otp-row-mobile').classList.remove('d-none');
+    document.getElementById(isNum ? 'verify-confirm-num-btn' : 'verify-confirm-mob-btn').classList.remove('d-none');
+    resendBtn.classList.remove('d-none');
+    _startVerifyResendTimer(tab, isNum ? 'verify-resend-num-timer' : 'verify-resend-mob-timer', resendBtn);
+  } catch(e) { errEl.textContent = e.message; btn.disabled = false; }
+}
+
+function _startVerifyResendTimer(tab, timerId, resendBtn) {
+  if (_verifyResendTimers[tab]) clearInterval(_verifyResendTimers[tab]);
+  const timerEl = document.getElementById(timerId);
+  let remaining = 60;
+  timerEl.textContent = remaining;
+  resendBtn.disabled = true;
+  _verifyResendTimers[tab] = setInterval(() => {
+    remaining--;
+    timerEl.textContent = remaining;
+    if (remaining <= 0) { clearInterval(_verifyResendTimers[tab]); resendBtn.disabled = false; }
+  }, 1000);
+}
+
+async function verifyConfirmOtp(tab) {
+  const isNum = tab === 'abha-num';
+  const errEl = document.getElementById(isNum ? 'verify-num-err' : 'verify-mob-err');
+  errEl.textContent = '';
+  const otp = document.getElementById(isNum ? 'verify-otp-num' : 'verify-otp-mobile').value.trim();
+  if (!otp) { errEl.textContent = 'Enter the OTP'; return; }
+
+  const btn = document.getElementById(isNum ? 'verify-confirm-num-btn' : 'verify-confirm-mob-btn');
+  btn.disabled = true;
+  try {
+    const res = await api('POST', `/patients/${_verifyWiz.patientId}/abha/verify-confirm`, { otp, txnId: _verifyWiz.txnId, byMobile: !isNum });
+    _verifyWiz.xToken = res.xToken;
+    const p = res.profile || {};
+    document.getElementById('v-result-num').textContent  = p.ABHANumber || p.abhaNumber || '—';
+    document.getElementById('v-result-addr').textContent = p.preferredAbhaAddress || p.abhaAddress || '—';
+    document.getElementById('v-result-name').textContent = [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || '—';
+    // Hide input panels, show success
+    document.getElementById('verify-tab-abha-num').classList.add('d-none');
+    document.getElementById('verify-tab-mobile').classList.add('d-none');
+    document.getElementById('verify-success').classList.remove('d-none');
+  } catch(e) { errEl.textContent = e.message; btn.disabled = false; }
+}
+
+async function verifyDownloadCard() {
+  if (!_verifyWiz.xToken) { toast('Session expired', 'warning'); return; }
+  try {
+    const res = await api('GET', `/patients/${_verifyWiz.patientId}/abha/card?xToken=${encodeURIComponent(_verifyWiz.xToken)}`);
+    const img = document.createElement('img');
+    img.src = `data:${res.mimeType};base64,${res.image}`;
+    img.className = 'img-fluid rounded shadow-sm';
+    document.getElementById('verify-card-preview').innerHTML = '';
+    document.getElementById('verify-card-preview').appendChild(img);
+    const a = document.createElement('a'); a.href = img.src; a.download = 'abha-card.png'; a.click();
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+let prevOtpIds = new Set();
 
 // Initial load
 if (!emrToken) showLogin(); else loadPatients();

@@ -228,6 +228,16 @@ async function getAbhaPngCard(xToken) {
   return res.data;
 }
 
+// ─── M1: ABHA address suggestions (during enrollment) ────────────────────────
+
+async function getAbhaSuggestions(xToken) {
+  return abhaReq('GET', `${ABHA_BASE}/enrollment/enrol/suggestion`, null, xToken);
+}
+
+async function setAbhaAddress(xToken, abhaAddress, txnId) {
+  return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/abha-address`, { abhaAddress, txnId }, xToken);
+}
+
 // ─── M2: Care-context discovery ───────────────────────────────────────────────
 // NOTE: gateway/v0.5/care-contexts/discover is removed from ABDM sandbox.
 // In ABDM v3, discovery is HIP-initiated: use generateLinkToken + linkCareContexts instead.
@@ -423,6 +433,7 @@ module.exports = {
   generateMobileLoginOtp, verifyMobileLoginOtp,
   loginRequestOtp,        loginVerifyOtp,
   getAbhaProfile,         getAbhaPngCard,
+  getAbhaSuggestions,     setAbhaAddress,
   discoverCareContexts,   linkInit,             linkConfirm,
   generateLinkToken,      linkCareContexts,
   createConsentRequest,   fetchHealthInfo,
