@@ -316,11 +316,11 @@
       </div>
       <div class="modal-body">
         <ul class="nav nav-tabs mb-3" id="record-tabs">
-          <li class="nav-item"><a class="nav-link active" href="#" onclick="showRecordTab('summary',this)">Summary</a></li>
-          <li class="nav-item"><a class="nav-link" href="#" onclick="showRecordTab('raw',this)">Raw FHIR JSON</a></li>
+          <li class="nav-item"><a class="nav-link active" href="#" onclick="showRecordTab('rendered',this)">Rendered FHIR</a></li>
+          <li class="nav-item"><a class="nav-link" href="#" onclick="showRecordTab('raw',this)">Raw JSON</a></li>
         </ul>
-        <div id="record-tab-summary"></div>
-        <div id="record-tab-raw" class="d-none"><pre id="record-content" class="small" style="max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word"></pre></div>
+        <div id="record-tab-rendered" style="max-height:70vh;overflow-y:auto"></div>
+        <div id="record-tab-raw" class="d-none"><pre id="record-content" class="small" style="max-height:70vh;overflow:auto;white-space:pre-wrap;word-break:break-word"></pre></div>
       </div>
     </div>
   </div>
@@ -901,58 +901,338 @@ async function loadM3Records() {
 }
 
 // ── FHIR Viewer ───────────────────────────────────────────────────────────────
-let _currentFhir = null;
-
 function parseFhirSummary(content) {
   try {
-    const decoded = atob(content);
-    const bundle  = JSON.parse(decoded);
+    const bundle  = JSON.parse(atob(content));
     const entries = bundle.entry ?? [];
-    const comp    = entries.find(e => e.resource?.resourceType === 'Composition')?.resource;
-    const pat     = entries.find(e => e.resource?.resourceType === 'Patient')?.resource;
-    const enc     = entries.find(e => e.resource?.resourceType === 'Encounter')?.resource;
+    const comp = entries.find(e => e.resource?.resourceType === 'Composition')?.resource;
+    const pat  = entries.find(e => e.resource?.resourceType === 'Patient')?.resource;
+    const enc  = entries.find(e => e.resource?.resourceType === 'Encounter')?.resource;
     return {
       resourceType: bundle.resourceType,
-      title:   comp?.title ?? bundle.type,
-      patient: pat?.name?.[0]?.text ?? pat?.id ?? '',
+      title:   comp?.title ?? bundle.type ?? '',
+      patient: pat?.name?.[0]?.text ?? '',
       hiType:  enc?.type?.[0]?.coding?.[0]?.display ?? comp?.type?.coding?.[0]?.display ?? '',
     };
   } catch { return { resourceType: 'FHIR', title: '', patient: '', hiType: '' }; }
 }
 
+function renderFhirBundle(bundle) {
+  const resources = (bundle.entry ?? []).map(e => e.resource).filter(Boolean);
+  const byType = t => resources.filter(r => r.resourceType === t);
+  let html = '';
+
+  // ── Composition (document header) ──
+  const comp = byType('Composition')[0];
+  if (comp) {
+    const authors = (comp.author ?? []).map(a => a.display || a.reference || '').filter(Boolean).join(', ');
+    html += `<div class="card mb-3 border-primary">
+      <div class="card-header bg-primary text-white py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-file-earmark-medical"></i>
+        <strong>${esc(comp.title || 'Clinical Document')}</strong>
+        <span class="badge bg-light text-primary ms-auto">${esc(comp.status || '')}</span>
+      </div>
+      <div class="card-body py-2">
+        <div class="row g-2">
+          <div class="col-6 col-sm-4"><span class="text-muted" style="font-size:11px">Date</span><div class="small fw-semibold">${comp.date ? new Date(comp.date).toLocaleString() : '—'}</div></div>
+          <div class="col-6 col-sm-4"><span class="text-muted" style="font-size:11px">Author</span><div class="small fw-semibold">${esc(authors || '—')}</div></div>
+          <div class="col-6 col-sm-4"><span class="text-muted" style="font-size:11px">Type</span><div class="small fw-semibold">${esc(comp.type?.coding?.[0]?.display || comp.type?.text || '—')}</div></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Patient ──
+  const pat = byType('Patient')[0];
+  if (pat) {
+    const n   = pat.name?.[0];
+    const nm  = n?.text || [n?.prefix?.join(' '), n?.given?.join(' '), n?.family].filter(Boolean).join(' ') || '—';
+    const ph  = pat.telecom?.find(t => t.system === 'phone')?.value || '—';
+    const dob = pat.birthDate ? new Date(pat.birthDate).toLocaleDateString() : '—';
+    const genderIcon = { male: 'bi-gender-male', female: 'bi-gender-female' }[pat.gender] || 'bi-person';
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-person-circle text-primary"></i><strong>Patient</strong>
+      </div>
+      <div class="card-body py-2">
+        <div class="row g-2">
+          <div class="col-6 col-sm-3"><span class="text-muted" style="font-size:11px">Name</span><div class="fw-semibold">${esc(nm)}</div></div>
+          <div class="col-6 col-sm-3"><span class="text-muted" style="font-size:11px">Gender</span><div><i class="bi ${genderIcon} me-1"></i>${esc(pat.gender || '—')}</div></div>
+          <div class="col-6 col-sm-3"><span class="text-muted" style="font-size:11px">Date of Birth</span><div>${esc(dob)}</div></div>
+          <div class="col-6 col-sm-3"><span class="text-muted" style="font-size:11px">Phone</span><div>${esc(ph)}</div></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Practitioner ──
+  const pracs = byType('Practitioner');
+  if (pracs.length) {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-person-badge text-secondary"></i><strong>Care Team</strong>
+      </div>
+      <ul class="list-group list-group-flush">${pracs.map(p => {
+        const n = p.name?.[0];
+        const nm = n?.text || [n?.prefix?.join(' '), n?.given?.join(' '), n?.family].filter(Boolean).join(' ') || '—';
+        const qual = p.qualification?.[0]?.code?.coding?.[0]?.display || p.qualification?.[0]?.code?.text || '';
+        return `<li class="list-group-item py-2 small"><i class="bi bi-person me-2 text-muted"></i><strong>${esc(nm)}</strong>${qual ? `<span class="text-muted ms-2">${esc(qual)}</span>` : ''}</li>`;
+      }).join('')}</ul>
+    </div>`;
+  }
+
+  // ── Encounter ──
+  const enc = byType('Encounter')[0];
+  if (enc) {
+    const encType  = enc.type?.[0]?.coding?.[0]?.display || enc.type?.[0]?.text || '—';
+    const encClass = enc.class?.code || enc.class?.display || '—';
+    const start    = enc.period?.start ? new Date(enc.period.start).toLocaleString() : null;
+    const end      = enc.period?.end   ? new Date(enc.period.end).toLocaleString()   : null;
+    const statusBg = enc.status === 'finished' ? 'success' : 'warning';
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-hospital text-warning"></i><strong>Encounter / Visit</strong>
+        <span class="badge bg-${statusBg} ms-auto">${esc(enc.status || '—')}</span>
+      </div>
+      <div class="card-body py-2">
+        <div class="row g-2">
+          <div class="col-6 col-sm-4"><span class="text-muted" style="font-size:11px">Type</span><div class="small fw-semibold">${esc(encType)}</div></div>
+          <div class="col-6 col-sm-4"><span class="text-muted" style="font-size:11px">Class</span><div class="small">${esc(encClass)}</div></div>
+          <div class="col-6 col-sm-4"><span class="text-muted" style="font-size:11px">Period</span><div class="small">${start ? `${start}${end && end !== start ? ' → ' + end : ''}` : '—'}</div></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Conditions ──
+  const conds = byType('Condition');
+  if (conds.length) {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-heart-pulse text-danger"></i><strong>Conditions / Diagnoses</strong>
+        <span class="badge bg-danger ms-auto">${conds.length}</span>
+      </div>
+      <ul class="list-group list-group-flush">${conds.map(c => {
+        const coding  = c.code?.coding?.[0];
+        const display = coding?.display || c.code?.text || '—';
+        const icd     = coding?.code ? `${coding.system?.split('/').pop() || ''} ${coding.code}`.trim() : '';
+        const onset   = c.onsetDateTime ? new Date(c.onsetDateTime).toLocaleDateString() : '';
+        const sev     = c.severity?.coding?.[0]?.display || '';
+        return `<li class="list-group-item py-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold small">${esc(display)}</div>
+              ${icd ? `<div class="text-muted" style="font-size:11px">${esc(icd)}</div>` : ''}
+            </div>
+            <div class="text-end">
+              ${onset ? `<div class="text-muted small">${onset}</div>` : ''}
+              ${sev ? `<span class="badge bg-light text-danger">${esc(sev)}</span>` : ''}
+            </div>
+          </div>
+        </li>`;
+      }).join('')}</ul>
+    </div>`;
+  }
+
+  // ── Observations ──
+  const obs = byType('Observation');
+  if (obs.length) {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-activity text-info"></i><strong>Observations / Vitals</strong>
+        <span class="badge bg-info ms-auto">${obs.length}</span>
+      </div>
+      <ul class="list-group list-group-flush">${obs.map(o => {
+        const name = o.code?.coding?.[0]?.display || o.code?.text || '—';
+        let value  = '';
+        if (o.valueQuantity)        value = `${o.valueQuantity.value ?? ''} ${o.valueQuantity.unit || ''}`.trim();
+        else if (o.valueString)     value = o.valueString;
+        else if (o.valueBoolean != null) value = String(o.valueBoolean);
+        else if (o.valueCodeableConcept) value = o.valueCodeableConcept.coding?.[0]?.display || o.valueCodeableConcept.text || '';
+        else if (o.component?.length) {
+          value = o.component.map(c => {
+            const cn = c.code?.coding?.[0]?.display || c.code?.text || '';
+            const cv = c.valueQuantity ? `${c.valueQuantity.value ?? ''} ${c.valueQuantity.unit || ''}`.trim() : '';
+            return `${cn}: ${cv}`;
+          }).join(' / ');
+        }
+        const date = o.effectiveDateTime ? new Date(o.effectiveDateTime).toLocaleDateString() : '';
+        const ref  = o.referenceRange?.[0] ? `${o.referenceRange[0].low?.value ?? ''}–${o.referenceRange[0].high?.value ?? ''} ${o.referenceRange[0].low?.unit || ''}`.trim() : '';
+        return `<li class="list-group-item py-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="small">${esc(name)}</span>
+            <div class="text-end">
+              ${value ? `<span class="fw-semibold">${esc(value)}</span>` : ''}
+              ${ref ? `<div class="text-muted" style="font-size:10px">ref: ${esc(ref)}</div>` : ''}
+              ${date ? `<div class="text-muted" style="font-size:10px">${date}</div>` : ''}
+            </div>
+          </div>
+        </li>`;
+      }).join('')}</ul>
+    </div>`;
+  }
+
+  // ── Medications / Prescriptions ──
+  const meds = byType('MedicationRequest');
+  if (meds.length) {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-capsule text-success"></i><strong>Medications / Prescriptions</strong>
+        <span class="badge bg-success ms-auto">${meds.length}</span>
+      </div>
+      <ul class="list-group list-group-flush">${meds.map(m => {
+        const medName = m.medicationCodeableConcept?.coding?.[0]?.display || m.medicationCodeableConcept?.text || m.medicationReference?.display || '—';
+        const dosage  = m.dosageInstruction?.[0]?.text || m.dosageInstruction?.[0]?.route?.coding?.[0]?.display || '';
+        const freq    = m.dosageInstruction?.[0]?.timing?.code?.coding?.[0]?.display || m.dosageInstruction?.[0]?.timing?.code?.text || '';
+        const status  = m.status || '';
+        return `<li class="list-group-item py-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold small">${esc(medName)}</div>
+              ${dosage ? `<div class="text-muted small">${esc(dosage)}${freq ? ' · ' + esc(freq) : ''}</div>` : ''}
+            </div>
+            ${status ? `<span class="badge bg-${status==='active'?'success':'secondary'}">${esc(status)}</span>` : ''}
+          </div>
+        </li>`;
+      }).join('')}</ul>
+    </div>`;
+  }
+
+  // ── Immunizations ──
+  const immuns = byType('Immunization');
+  if (immuns.length) {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-shield-plus text-success"></i><strong>Immunizations</strong>
+      </div>
+      <ul class="list-group list-group-flush">${immuns.map(i => {
+        const vaccine = i.vaccineCode?.coding?.[0]?.display || i.vaccineCode?.text || '—';
+        const date    = i.occurrenceDateTime ? new Date(i.occurrenceDateTime).toLocaleDateString() : '';
+        const lot     = i.lotNumber ? `Lot: ${i.lotNumber}` : '';
+        const status  = i.status || '';
+        return `<li class="list-group-item py-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small fw-semibold">${esc(vaccine)}</div>
+              ${lot ? `<div class="text-muted" style="font-size:11px">${esc(lot)}</div>` : ''}
+            </div>
+            <div class="text-end">
+              ${date ? `<div class="text-muted small">${date}</div>` : ''}
+              ${status ? `<span class="badge bg-${status==='completed'?'success':'warning'}">${esc(status)}</span>` : ''}
+            </div>
+          </div>
+        </li>`;
+      }).join('')}</ul>
+    </div>`;
+  }
+
+  // ── Diagnostic Reports ──
+  const diagReps = byType('DiagnosticReport');
+  if (diagReps.length) {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-clipboard2-pulse text-primary"></i><strong>Diagnostic Reports</strong>
+      </div>
+      <ul class="list-group list-group-flush">${diagReps.map(d => {
+        const name  = d.code?.coding?.[0]?.display || d.code?.text || '—';
+        const date  = d.effectiveDateTime ? new Date(d.effectiveDateTime).toLocaleDateString() : d.issued ? new Date(d.issued).toLocaleDateString() : '';
+        const conc  = d.conclusion || d.conclusionCode?.[0]?.coding?.[0]?.display || '';
+        const bg    = { final: 'success', preliminary: 'warning', amended: 'info' }[d.status] || 'secondary';
+        return `<li class="list-group-item py-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold small">${esc(name)}</div>
+              ${conc ? `<div class="small text-muted mt-1">${esc(conc)}</div>` : ''}
+            </div>
+            <div class="text-end">
+              ${date ? `<div class="text-muted small">${date}</div>` : ''}
+              <span class="badge bg-${bg}">${esc(d.status || '—')}</span>
+            </div>
+          </div>
+        </li>`;
+      }).join('')}</ul>
+    </div>`;
+  }
+
+  // ── AllergyIntolerance ──
+  const allergies = byType('AllergyIntolerance');
+  if (allergies.length) {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle text-warning"></i><strong>Allergies / Intolerances</strong>
+      </div>
+      <ul class="list-group list-group-flush">${allergies.map(a => {
+        const sub  = a.code?.coding?.[0]?.display || a.code?.text || a.substance?.coding?.[0]?.display || '—';
+        const crit = a.criticality || '';
+        const rxn  = a.reaction?.[0]?.manifestation?.[0]?.coding?.[0]?.display || '';
+        return `<li class="list-group-item py-2">
+          <div class="d-flex justify-content-between">
+            <div>
+              <div class="fw-semibold small">${esc(sub)}</div>
+              ${rxn ? `<div class="text-muted small">Reaction: ${esc(rxn)}</div>` : ''}
+            </div>
+            ${crit ? `<span class="badge bg-${crit==='high'?'danger':'warning'}">${esc(crit)}</span>` : ''}
+          </div>
+        </li>`;
+      }).join('')}</ul>
+    </div>`;
+  }
+
+  // ── Anything else not handled above ──
+  const handled = new Set(['Composition','Patient','Encounter','Practitioner','PractitionerRole',
+    'Condition','Observation','MedicationRequest','Immunization','DiagnosticReport','AllergyIntolerance']);
+  const others = resources.filter(r => !handled.has(r.resourceType));
+  if (others.length) {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2"><strong>Other Resources</strong></div>
+      <ul class="list-group list-group-flush">${others.map(r =>
+        `<li class="list-group-item py-2 small"><span class="badge bg-secondary me-2">${esc(r.resourceType)}</span>${esc(r.id || r.resourceType)}</li>`
+      ).join('')}</ul>
+    </div>`;
+  }
+
+  return html || '<div class="alert alert-info m-2">Empty FHIR bundle — no resources to display</div>';
+}
+
 function viewRecord(r) {
   if (typeof r === 'string') r = JSON.parse(r);
+
+  let bundle = null;
+  try { bundle = JSON.parse(atob(r.content)); } catch { /* non-base64 or non-JSON */ }
+
   const summary = parseFhirSummary(r.content);
-  document.getElementById('record-modal-title').textContent = summary.title || 'Health Record';
+  document.getElementById('record-modal-title').textContent = summary.title || r.care_context_reference || 'Health Record';
 
-  // Summary tab
-  const sumEl = document.getElementById('record-tab-summary');
-  sumEl.innerHTML = `
-    <div class="row g-3 mb-3">
-      <div class="col-sm-6"><label class="text-muted small">Patient</label><div class="fw-semibold">${esc(summary.patient || '—')}</div></div>
-      <div class="col-sm-6"><label class="text-muted small">Record Type</label><div class="fw-semibold">${esc(summary.hiType || '—')}</div></div>
-      <div class="col-sm-6"><label class="text-muted small">Care Context</label><div class="fw-semibold small font-monospace">${esc(r.care_context_reference || '—')}</div></div>
-      <div class="col-sm-6"><label class="text-muted small">Received</label><div class="fw-semibold">${new Date(r.received_at).toLocaleString()}</div></div>
-      <div class="col-sm-6"><label class="text-muted small">Transaction ID</label><div class="small font-monospace">${esc(r.transaction_id || '—')}</div></div>
-      <div class="col-sm-6"><label class="text-muted small">Media</label><div class="small">${esc(r.media || '—')}</div></div>
-    </div>`;
+  // Rendered FHIR tab
+  const rendEl = document.getElementById('record-tab-rendered');
+  if (bundle?.resourceType === 'Bundle') {
+    rendEl.innerHTML = renderFhirBundle(bundle);
+  } else if (bundle) {
+    rendEl.innerHTML = `<div class="alert alert-warning m-2">Single resource: <strong>${bundle.resourceType}</strong></div><pre class="small p-3">${esc(JSON.stringify(bundle, null, 2))}</pre>`;
+  } else {
+    rendEl.innerHTML = `<div class="alert alert-warning m-2">Content is not valid FHIR JSON (may be encrypted).</div>`;
+  }
 
-  // Raw tab
-  try {
-    const decoded = atob(r.content);
-    try { document.getElementById('record-content').textContent = JSON.stringify(JSON.parse(decoded), null, 2); }
-    catch { document.getElementById('record-content').textContent = decoded; }
-  } catch { document.getElementById('record-content').textContent = r.content; }
+  // Raw JSON tab
+  if (bundle) {
+    document.getElementById('record-content').textContent = JSON.stringify(bundle, null, 2);
+  } else {
+    try {
+      document.getElementById('record-content').textContent = atob(r.content);
+    } catch {
+      document.getElementById('record-content').textContent = r.content;
+    }
+  }
 
-  _currentFhir = r;
-  showRecordTab('summary', document.querySelector('#record-tabs .nav-link'));
+  showRecordTab('rendered', null);
+  document.querySelector('#record-tabs .nav-link').classList.add('active');
   new bootstrap.Modal(document.getElementById('recordModal')).show();
 }
 
 function showRecordTab(tab, link) {
   document.querySelectorAll('#record-tabs .nav-link').forEach(l => l.classList.remove('active'));
   if (link) link.classList.add('active');
-  document.getElementById('record-tab-summary').classList.toggle('d-none', tab !== 'summary');
+  document.getElementById('record-tab-rendered').classList.toggle('d-none', tab !== 'rendered');
   document.getElementById('record-tab-raw').classList.toggle('d-none', tab !== 'raw');
   return false;
 }
