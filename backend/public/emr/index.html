@@ -137,7 +137,7 @@
 <!-- ── Pending OTPs page ──────────────────────────────────────────────────── -->
 <div id="page-otps" class="page">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold mb-0">Pending OTPs <span class="fs-6 fw-normal text-muted">(auto-refreshes every 5s)</span></h5>
+    <h5 class="fw-bold mb-0">Pending OTPs</h5>
     <button class="btn btn-outline-secondary btn-sm" onclick="loadOtps()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
   </div>
   <div id="otps-container">
@@ -290,8 +290,6 @@
 <script>
 const API = '/api/emr';
 let currentPatientId = null;
-let prevOtpIds = new Set();
-let otpInterval = null;
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function showPage(name) {
@@ -584,35 +582,6 @@ HIU health push: POST ${base}/v0.5/health-information/transfer`;
 function val(id) { return document.getElementById(id)?.value?.trim() || null; }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── Auto-refresh OTPs ─────────────────────────────────────────────────────────
-otpInterval = setInterval(async () => {
-  // Poll OTPs in background, show floating notification
-  try {
-    const otps = await api('GET', '/pending-otps');
-    const countBadge = document.getElementById('otp-count');
-    if (otps.length) {
-      countBadge.textContent = otps.length;
-      countBadge.classList.remove('d-none');
-      otps.filter(o => !prevOtpIds.has(o.id)).forEach(o => {
-        prevOtpIds.add(o.id);
-        const n = document.createElement('div');
-        n.className = 'card mb-2 border-0 shadow';
-        n.innerHTML = `<div class="card-body p-3">
-          <div class="fw-bold text-success"><i class="bi bi-bell-fill me-1"></i>New OTP Request!</div>
-          <div class="small text-muted">${esc(o.patient_name||'Unknown')}</div>
-          <div class="otp-badge pulse">${o.otp}</div>
-          <div class="small mt-1"><a href="#" onclick="showPage('otps')">View all OTPs</a></div>
-        </div>`;
-        document.getElementById('otp-panel').prepend(n);
-        setTimeout(() => n.remove(), 30000);
-      });
-    } else {
-      countBadge.classList.add('d-none');
-    }
-    // If currently on OTP page, refresh
-    if (document.getElementById('page-otps').classList.contains('active')) loadOtps();
-  } catch(_) {}
-}, 5000);
 
 // Initial load
 if (!emrToken) showLogin(); else loadPatients();
