@@ -12,6 +12,9 @@ const CLIENT_SECRET  = process.env.ABDM_CLIENT_SECRET;
 let _accessToken = null;
 let _tokenExpiry  = 0;
 
+// Cache link tokens by `${abhaNumber}:${hipId}` — ABDM returns ABDM-1092 if you generate twice
+const _linkTokenCache = new Map(); // key → { token, expiry }
+
 let _abhaPubKey       = null;
 let _abhaPubKeyExpiry = 0;
 
@@ -271,9 +274,18 @@ async function linkConfirm(linkRefNumber, token) {
 // ─── M2: HIP-initiated link (HIECM v3) ───────────────────────────────────────
 
 async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, yearOfBirth) {
-  const token = await getGatewayToken();
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
-  const body = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) ?? 1990 };
+  const cacheKey  = `${cleanAbha}:${hipId}`;
+
+  // Reuse a cached token if still valid (ABDM-1092 if we request twice)
+  const cached = _linkTokenCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiry) {
+    logger.info('generateLinkToken: using cached token', { cacheKey });
+    return { linkToken: cached.token };
+  }
+
+  const token = await getGatewayToken();
+  const body = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) || 1990 };
   logger.info('generateLinkToken request', { hipId, cleanAbha, abhaAddress, gender, yearOfBirth });
   try {
     const res = await axios.post(
@@ -290,11 +302,24 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
         },
       }
     );
+    // Cache for 9 minutes (ABDM tokens live ~10 min)
+    if (res.data.linkToken) {
+      _linkTokenCache.set(cacheKey, { token: res.data.linkToken, expiry: Date.now() + 9 * 60 * 1000 });
+    }
     return res.data;
   } catch (err) {
-    const body = err.response?.data;
-    logger.error('generateLinkToken FAILED', { status: err.response?.status, body });
-    const fwd = new Error(`ABDM link token failed: ${body ? JSON.stringify(body) : err.message}`);
+    const errBody = err.response?.data;
+    const code    = errBody?.error?.code;
+    logger.error('generateLinkToken FAILED', { status: err.response?.status, body: errBody });
+    // ABDM-1092 means there's already an active token we don't have cached (e.g. after restart).
+    // Clear cache entry so next retry forces a fresh generate once the old token expires.
+    if (code === 'ABDM-1092') {
+      _linkTokenCache.delete(cacheKey);
+      const fwd = new Error('A link token is already active for this patient at this facility. Please wait ~10 minutes and retry.');
+      fwd.status = 409;
+      throw fwd;
+    }
+    const fwd = new Error(`ABDM link token failed: ${errBody ? JSON.stringify(errBody) : err.message}`);
     fwd.status = err.response?.status ?? 502;
     throw fwd;
   }
