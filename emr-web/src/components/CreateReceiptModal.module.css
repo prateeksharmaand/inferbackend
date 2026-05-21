@@ -53,6 +53,7 @@
   width: 100%; font-family: inherit;
 }
 .select:focus { border-color: var(--color-primary); }
+.selectDisabled { background: #f1f5f9; color: var(--color-text-3); cursor: not-allowed; }
 .selectArrow { position: absolute; right: 8px; pointer-events: none; color: var(--color-text-3); }
 
 /* Table */
