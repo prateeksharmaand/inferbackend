@@ -8,6 +8,7 @@ import {
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfigureInferPadModal from '../components/ConfigureInferPadModal';
+import MedicalRecordsTab from '../components/MedicalRecordsTab';
 import CreateReceiptModal from '../components/CreateReceiptModal';
 import DrawingCanvas from '../components/DrawingCanvas';
 import InferPad from '../components/InferPad';
@@ -834,9 +835,8 @@ export default function WriteRx() {
           )}
 
           {tab === 'Medical Records' && (
-            <div className={styles.placeholder}>
-              <span className={styles.placeholderIcon}>📂</span>
-              <p>Medical Records coming soon</p>
+            <div className={styles.tabBody}>
+              <MedicalRecordsTab apptId={appointmentId} />
             </div>
           )}
         </div>
