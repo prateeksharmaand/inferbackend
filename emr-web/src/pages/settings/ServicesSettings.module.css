@@ -1,0 +1,172 @@
+.wrap { display: flex; flex-direction: column; gap: 16px; padding-top: 20px; }
+
+/* ── Toolbar ─────────────────────────────────── */
+.toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: flex; background: var(--color-bg);
+  border: 1px solid var(--color-border); border-radius: 8px;
+  padding: 3px; gap: 2px; flex-shrink: 0;
+}
+.filterBtn {
+  padding: 5px 14px; border: none; background: none;
+  border-radius: 6px; font-size: 12px; font-weight: 600;
+  color: var(--color-text-2); cursor: pointer; transition: all .12s;
+}
+.filterBtn:hover { color: var(--color-text); background: var(--color-border); }
+.filterBtnActive { background: var(--color-surface); color: var(--color-primary); box-shadow: var(--shadow); }
+
+.clinicSelect {
+  padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: var(--color-text);
+  background: var(--color-surface); outline: none; cursor: pointer;
+  flex-shrink: 0; max-width: 200px;
+}
+.clinicSelect:focus { border-color: var(--color-primary); }
+
+.searchWrap {
+  flex: 1; min-width: 160px; display: flex; align-items: center; gap: 7px;
+  border: 1px solid var(--color-border); border-radius: 8px;
+  background: var(--color-surface); padding: 0 10px;
+}
+.searchWrap:focus-within { border-color: var(--color-primary); }
+.searchIcon  { color: var(--color-text-3); flex-shrink: 0; }
+.searchInput {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-size: 13px; color: var(--color-text); padding: 7px 0;
+}
+.searchInput::placeholder { color: var(--color-text-3); }
+.searchClear {
+  background: none; border: none; cursor: pointer; color: var(--color-text-3);
+  display: flex; padding: 2px;
+}
+.searchClear:hover { color: var(--color-text); }
+
+.btnCreate {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background .1s;
+}
+.btnCreate:hover { background: var(--color-primary-dk); }
+
+/* ── Table ───────────────────────────────────── */
+.table {
+  border: 1px solid var(--color-border); border-radius: 12px;
+  overflow: hidden; background: var(--color-surface);
+}
+.tableHead {
+  display: grid; grid-template-columns: 1fr 140px 110px 80px;
+  padding: 10px 16px; background: #f1f5f9;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px; font-weight: 700; color: var(--color-text-2);
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.tableRow {
+  display: grid; grid-template-columns: 1fr 140px 110px 80px;
+  padding: 13px 16px; align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  transition: background .1s;
+}
+.tableRow:last-child { border-bottom: none; }
+.tableRow:hover { background: #f8fafc; }
+
+.svcName  { font-size: 14px; font-weight: 600; color: var(--color-text); }
+.svcPrice { font-size: 13px; font-weight: 600; color: var(--color-text-2); font-family: monospace; }
+
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 20px; border: none;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: all .12s; letter-spacing: .3px;
+}
+.badgeActive   { background: #dcfce7; color: #16a34a; }
+.badgeActive:hover { background: #bbf7d0; }
+.badgeInactive { background: #f1f5f9; color: #64748b; }
+.badgeInactive:hover { background: #e2e8f0; }
+
+.rowActions { display: flex; gap: 4px; justify-content: flex-end; }
+.iconBtn {
+  background: none; border: 1px solid var(--color-border);
+  color: var(--color-text-2); padding: 5px 7px; border-radius: 6px;
+  cursor: pointer; display: flex; align-items: center;
+  transition: all .12s;
+}
+.iconBtn:hover { background: var(--color-bg); color: var(--color-text); }
+.iconBtnDanger:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+
+/* ── Empty state ─────────────────────────────── */
+.emptyState {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding: 64px 24px; color: var(--color-text-2); text-align: center;
+}
+.emptyIcon { color: var(--color-text-3); opacity: .5; }
+.emptyState p { font-size: 13px; }
+.emptyText { padding: 32px; color: var(--color-text-3); font-size: 13px; }
+
+/* ── Modal ───────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 600; padding: 20px;
+}
+.modal {
+  background: #fff; border-radius: 14px;
+  width: 100%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  overflow: hidden;
+}
+.modalHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--color-border);
+  font-size: 15px; font-weight: 700;
+}
+.modalClose {
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-2); padding: 2px; display: flex;
+}
+.modalBody {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 20px;
+}
+.modalFooter {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding-top: 6px;
+}
+
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12px; font-weight: 700; color: var(--color-text-2); }
+.req { color: #ef4444; }
+
+.input {
+  padding: 9px 11px; border: 1px solid var(--color-border); border-radius: 8px;
+  font-size: 13px; outline: none; transition: border-color .15s;
+  background: var(--color-bg); font-family: inherit; width: 100%; box-sizing: border-box;
+}
+.input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+
+.priceWrap {
+  position: relative; display: flex; align-items: center;
+}
+.priceIcon {
+  position: absolute; left: 10px; color: var(--color-text-3); pointer-events: none;
+}
+.priceInput { padding-left: 28px; }
+
+.error { color: #dc2626; font-size: 12px; margin-top: -4px; }
+
+.btnCancel {
+  background: none; border: 1px solid var(--color-border);
+  color: var(--color-text-2); padding: 9px 18px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.btnSave {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--color-primary); color: #fff; border: none;
+  padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background .1s;
+}
+.btnSave:hover    { background: var(--color-primary-dk); }
+.btnSave:disabled { opacity: .6; cursor: not-allowed; }

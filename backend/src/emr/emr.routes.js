@@ -6,6 +6,7 @@ const queue   = require('./emr.queue.controller');
 const appt    = require('./emr.appointment.controller');
 const tags    = require('./emr.tags.controller');
 const uhid    = require('./emr.uhid.controller');
+const svc     = require('./emr.services.controller');
 const ac      = require('./emr.autocomplete.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
@@ -52,6 +53,12 @@ router.get   ('/tags',     tags.listTags);
 router.post  ('/tags',     tags.createTag);
 router.patch ('/tags/:id', tags.updateTag);
 router.delete('/tags/:id', tags.deleteTag);
+
+// Services
+router.get   ('/services',     svc.listServices);
+router.post  ('/services',     svc.createService);
+router.patch ('/services/:id', svc.updateService);
+router.delete('/services/:id', svc.deleteService);
 
 // UHID Settings
 router.get ('/settings/uhid',          uhid.getSettings);
