@@ -62,12 +62,17 @@ async function hiecmPost(path, body) {
 }
 
 async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, shareCode }) {
+  const safeContext = shareCode
+    ? String(shareCode).replace(/[^a-zA-Z0-9.\-]/g, '').replace(/^[.\-]+|[.\-]+$/g, '') || 'share'
+    : 'share';
   await hiecmPost('/patient-share/v3/on-share', {
+    requestId: uuid(),
+    timestamp: new Date().toISOString(),
     acknowledgement: {
       abhaAddress,
-      status: 'success',
+      status: 'SUCCESS',
       profile: {
-        context: String(shareCode ?? ''),
+        context: safeContext,
         tokenNumber: String(tokenNumber),
         expiry: '30',
       },
