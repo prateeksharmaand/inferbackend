@@ -318,6 +318,29 @@ const confirmStatus = async (req, res) => {
 
 // ─── M2: HIP-initiated link (HIECM v3, kept for direct HIU linking) ──────────
 
+// Fetch care contexts available for this patient from the HIP's EMR (v3 replacement for discover)
+const getAvailableCareContexts = async (req, res) => {
+  const hipId = req.query.hipId || process.env.ABDM_HIP_ID;
+
+  const { rows: abhaRows } = await pool.query(
+    'SELECT abha_address, abha_number FROM abha_accounts WHERE user_id=$1',
+    [req.user.id]
+  );
+  if (!abhaRows.length) return res.status(400).json({ error: 'ABHA not linked' });
+
+  const { abha_address, abha_number } = abhaRows[0];
+
+  const { rows } = await pool.query(
+    `SELECT ecc.id, ecc.reference_number, ecc.display, ecc.hi_type, ecc.created_at, $1 AS hip_id
+     FROM emr_care_contexts ecc
+     JOIN emr_patients ep ON ep.id = ecc.patient_id
+     WHERE ep.abha_address = $2 OR ep.abha_number = $2 OR ep.abha_address = $3 OR ep.abha_number = $3
+     ORDER BY ecc.created_at DESC`,
+    [hipId, abha_address ?? '', abha_number ?? '']
+  );
+  res.json(rows);
+};
+
 const linkCareContexts = async (req, res) => {
   const { careContexts, hipId, patientGender, patientYearOfBirth } = req.body;
   if (!careContexts?.length || !hipId)
@@ -562,6 +585,7 @@ module.exports = {
   discoverCareContexts, onDiscover,     discoverStatus,
   linkInit,             onLinkInit,     linkStatus,
   linkConfirm,          onLinkConfirm,  confirmStatus,
+  getAvailableCareContexts,
   linkCareContexts,     getLinkedCareContexts,
   createConsent, getConsents, respondConsent,
   consentNotify, healthInfoPush,

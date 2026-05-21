@@ -33,7 +33,8 @@ router.get('/links/:requestId/confirm-status',       auth, ctrl.confirmStatus);
 router.post('/links/link/on-init',                         ctrl.onLinkInit);       // ABDM callback
 router.post('/links/link/on-confirm',                      ctrl.onLinkConfirm);    // ABDM callback
 
-// ── M2: HIP-initiated link (legacy) ──────────────────────────────────────────
+// ── M2: HIP-initiated link (ABDM v3 — replaces broken v0.5 discover flow) ────
+router.get('/care-contexts/available', auth, ctrl.getAvailableCareContexts); // fetch from HIP for this patient
 router.post('/care-contexts/link',     auth, ctrl.linkCareContexts);
 router.get('/care-contexts',           auth, ctrl.getLinkedCareContexts);
 
