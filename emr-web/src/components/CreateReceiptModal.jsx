@@ -364,8 +364,9 @@ export default function CreateReceiptModal({ appt, user, rxImages = {}, onClose,
             <div className={styles.field}>
               <label>Payment Status</label>
               <div className={styles.selectWrap}>
-                <select className={`${styles.select} ${styles.selectDisabled}`} value="Unbilled" disabled>
-                  <option>Unbilled</option>
+                <select className={styles.select} value={paymentStatus}
+                  onChange={e => setPaymentStatus(e.target.value)}>
+                  {PAYMENT_STATUSES.map(s => <option key={s}>{s}</option>)}
                 </select>
                 <ChevronDown size={13} className={styles.selectArrow} />
               </div>
