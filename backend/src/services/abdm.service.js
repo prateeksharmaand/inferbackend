@@ -145,14 +145,15 @@ async function gwReq(method, url, data = null, extra = {}) {
 // ABHA v3 requests — requires REQUEST-ID + TIMESTAMP on every call
 async function abhaReq(method, url, data = null, xToken = null) {
   const token = await getGatewayToken();
+  const isGet = method.toUpperCase() === 'GET';
   const headers = {
     Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
+    ...(!isGet && { 'Content-Type': 'application/json' }),
     'X-CM-ID': 'sbx',
     'REQUEST-ID': uuid(),
     TIMESTAMP: new Date().toISOString(),
   };
-  if (xToken) headers['X-Token'] = `Bearer ${xToken}`;
+  if (xToken) headers['X-Token'] = xToken;   // no 'Bearer' prefix for X-Token
 
   const cfg = { method, url, headers };
   if (data) cfg.data = data;
