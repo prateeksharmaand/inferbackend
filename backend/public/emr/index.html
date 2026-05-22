@@ -481,10 +481,12 @@
           <span class="badge bg-secondary" id="aStep4Badge">4 ABHA Address</span>
         </div>
 
-        <!-- Step 1: Aadhaar number -->
+        <!-- Step 1: Aadhaar number + mobile -->
         <div id="aadhaar-step1">
           <label class="form-label fw-semibold">Aadhaar Number</label>
-          <input class="form-control" id="aAdd-aadhaar" placeholder="12-digit Aadhaar" maxlength="12" inputmode="numeric">
+          <input class="form-control mb-2" id="aAdd-aadhaar" placeholder="12-digit Aadhaar" maxlength="12" inputmode="numeric">
+          <label class="form-label fw-semibold">Mobile Number</label>
+          <input class="form-control" id="aAdd-mobile1" placeholder="10-digit mobile" maxlength="10" inputmode="numeric">
           <div class="text-danger mt-2 small" id="aAdd-s1-err" style="display:none"></div>
         </div>
 
@@ -951,7 +953,7 @@ function _aAddReset() {
   _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false };
   ['aadhaar-step1','aadhaar-step2','aadhaar-step3','aadhaar-step4','aadhaar-step5'].forEach((id,i) =>
     document.getElementById(id).style.display = i === 0 ? '' : 'none');
-  ['aAdd-aadhaar','aAdd-otp','aAdd-mobile','aAdd-mobile-otp','aAdd-custom-addr'].forEach(id =>
+  ['aAdd-aadhaar','aAdd-mobile1','aAdd-otp','aAdd-mobile','aAdd-mobile-otp','aAdd-custom-addr'].forEach(id =>
     document.getElementById(id).value = '');
   ['aAdd-s1-err','aAdd-s2-err','aAdd-s3-err','aAdd-s4-err'].forEach(id =>
     document.getElementById(id).style.display = 'none');
@@ -979,7 +981,9 @@ async function aadhaarAddNext() {
     const err = document.getElementById('aAdd-s1-err');
     err.style.display = 'none';
     const aadhaar = document.getElementById('aAdd-aadhaar').value.replace(/\D/g,'');
+    const mobile1 = document.getElementById('aAdd-mobile1').value.replace(/\D/g,'');
     if (aadhaar.length !== 12) { err.textContent = 'Enter a valid 12-digit Aadhaar number.'; err.style.display=''; return; }
+    if (mobile1.length !== 10) { err.textContent = 'Enter a valid 10-digit mobile number.'; err.style.display=''; return; }
     btn.disabled=true; btn.textContent='Sending…';
     try {
       const res = await api('POST','/abha/aadhaar-otp',{ aadhaar });
@@ -997,7 +1001,8 @@ async function aadhaarAddNext() {
     if (!otp) { err.textContent='Enter the OTP.'; err.style.display=''; return; }
     btn.disabled=true; btn.textContent='Verifying…';
     try {
-      const res = await api('POST','/abha/aadhaar-verify',{ otp, txnId: _aAdd.txnId });
+      const mobile1 = document.getElementById('aAdd-mobile1').value.replace(/\D/g,'');
+      const res = await api('POST','/abha/aadhaar-verify',{ otp, txnId: _aAdd.txnId, mobile: mobile1 });
       _aAdd.xToken = res.tokens?.token || res.token || null;
       _aAdd.txnId  = res.txnId || res.transactionId || _aAdd.txnId;
       if (_aAdd.xToken) {
