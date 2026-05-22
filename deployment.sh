@@ -108,11 +108,11 @@ done
 info "Total migrations applied: $MIGRATION_COUNT"
 
 # ── Build backend image ───────────────────────────────────────────────────────
-log "Building backend Docker image${NO_CACHE:+ (no cache)}..."
-docker compose build $NO_CACHE "$BACKEND_SERVICE"
+log "Building Docker images${NO_CACHE:+ (no cache)}..."
+docker compose build $NO_CACHE "$BACKEND_SERVICE" "$NGINX_SERVICE"
 info "Image build: ✓"
 
-# ── Restart only the backend (zero postgres/nginx downtime) ───────────────────
+# ── Restart backend and nginx ──────────────────────────────────────────────────
 log "Restarting backend container..."
 docker compose up -d --no-deps "$BACKEND_SERVICE"
 info "Container started"
@@ -130,21 +130,9 @@ if [ -n "$_NGINX_ID" ]; then
   [ "$_STATE" = "true" ] && _NGINX_UP=true
 fi
 
-if [ "$_NGINX_UP" = "true" ]; then
-  # Test config explicitly, then graceful reload (zero downtime, keeps connections alive)
-  if docker compose exec -T "$NGINX_SERVICE" nginx -t -c /etc/nginx/nginx.conf; then
-    docker compose exec -T "$NGINX_SERVICE" nginx -s reload
-    info "Nginx reloaded: ✓"
-  else
-    err "Nginx config test failed — not reloading. Run: docker compose logs $NGINX_SERVICE"
-  fi
-else
-  warn "Nginx not running — starting it..."
-  docker compose up -d "$NGINX_SERVICE"
-  # Brief wait for nginx to initialise before the health check below
-  sleep 3
-  info "Nginx started: ✓"
-fi
+docker compose up -d --no-deps "$NGINX_SERVICE"
+sleep 3
+info "Nginx restarted: ✓"
 
 # ── Health check: API ──────────────────────────────────────────────────────────
 log "Waiting for backend to respond at https://$DOMAIN/health ..."

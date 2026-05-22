@@ -39,15 +39,15 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
     container_name: phr_nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./web:/var/www/web:ro
+      - ssl_certs:/etc/nginx/ssl:ro
       - certbot_www:/var/www/certbot:ro
     depends_on:
       - backend
@@ -58,3 +58,4 @@ volumes:
   certbot_www:
   uploads_data:
   logs_data:
+  ssl_certs:
