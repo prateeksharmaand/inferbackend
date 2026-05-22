@@ -38,23 +38,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static files (encrypted uploads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// EMR web UI + API
-// Override helmet's strict CSP for the EMR static pages (internal tool with inline scripts + Bootstrap CDN)
-const EMR_CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-  "font-src 'self' data: https://cdn.jsdelivr.net",
-  "img-src 'self' data:",
-  "connect-src 'self'",
-].join('; ');
-app.use('/emr', (req, res, next) => { res.setHeader('Content-Security-Policy', EMR_CSP); next(); });
-app.use('/emr', express.static(path.join(__dirname, 'public/emr')));
-
-// OPD / Clinic EMR (React app) — SPA with client-side routing
-app.use('/opd', express.static(path.join(__dirname, 'public/opd')));
-app.get('/opd/*', (req, res) => res.sendFile(path.join(__dirname, 'public/opd/index.html')));
-
+// EMR API routes (static UI served by nginx at emr.inferapp.online)
 app.use('/api/emr', require('./src/emr/emr.routes'));
 
 // Health check

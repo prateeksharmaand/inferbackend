@@ -12,6 +12,8 @@ set -euo pipefail
 # ── Config ────────────────────────────────────────────────────────────────────
 DOMAIN="api.inferapp.online"
 LANDING_DOMAIN="inferapp.online"
+OPD_DOMAIN="opd.inferapp.online"
+EMR_DOMAIN="emr.inferapp.online"
 BACKEND_SERVICE="backend"
 NGINX_SERVICE="nginx"
 POSTGRES_SERVICE="postgres"
@@ -153,8 +155,17 @@ if curl -sf --max-time 10 "https://$LANDING_DOMAIN" > /dev/null 2>&1; then
   info "Landing page: ✓  https://$LANDING_DOMAIN"
 else
   warn "Landing page did not respond — check SSL cert for $LANDING_DOMAIN"
-  warn "If first deploy: certbot certonly --standalone -d $LANDING_DOMAIN -d www.$LANDING_DOMAIN"
 fi
+
+# ── Health check: OPD + EMR portals ────────────────────────────────────────────
+for SUBDOMAIN in "$OPD_DOMAIN" "$EMR_DOMAIN"; do
+  if curl -sf --max-time 10 "https://$SUBDOMAIN" > /dev/null 2>&1; then
+    info "$SUBDOMAIN: ✓"
+  else
+    warn "$SUBDOMAIN did not respond — SSL cert may be missing for this subdomain"
+    warn "Run: certbot certonly --nginx -d $SUBDOMAIN"
+  fi
+done
 
 # ── Tail recent logs ──────────────────────────────────────────────────────────
 log "Recent backend logs (last 30 lines):"
@@ -170,6 +181,8 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 info "Landing:  https://$LANDING_DOMAIN"
 info "API:      https://$DOMAIN"
+info "OPD:      https://$OPD_DOMAIN"
+info "EMR:      https://$EMR_DOMAIN"
 info "Health:   https://$DOMAIN/health"
 info "Commit:   $(git log -1 --format='%h — %s')"
 echo ""

@@ -1,0 +1,10 @@
+.git
+.gitignore
+*.md
+flutter_phr
+backend/node_modules
+backend/logs
+backend/uploads
+backend/public/opd
+emr-web/node_modules
+emr-web/dist
