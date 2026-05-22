@@ -2,6 +2,42 @@ const axios  = require('axios');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 
+// ── ABDM axios interceptor — logs every outbound request + response ───────────
+const abdmAxios = axios.create();
+
+abdmAxios.interceptors.request.use(cfg => {
+  logger.info('[ABDM REQUEST]', {
+    url:     cfg.url,
+    method:  (cfg.method || 'GET').toUpperCase(),
+    headers: cfg.headers,
+    body:    cfg.data,
+  });
+  return cfg;
+});
+
+abdmAxios.interceptors.response.use(
+  res => {
+    logger.info('[ABDM RESPONSE]', {
+      url:     res.config.url,
+      status:  res.status,
+      headers: res.headers,
+      body:    res.data,
+    });
+    return res;
+  },
+  err => {
+    logger.error('[ABDM ERROR]', {
+      url:     err.config?.url,
+      status:  err.response?.status,
+      reqHeaders:  err.config?.headers,
+      reqBody:     err.config?.data,
+      resHeaders:  err.response?.headers,
+      resBody:     err.response?.data,
+    });
+    return Promise.reject(err);
+  }
+);
+
 const ABDM_GATEWAY   = process.env.ABDM_GATEWAY_URL  || 'https://dev.abdm.gov.in/gateway';
 const ABHA_BASE      = process.env.ABHA_BASE_URL      || 'https://abhasbx.abdm.gov.in/abha/api/v3';
 const ABDM_HIECM     = process.env.ABDM_HIECM_URL     || 'https://dev.abdm.gov.in/api/hiecm';
@@ -23,7 +59,7 @@ async function getGatewayToken() {
 
   logger.info('ABDM gateway token request', { clientId: CLIENT_ID, hasSecret: !!CLIENT_SECRET });
   try {
-    const res = await axios.post(
+    const res = await abdmAxios.post(
       ABDM_SESSION_URL,
       { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
       {
@@ -53,7 +89,7 @@ async function getAbhaCert() {
   if (_abhaPubKey && Date.now() < _abhaPubKeyExpiry) return _abhaPubKey;
 
   const token = await getGatewayToken();
-  const res = await axios.get(`${ABHA_BASE}/profile/public/certificate`, {
+  const res = await abdmAxios.get(`${ABHA_BASE}/profile/public/certificate`, {
     headers: {
       Authorization: `Bearer ${token}`,
       'X-CM-ID': 'sbx',
@@ -96,7 +132,7 @@ async function gwReq(method, url, data = null, extra = {}) {
   };
   if (data) cfg.data = data;
   try {
-    const res = await axios(cfg);
+    const res = await abdmAxios(cfg);
     return res.data;
   } catch (err) {
     logger.error('ABDM API error', { url, status: err.response?.status, body: err.response?.data });
@@ -119,7 +155,7 @@ async function abhaReq(method, url, data = null, xToken = null) {
   const cfg = { method, url, headers };
   if (data) cfg.data = data;
   try {
-    const res = await axios(cfg);
+    const res = await abdmAxios(cfg);
     return res.data;
   } catch (err) {
     const abdmBody = err.response?.data;
@@ -215,7 +251,7 @@ async function getAbhaProfile(xToken) {
 
 async function getAbhaPngCard(xToken) {
   const token = await getGatewayToken();
-  const res = await axios.get(`${ABHA_BASE}/profile/account/abha-card`, {
+  const res = await abdmAxios.get(`${ABHA_BASE}/profile/account/abha-card`, {
     headers: {
       Authorization: `Bearer ${token}`,
       'X-Token': `Bearer ${xToken}`,
@@ -298,7 +334,7 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
   const body = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) || 1990 };
   logger.info('generateLinkToken request', { hipId, cleanAbha, abhaAddress, gender, yearOfBirth });
   try {
-    const res = await axios.post(
+    const res = await abdmAxios.post(
       `${ABDM_HIECM}/v3/token/generate-token`,
       body,
       {
@@ -352,7 +388,7 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
   };
   logger.info('linkCareContexts request', { hipId, cleanAbha, contextCount: careContexts.length });
   try {
-    const res = await axios.post(
+    const res = await abdmAxios.post(
       `${ABDM_HIECM}/hip/v3/link/carecontext`,
       body,
       {
