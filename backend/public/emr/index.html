@@ -26,6 +26,8 @@
   .table th { font-weight: 600; font-size: 13px; color: #666; }
   .btn-accent { background: var(--accent); color: #fff; border: none; }
   .btn-accent:hover { background: #6a5ce0; color: #fff; }
+  .btn-outline-accent { color: var(--accent); border: 1px solid var(--accent); background: transparent; }
+  .btn-outline-accent:hover { background: var(--accent); color: #fff; }
   .activity-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   #otp-panel { position: fixed; bottom: 20px; right: 20px; width: 320px; z-index: 9999; }
   #login-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 10000; align-items: center; justify-content: center; }
@@ -96,9 +98,14 @@
 <div id="page-patients" class="page active">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="fw-bold mb-0">Patients</h5>
-    <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#addPatientModal">
-      <i class="bi bi-person-plus me-1"></i>Add Patient
-    </button>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-accent btn-sm" data-bs-toggle="modal" data-bs-target="#addViaAbhaModal">
+        <i class="bi bi-shield-check me-1"></i>Add via ABHA
+      </button>
+      <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#addPatientModal">
+        <i class="bi bi-person-plus me-1"></i>Add Patient
+      </button>
+    </div>
   </div>
   <div class="card">
     <div class="card-body p-0">
@@ -453,6 +460,56 @@
 
 <!-- ── Floating OTP notification panel ───────────────────────────────────── -->
 <div id="otp-panel"></div>
+
+<!-- ── Add Patient via ABHA Modal ────────────────────────────────────────── -->
+<div class="modal fade" id="addViaAbhaModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2 text-accent"></i>Add Patient via ABHA</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Step 1: choose method + input -->
+        <div id="abha-add-step1">
+          <ul class="nav nav-tabs mb-3" id="abhaAddTabs">
+            <li class="nav-item"><button class="nav-link active" id="abhaAddByNumTab" onclick="switchAbhaAddTab('num')">By ABHA Number</button></li>
+            <li class="nav-item"><button class="nav-link" id="abhaAddByMobTab" onclick="switchAbhaAddTab('mob')">By Mobile</button></li>
+          </ul>
+          <div id="abhaAddNumPanel">
+            <label class="form-label fw-semibold">ABHA Number</label>
+            <input class="form-control" id="abhaAdd-num" placeholder="91-1234-5678-9012">
+          </div>
+          <div id="abhaAddMobPanel" style="display:none">
+            <label class="form-label fw-semibold">Mobile Number</label>
+            <input class="form-control" id="abhaAdd-mob" placeholder="10-digit mobile">
+          </div>
+          <div id="abhaAdd-step1-err" class="text-danger mt-2" style="display:none"></div>
+        </div>
+        <!-- Step 2: OTP -->
+        <div id="abha-add-step2" style="display:none">
+          <div class="alert alert-info py-2">OTP sent. Enter the 6-digit code below.</div>
+          <label class="form-label fw-semibold">OTP</label>
+          <input class="form-control" id="abhaAdd-otp" placeholder="6-digit OTP" maxlength="6">
+          <div id="abhaAdd-step2-err" class="text-danger mt-2" style="display:none"></div>
+        </div>
+        <!-- Step 3: success -->
+        <div id="abha-add-step3" style="display:none">
+          <div class="text-center py-3">
+            <i class="bi bi-person-check-fill text-success" style="font-size:2.5rem"></i>
+            <div class="fw-bold mt-2" id="abhaAdd-result-name"></div>
+            <div class="text-muted small" id="abhaAdd-result-abha"></div>
+            <div class="mt-2" id="abhaAdd-result-msg"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-accent" id="abhaAddPrimaryBtn" onclick="abhaAddNext()">Send OTP</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── Add Patient Modal ─────────────────────────────────────────────────── -->
 <div class="modal fade" id="addPatientModal" tabindex="-1">
@@ -809,6 +866,78 @@ function toast(msg, type = 'success') {
   t.style.zIndex = 9999; t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
+}
+
+// ── Add Patient via ABHA ──────────────────────────────────────────────────────
+let _abhaAddTxnId = null, _abhaAddByMobile = false, _abhaAddStep = 1;
+
+function switchAbhaAddTab(tab) {
+  _abhaAddByMobile = tab === 'mob';
+  document.getElementById('abhaAddNumPanel').style.display  = tab === 'num' ? '' : 'none';
+  document.getElementById('abhaAddMobPanel').style.display  = tab === 'mob' ? '' : 'none';
+  document.getElementById('abhaAddByNumTab').classList.toggle('active', tab === 'num');
+  document.getElementById('abhaAddByMobTab').classList.toggle('active', tab === 'mob');
+}
+
+document.getElementById('addViaAbhaModal').addEventListener('hidden.bs.modal', () => {
+  _abhaAddTxnId = null; _abhaAddByMobile = false; _abhaAddStep = 1;
+  document.getElementById('abha-add-step1').style.display = '';
+  document.getElementById('abha-add-step2').style.display = 'none';
+  document.getElementById('abha-add-step3').style.display = 'none';
+  document.getElementById('abhaAddPrimaryBtn').textContent = 'Send OTP';
+  document.getElementById('abhaAdd-num').value = '';
+  document.getElementById('abhaAdd-mob').value = '';
+  document.getElementById('abhaAdd-otp').value = '';
+  document.getElementById('abhaAdd-step1-err').style.display = 'none';
+  document.getElementById('abhaAdd-step2-err').style.display = 'none';
+  switchAbhaAddTab('num');
+});
+
+async function abhaAddNext() {
+  if (_abhaAddStep === 1) {
+    const errEl = document.getElementById('abhaAdd-step1-err');
+    errEl.style.display = 'none';
+    const body = _abhaAddByMobile
+      ? { mobile: document.getElementById('abhaAdd-mob').value.trim() }
+      : { abhaNumber: document.getElementById('abhaAdd-num').value.trim() };
+    if (!Object.values(body)[0]) { errEl.textContent = 'Please enter a value.'; errEl.style.display = ''; return; }
+    const btn = document.getElementById('abhaAddPrimaryBtn');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      const res = await api('POST', '/abha/request-otp', body);
+      _abhaAddTxnId = res.txnId || res.transactionId;
+      _abhaAddStep = 2;
+      document.getElementById('abha-add-step1').style.display = 'none';
+      document.getElementById('abha-add-step2').style.display = '';
+      btn.textContent = 'Verify & Add Patient';
+    } catch(e) { errEl.textContent = e.message || 'Failed to send OTP'; errEl.style.display = ''; }
+    btn.disabled = false;
+  } else if (_abhaAddStep === 2) {
+    const errEl = document.getElementById('abhaAdd-step2-err');
+    errEl.style.display = 'none';
+    const otp = document.getElementById('abhaAdd-otp').value.trim();
+    if (!otp) { errEl.textContent = 'Enter the OTP.'; errEl.style.display = ''; return; }
+    const btn = document.getElementById('abhaAddPrimaryBtn');
+    btn.disabled = true; btn.textContent = 'Verifying…';
+    try {
+      const res = await api('POST', '/abha/verify-create', { otp, txnId: _abhaAddTxnId, byMobile: _abhaAddByMobile });
+      _abhaAddStep = 3;
+      document.getElementById('abha-add-step2').style.display = 'none';
+      document.getElementById('abha-add-step3').style.display = '';
+      document.getElementById('abhaAdd-result-name').textContent = res.patient.name || 'Patient';
+      document.getElementById('abhaAdd-result-abha').textContent = res.patient.abha_address || res.patient.abha_number || '';
+      document.getElementById('abhaAdd-result-msg').innerHTML = res.created
+        ? '<span class="badge bg-success">New patient created</span>'
+        : '<span class="badge bg-secondary">Already registered</span>';
+      btn.textContent = 'View Patient';
+      btn.onclick = () => {
+        bootstrap.Modal.getInstance(document.getElementById('addViaAbhaModal')).hide();
+        showPatient(res.patient.id);
+      };
+      loadPatients();
+    } catch(e) { errEl.textContent = e.message || 'OTP verification failed'; errEl.style.display = ''; }
+    btn.disabled = false;
+  }
 }
 
 // ── Patients ──────────────────────────────────────────────────────────────────

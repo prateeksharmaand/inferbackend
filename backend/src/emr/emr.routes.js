@@ -104,19 +104,15 @@ router.get   ('/profile-shares',                        emr.listProfileShares);
 router.patch ('/profile-shares/:id/dismiss',            emr.dismissProfileShare);
 router.post  ('/profile-shares/:id/link-patient',       emr.linkProfileShareToPatient);
 
+// Add Patient via ABHA (standalone — no existing patient needed)
+router.post('/abha/request-otp',   emr.abhaAddOtp);
+router.post('/abha/verify-create', emr.abhaAddCreate);
+
 // Consent management (EMR acting as HIU)
 router.post('/consents',                        emr.createConsentRequest);
 router.get ('/consents',                        emr.listConsentRequests);
 router.get ('/consents/health-records',         emr.getConsentHealthRecords);
 router.post('/consents/:requestId/respond',     emr.respondConsent);
 router.post('/consents/:requestId/pull-data',   emr.pullConsentData);
-
-// ONE-TIME CLEAR — remove after use
-const { pool: _pool } = require('../config/database');
-router.delete('/admin/clear-hiu-data', async (req, res) => {
-  if (req.headers['x-admin-secret'] !== 'noushealth-clear-2026') return res.status(403).json({ error: 'forbidden' });
-  await _pool.query('TRUNCATE emr_consent_requests, consent_requests, health_records RESTART IDENTITY CASCADE');
-  res.json({ cleared: ['emr_consent_requests', 'consent_requests', 'health_records'] });
-});
 
 module.exports = router;

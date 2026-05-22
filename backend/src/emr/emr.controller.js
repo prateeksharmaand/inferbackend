@@ -508,6 +508,61 @@ const abhaVerifyConfirm = async (req, res) => {
   }
 };
 
+// Add Patient via ABHA – Step 1: request OTP (no existing patient needed)
+const abhaAddOtp = async (req, res) => {
+  const { abhaNumber, mobile } = req.body;
+  try {
+    let result;
+    if (abhaNumber)   result = await abdmSvc.loginRequestOtp(abhaNumber);
+    else if (mobile)  result = await abdmSvc.generateMobileLoginOtp(mobile);
+    else return res.status(400).json({ error: 'abhaNumber or mobile required' });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Add Patient via ABHA – Step 2: verify OTP, fetch profile, create patient
+const abhaAddCreate = async (req, res) => {
+  const { otp, txnId, byMobile } = req.body;
+  if (!otp || !txnId) return res.status(400).json({ error: 'otp and txnId required' });
+  try {
+    const verifyResult = byMobile
+      ? await abdmSvc.verifyMobileLoginOtp(otp, txnId)
+      : await abdmSvc.loginVerifyOtp(otp, txnId);
+    const xToken = verifyResult.token || verifyResult.tokens?.token;
+    if (!xToken) return res.status(502).json({ error: 'No token returned from ABDM' });
+
+    const profile  = await abdmSvc.getAbhaProfile(xToken);
+    const abhaNum  = profile.ABHANumber  || profile.abhaNumber  || null;
+    const abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
+    const name     = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
+    const mobile   = profile.mobile || null;
+    const gender   = profile.gender || null;
+    const dob      = profile.dateOfBirth ||
+      (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
+    const clinicId = req.emrUser.clinic_id;
+
+    // Return existing patient if ABHA already registered
+    if (abhaNum || abhaAddr) {
+      const { rows: ex } = await pool.query(
+        'SELECT id,name FROM emr_patients WHERE clinic_id=$1 AND (abha_number=$2 OR abha_address=$3) LIMIT 1',
+        [clinicId, abhaNum, abhaAddr]
+      );
+      if (ex.length) return res.json({ patient: ex[0], created: false, profile });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO emr_patients (clinic_id, name, mobile, dob, gender, abha_number, abha_address)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [clinicId, name, mobile, dob, gender, abhaNum, abhaAddr]
+    );
+    res.status(201).json({ patient: rows[0], created: true, profile });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
 module.exports = {
   listPatients, createPatient, getPatient, updatePatient, deletePatient,
   addCareContext, deleteCareContext,
@@ -516,5 +571,6 @@ module.exports = {
   abhaCreateOtp, abhaCreateVerify, abhaCreateMobileOtp, abhaCreateMobileVerify,
   abhaGetSuggestions, abhaSetAddress, abhaGetCard,
   abhaVerifyOtp, abhaVerifyConfirm,
+  abhaAddOtp, abhaAddCreate,
   listProfileShares, dismissProfileShare, linkProfileShareToPatient,
 };
