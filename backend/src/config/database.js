@@ -259,6 +259,189 @@ async function initializeDatabase() {
       await client.query(`DROP TRIGGER IF EXISTS update_${table}_updated_at ON ${table}`);
       await client.query(`CREATE TRIGGER update_${table}_updated_at BEFORE UPDATE ON ${table} FOR EACH ROW EXECUTE FUNCTION update_updated_at()`);
     }
+
+    // ── EMR / OPD tables ──────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_clinics (
+        id               SERIAL PRIMARY KEY,
+        name             VARCHAR(200) NOT NULL,
+        address          TEXT,
+        phone            VARCHAR(20),
+        email            VARCHAR(200) UNIQUE,
+        uhid_prefix      VARCHAR(20),
+        uhid_next_number INTEGER NOT NULL DEFAULT 1,
+        plan             VARCHAR(50) NOT NULL DEFAULT 'basic',
+        max_patients     INTEGER NOT NULL DEFAULT 1000,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_doctors (
+        id               SERIAL PRIMARY KEY,
+        clinic_id        INTEGER NOT NULL REFERENCES emr_clinics(id) ON DELETE CASCADE,
+        name             VARCHAR(200) NOT NULL,
+        email            VARCHAR(200) UNIQUE NOT NULL,
+        password_hash    TEXT NOT NULL,
+        specialization   VARCHAR(100),
+        qualification    VARCHAR(200),
+        registration_no  VARCHAR(100),
+        is_active        BOOLEAN NOT NULL DEFAULT true,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_clinic_staff (
+        id            SERIAL PRIMARY KEY,
+        clinic_id     INTEGER NOT NULL REFERENCES emr_clinics(id) ON DELETE CASCADE,
+        name          VARCHAR(200) NOT NULL,
+        email         VARCHAR(200) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role          VARCHAR(50) NOT NULL DEFAULT 'staff',
+        is_active     BOOLEAN NOT NULL DEFAULT true,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_patients (
+        id           SERIAL PRIMARY KEY,
+        name         VARCHAR(200) NOT NULL,
+        mobile       VARCHAR(20),
+        dob          DATE,
+        gender       VARCHAR(20),
+        abha_number  VARCHAR(50),
+        abha_address VARCHAR(100),
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        updated_at   TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_patients_mobile ON emr_patients(mobile)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_patients_abha   ON emr_patients(abha_address, abha_number)`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_care_contexts (
+        id               SERIAL PRIMARY KEY,
+        patient_id       INTEGER REFERENCES emr_patients(id) ON DELETE CASCADE,
+        reference_number VARCHAR(200) NOT NULL,
+        display          TEXT,
+        hi_type          VARCHAR(50) NOT NULL DEFAULT 'OPConsultation',
+        fhir_content     JSONB,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_care_ctx_patient ON emr_care_contexts(patient_id)`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_queues (
+        id            SERIAL PRIMARY KEY,
+        clinic_id     INTEGER NOT NULL REFERENCES emr_clinics(id) ON DELETE CASCADE,
+        doctor_id     INTEGER REFERENCES emr_doctors(id) ON DELETE SET NULL,
+        name          VARCHAR(200) NOT NULL,
+        mode          VARCHAR(50) NOT NULL DEFAULT 'in_clinic',
+        filters       JSONB NOT NULL DEFAULT '{}',
+        quick_actions JSONB NOT NULL DEFAULT '[]',
+        sort_order    VARCHAR(50) NOT NULL DEFAULT 'appointment_start',
+        is_active     BOOLEAN NOT NULL DEFAULT true,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_appointments (
+        id                SERIAL PRIMARY KEY,
+        queue_id          INTEGER REFERENCES emr_queues(id) ON DELETE SET NULL,
+        clinic_id         INTEGER NOT NULL,
+        doctor_id         INTEGER REFERENCES emr_doctors(id) ON DELETE SET NULL,
+        emr_patient_id    INTEGER REFERENCES emr_patients(id) ON DELETE SET NULL,
+        patient_name      VARCHAR(200) NOT NULL,
+        patient_mobile    VARCHAR(20),
+        patient_dob       DATE,
+        patient_gender    VARCHAR(20),
+        patient_abha      VARCHAR(100),
+        token_number      INTEGER,
+        visit_type        VARCHAR(50) NOT NULL DEFAULT 'OPConsultation',
+        channel           VARCHAR(50) NOT NULL DEFAULT 'walk_in',
+        appointment_date  DATE NOT NULL,
+        appointment_time  TIME,
+        notes             TEXT,
+        tags              JSONB NOT NULL DEFAULT '[]',
+        uhid              VARCHAR(100),
+        medical_history   JSONB NOT NULL DEFAULT '[]',
+        status            VARCHAR(50) NOT NULL DEFAULT 'booked',
+        payment_status    VARCHAR(50) NOT NULL DEFAULT 'unbilled',
+        assessment_status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        checked_in_at     TIMESTAMPTZ,
+        completed_at      TIMESTAMPTZ,
+        created_at        TIMESTAMPTZ DEFAULT NOW(),
+        updated_at        TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appt_clinic_date ON emr_appointments(clinic_id, appointment_date)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appt_queue       ON emr_appointments(queue_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appt_mobile      ON emr_appointments(patient_mobile)`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_encounters (
+        id                   SERIAL PRIMARY KEY,
+        appointment_id       INTEGER UNIQUE REFERENCES emr_appointments(id) ON DELETE CASCADE,
+        clinic_id            INTEGER NOT NULL,
+        doctor_id            INTEGER REFERENCES emr_doctors(id) ON DELETE SET NULL,
+        emr_patient_id       INTEGER REFERENCES emr_patients(id) ON DELETE SET NULL,
+        chief_complaint      TEXT,
+        symptoms             JSONB NOT NULL DEFAULT '[]',
+        diagnosis            JSONB NOT NULL DEFAULT '[]',
+        medications          JSONB NOT NULL DEFAULT '[]',
+        instructions         TEXT,
+        next_visit_date      DATE,
+        next_visit_notes     TEXT,
+        vitals               JSONB NOT NULL DEFAULT '{}',
+        fhir_bundle          JSONB,
+        lab_investigations   JSONB NOT NULL DEFAULT '[]',
+        lab_results          JSONB NOT NULL DEFAULT '[]',
+        examination_findings TEXT,
+        notes                TEXT,
+        refer_to             TEXT,
+        advices              TEXT,
+        procedures           JSONB NOT NULL DEFAULT '[]',
+        canvas_image         TEXT,
+        custom_sections      JSONB NOT NULL DEFAULT '[]',
+        created_at           TIMESTAMPTZ DEFAULT NOW(),
+        updated_at           TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS emr_tags (
+        id           SERIAL PRIMARY KEY,
+        clinic_id    INTEGER NOT NULL,
+        code         VARCHAR(100) NOT NULL,
+        display_name VARCHAR(200) NOT NULL,
+        color        VARCHAR(30) NOT NULL DEFAULT '#7c3aed',
+        attr_type    INTEGER NOT NULL DEFAULT 1,
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(clinic_id, code, attr_type)
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hip_link_sessions (
+        id              SERIAL PRIMARY KEY,
+        patient_id      INTEGER REFERENCES emr_patients(id) ON DELETE SET NULL,
+        transaction_id  VARCHAR(100),
+        request_id      VARCHAR(100),
+        care_contexts   JSONB NOT NULL DEFAULT '[]',
+        otp             VARCHAR(10),
+        otp_expires_at  TIMESTAMPTZ,
+        link_ref_number VARCHAR(100) UNIQUE,
+        status          VARCHAR(30) NOT NULL DEFAULT 'pending',
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hip_health_requests (
+        id              SERIAL PRIMARY KEY,
+        transaction_id  VARCHAR(100) UNIQUE,
+        consent_id      VARCHAR(100),
+        data_push_url   TEXT,
+        key_material    JSONB,
+        status          VARCHAR(30) NOT NULL DEFAULT 'pending',
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');
   } catch (err) {
