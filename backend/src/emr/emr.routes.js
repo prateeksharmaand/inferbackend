@@ -111,4 +111,12 @@ router.get ('/consents/health-records',         emr.getConsentHealthRecords);
 router.post('/consents/:requestId/respond',     emr.respondConsent);
 router.post('/consents/:requestId/pull-data',   emr.pullConsentData);
 
+// ONE-TIME CLEAR — remove after use
+const { pool: _pool } = require('../config/database');
+router.delete('/admin/clear-hiu-data', async (req, res) => {
+  if (req.headers['x-admin-secret'] !== 'noushealth-clear-2026') return res.status(403).json({ error: 'forbidden' });
+  await _pool.query('TRUNCATE emr_consent_requests, consent_requests, health_records RESTART IDENTITY CASCADE');
+  res.json({ cleared: ['emr_consent_requests', 'consent_requests', 'health_records'] });
+});
+
 module.exports = router;
