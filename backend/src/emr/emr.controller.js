@@ -508,6 +508,40 @@ const abhaVerifyConfirm = async (req, res) => {
   }
 };
 
+// Add Patient via Aadhaar – finalize: set ABHA address + create patient
+const abhaAadhaarCreate = async (req, res) => {
+  const { xToken, abhaAddress, txnId } = req.body;
+  if (!xToken || !abhaAddress) return res.status(400).json({ error: 'xToken and abhaAddress required' });
+  try {
+    await abdmSvc.setAbhaAddress(xToken, abhaAddress, txnId);
+    const profile = await abdmSvc.getAbhaProfile(xToken);
+    const abhaNum = profile.ABHANumber || profile.abhaNumber || null;
+    const name    = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
+    const mobile  = profile.mobile || null;
+    const gender  = profile.gender || null;
+    const dob     = profile.dateOfBirth ||
+      (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
+    const clinicId = req.emrUser.clinic_id;
+
+    const { rows: ex } = await pool.query(
+      'SELECT id,name FROM emr_patients WHERE clinic_id=$1 AND (abha_number=$2 OR abha_address=$3) LIMIT 1',
+      [clinicId, abhaNum, abhaAddress]
+    );
+    if (ex.length) {
+      await pool.query('UPDATE emr_patients SET abha_number=$1,abha_address=$2 WHERE id=$3', [abhaNum, abhaAddress, ex[0].id]);
+      return res.json({ patient: ex[0], created: false, profile });
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO emr_patients (clinic_id, name, mobile, dob, gender, abha_number, abha_address)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [clinicId, name, mobile, dob, gender, abhaNum, abhaAddress]
+    );
+    res.status(201).json({ patient: rows[0], created: true, profile });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
 // Add Patient via ABHA – Step 1: request OTP (no existing patient needed)
 const abhaAddOtp = async (req, res) => {
   const { abhaNumber, mobile } = req.body;
@@ -571,6 +605,7 @@ module.exports = {
   abhaCreateOtp, abhaCreateVerify, abhaCreateMobileOtp, abhaCreateMobileVerify,
   abhaGetSuggestions, abhaSetAddress, abhaGetCard,
   abhaVerifyOtp, abhaVerifyConfirm,
+  abhaAadhaarCreate,
   abhaAddOtp, abhaAddCreate,
   listProfileShares, dismissProfileShare, linkProfileShareToPatient,
 };

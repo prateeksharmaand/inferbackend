@@ -99,6 +99,9 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="fw-bold mb-0">Patients</h5>
     <div class="d-flex gap-2">
+      <button class="btn btn-outline-accent btn-sm" data-bs-toggle="modal" data-bs-target="#addViaAadhaarModal">
+        <i class="bi bi-fingerprint me-1"></i>Add via Aadhaar
+      </button>
       <button class="btn btn-outline-accent btn-sm" data-bs-toggle="modal" data-bs-target="#addViaAbhaModal">
         <i class="bi bi-shield-check me-1"></i>Add via ABHA
       </button>
@@ -460,6 +463,79 @@
 
 <!-- ── Floating OTP notification panel ───────────────────────────────────── -->
 <div id="otp-panel"></div>
+
+<!-- ── Add Patient via Aadhaar Modal ─────────────────────────────────────── -->
+<div class="modal fade" id="addViaAadhaarModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-fingerprint me-2 text-accent"></i>Add Patient via Aadhaar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Step indicator -->
+        <div class="d-flex gap-2 mb-3" id="aadhaar-steps">
+          <span class="badge bg-accent" id="aStep1Badge">1 Aadhaar OTP</span>
+          <span class="badge bg-secondary" id="aStep2Badge">2 Verify OTP</span>
+          <span class="badge bg-secondary" id="aStep3Badge">3 Mobile OTP</span>
+          <span class="badge bg-secondary" id="aStep4Badge">4 ABHA Address</span>
+        </div>
+
+        <!-- Step 1: Aadhaar number -->
+        <div id="aadhaar-step1">
+          <label class="form-label fw-semibold">Aadhaar Number</label>
+          <input class="form-control" id="aAdd-aadhaar" placeholder="12-digit Aadhaar" maxlength="12" inputmode="numeric">
+          <div class="text-danger mt-2 small" id="aAdd-s1-err" style="display:none"></div>
+        </div>
+
+        <!-- Step 2: Aadhaar OTP -->
+        <div id="aadhaar-step2" style="display:none">
+          <div class="alert alert-info py-2 small">OTP sent to Aadhaar-linked mobile.</div>
+          <label class="form-label fw-semibold">OTP</label>
+          <input class="form-control" id="aAdd-otp" placeholder="6-digit OTP" maxlength="6" inputmode="numeric">
+          <div class="text-danger mt-2 small" id="aAdd-s2-err" style="display:none"></div>
+        </div>
+
+        <!-- Step 3: Mobile OTP (if required) -->
+        <div id="aadhaar-step3" style="display:none">
+          <div class="alert alert-warning py-2 small">Mobile verification required.</div>
+          <label class="form-label fw-semibold">Mobile Number</label>
+          <input class="form-control mb-2" id="aAdd-mobile" placeholder="10-digit mobile">
+          <div id="aAdd-mobile-otp-row" style="display:none">
+            <label class="form-label fw-semibold">Mobile OTP</label>
+            <input class="form-control" id="aAdd-mobile-otp" placeholder="6-digit OTP" maxlength="6" inputmode="numeric">
+          </div>
+          <div class="text-danger mt-2 small" id="aAdd-s3-err" style="display:none"></div>
+        </div>
+
+        <!-- Step 4: Pick ABHA address -->
+        <div id="aadhaar-step4" style="display:none">
+          <label class="form-label fw-semibold">Choose ABHA Address</label>
+          <div id="aAdd-suggestions" class="d-flex flex-column gap-2"></div>
+          <div class="mt-2">
+            <label class="form-label small text-muted">Or type custom:</label>
+            <input class="form-control form-control-sm" id="aAdd-custom-addr" placeholder="yourname@abdm">
+          </div>
+          <div class="text-danger mt-2 small" id="aAdd-s4-err" style="display:none"></div>
+        </div>
+
+        <!-- Step 5: Success -->
+        <div id="aadhaar-step5" style="display:none">
+          <div class="text-center py-3">
+            <i class="bi bi-person-check-fill text-success" style="font-size:2.5rem"></i>
+            <div class="fw-bold mt-2" id="aAdd-result-name"></div>
+            <div class="text-muted small" id="aAdd-result-abha"></div>
+            <div class="mt-2" id="aAdd-result-badge"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-accent" id="aadhaarAddBtn" onclick="aadhaarAddNext()">Send OTP</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── Add Patient via ABHA Modal ────────────────────────────────────────── -->
 <div class="modal fade" id="addViaAbhaModal" tabindex="-1">
@@ -866,6 +942,136 @@ function toast(msg, type = 'success') {
   t.style.zIndex = 9999; t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
+}
+
+// ── Add Patient via Aadhaar ───────────────────────────────────────────────────
+let _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false };
+
+function _aAddReset() {
+  _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false };
+  ['aadhaar-step1','aadhaar-step2','aadhaar-step3','aadhaar-step4','aadhaar-step5'].forEach((id,i) =>
+    document.getElementById(id).style.display = i === 0 ? '' : 'none');
+  ['aAdd-aadhaar','aAdd-otp','aAdd-mobile','aAdd-mobile-otp','aAdd-custom-addr'].forEach(id =>
+    document.getElementById(id).value = '');
+  ['aAdd-s1-err','aAdd-s2-err','aAdd-s3-err','aAdd-s4-err'].forEach(id =>
+    document.getElementById(id).style.display = 'none');
+  document.getElementById('aAdd-mobile-otp-row').style.display = 'none';
+  document.getElementById('aAdd-suggestions').innerHTML = '';
+  const btn = document.getElementById('aadhaarAddBtn');
+  btn.textContent = 'Send OTP'; btn.onclick = aadhaarAddNext;
+  ['aStep1Badge','aStep2Badge','aStep3Badge','aStep4Badge'].forEach((id,i) =>
+    document.getElementById(id).className = 'badge ' + (i === 0 ? 'bg-accent' : 'bg-secondary'));
+}
+
+function _aAddSetStep(n) {
+  ['aadhaar-step1','aadhaar-step2','aadhaar-step3','aadhaar-step4','aadhaar-step5'].forEach((id,i) =>
+    document.getElementById(id).style.display = (i === n-1) ? '' : 'none');
+  ['aStep1Badge','aStep2Badge','aStep3Badge','aStep4Badge'].forEach((id,i) =>
+    document.getElementById(id).className = 'badge ' + (i < n-1 ? 'bg-success' : i === n-1 ? 'bg-accent' : 'bg-secondary'));
+}
+
+document.getElementById('addViaAadhaarModal').addEventListener('hidden.bs.modal', _aAddReset);
+
+async function aadhaarAddNext() {
+  const btn = document.getElementById('aadhaarAddBtn');
+
+  if (_aAdd.step === 1) {
+    const err = document.getElementById('aAdd-s1-err');
+    err.style.display = 'none';
+    const aadhaar = document.getElementById('aAdd-aadhaar').value.replace(/\D/g,'');
+    if (aadhaar.length !== 12) { err.textContent = 'Enter a valid 12-digit Aadhaar number.'; err.style.display=''; return; }
+    btn.disabled=true; btn.textContent='Sending…';
+    try {
+      const res = await api('POST','/abha/aadhaar-otp',{ aadhaar });
+      _aAdd.txnId = res.txnId || res.transactionId;
+      _aAdd.step = 2;
+      _aAddSetStep(2);
+      btn.textContent = 'Verify OTP';
+    } catch(e) { err.textContent = e.message||'Failed'; err.style.display=''; }
+    btn.disabled=false;
+
+  } else if (_aAdd.step === 2) {
+    const err = document.getElementById('aAdd-s2-err');
+    err.style.display = 'none';
+    const otp = document.getElementById('aAdd-otp').value.trim();
+    if (!otp) { err.textContent='Enter the OTP.'; err.style.display=''; return; }
+    btn.disabled=true; btn.textContent='Verifying…';
+    try {
+      const res = await api('POST','/abha/aadhaar-verify',{ otp, txnId: _aAdd.txnId });
+      _aAdd.xToken = res.tokens?.token || res.token || null;
+      _aAdd.txnId  = res.txnId || res.transactionId || _aAdd.txnId;
+      if (_aAdd.xToken) {
+        // Mobile linked — go straight to suggestions
+        await _aAddLoadSuggestions();
+      } else {
+        // Mobile OTP required
+        _aAdd.step = 3;
+        _aAddSetStep(3);
+        btn.textContent = 'Send Mobile OTP';
+      }
+    } catch(e) { err.textContent = e.message||'Verification failed'; err.style.display=''; }
+    btn.disabled=false;
+
+  } else if (_aAdd.step === 3) {
+    const err = document.getElementById('aAdd-s3-err');
+    err.style.display='none';
+    if (!_aAdd.mobileSent) {
+      const mobile = document.getElementById('aAdd-mobile').value.trim();
+      if (!mobile) { err.textContent='Enter mobile number.'; err.style.display=''; return; }
+      btn.disabled=true; btn.textContent='Sending…';
+      try {
+        const res = await api('POST','/abha/aadhaar-mobile-otp',{ mobile });
+        _aAdd.txnId = res.txnId || res.transactionId || _aAdd.txnId;
+        _aAdd.mobileSent = true;
+        document.getElementById('aAdd-mobile-otp-row').style.display='';
+        btn.textContent='Verify Mobile OTP';
+      } catch(e) { err.textContent=e.message||'Failed'; err.style.display=''; }
+      btn.disabled=false;
+    } else {
+      const otp = document.getElementById('aAdd-mobile-otp').value.trim();
+      if (!otp) { err.textContent='Enter the mobile OTP.'; err.style.display=''; return; }
+      btn.disabled=true; btn.textContent='Verifying…';
+      try {
+        const res = await api('POST','/abha/aadhaar-mobile-verify',{ otp, txnId: _aAdd.txnId });
+        _aAdd.xToken = res.tokens?.token || res.token || null;
+        _aAdd.txnId  = res.txnId || res.transactionId || _aAdd.txnId;
+        await _aAddLoadSuggestions();
+      } catch(e) { err.textContent=e.message||'Verification failed'; err.style.display=''; }
+      btn.disabled=false;
+    }
+
+  } else if (_aAdd.step === 4) {
+    const err = document.getElementById('aAdd-s4-err');
+    err.style.display='none';
+    const selected = document.querySelector('#aAdd-suggestions .btn.active');
+    const addr = (selected?.dataset.addr || document.getElementById('aAdd-custom-addr').value).trim();
+    if (!addr) { err.textContent='Select or enter an ABHA address.'; err.style.display=''; return; }
+    btn.disabled=true; btn.textContent='Creating…';
+    try {
+      const res = await api('POST','/abha/aadhaar-finalize',{ xToken: _aAdd.xToken, abhaAddress: addr, txnId: _aAdd.txnId });
+      _aAdd.step=5; _aAddSetStep(5);
+      document.getElementById('aAdd-result-name').textContent = res.patient.name||'Patient';
+      document.getElementById('aAdd-result-abha').textContent = res.patient.abha_address||res.patient.abha_number||'';
+      document.getElementById('aAdd-result-badge').innerHTML = res.created
+        ? '<span class="badge bg-success">Patient created with ABHA</span>'
+        : '<span class="badge bg-secondary">Existing patient updated</span>';
+      btn.textContent='View Patient';
+      btn.onclick=()=>{ bootstrap.Modal.getInstance(document.getElementById('addViaAadhaarModal')).hide(); showPatient(res.patient.id); };
+      loadPatients();
+    } catch(e) { err.textContent=e.message||'Failed to create patient'; err.style.display=''; }
+    btn.disabled=false;
+  }
+}
+
+async function _aAddLoadSuggestions() {
+  const res = await api('POST','/abha/aadhaar-suggestions',{ xToken: _aAdd.xToken });
+  const suggestions = res.abhaAddressList || res.suggestions || [];
+  const container = document.getElementById('aAdd-suggestions');
+  container.innerHTML = suggestions.map(s =>
+    `<button class="btn btn-outline-secondary btn-sm text-start" data-addr="${s}" onclick="this.closest('#aAdd-suggestions').querySelectorAll('.btn').forEach(b=>b.classList.remove('active')); this.classList.add('active')">${s}</button>`
+  ).join('');
+  _aAdd.step=4; _aAddSetStep(4);
+  document.getElementById('aadhaarAddBtn').textContent='Create Patient';
 }
 
 // ── Add Patient via ABHA ──────────────────────────────────────────────────────

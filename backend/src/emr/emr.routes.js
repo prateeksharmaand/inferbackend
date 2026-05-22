@@ -104,6 +104,14 @@ router.get   ('/profile-shares',                        emr.listProfileShares);
 router.patch ('/profile-shares/:id/dismiss',            emr.dismissProfileShare);
 router.post  ('/profile-shares/:id/link-patient',       emr.linkProfileShareToPatient);
 
+// Add Patient via Aadhaar (standalone)
+router.post('/abha/aadhaar-otp',          emr.abhaCreateOtp);
+router.post('/abha/aadhaar-verify',       emr.abhaCreateVerify);
+router.post('/abha/aadhaar-mobile-otp',   emr.abhaCreateMobileOtp);
+router.post('/abha/aadhaar-mobile-verify',emr.abhaCreateMobileVerify);
+router.post('/abha/aadhaar-suggestions',  emr.abhaGetSuggestions);
+router.post('/abha/aadhaar-finalize',     emr.abhaAadhaarCreate);
+
 // Add Patient via ABHA (standalone — no existing patient needed)
 router.post('/abha/request-otp',   emr.abhaAddOtp);
 router.post('/abha/verify-create', emr.abhaAddCreate);
