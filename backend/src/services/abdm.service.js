@@ -126,7 +126,7 @@ async function getBridgeInfo() {
   const token = await getGatewayToken();
   const ABDM_DEVSERVICE = process.env.ABDM_DEVSERVICE_URL || 'https://dev.abdm.gov.in/devservice';
   const res = await abdmAxios.get(
-    `${ABDM_DEVSERVICE}/v1/bridges/getServices`,
+    `${ABDM_DEVSERVICE}/v1/bridges/getServices?id=${encodeURIComponent(CLIENT_ID)}`,
     { headers: { Authorization: `Bearer ${token}`, 'X-CM-ID': 'sbx', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
   );
   return res.data;
