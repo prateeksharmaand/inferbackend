@@ -521,20 +521,18 @@ const abhaAadhaarCreate = async (req, res) => {
     const gender     = profile.gender || null;
     const dob        = profile.dateOfBirth ||
       (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
-    const clinicId   = req.emrUser.clinic_id;
-
     const { rows: ex } = await pool.query(
-      'SELECT id,name FROM emr_patients WHERE clinic_id=$1 AND (abha_number=$2 OR abha_address=$3) LIMIT 1',
-      [clinicId, abhaNum, abhaAddr]
+      'SELECT id,name FROM emr_patients WHERE abha_number=$1 OR abha_address=$2 LIMIT 1',
+      [abhaNum, abhaAddr]
     );
     if (ex.length) {
       await pool.query('UPDATE emr_patients SET abha_number=$1,abha_address=$2 WHERE id=$3', [abhaNum, abhaAddr, ex[0].id]);
       return res.json({ patient: ex[0], created: false, profile });
     }
     const { rows } = await pool.query(
-      `INSERT INTO emr_patients (clinic_id, name, mobile, dob, gender, abha_number, abha_address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [clinicId, name, mobile, dob, gender, abhaNum, abhaAddr]
+      `INSERT INTO emr_patients (name, mobile, dob, gender, abha_number, abha_address)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [name, mobile, dob, gender, abhaNum, abhaAddr]
     );
     res.status(201).json({ patient: rows[0], created: true, profile });
   } catch (err) {
@@ -575,21 +573,19 @@ const abhaAddCreate = async (req, res) => {
     const gender   = profile.gender || null;
     const dob      = profile.dateOfBirth ||
       (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
-    const clinicId = req.emrUser.clinic_id;
-
     // Return existing patient if ABHA already registered
     if (abhaNum || abhaAddr) {
       const { rows: ex } = await pool.query(
-        'SELECT id,name FROM emr_patients WHERE clinic_id=$1 AND (abha_number=$2 OR abha_address=$3) LIMIT 1',
-        [clinicId, abhaNum, abhaAddr]
+        'SELECT id,name FROM emr_patients WHERE abha_number=$1 OR abha_address=$2 LIMIT 1',
+        [abhaNum, abhaAddr]
       );
       if (ex.length) return res.json({ patient: ex[0], created: false, profile });
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO emr_patients (clinic_id, name, mobile, dob, gender, abha_number, abha_address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [clinicId, name, mobile, dob, gender, abhaNum, abhaAddr]
+      `INSERT INTO emr_patients (name, mobile, dob, gender, abha_number, abha_address)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [name, mobile, dob, gender, abhaNum, abhaAddr]
     );
     res.status(201).json({ patient: rows[0], created: true, profile });
   } catch (err) {
