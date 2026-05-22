@@ -1006,8 +1006,8 @@ async function aadhaarAddNext() {
       _aAdd.xToken = res.tokens?.token || res.token || null;
       _aAdd.txnId  = res.txnId || res.transactionId || _aAdd.txnId;
       if (_aAdd.xToken) {
-        // Mobile linked — go straight to suggestions
-        await _aAddLoadSuggestions();
+        // Mobile linked — finalize directly (auto-pick first suggestion)
+        await _aAddFinalize();
       } else {
         // Mobile OTP required
         _aAdd.step = 3;
@@ -1040,43 +1040,33 @@ async function aadhaarAddNext() {
         const res = await api('POST','/abha/aadhaar-mobile-verify',{ otp, txnId: _aAdd.txnId });
         _aAdd.xToken = res.tokens?.token || res.token || null;
         _aAdd.txnId  = res.txnId || res.transactionId || _aAdd.txnId;
-        await _aAddLoadSuggestions();
+        await _aAddFinalize();
       } catch(e) { err.textContent=e.message||'Verification failed'; err.style.display=''; }
       btn.disabled=false;
     }
 
-  } else if (_aAdd.step === 4) {
-    const err = document.getElementById('aAdd-s4-err');
-    err.style.display='none';
-    const selected = document.querySelector('#aAdd-suggestions .btn.active');
-    const addr = (selected?.dataset.addr || document.getElementById('aAdd-custom-addr').value).trim();
-    if (!addr) { err.textContent='Select or enter an ABHA address.'; err.style.display=''; return; }
-    btn.disabled=true; btn.textContent='Creating…';
-    try {
-      const res = await api('POST','/abha/aadhaar-finalize',{ xToken: _aAdd.xToken, abhaAddress: addr, txnId: _aAdd.txnId });
-      _aAdd.step=5; _aAddSetStep(5);
-      document.getElementById('aAdd-result-name').textContent = res.patient.name||'Patient';
-      document.getElementById('aAdd-result-abha').textContent = res.patient.abha_address||res.patient.abha_number||'';
-      document.getElementById('aAdd-result-badge').innerHTML = res.created
-        ? '<span class="badge bg-success">Patient created with ABHA</span>'
-        : '<span class="badge bg-secondary">Existing patient updated</span>';
-      btn.textContent='View Patient';
-      btn.onclick=()=>{ bootstrap.Modal.getInstance(document.getElementById('addViaAadhaarModal')).hide(); showPatient(res.patient.id); };
-      loadPatients();
-    } catch(e) { err.textContent=e.message||'Failed to create patient'; err.style.display=''; }
-    btn.disabled=false;
   }
 }
 
-async function _aAddLoadSuggestions() {
-  const res = await api('POST','/abha/aadhaar-suggestions',{ xToken: _aAdd.xToken });
-  const suggestions = res.abhaAddressList || res.suggestions || [];
-  const container = document.getElementById('aAdd-suggestions');
-  container.innerHTML = suggestions.map(s =>
-    `<button class="btn btn-outline-secondary btn-sm text-start" data-addr="${s}" onclick="this.closest('#aAdd-suggestions').querySelectorAll('.btn').forEach(b=>b.classList.remove('active')); this.classList.add('active')">${s}</button>`
-  ).join('');
-  _aAdd.step=4; _aAddSetStep(4);
-  document.getElementById('aadhaarAddBtn').textContent='Create Patient';
+async function _aAddFinalize() {
+  const btn = document.getElementById('aadhaarAddBtn');
+  btn.disabled=true; btn.textContent='Creating patient…';
+  try {
+    const res = await api('POST','/abha/aadhaar-finalize',{ xToken: _aAdd.xToken, txnId: _aAdd.txnId });
+    _aAdd.step=5; _aAddSetStep(5);
+    document.getElementById('aAdd-result-name').textContent = res.patient.name||'Patient';
+    document.getElementById('aAdd-result-abha').textContent = res.patient.abha_address||res.patient.abha_number||'';
+    document.getElementById('aAdd-result-badge').innerHTML = res.created
+      ? '<span class="badge bg-success">Patient created with ABHA</span>'
+      : '<span class="badge bg-secondary">Existing patient updated</span>';
+    btn.textContent='View Patient';
+    btn.onclick=()=>{ bootstrap.Modal.getInstance(document.getElementById('addViaAadhaarModal')).hide(); showPatient(res.patient.id); };
+    loadPatients();
+  } catch(e) {
+    const err = document.getElementById('aAdd-s2-err');
+    err.textContent = e.message||'Failed to create patient'; err.style.display='';
+  }
+  btn.disabled=false;
 }
 
 // ── Add Patient via ABHA ──────────────────────────────────────────────────────

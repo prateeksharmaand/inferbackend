@@ -508,11 +508,16 @@ const abhaVerifyConfirm = async (req, res) => {
   }
 };
 
-// Add Patient via Aadhaar – finalize: set ABHA address + create patient
+// Add Patient via Aadhaar – finalize: auto-pick first suggestion, set address, create patient
 const abhaAadhaarCreate = async (req, res) => {
-  const { xToken, abhaAddress, txnId } = req.body;
-  if (!xToken || !abhaAddress) return res.status(400).json({ error: 'xToken and abhaAddress required' });
+  const { xToken, txnId } = req.body;
+  if (!xToken) return res.status(400).json({ error: 'xToken required' });
   try {
+    // Auto-pick first suggested ABHA address — skip the suggestions UI step
+    const suggestions = await abdmSvc.getAbhaSuggestions(xToken);
+    const abhaAddress = (suggestions.abhaAddressList || suggestions.suggestions || [])[0];
+    if (!abhaAddress) return res.status(502).json({ error: 'No ABHA address suggestions returned' });
+
     await abdmSvc.setAbhaAddress(xToken, abhaAddress, txnId);
     const profile = await abdmSvc.getAbhaProfile(xToken);
     const abhaNum = profile.ABHANumber || profile.abhaNumber || null;
