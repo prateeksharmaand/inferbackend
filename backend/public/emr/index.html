@@ -1833,12 +1833,16 @@ async function submitConsent() {
   const hiTypes  = [...document.querySelectorAll('.hi-type:checked')].map(el => el.value);
   if (!abha || !hipId || !hiTypes.length) return toast('Fill patient ABHA, HIP ID, and at least one HI type', 'danger');
   try {
-    await api('POST', '/consents', {
+    const result = await api('POST', '/consents', {
       patientAbha: abha, hipId, purpose, hiTypes,
       dateFrom: dateFrom ? new Date(dateFrom).toISOString() : null,
       dateTo:   dateTo   ? new Date(dateTo + 'T23:59:59').toISOString() : null,
     });
-    toast('Consent request sent — patient must approve in ABHA app');
+    if (result.patientLinked === false) {
+      toast('Consent request created — but patient ABHA address not found in Flutter app. Patient will not see it in the PHR app until they link their ABHA.', 'warning');
+    } else {
+      toast('Consent request sent — patient will see it in the PHR app');
+    }
     document.getElementById('consent-form-card').classList.add('d-none');
     loadConsents();
   } catch(e) { toast(e.message, 'danger'); }

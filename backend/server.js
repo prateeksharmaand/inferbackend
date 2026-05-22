@@ -78,6 +78,9 @@ app.post('/v0.5/links/link/on-init', abdmCtrl.onLinkInit);
 // M2: Link confirm result (care contexts confirmed)
 app.post('/v0.5/links/link/on-confirm', abdmCtrl.onLinkConfirm);
 
+// M2: ABDM async callback after consent-requests/init — captures real consentRequest.id
+app.post('/v0.5/consent-requests/on-init', abdmCtrl.consentOnInit);
+
 // M2: Consent grant/revoke notification from CM → HIU
 app.post('/v0.5/consents/hiu/notify', abdmCtrl.consentNotify);
 

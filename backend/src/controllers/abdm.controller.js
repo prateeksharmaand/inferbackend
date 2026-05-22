@@ -415,6 +415,31 @@ const getConsents = async (req, res) => {
 
 // ─── M3: Webhooks (no auth – called by ABDM gateway) ─────────────────────────
 
+// ABDM calls this after consent-requests/init with the real consentRequest.id
+const consentOnInit = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const abdmConsentId = req.body?.consentRequest?.id;
+    const ourRequestId  = req.body?.resp?.requestId;
+    logger.info('consent-requests/on-init', { abdmConsentId, ourRequestId });
+    if (!abdmConsentId || !ourRequestId) return;
+
+    // If ABDM assigned a different ID from what we generated, update both tables
+    if (abdmConsentId !== ourRequestId) {
+      await pool.query(
+        `UPDATE emr_consent_requests SET request_id=$1 WHERE request_id=$2`,
+        [abdmConsentId, ourRequestId]
+      );
+      await pool.query(
+        `UPDATE consent_requests SET request_id=$1 WHERE request_id=$2`,
+        [abdmConsentId, ourRequestId]
+      );
+    }
+  } catch (err) {
+    logger.error('consentOnInit error', err.message);
+  }
+};
+
 const consentNotify = async (req, res) => {
   // Respond immediately – ABDM requires 202 within 5 s
   res.status(202).json({ status: 'accepted' });
@@ -588,7 +613,7 @@ module.exports = {
   getAvailableCareContexts,
   linkCareContexts,     getLinkedCareContexts,
   createConsent, getConsents, respondConsent,
-  consentNotify, healthInfoPush,
+  consentOnInit, consentNotify, healthInfoPush,
   getHealthRecords,
   debugToken,
 };

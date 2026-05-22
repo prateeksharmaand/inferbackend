@@ -183,34 +183,49 @@ const createConsentRequest = async (req, res) => {
   const clinicId = req.emrUser.clinic_id;
   const hiuId    = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
 
-  const result = await abdmSvc.createConsentRequest(
-    patientAbha, hiuId, purpose, hiTypes,
-    { from: dateFrom ?? new Date(0).toISOString(), to: dateTo ?? new Date().toISOString() }
-  );
+  let result = {};
+  try {
+    result = await abdmSvc.createConsentRequest(
+      patientAbha, hiuId, purpose, hiTypes,
+      { from: dateFrom ?? new Date(0).toISOString(), to: dateTo ?? new Date().toISOString() }
+    );
+  } catch (e) {
+    console.error('ABDM consent-requests/init failed:', e.message);
+    // Proceed with local DB insert so patient can still see the request internally
+  }
 
   const requestId = result.consentRequest?.id ?? abdmSvc.uuid();
 
   await pool.query(
     `INSERT INTO emr_consent_requests
        (clinic_id, request_id, patient_abha, hip_id, hiu_id, purpose, hi_types)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (request_id) DO NOTHING`,
     [clinicId, requestId, patientAbha, hipId, hiuId, purpose, hiTypes]
   );
 
-  // Mirror into consent_requests so the patient sees it in the Flutter app
+  // Mirror into consent_requests so the patient sees it in the Flutter PHR app.
+  // Use case-insensitive lookup and match both @sbx and @abdm domain variants.
+  const baseAbha = patientAbha.split('@')[0].toLowerCase();
   const { rows: userRows } = await pool.query(
-    `SELECT user_id FROM abha_accounts WHERE abha_address=$1 LIMIT 1`,
-    [patientAbha]
+    `SELECT user_id FROM abha_accounts
+     WHERE LOWER(abha_address) = LOWER($1)
+        OR LOWER(abha_address) LIKE $2
+     LIMIT 1`,
+    [patientAbha, baseAbha + '@%']
   );
+
+  let patientLinked = false;
   if (userRows.length) {
     await pool.query(
       `INSERT INTO consent_requests (user_id, request_id, hiu_id, purpose, status)
        VALUES ($1,$2,$3,$4,'REQUESTED') ON CONFLICT (request_id) DO NOTHING`,
       [userRows[0].user_id, requestId, hiuId, purpose]
     );
+    patientLinked = true;
   }
 
-  res.json({ requestId, ...result });
+  res.json({ requestId, patientLinked, ...result });
 };
 
 const listConsentRequests = async (req, res) => {
