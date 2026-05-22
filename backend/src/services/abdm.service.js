@@ -26,13 +26,15 @@ abdmAxios.interceptors.response.use(
     return res;
   },
   err => {
+    let reqBody = err.config?.data;
+    try { if (typeof reqBody === 'string') reqBody = JSON.parse(reqBody); } catch (_) {}
     logger.error('[ABDM ERROR]', {
-      url:     err.config?.url,
-      status:  err.response?.status,
-      reqHeaders:  err.config?.headers,
-      reqBody:     err.config?.data,
-      resHeaders:  err.response?.headers,
-      resBody:     err.response?.data,
+      url:        err.config?.url,
+      status:     err.response?.status,
+      reqHeaders: err.config?.headers,
+      reqBody,
+      resHeaders: err.response?.headers,
+      resBody:    err.response?.data,
     });
     return Promise.reject(err);
   }
@@ -181,15 +183,14 @@ async function generateAadhaarOtp(aadhaar) {
 }
 
 async function verifyAadhaarOtp(otp, txnId, mobile) {
-  const encOtp    = await rsaEncrypt(otp);
-  const encMobile = mobile ? await rsaEncrypt(mobile) : null;
+  const encOtp = await rsaEncrypt(otp);
   return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/byAadhaar`, {
     authData: {
       authMethods: ['otp'],
       otp: {
         txnId,
         otpValue: encOtp,
-        ...(encMobile && { mobile: encMobile }),
+        ...(mobile && { mobile }),   // plaintext — only otpValue is encrypted
       },
     },
     consent: { code: 'abha-enrollment', version: '1.4' },
