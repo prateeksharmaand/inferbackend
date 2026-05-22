@@ -110,6 +110,7 @@ router.post('/abha/aadhaar-verify',       emr.abhaCreateVerify);
 router.post('/abha/aadhaar-mobile-otp',   emr.abhaCreateMobileOtp);
 router.post('/abha/aadhaar-mobile-verify',emr.abhaCreateMobileVerify);
 router.post('/abha/aadhaar-suggestions',  emr.abhaGetSuggestions);
+router.post('/abha/aadhaar-set-address',  emr.abhaAadhaarSetAddress);
 router.post('/abha/aadhaar-finalize',     emr.abhaAadhaarCreate);
 
 // Add Patient via ABHA (standalone — no existing patient needed)

@@ -495,6 +495,12 @@
           <div class="alert alert-info py-2 small">OTP sent to Aadhaar-linked mobile.</div>
           <label class="form-label fw-semibold">OTP</label>
           <input class="form-control" id="aAdd-otp" placeholder="6-digit OTP" maxlength="6" inputmode="numeric">
+          <div class="d-flex align-items-center gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-secondary" id="aAdd-resend-btn" onclick="aadhaarResendOtp()" disabled>
+              Resend OTP
+            </button>
+            <span class="text-muted small" id="aAdd-resend-info">Available in <span id="aAdd-resend-timer">60</span>s</span>
+          </div>
           <div class="text-danger mt-2 small" id="aAdd-s2-err" style="display:none"></div>
         </div>
 
@@ -513,10 +519,24 @@
         <!-- Step 4: Pick ABHA address -->
         <div id="aadhaar-step4" style="display:none">
           <label class="form-label fw-semibold">Choose ABHA Address</label>
-          <div id="aAdd-suggestions" class="d-flex flex-column gap-2"></div>
-          <div class="mt-2">
-            <label class="form-label small text-muted">Or type custom:</label>
-            <input class="form-control form-control-sm" id="aAdd-custom-addr" placeholder="yourname@abdm">
+          <div id="aAdd-suggestions-loading" class="text-muted small py-2">
+            <span class="spinner-border spinner-border-sm me-1"></span> Loading suggestions…
+          </div>
+          <div id="aAdd-suggestions" class="d-flex flex-column gap-2 mb-2" style="display:none"></div>
+          <hr class="my-2">
+          <label class="form-label small fw-semibold">Or create a custom ABHA address</label>
+          <div class="input-group input-group-sm">
+            <input class="form-control" id="aAdd-custom-addr" placeholder="e.g. prateek.sharma" maxlength="18">
+            <span class="input-group-text text-muted">@abdm</span>
+          </div>
+          <div class="mt-2 p-2 border rounded bg-light small text-muted">
+            <strong class="text-dark">ABHA Address Rules:</strong>
+            <ul class="mb-0 ps-3 mt-1">
+              <li>8–18 characters (letters, numbers, or a combination)</li>
+              <li>At most one dot <code>.</code> and/or one underscore <code>_</code> allowed</li>
+              <li>Dot or underscore must not be at the start or end</li>
+              <li>No other special characters allowed</li>
+            </ul>
           </div>
           <div class="text-danger mt-2 small" id="aAdd-s4-err" style="display:none"></div>
         </div>
@@ -528,6 +548,12 @@
             <div class="fw-bold mt-2" id="aAdd-result-name"></div>
             <div class="text-muted small" id="aAdd-result-abha"></div>
             <div class="mt-2" id="aAdd-result-badge"></div>
+            <div class="mt-3" id="aAdd-card-section" style="display:none">
+              <button class="btn btn-outline-primary btn-sm" onclick="_aAddDownloadCard()">
+                <i class="bi bi-download me-1"></i>View / Download ABHA Card
+              </button>
+              <div id="aAdd-card-preview" class="mt-2"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -947,10 +973,11 @@ function toast(msg, type = 'success') {
 }
 
 // ── Add Patient via Aadhaar ───────────────────────────────────────────────────
-let _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false, abdmProfile: null };
+let _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false, abdmProfile: null, resendCount: 0, resendTimer: null, chosenAbhaAddress: null, resultPatientId: null };
 
 function _aAddReset() {
-  _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false, abdmProfile: null };
+  if (_aAdd.resendTimer) clearInterval(_aAdd.resendTimer);
+  _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false, abdmProfile: null, resendCount: 0, resendTimer: null, chosenAbhaAddress: null, resultPatientId: null };
   ['aadhaar-step1','aadhaar-step2','aadhaar-step3','aadhaar-step4','aadhaar-step5'].forEach((id,i) =>
     document.getElementById(id).style.display = i === 0 ? '' : 'none');
   ['aAdd-aadhaar','aAdd-mobile1','aAdd-otp','aAdd-mobile','aAdd-mobile-otp','aAdd-custom-addr'].forEach(id =>
@@ -959,10 +986,58 @@ function _aAddReset() {
     document.getElementById(id).style.display = 'none');
   document.getElementById('aAdd-mobile-otp-row').style.display = 'none';
   document.getElementById('aAdd-suggestions').innerHTML = '';
+  document.getElementById('aAdd-suggestions-loading').style.display = 'none';
+  document.getElementById('aAdd-card-section').style.display = 'none';
+  document.getElementById('aAdd-card-preview').innerHTML = '';
   const btn = document.getElementById('aadhaarAddBtn');
   btn.textContent = 'Send OTP'; btn.onclick = aadhaarAddNext;
   ['aStep1Badge','aStep2Badge','aStep3Badge','aStep4Badge'].forEach((id,i) =>
     document.getElementById(id).className = 'badge ' + (i === 0 ? 'bg-accent' : 'bg-secondary'));
+}
+
+function _aAddStartResendTimer() {
+  const btn  = document.getElementById('aAdd-resend-btn');
+  const info = document.getElementById('aAdd-resend-info');
+  const timerEl = document.getElementById('aAdd-resend-timer');
+  btn.disabled = true;
+  let secs = 60;
+  timerEl.textContent = secs;
+  info.style.display = '';
+  if (_aAdd.resendTimer) clearInterval(_aAdd.resendTimer);
+  _aAdd.resendTimer = setInterval(() => {
+    secs--;
+    timerEl.textContent = secs;
+    if (secs <= 0) {
+      clearInterval(_aAdd.resendTimer);
+      _aAdd.resendTimer = null;
+      if (_aAdd.resendCount < 2) {
+        btn.disabled = false;
+        info.textContent = `Resend available (${2 - _aAdd.resendCount} left)`;
+      } else {
+        info.textContent = 'Max resends reached';
+      }
+    }
+  }, 1000);
+}
+
+async function aadhaarResendOtp() {
+  if (_aAdd.resendCount >= 2) return;
+  const btn = document.getElementById('aAdd-resend-btn');
+  const err = document.getElementById('aAdd-s2-err');
+  err.style.display = 'none';
+  btn.disabled = true;
+  const aadhaar = document.getElementById('aAdd-aadhaar').value.replace(/\D/g,'');
+  try {
+    const res = await api('POST','/abha/aadhaar-otp',{ aadhaar });
+    _aAdd.txnId = res.txnId || res.transactionId || _aAdd.txnId;
+    _aAdd.resendCount++;
+    document.getElementById('aAdd-otp').value = '';
+    _aAddStartResendTimer();
+  } catch(e) {
+    err.textContent = e.message || 'Failed to resend OTP';
+    err.style.display = '';
+    if (_aAdd.resendCount < 2) btn.disabled = false;
+  }
 }
 
 function _aAddSetStep(n) {
@@ -991,6 +1066,7 @@ async function aadhaarAddNext() {
       _aAdd.step = 2;
       _aAddSetStep(2);
       btn.textContent = 'Verify OTP';
+      _aAddStartResendTimer();
     } catch(e) { err.textContent = e.message||'Failed'; err.style.display=''; }
     btn.disabled=false;
 
@@ -1007,10 +1083,13 @@ async function aadhaarAddNext() {
       _aAdd.txnId       = res.txnId || res.transactionId || _aAdd.txnId;
       _aAdd.abdmProfile = res.ABHAProfile || res.abhaProfile || res.profile || null;
       if (_aAdd.xToken) {
-        // Mobile linked — finalize directly
-        await _aAddFinalize();
+        // Mobile linked — go to ABHA address selection
+        _aAdd.step = 4;
+        _aAddSetStep(4);
+        btn.textContent = 'Confirm ABHA Address';
+        _aAddLoadSuggestions();
       } else {
-        // Mobile OTP required
+        // Mobile OTP required first
         _aAdd.step = 3;
         _aAddSetStep(3);
         btn.textContent = 'Send Mobile OTP';
@@ -1042,10 +1121,41 @@ async function aadhaarAddNext() {
         _aAdd.xToken      = res.tokens?.token || res.token || null;
         _aAdd.txnId       = res.txnId || res.transactionId || _aAdd.txnId;
         _aAdd.abdmProfile = res.ABHAProfile || res.abhaProfile || res.profile || _aAdd.abdmProfile;
-        await _aAddFinalize();
+        // Go to ABHA address selection
+        _aAdd.step = 4;
+        _aAddSetStep(4);
+        btn.textContent = 'Confirm ABHA Address';
+        _aAddLoadSuggestions();
       } catch(e) { err.textContent=e.message||'Verification failed'; err.style.display=''; }
       btn.disabled=false;
     }
+
+  } else if (_aAdd.step === 4) {
+    const err = document.getElementById('aAdd-s4-err');
+    err.style.display = 'none';
+    const selected = document.querySelector('input[name="aAdd-suggestion"]:checked');
+    const customVal = document.getElementById('aAdd-custom-addr').value.trim();
+    let abhaAddress;
+    if (selected) {
+      abhaAddress = selected.value;
+    } else if (customVal) {
+      const validErr = _aAddValidateAbhaAddr(customVal);
+      if (validErr) { err.textContent = validErr; err.style.display = ''; return; }
+      abhaAddress = customVal + '@abdm';
+    } else {
+      err.textContent = 'Please select a suggestion or enter a custom ABHA address.';
+      err.style.display = '';
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Confirming…';
+    try {
+      if (_aAdd.xToken) {
+        await api('POST', '/abha/aadhaar-set-address', { xToken: _aAdd.xToken, abhaAddress, txnId: _aAdd.txnId });
+      }
+      _aAdd.chosenAbhaAddress = abhaAddress;
+      await _aAddFinalize();
+    } catch(e) { err.textContent = e.message || 'Failed to set ABHA address'; err.style.display = ''; }
+    btn.disabled = false;
 
   }
 }
@@ -1054,21 +1164,87 @@ async function _aAddFinalize() {
   const btn = document.getElementById('aadhaarAddBtn');
   btn.disabled=true; btn.textContent='Creating patient…';
   try {
-    const res = await api('POST','/abha/aadhaar-finalize',{ abdmProfile: _aAdd.abdmProfile });
+    if (_aAdd.chosenAbhaAddress && _aAdd.abdmProfile) {
+      _aAdd.abdmProfile.preferredAbhaAddress = _aAdd.chosenAbhaAddress;
+    }
+    const res = await api('POST','/abha/aadhaar-finalize',{ abdmProfile: _aAdd.abdmProfile, abhaAddress: _aAdd.chosenAbhaAddress });
+    _aAdd.resultPatientId = res.patient.id;
     _aAdd.step=5; _aAddSetStep(5);
     document.getElementById('aAdd-result-name').textContent = res.patient.name||'Patient';
     document.getElementById('aAdd-result-abha').textContent = res.patient.abha_address||res.patient.abha_number||'';
     document.getElementById('aAdd-result-badge').innerHTML = res.created
       ? '<span class="badge bg-success">Patient created with ABHA</span>'
       : '<span class="badge bg-secondary">Existing patient updated</span>';
+    if (res.patient.abha_address || _aAdd.chosenAbhaAddress) {
+      document.getElementById('aAdd-card-section').style.display = '';
+    }
     btn.textContent='View Patient';
     btn.onclick=()=>{ bootstrap.Modal.getInstance(document.getElementById('addViaAadhaarModal')).hide(); showPatient(res.patient.id); };
     loadPatients();
   } catch(e) {
-    const err = document.getElementById('aAdd-s2-err');
+    const err = document.getElementById('aAdd-s4-err');
     err.textContent = e.message||'Failed to create patient'; err.style.display='';
   }
   btn.disabled=false;
+}
+
+async function _aAddLoadSuggestions() {
+  const loading = document.getElementById('aAdd-suggestions-loading');
+  const list    = document.getElementById('aAdd-suggestions');
+  loading.style.display = '';
+  list.style.display = 'none';
+  list.innerHTML = '';
+  try {
+    const res = await api('POST', '/abha/aadhaar-suggestions', { xToken: _aAdd.xToken });
+    const suggestions = res.abhaAddressList || res.suggestionList || [];
+    loading.style.display = 'none';
+    list.style.display = '';
+    if (suggestions.length === 0) {
+      list.innerHTML = '<div class="text-muted small">No suggestions returned. Please create your own address below.</div>';
+    } else {
+      list.innerHTML = suggestions.slice(0, 5).map((addr, i) =>
+        `<div class="form-check">
+          <input class="form-check-input" type="radio" name="aAdd-suggestion" id="aAddSug-${i}" value="${esc(addr)}" ${i===0?'checked':''}>
+          <label class="form-check-label" for="aAddSug-${i}">${esc(addr)}</label>
+        </div>`
+      ).join('');
+    }
+  } catch(e) {
+    loading.style.display = 'none';
+    list.style.display = '';
+    list.innerHTML = '<div class="text-warning small">Could not load suggestions — please enter a custom address below.</div>';
+  }
+}
+
+function _aAddValidateAbhaAddr(local) {
+  if (!local) return 'ABHA address is required.';
+  if (local.length < 8)  return 'Minimum 8 characters required.';
+  if (local.length > 18) return 'Maximum 18 characters allowed.';
+  if (!/^[a-zA-Z0-9]/.test(local))   return 'Must start with a letter or number.';
+  if (!/[a-zA-Z0-9]$/.test(local))   return 'Must end with a letter or number.';
+  if (!/^[a-zA-Z0-9._]+$/.test(local)) return 'Only letters, numbers, dot (.) and underscore (_) are allowed.';
+  if ((local.match(/\./g) || []).length > 1) return 'Only one dot (.) is allowed.';
+  if ((local.match(/_/g) || []).length > 1)  return 'Only one underscore (_) is allowed.';
+  return null;
+}
+
+async function _aAddDownloadCard() {
+  if (!_aAdd.resultPatientId) return;
+  const btn = document.querySelector('#aAdd-card-section .btn');
+  const preview = document.getElementById('aAdd-card-preview');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading…'; }
+  try {
+    const xToken = _aAdd.xToken || undefined;
+    const url = `/patients/${_aAdd.resultPatientId}/abha/card` + (xToken ? `?xToken=${encodeURIComponent(xToken)}` : '');
+    const res = await api('GET', url);
+    const img = document.createElement('img');
+    img.src = `data:${res.mimeType};base64,${res.image}`;
+    img.className = 'img-fluid rounded shadow-sm';
+    preview.innerHTML = '';
+    preview.appendChild(img);
+    const a = document.createElement('a'); a.href = img.src; a.download = 'abha-card.png'; a.click();
+  } catch(e) { toast(e.message || 'Could not download ABHA card', 'danger'); }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i>View / Download ABHA Card'; }
 }
 
 // ── Add Patient via ABHA ──────────────────────────────────────────────────────

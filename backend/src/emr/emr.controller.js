@@ -508,14 +508,36 @@ const abhaVerifyConfirm = async (req, res) => {
   }
 };
 
+// Add Patient via Aadhaar – set ABHA address with ABDM before finalize
+const abhaAadhaarSetAddress = async (req, res) => {
+  const { xToken, abhaAddress, txnId } = req.body;
+  if (!xToken || !abhaAddress) return res.status(400).json({ error: 'xToken and abhaAddress required' });
+  const local = abhaAddress.includes('@') ? abhaAddress.split('@')[0] : abhaAddress;
+  if (local.length < 8 || local.length > 18)
+    return res.status(400).json({ error: 'ABHA address must be 8–18 characters' });
+  if (!/^[a-zA-Z0-9]/.test(local) || !/[a-zA-Z0-9]$/.test(local))
+    return res.status(400).json({ error: 'ABHA address must start and end with a letter or number' });
+  if (!/^[a-zA-Z0-9._]+$/.test(local))
+    return res.status(400).json({ error: 'Only letters, numbers, dot and underscore are allowed' });
+  if ((local.match(/\./g) || []).length > 1) return res.status(400).json({ error: 'Only one dot (.) allowed' });
+  if ((local.match(/_/g) || []).length > 1)  return res.status(400).json({ error: 'Only one underscore (_) allowed' });
+  try {
+    const result = await abdmSvc.setAbhaAddress(xToken, abhaAddress, txnId);
+    res.json(result);
+  } catch (err) {
+    console.error('setAbhaAddress error', err.message);
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
 // Add Patient via Aadhaar – finalize: use profile from byAadhaar response, create patient
 const abhaAadhaarCreate = async (req, res) => {
-  const { abdmProfile } = req.body;
+  const { abdmProfile, abhaAddress } = req.body;
   if (!abdmProfile) return res.status(400).json({ error: 'abdmProfile required' });
   try {
     const profile    = abdmProfile;
     const abhaNum    = profile.ABHANumber  || profile.abhaNumber  || null;
-    const abhaAddr   = profile.preferredAbhaAddress || profile.abhaAddress || null;
+    const abhaAddr   = abhaAddress || profile.preferredAbhaAddress || profile.abhaAddress || null;
     const name       = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
     const mobile     = profile.mobile || null;
     const gender     = profile.gender || null;
@@ -601,7 +623,7 @@ module.exports = {
   abhaCreateOtp, abhaCreateVerify, abhaCreateMobileOtp, abhaCreateMobileVerify,
   abhaGetSuggestions, abhaSetAddress, abhaGetCard,
   abhaVerifyOtp, abhaVerifyConfirm,
-  abhaAadhaarCreate,
+  abhaAadhaarSetAddress, abhaAadhaarCreate,
   abhaAddOtp, abhaAddCreate,
   listProfileShares, dismissProfileShare, linkProfileShareToPatient,
 };
