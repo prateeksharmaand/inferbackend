@@ -99,6 +99,9 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="fw-bold mb-0">Patients</h5>
     <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#loginWithAbhaModal">
+        <i class="bi bi-shield-lock me-1"></i>Login with ABHA
+      </button>
       <button class="btn btn-outline-accent btn-sm" data-bs-toggle="modal" data-bs-target="#addViaAadhaarModal">
         <i class="bi bi-fingerprint me-1"></i>Add via Aadhaar
       </button>
@@ -463,6 +466,91 @@
 
 <!-- ── Floating OTP notification panel ───────────────────────────────────── -->
 <div id="otp-panel"></div>
+
+<!-- ── Login with ABHA Modal ──────────────────────────────────────────────── -->
+<div class="modal fade" id="loginWithAbhaModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-shield-lock me-2 text-primary"></i>Login with ABHA</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Step 1: method + input -->
+        <div id="lwa-step1">
+          <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+              <button class="nav-link active" id="lwaAadhaarTab" onclick="lwaSetMethod('aadhaar')">
+                <i class="bi bi-fingerprint me-1"></i>Aadhaar OTP
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" id="lwaMobileTab" onclick="lwaSetMethod('mobile')">
+                <i class="bi bi-phone me-1"></i>Mobile OTP
+              </button>
+            </li>
+          </ul>
+          <label class="form-label fw-semibold">ABHA Number or ABHA Address</label>
+          <input class="form-control" id="lwa-loginid" placeholder="91-XXXX-XXXX-XXXX or name@abdm">
+          <div class="form-text text-muted" id="lwa-method-hint">OTP will be sent to your Aadhaar-linked mobile</div>
+          <div class="text-danger mt-2 small" id="lwa-s1-err" style="display:none"></div>
+        </div>
+
+        <!-- Step 2: OTP -->
+        <div id="lwa-step2" style="display:none">
+          <div class="alert alert-info py-2 small" id="lwa-otp-hint">OTP sent to your Aadhaar-linked mobile.</div>
+          <label class="form-label fw-semibold">Enter OTP</label>
+          <input class="form-control" id="lwa-otp" placeholder="6-digit OTP" maxlength="6" inputmode="numeric">
+          <div class="d-flex align-items-center gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-secondary" id="lwa-resend-btn" onclick="lwaResendOtp()" disabled>Resend OTP</button>
+            <span class="text-muted small" id="lwa-resend-info">Available in <span id="lwa-resend-timer">60</span>s</span>
+          </div>
+          <div class="text-danger mt-2 small" id="lwa-s2-err" style="display:none"></div>
+        </div>
+
+        <!-- Step 3: Profile review -->
+        <div id="lwa-step3" style="display:none">
+          <div class="card mb-3">
+            <div class="card-body p-3">
+              <div class="fw-bold mb-2" id="lwa-profile-name"></div>
+              <div class="row g-1 small">
+                <div class="col-5 text-muted">ABHA Address</div><div class="col-7 fw-semibold" id="lwa-profile-addr"></div>
+                <div class="col-5 text-muted">ABHA Number</div><div class="col-7 font-monospace" id="lwa-profile-num"></div>
+                <div class="col-5 text-muted">Mobile</div><div class="col-7" id="lwa-profile-mobile"></div>
+                <div class="col-5 text-muted">DOB</div><div class="col-7" id="lwa-profile-dob"></div>
+                <div class="col-5 text-muted">Gender</div><div class="col-7" id="lwa-profile-gender"></div>
+              </div>
+            </div>
+          </div>
+          <div class="text-danger mt-2 small" id="lwa-s3-err" style="display:none"></div>
+        </div>
+
+        <!-- Step 4: Result -->
+        <div id="lwa-step4" style="display:none">
+          <div class="text-center py-3">
+            <i class="bi bi-person-check-fill text-success" style="font-size:2.5rem"></i>
+            <div class="fw-bold mt-2" id="lwa-result-name"></div>
+            <div class="text-muted small" id="lwa-result-abha"></div>
+            <div class="mt-2" id="lwa-result-badge"></div>
+          </div>
+          <div id="lwa-mobile-mismatch" class="alert alert-warning py-2 small mt-2" style="display:none">
+            <strong>Mobile mismatch</strong> — HIMS: <span id="lwa-hims-mobile" class="font-monospace"></span>,
+            ABHA: <span id="lwa-abha-mobile" class="font-monospace"></span>.<br>
+            Update mobile in ABHA profile?
+            <div class="d-flex gap-2 mt-2">
+              <button class="btn btn-sm btn-warning" id="lwa-update-mobile-btn" onclick="lwaUpdateMobile()">Yes, Update</button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('lwa-mobile-mismatch').style.display='none'">No</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-accent" id="lwaBtn" onclick="lwaNext()">Send OTP</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── Add Patient via Aadhaar Modal ─────────────────────────────────────── -->
 <div class="modal fade" id="addViaAadhaarModal" tabindex="-1">
@@ -1245,6 +1333,177 @@ async function _aAddDownloadCard() {
     const a = document.createElement('a'); a.href = img.src; a.download = 'abha-card.png'; a.click();
   } catch(e) { toast(e.message || 'Could not download ABHA card', 'danger'); }
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i>View / Download ABHA Card'; }
+}
+
+// ── Login with ABHA ───────────────────────────────────────────────────────────
+let _abhaLogin = { method: 'aadhaar', step: 1, txnId: null, xToken: null, profile: null, resendCount: 0, resendTimer: null, resultPatientId: null };
+
+function lwaSetMethod(method) {
+  _abhaLogin.method = method;
+  const isAadhaar = method === 'aadhaar';
+  document.getElementById('lwaAadhaarTab').classList.toggle('active', isAadhaar);
+  document.getElementById('lwaMobileTab').classList.toggle('active', !isAadhaar);
+  document.getElementById('lwa-method-hint').textContent = isAadhaar
+    ? 'OTP will be sent to your Aadhaar-linked mobile'
+    : 'OTP will be sent to your ABHA communication mobile';
+}
+
+function lwaReset() {
+  if (_abhaLogin.resendTimer) clearInterval(_abhaLogin.resendTimer);
+  _abhaLogin = { method: 'aadhaar', step: 1, txnId: null, xToken: null, profile: null, resendCount: 0, resendTimer: null, resultPatientId: null };
+  ['lwa-step1','lwa-step2','lwa-step3','lwa-step4'].forEach((id,i) =>
+    document.getElementById(id).style.display = i === 0 ? '' : 'none');
+  ['lwa-loginid','lwa-otp'].forEach(id => document.getElementById(id).value = '');
+  ['lwa-s1-err','lwa-s2-err','lwa-s3-err'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('lwa-mobile-mismatch').style.display = 'none';
+  const btn = document.getElementById('lwaBtn');
+  btn.textContent = 'Send OTP'; btn.onclick = lwaNext;
+  lwaSetMethod('aadhaar');
+}
+
+document.getElementById('loginWithAbhaModal').addEventListener('hidden.bs.modal', lwaReset);
+
+function _lwaShowStep(n) {
+  ['lwa-step1','lwa-step2','lwa-step3','lwa-step4'].forEach((id,i) =>
+    document.getElementById(id).style.display = i === n-1 ? '' : 'none');
+}
+
+function _lwaStartResendTimer() {
+  const btn = document.getElementById('lwa-resend-btn');
+  const info = document.getElementById('lwa-resend-info');
+  const timerEl = document.getElementById('lwa-resend-timer');
+  btn.disabled = true;
+  let secs = 60;
+  timerEl.textContent = secs;
+  if (_abhaLogin.resendTimer) clearInterval(_abhaLogin.resendTimer);
+  _abhaLogin.resendTimer = setInterval(() => {
+    secs--;
+    timerEl.textContent = secs;
+    if (secs <= 0) {
+      clearInterval(_abhaLogin.resendTimer);
+      _abhaLogin.resendTimer = null;
+      if (_abhaLogin.resendCount < 2) {
+        btn.disabled = false;
+        info.textContent = `Resend available (${2 - _abhaLogin.resendCount} left)`;
+      } else {
+        info.innerHTML = 'Max resends reached';
+      }
+    }
+  }, 1000);
+}
+
+async function lwaResendOtp() {
+  if (_abhaLogin.resendCount >= 2) return;
+  const btn = document.getElementById('lwa-resend-btn');
+  const err = document.getElementById('lwa-s2-err');
+  err.style.display = 'none';
+  btn.disabled = true;
+  const loginId = document.getElementById('lwa-loginid').value.trim();
+  try {
+    const res = await api('POST', '/abha/login-request-otp', { loginId, otpSystem: _abhaLogin.method === 'aadhaar' ? 'aadhaar' : 'abdm' });
+    _abhaLogin.txnId = res.txnId || res.transactionId || _abhaLogin.txnId;
+    _abhaLogin.resendCount++;
+    document.getElementById('lwa-otp').value = '';
+    _lwaStartResendTimer();
+  } catch(e) {
+    err.textContent = e.message || 'Failed to resend OTP';
+    err.style.display = '';
+    if (_abhaLogin.resendCount < 2) btn.disabled = false;
+  }
+}
+
+function _lwaShowProfile(profile) {
+  if (!profile) { document.getElementById('lwa-profile-name').textContent = 'Profile not available'; return; }
+  const name = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || '—';
+  document.getElementById('lwa-profile-name').textContent = name;
+  document.getElementById('lwa-profile-addr').textContent   = profile.preferredAbhaAddress || profile.abhaAddress || '—';
+  document.getElementById('lwa-profile-num').textContent    = profile.ABHANumber || profile.abhaNumber || '—';
+  document.getElementById('lwa-profile-mobile').textContent = profile.mobile || '—';
+  const dob = profile.dateOfBirth || (profile.yearOfBirth
+    ? `${String(profile.dayOfBirth||'').padStart(2,'0')}/${String(profile.monthOfBirth||'').padStart(2,'0')}/${profile.yearOfBirth}` : '—');
+  document.getElementById('lwa-profile-dob').textContent    = dob;
+  document.getElementById('lwa-profile-gender').textContent = profile.gender || '—';
+}
+
+async function lwaNext() {
+  const btn = document.getElementById('lwaBtn');
+
+  if (_abhaLogin.step === 1) {
+    const err = document.getElementById('lwa-s1-err');
+    err.style.display = 'none';
+    const loginId = document.getElementById('lwa-loginid').value.trim();
+    if (!loginId) { err.textContent = 'Enter your ABHA Number or ABHA Address.'; err.style.display = ''; return; }
+    btn.disabled = true; btn.textContent = 'Sending OTP…';
+    try {
+      const res = await api('POST', '/abha/login-request-otp', { loginId, otpSystem: _abhaLogin.method === 'aadhaar' ? 'aadhaar' : 'abdm' });
+      _abhaLogin.txnId = res.txnId || res.transactionId;
+      _abhaLogin.step = 2;
+      _lwaShowStep(2);
+      document.getElementById('lwa-otp-hint').textContent = _abhaLogin.method === 'aadhaar'
+        ? 'OTP sent to your Aadhaar-linked mobile.'
+        : 'OTP sent to your ABHA communication mobile.';
+      btn.textContent = 'Verify OTP';
+      _lwaStartResendTimer();
+    } catch(e) { err.textContent = e.message || 'Failed to send OTP'; err.style.display = ''; }
+    btn.disabled = false;
+
+  } else if (_abhaLogin.step === 2) {
+    const err = document.getElementById('lwa-s2-err');
+    err.style.display = 'none';
+    const otp = document.getElementById('lwa-otp').value.trim();
+    if (!otp) { err.textContent = 'Enter the OTP.'; err.style.display = ''; return; }
+    btn.disabled = true; btn.textContent = 'Verifying…';
+    try {
+      const res = await api('POST', '/abha/login-verify-otp', { otp, txnId: _abhaLogin.txnId });
+      _abhaLogin.xToken  = res.xToken || res.token || res.tokens?.token || null;
+      _abhaLogin.profile = res.profile || null;
+      _abhaLogin.step = 3;
+      _lwaShowStep(3);
+      _lwaShowProfile(_abhaLogin.profile);
+      btn.textContent = 'Link / Create Patient';
+    } catch(e) { err.textContent = e.message || 'Verification failed'; err.style.display = ''; }
+    btn.disabled = false;
+
+  } else if (_abhaLogin.step === 3) {
+    const err = document.getElementById('lwa-s3-err');
+    err.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'Processing…';
+    try {
+      const res = await api('POST', '/abha/login-link-patient', { profile: _abhaLogin.profile });
+      _abhaLogin.resultPatientId = res.patient.id;
+      _abhaLogin.step = 4;
+      _lwaShowStep(4);
+      document.getElementById('lwa-result-name').textContent = res.patient.name || 'Patient';
+      document.getElementById('lwa-result-abha').textContent = res.patient.abha_address || res.patient.abha_number || '';
+      document.getElementById('lwa-result-badge').innerHTML = res.created
+        ? '<span class="badge bg-success">New patient created</span>'
+        : '<span class="badge bg-primary">Existing patient linked</span>';
+      if (res.mobileMismatch) {
+        document.getElementById('lwa-hims-mobile').textContent = res.patient.mobile || '';
+        document.getElementById('lwa-abha-mobile').textContent = _abhaLogin.profile?.mobile || '';
+        document.getElementById('lwa-mobile-mismatch').style.display = '';
+      }
+      btn.textContent = 'View Patient';
+      btn.onclick = () => { bootstrap.Modal.getInstance(document.getElementById('loginWithAbhaModal')).hide(); showPatient(res.patient.id); };
+      loadPatients();
+    } catch(e) { err.textContent = e.message || 'Failed'; err.style.display = ''; }
+    btn.disabled = false;
+  }
+}
+
+async function lwaUpdateMobile() {
+  if (!_abhaLogin.xToken) return;
+  const himsM = document.getElementById('lwa-hims-mobile').textContent.trim();
+  const updateBtn = document.getElementById('lwa-update-mobile-btn');
+  if (updateBtn) { updateBtn.disabled = true; updateBtn.textContent = 'Updating…'; }
+  try {
+    await api('POST', '/abha/login-update-mobile', { xToken: _abhaLogin.xToken, mobile: himsM });
+    document.getElementById('lwa-mobile-mismatch').style.display = 'none';
+    toast('Mobile updated in ABHA profile', 'success');
+  } catch(e) {
+    toast(e.message || 'Failed to update mobile', 'danger');
+    if (updateBtn) { updateBtn.disabled = false; updateBtn.textContent = 'Yes, Update'; }
+  }
 }
 
 // ── Add Patient via ABHA ──────────────────────────────────────────────────────

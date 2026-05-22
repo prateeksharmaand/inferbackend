@@ -615,6 +615,79 @@ const abhaAddCreate = async (req, res) => {
   }
 };
 
+// ── Login with ABHA ───────────────────────────────────────────────────────────
+
+const abhaLoginRequestOtp = async (req, res) => {
+  const { loginId, otpSystem } = req.body;
+  if (!loginId) return res.status(400).json({ error: 'loginId required' });
+  const loginHint = loginId.includes('@') ? 'abha-address' : 'abha-number';
+  const system = otpSystem === 'aadhaar' ? 'aadhaar' : 'abdm';
+  try {
+    const result = await abdmSvc.loginRequestAbhaOtp(loginId, loginHint, system);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+const abhaLoginVerifyOtp = async (req, res) => {
+  const { otp, txnId } = req.body;
+  if (!otp || !txnId) return res.status(400).json({ error: 'otp and txnId required' });
+  try {
+    const verifyResult = await abdmSvc.loginVerifyOtp(otp, txnId);
+    const xToken = verifyResult.token || verifyResult.tokens?.token || null;
+    let profile = null;
+    if (xToken) {
+      try { profile = await abdmSvc.getAbhaProfile(xToken); } catch (_) {}
+    }
+    res.json({ ...verifyResult, xToken, profile });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+const abhaLoginUpdateMobile = async (req, res) => {
+  const { xToken, mobile } = req.body;
+  if (!xToken || !mobile) return res.status(400).json({ error: 'xToken and mobile required' });
+  try {
+    const result = await abdmSvc.updateAbhaProfileMobile(xToken, mobile);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+const abhaLoginLinkPatient = async (req, res) => {
+  const { profile } = req.body;
+  if (!profile) return res.status(400).json({ error: 'profile required' });
+  try {
+    const abhaNum  = profile.ABHANumber || profile.abhaNumber || null;
+    const abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
+    const name     = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
+    const mobile   = profile.mobile || null;
+    const gender   = profile.gender || null;
+    const dob      = profile.dateOfBirth ||
+      (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
+    const { rows: ex } = await pool.query(
+      'SELECT id,name,mobile FROM emr_patients WHERE abha_number=$1 OR abha_address=$2 LIMIT 1',
+      [abhaNum, abhaAddr]
+    );
+    if (ex.length) {
+      await pool.query('UPDATE emr_patients SET abha_number=$1,abha_address=$2 WHERE id=$3', [abhaNum, abhaAddr, ex[0].id]);
+      const { rows } = await pool.query('SELECT * FROM emr_patients WHERE id=$1', [ex[0].id]);
+      const mobileMismatch = !!(mobile && rows[0].mobile && mobile !== rows[0].mobile);
+      return res.json({ patient: rows[0], created: false, mobileMismatch });
+    }
+    const { rows } = await pool.query(
+      'INSERT INTO emr_patients (name,mobile,dob,gender,abha_number,abha_address) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [name, mobile, dob, gender, abhaNum, abhaAddr]
+    );
+    res.status(201).json({ patient: rows[0], created: true, mobileMismatch: false });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
 module.exports = {
   listPatients, createPatient, getPatient, updatePatient, deletePatient,
   addCareContext, deleteCareContext,
@@ -625,5 +698,6 @@ module.exports = {
   abhaVerifyOtp, abhaVerifyConfirm,
   abhaAadhaarSetAddress, abhaAadhaarCreate,
   abhaAddOtp, abhaAddCreate,
+  abhaLoginRequestOtp, abhaLoginVerifyOtp, abhaLoginUpdateMobile, abhaLoginLinkPatient,
   listProfileShares, dismissProfileShare, linkProfileShareToPatient,
 };

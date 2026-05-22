@@ -221,6 +221,23 @@ async function verifyMobileLoginOtp(otp, txnId) {
   });
 }
 
+// ─── Login with ABHA (Aadhaar OTP or Mobile OTP, via ABHA Number or Address) ──
+
+async function loginRequestAbhaOtp(loginId, loginHint, otpSystem) {
+  const normalised = loginHint === 'abha-number' ? loginId.replace(/-/g, '') : loginId;
+  const encryptedId = await rsaEncrypt(normalised);
+  return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
+    scope: ['abha-login', 'mobile-verify'],
+    loginHint,
+    loginId: encryptedId,
+    otpSystem,
+  });
+}
+
+async function updateAbhaProfileMobile(xToken, mobile) {
+  return abhaReq('POST', `${ABHA_BASE}/profile/account/update`, { mobile }, xToken);
+}
+
 // ─── M1: ABHA Login ───────────────────────────────────────────────────────────
 
 async function loginRequestOtp(abhaNumber) {
@@ -470,6 +487,7 @@ module.exports = {
   generateAadhaarOtp,     verifyAadhaarOtp,
   generateMobileLoginOtp, verifyMobileLoginOtp,
   loginRequestOtp,        loginVerifyOtp,
+  loginRequestAbhaOtp,    updateAbhaProfileMobile,
   getAbhaProfile,         getAbhaPngCard,
   getAbhaSuggestions,     setAbhaAddress,
   discoverCareContexts,   linkInit,             linkConfirm,

@@ -117,6 +117,12 @@ router.post('/abha/aadhaar-finalize',     emr.abhaAadhaarCreate);
 router.post('/abha/request-otp',   emr.abhaAddOtp);
 router.post('/abha/verify-create', emr.abhaAddCreate);
 
+// Login with ABHA (patient verification at point of care)
+router.post('/abha/login-request-otp',  emr.abhaLoginRequestOtp);
+router.post('/abha/login-verify-otp',   emr.abhaLoginVerifyOtp);
+router.post('/abha/login-update-mobile',emr.abhaLoginUpdateMobile);
+router.post('/abha/login-link-patient', emr.abhaLoginLinkPatient);
+
 // Consent management (EMR acting as HIU)
 router.post('/consents',                        emr.createConsentRequest);
 router.get ('/consents',                        emr.listConsentRequests);
