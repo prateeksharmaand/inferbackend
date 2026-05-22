@@ -290,7 +290,7 @@ async function getAbhaSuggestions(xToken) {
 }
 
 async function setAbhaAddress(xToken, abhaAddress, txnId) {
-  return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/abha-address`, { abhaAddress, txnId }, xToken);
+  return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/abha-address`, { abhaAddress, txnId, preferred: 1 }, xToken);
 }
 
 // ─── M2: Care-context discovery ───────────────────────────────────────────────

@@ -615,7 +615,7 @@
           <label class="form-label small fw-semibold">Or create a custom ABHA address</label>
           <div class="input-group input-group-sm">
             <input class="form-control" id="aAdd-custom-addr" placeholder="e.g. prateek.sharma" maxlength="18">
-            <span class="input-group-text text-muted">@abdm</span>
+            <span class="input-group-text text-muted">@sbx</span>
           </div>
           <div class="mt-2 p-2 border rounded bg-light small text-muted">
             <strong class="text-dark">ABHA Address Rules:</strong>
@@ -868,7 +868,7 @@
             <label class="form-label fw-semibold">Or enter a custom ABHA address</label>
             <div class="input-group">
               <input id="abha-custom-addr" type="text" class="form-control" placeholder="yourname">
-              <span class="input-group-text">@abdm</span>
+              <span class="input-group-text">@sbx</span>
             </div>
             <div class="form-text">3–50 characters, letters, digits, dots, underscores only</div>
           </div>
@@ -1229,7 +1229,7 @@ async function aadhaarAddNext() {
     } else if (customVal) {
       const validErr = _aAddValidateAbhaAddr(customVal);
       if (validErr) { err.textContent = validErr; err.style.display = ''; return; }
-      abhaAddress = customVal + '@abdm';
+      abhaAddress = customVal + '@sbx';
     } else {
       err.textContent = 'Please select a suggestion or enter a custom ABHA address.';
       err.style.display = '';
@@ -2645,7 +2645,7 @@ function _renderSuggestions() {
 async function abhaSetAddressStep() {
   const customAddr = document.getElementById('abha-custom-addr').value.trim();
   const selectedRadio = document.querySelector('input[name="abha-suggestion"]:checked');
-  const chosen = customAddr ? (customAddr.includes('@') ? customAddr : customAddr + '@abdm') : selectedRadio?.value;
+  const chosen = customAddr ? (customAddr.includes('@') ? customAddr : customAddr + '@sbx') : selectedRadio?.value;
   if (!chosen) { document.getElementById('abha-step4-err').textContent = 'Select or enter an ABHA address'; return; }
   document.getElementById('abha-step4-err').textContent = '';
   const btn = event.target.closest('button');
