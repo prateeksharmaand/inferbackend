@@ -129,6 +129,8 @@ async function gwReq(method, url, data = null, extra = {}) {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       'X-CM-ID': 'sbx',
+      'REQUEST-ID': uuid(),
+      TIMESTAMP: new Date().toISOString(),
       ...extra,
     },
   };
@@ -434,17 +436,38 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
 
 // ─── M2: Consent request ──────────────────────────────────────────────────────
 
-async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRange) {
+const PURPOSE_TEXT = {
+  CAREMGT: 'Care Management',
+  BTG:     'Break the Glass',
+  PUBHLTH: 'Public Health',
+  HPAYMT:  'Healthcare Payment',
+  DSRCH:   'Disease Specific Healthcare Research',
+  PATRQT:  'Patient Requested',
+  COVAUTH: 'Coverage Authorization',
+};
+const PURPOSE_REF_URI = 'http://terminology.hl7.org/CodeSystem/v3-ActReason';
+
+async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRange, requester = {}) {
+  const reqId = uuid();
+  logger.info('consent-requests/init outbound', { reqId, hiuId, patientId, purpose, hiTypes });
   return gwReq('POST', `${ABDM_GATEWAY}/v0.5/consent-requests/init`, {
-    requestId: uuid(),
+    requestId: reqId,
     timestamp: new Date().toISOString(),
     consent: {
-      purpose: { code: purpose },
+      purpose: {
+        text:   PURPOSE_TEXT[purpose] ?? purpose,
+        code:   purpose,
+        refUri: PURPOSE_REF_URI,
+      },
       patient: { id: patientId },
       hiu: { id: hiuId },
       requester: {
-        name: 'PHR App',
-        identifier: { type: 'REGNO', value: 'PHR001', system: 'https://www.mciindia.org' },
+        name: requester.name || process.env.ABDM_REQUESTER_NAME || 'Clinic HIU',
+        identifier: {
+          type:   requester.identifierType   || 'REGNO',
+          value:  requester.identifierValue  || (process.env.ABDM_REQUESTER_REG || hiuId),
+          system: requester.identifierSystem || 'https://www.mciindia.org',
+        },
       },
       hiTypes,
       permission: {

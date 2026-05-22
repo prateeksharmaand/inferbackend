@@ -176,7 +176,7 @@ const activityLog = async (req, res) => {
 // ── Consent management (EMR acting as HIU) ────────────────────────────────────
 
 const createConsentRequest = async (req, res) => {
-  const { patientAbha, hipId, purpose, hiTypes, dateFrom, dateTo } = req.body;
+  const { patientAbha, hipId, purpose, hiTypes, dateFrom, dateTo, requesterName, requesterReg } = req.body;
   if (!patientAbha || !hipId || !purpose || !hiTypes?.length)
     return res.status(400).json({ error: 'patientAbha, hipId, purpose, hiTypes required' });
 
@@ -187,7 +187,8 @@ const createConsentRequest = async (req, res) => {
   try {
     result = await abdmSvc.createConsentRequest(
       patientAbha, hiuId, purpose, hiTypes,
-      { from: dateFrom ?? new Date(0).toISOString(), to: dateTo ?? new Date().toISOString() }
+      { from: dateFrom ?? new Date(0).toISOString(), to: dateTo ?? new Date().toISOString() },
+      { name: requesterName, identifierValue: requesterReg }
     );
   } catch (e) {
     console.error('ABDM consent-requests/init failed:', e.message);
