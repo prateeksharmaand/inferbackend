@@ -124,8 +124,9 @@ async function rsaEncrypt(plaintext) {
 
 async function getBridgeInfo() {
   const token = await getGatewayToken();
+  const ABDM_DEVSERVICE = process.env.ABDM_DEVSERVICE_URL || 'https://dev.abdm.gov.in/devservice';
   const res = await abdmAxios.get(
-    `${ABDM_GATEWAY}/v0.5/bridges`,
+    `${ABDM_DEVSERVICE}/v1/bridges/getServices`,
     { headers: { Authorization: `Bearer ${token}`, 'X-CM-ID': 'sbx', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
   );
   return res.data;
