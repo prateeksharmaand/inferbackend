@@ -947,10 +947,10 @@ function toast(msg, type = 'success') {
 }
 
 // ── Add Patient via Aadhaar ───────────────────────────────────────────────────
-let _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false };
+let _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false, abdmProfile: null };
 
 function _aAddReset() {
-  _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false };
+  _aAdd = { step: 1, txnId: null, xToken: null, mobileSent: false, abdmProfile: null };
   ['aadhaar-step1','aadhaar-step2','aadhaar-step3','aadhaar-step4','aadhaar-step5'].forEach((id,i) =>
     document.getElementById(id).style.display = i === 0 ? '' : 'none');
   ['aAdd-aadhaar','aAdd-mobile1','aAdd-otp','aAdd-mobile','aAdd-mobile-otp','aAdd-custom-addr'].forEach(id =>
@@ -1003,10 +1003,11 @@ async function aadhaarAddNext() {
     try {
       const mobile1 = document.getElementById('aAdd-mobile1').value.replace(/\D/g,'');
       const res = await api('POST','/abha/aadhaar-verify',{ otp, txnId: _aAdd.txnId, mobile: mobile1 });
-      _aAdd.xToken = res.tokens?.token || res.token || null;
-      _aAdd.txnId  = res.txnId || res.transactionId || _aAdd.txnId;
+      _aAdd.xToken      = res.tokens?.token || res.token || null;
+      _aAdd.txnId       = res.txnId || res.transactionId || _aAdd.txnId;
+      _aAdd.abdmProfile = res.ABHAProfile || res.abhaProfile || res.profile || null;
       if (_aAdd.xToken) {
-        // Mobile linked — finalize directly (auto-pick first suggestion)
+        // Mobile linked — finalize directly
         await _aAddFinalize();
       } else {
         // Mobile OTP required
@@ -1038,8 +1039,9 @@ async function aadhaarAddNext() {
       btn.disabled=true; btn.textContent='Verifying…';
       try {
         const res = await api('POST','/abha/aadhaar-mobile-verify',{ otp, txnId: _aAdd.txnId });
-        _aAdd.xToken = res.tokens?.token || res.token || null;
-        _aAdd.txnId  = res.txnId || res.transactionId || _aAdd.txnId;
+        _aAdd.xToken      = res.tokens?.token || res.token || null;
+        _aAdd.txnId       = res.txnId || res.transactionId || _aAdd.txnId;
+        _aAdd.abdmProfile = res.ABHAProfile || res.abhaProfile || res.profile || _aAdd.abdmProfile;
         await _aAddFinalize();
       } catch(e) { err.textContent=e.message||'Verification failed'; err.style.display=''; }
       btn.disabled=false;
@@ -1052,7 +1054,7 @@ async function _aAddFinalize() {
   const btn = document.getElementById('aadhaarAddBtn');
   btn.disabled=true; btn.textContent='Creating patient…';
   try {
-    const res = await api('POST','/abha/aadhaar-finalize',{ xToken: _aAdd.xToken, txnId: _aAdd.txnId });
+    const res = await api('POST','/abha/aadhaar-finalize',{ abdmProfile: _aAdd.abdmProfile });
     _aAdd.step=5; _aAddSetStep(5);
     document.getElementById('aAdd-result-name').textContent = res.patient.name||'Patient';
     document.getElementById('aAdd-result-abha').textContent = res.patient.abha_address||res.patient.abha_number||'';

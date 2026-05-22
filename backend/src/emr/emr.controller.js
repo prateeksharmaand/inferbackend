@@ -508,12 +508,12 @@ const abhaVerifyConfirm = async (req, res) => {
   }
 };
 
-// Add Patient via Aadhaar – finalize: fetch profile and create patient
+// Add Patient via Aadhaar – finalize: use profile from byAadhaar response, create patient
 const abhaAadhaarCreate = async (req, res) => {
-  const { xToken } = req.body;
-  if (!xToken) return res.status(400).json({ error: 'xToken required' });
+  const { abdmProfile } = req.body;
+  if (!abdmProfile) return res.status(400).json({ error: 'abdmProfile required' });
   try {
-    const profile    = await abdmSvc.getAbhaProfile(xToken);
+    const profile    = abdmProfile;
     const abhaNum    = profile.ABHANumber  || profile.abhaNumber  || null;
     const abhaAddr   = profile.preferredAbhaAddress || profile.abhaAddress || null;
     const name       = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
