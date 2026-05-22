@@ -79,11 +79,6 @@ else
   info "Commit: $(git log -1 --format='%h — %s')"
 fi
 
-# ── Ensure bind-mount host directories exist ──────────────────────────────────
-log "Creating required host directories..."
-mkdir -p backend/uploads backend/logs
-info "Directories: ✓"
-
 # ── Ensure postgres is running ────────────────────────────────────────────────
 log "Ensuring postgres is up and healthy..."
 docker compose up -d "$POSTGRES_SERVICE"

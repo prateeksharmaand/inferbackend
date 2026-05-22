@@ -34,8 +34,8 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./backend/uploads:/app/uploads
-      - ./backend/logs:/app/logs
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
     restart: unless-stopped
 
   nginx:
@@ -56,3 +56,5 @@ services:
 volumes:
   postgres_data:
   certbot_www:
+  uploads_data:
+  logs_data:
