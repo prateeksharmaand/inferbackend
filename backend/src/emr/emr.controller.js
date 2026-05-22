@@ -631,6 +631,28 @@ const abhaAddCreate = async (req, res) => {
   }
 };
 
+// ── ABDM Bridge / callback-URL diagnostics ────────────────────────────────────
+
+const abdmGetBridge = async (req, res) => {
+  try {
+    const info = await abdmSvc.getBridgeInfo();
+    res.json({ clientId: process.env.ABDM_CLIENT_ID, backendUrl: process.env.BACKEND_URL, bridge: info });
+  } catch (err) {
+    res.status(err.response?.status || 502).json({ error: err.message, detail: err.response?.data });
+  }
+};
+
+const abdmUpdateBridge = async (req, res) => {
+  const callbackUrl = req.body.callbackUrl || process.env.BACKEND_URL;
+  if (!callbackUrl) return res.status(400).json({ error: 'callbackUrl required (or set BACKEND_URL env)' });
+  try {
+    const result = await abdmSvc.updateBridgeUrl(callbackUrl);
+    res.json({ updated: true, callbackUrl, result });
+  } catch (err) {
+    res.status(err.response?.status || 502).json({ error: err.message, detail: err.response?.data });
+  }
+};
+
 // ── Login with ABHA ───────────────────────────────────────────────────────────
 
 const abhaLoginRequestOtp = async (req, res) => {
@@ -714,6 +736,7 @@ module.exports = {
   abhaVerifyOtp, abhaVerifyConfirm,
   abhaAadhaarSetAddress, abhaAadhaarCreate,
   abhaAddOtp, abhaAddCreate,
+  abdmGetBridge, abdmUpdateBridge,
   abhaLoginRequestOtp, abhaLoginVerifyOtp, abhaLoginUpdateMobile, abhaLoginLinkPatient,
   listProfileShares, dismissProfileShare, linkProfileShareToPatient,
 };

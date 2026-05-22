@@ -99,6 +99,10 @@ router.get('/pending-otps',    emr.pendingOtps);
 router.get('/health-requests', emr.healthRequests);
 router.get('/activity',        emr.activityLog);
 
+// ABDM bridge / callback-URL diagnostics
+router.get ('/abdm/bridge',        emr.abdmGetBridge);
+router.post('/abdm/bridge/update', emr.abdmUpdateBridge);
+
 // Patient profile shares (QR walk-in — SHARE_PATIENT_PROFILE_701)
 router.get   ('/profile-shares',                        emr.listProfileShares);
 router.patch ('/profile-shares/:id/dismiss',            emr.dismissProfileShare);

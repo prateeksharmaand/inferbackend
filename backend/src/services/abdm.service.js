@@ -120,6 +120,28 @@ async function rsaEncrypt(plaintext) {
   ).toString('base64');
 }
 
+// ─── Bridge / callback-URL management ────────────────────────────────────────
+
+async function getBridgeInfo() {
+  const token = await getGatewayToken();
+  const clientId = CLIENT_ID;
+  const res = await abdmAxios.get(
+    `${ABDM_GATEWAY}/v0.5/bridges/getServices?id=${encodeURIComponent(clientId)}`,
+    { headers: { Authorization: `Bearer ${token}`, 'X-CM-ID': 'sbx', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
+  );
+  return res.data;
+}
+
+async function updateBridgeUrl(callbackUrl) {
+  const token = await getGatewayToken();
+  const res = await abdmAxios.put(
+    `${ABDM_GATEWAY}/v0.5/bridges`,
+    { url: callbackUrl },
+    { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CM-ID': 'sbx', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
+  );
+  return res.data ?? { ok: true };
+}
+
 // Gateway requests (HIE-CM / M2-M3 operations)
 async function gwReq(method, url, data = null, extra = {}) {
   const token = await getGatewayToken();
@@ -516,5 +538,6 @@ module.exports = {
   discoverCareContexts,   linkInit,             linkConfirm,
   generateLinkToken,      linkCareContexts,
   createConsentRequest,   fetchHealthInfo,
+  getBridgeInfo,          updateBridgeUrl,
   uuid,
 };
