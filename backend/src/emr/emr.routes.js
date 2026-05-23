@@ -24,8 +24,10 @@ router.get('/autocomplete/ping',    ac.ping);
 router.use(emrAuth);
 
 // Auth helpers
-router.post('/auth/add-doctor', auth.addDoctor);
-router.get ('/auth/doctors',    auth.listDoctors);
+router.post  ('/auth/add-doctor',    auth.addDoctor);
+router.get   ('/auth/doctors',       auth.listDoctors);
+router.patch ('/auth/doctors/:id',   auth.updateDoctor);
+router.delete('/auth/doctors/:id',   auth.deleteDoctor);
 
 // Patients (existing EMR patient store)
 router.get   ('/patients',                         emr.listPatients);

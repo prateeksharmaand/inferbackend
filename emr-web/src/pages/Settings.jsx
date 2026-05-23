@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate } from 'lucide-react';
+import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, UserRound } from 'lucide-react';
 import UhidSettings from './settings/UhidSettings';
 import CustomAttributes from './settings/CustomAttributes';
 import ServicesSettings from './settings/ServicesSettings';
 import InferPadSettings from './settings/InferPadSettings';
+import DoctorsSettings from './settings/DoctorsSettings';
 import styles from './Settings.module.css';
 
 const TABS = [
   { key: 'uhid',     Icon: Hash,           label: 'UHID Settings' },
   { key: 'tags',     Icon: Tag,            label: 'Custom Attributes' },
   { key: 'services', Icon: Stethoscope,    label: 'Services' },
+  { key: 'doctors',  Icon: UserRound,      label: 'Doctors' },
   { key: 'inferpad', Icon: LayoutTemplate, label: 'InferPad' },
 ];
 
@@ -43,6 +45,7 @@ export default function Settings() {
         {tab === 'uhid'     && <UhidSettings />}
         {tab === 'tags'     && <CustomAttributes />}
         {tab === 'services' && <ServicesSettings />}
+        {tab === 'doctors'  && <DoctorsSettings />}
         {tab === 'inferpad' && <InferPadSettings />}
       </div>
     </div>

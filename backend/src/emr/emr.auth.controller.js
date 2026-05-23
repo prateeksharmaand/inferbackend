@@ -102,4 +102,41 @@ const listDoctors = async (req, res) => {
   res.json(rows);
 };
 
-module.exports = { login, registerClinic, addDoctor, listDoctors };
+// PATCH /api/emr/auth/doctors/:id
+const updateDoctor = async (req, res) => {
+  const { name, email, password, specialization, qualification, registration_no, is_active } = req.body;
+  const sets = []; const params = [];
+  let i = 1;
+  if (name            !== undefined) { sets.push(`name=$${i++}`);            params.push(name); }
+  if (email           !== undefined) { sets.push(`email=$${i++}`);           params.push(email); }
+  if (specialization  !== undefined) { sets.push(`specialization=$${i++}`);  params.push(specialization); }
+  if (qualification   !== undefined) { sets.push(`qualification=$${i++}`);   params.push(qualification); }
+  if (registration_no !== undefined) { sets.push(`registration_no=$${i++}`); params.push(registration_no); }
+  if (is_active       !== undefined) { sets.push(`is_active=$${i++}`);       params.push(is_active); }
+  if (password) {
+    const hash = await bcrypt.hash(password, 10);
+    sets.push(`password_hash=$${i++}`); params.push(hash);
+  }
+  if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+  params.push(req.params.id, req.emrUser.clinic_id);
+  const { rows } = await pool.query(
+    `UPDATE emr_doctors SET ${sets.join(', ')}
+     WHERE id=$${i++} AND clinic_id=$${i++}
+     RETURNING id, name, email, specialization, qualification, registration_no, is_active`,
+    params
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Doctor not found' });
+  res.json(rows[0]);
+};
+
+// DELETE /api/emr/auth/doctors/:id
+const deleteDoctor = async (req, res) => {
+  const { rowCount } = await pool.query(
+    'DELETE FROM emr_doctors WHERE id=$1 AND clinic_id=$2',
+    [req.params.id, req.emrUser.clinic_id]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Doctor not found' });
+  res.json({ ok: true });
+};
+
+module.exports = { login, registerClinic, addDoctor, listDoctors, updateDoctor, deleteDoctor };
