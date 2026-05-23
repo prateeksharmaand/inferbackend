@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 
 const WHISPER_BASE  = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
 const GEMINI_KEY    = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL  = 'gemini-1.5-flash';
+const GEMINI_MODEL  = 'gemini-2.5-flash';
 const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const WHISPER_PROMPT = encodeURIComponent(
