@@ -1,4 +1,5 @@
 const { pool } = require('../config/database');
+const fhir     = require('../services/fhir.service');
 
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
   'rescheduled','follow_up','parked','no_show','aborted'];
@@ -76,7 +77,11 @@ const createAppointment = async (req, res) => {
       JSON.stringify(medical_history || []),
     ]
   );
-  res.status(201).json(rows[0]);
+  const created = rows[0];
+  fhir.pushAppointmentBundle(created).catch(err =>
+    console.error('[FHIR] appointment push failed:', err.message)
+  );
+  res.status(201).json(created);
 };
 
 // PATCH /api/emr/appointments/:id/status  { status }
@@ -268,6 +273,9 @@ const saveEncounter = async (req, res) => {
   // Auto-mark appointment as completed
   await pool.query(`UPDATE emr_appointments SET status='completed', completed_at=NOW() WHERE id=$1`, [a.id]);
 
+  fhir.pushEncounterBundle(a, rows[0]).catch(err =>
+    console.error('[FHIR] encounter push failed:', err.message)
+  );
   res.json(rows[0]);
 };
 

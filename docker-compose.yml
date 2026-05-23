@@ -38,6 +38,21 @@ services:
       - logs_data:/app/logs
     restart: unless-stopped
 
+  fhir:
+    image: hapiproject/hapi:latest
+    container_name: phr_fhir
+    environment:
+      hapi.fhir.default_encoding: json
+      hapi.fhir.fhir_version: R4
+      hapi.fhir.allow_external_references: "true"
+      hapi.fhir.expunge_enabled: "true"
+    volumes:
+      - fhir_data:/data/hapi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   nginx:
     build:
       context: .
@@ -59,3 +74,4 @@ volumes:
   uploads_data:
   logs_data:
   ssl_certs:
+  fhir_data:
