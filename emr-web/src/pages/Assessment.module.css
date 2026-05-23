@@ -1,0 +1,6 @@
+.page {
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}

@@ -8,7 +8,8 @@ import QueueSetup from './pages/QueueSetup';
 import Patients from './pages/Patients';
 import WriteRx from './pages/WriteRx';
 import Settings from './pages/Settings';
-import VoiceAI  from './pages/VoiceAI';
+import VoiceAI    from './pages/VoiceAI';
+import Assessment from './pages/Assessment';
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="patients"           element={<Patients />} />
             <Route path="rx/:appointmentId"  element={<WriteRx />} />
             <Route path="voice"              element={<VoiceAI />} />
+            <Route path="assessment"         element={<Assessment />} />
             <Route path="settings"           element={<Settings />} />
           </Route>
         </Routes>

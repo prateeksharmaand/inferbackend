@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, LayoutTemplate, Settings2,
   Printer, Eye, Trash2, SlidersHorizontal, CheckCircle, X, Plus,
-  Share2, Calendar, Download, CreditCard, FileText, Star, LogOut, Mic,
+  Share2, Calendar, Download, CreditCard, FileText, Star, LogOut, Mic, ClipboardList,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,7 @@ import CreateReceiptModal from '../components/CreateReceiptModal';
 import DrawingCanvas from '../components/DrawingCanvas';
 import InferPad from '../components/InferPad';
 import ScribePanel from '../components/ScribePanel';
+import AssessmentPanel from '../components/AssessmentPanel';
 import styles from './WriteRx.module.css';
 
 const TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
@@ -257,6 +258,7 @@ export default function WriteRx() {
   const [showPreview,     setShowPreview]     = useState(false);
   const [showConfigure,   setShowConfigure]   = useState(false);
   const [showScribe,      setShowScribe]      = useState(false);
+  const [showAssessment,  setShowAssessment]  = useState(false);
   const [showPostVisit,   setShowPostVisit]   = useState(false);
   const [showReceipt,     setShowReceipt]     = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
@@ -739,9 +741,15 @@ export default function WriteRx() {
             </button>
             <button
               className={`${styles.linkBtn} ${showScribe ? styles.linkBtnActive : ''}`}
-              onClick={() => setShowScribe(s => !s)}
+              onClick={() => { setShowScribe(s => !s); setShowAssessment(false); }}
             >
               <Mic size={13} strokeWidth={1.8} /> Scribe
+            </button>
+            <button
+              className={`${styles.linkBtn} ${showAssessment ? styles.linkBtnActive : ''}`}
+              onClick={() => { setShowAssessment(s => !s); setShowScribe(false); }}
+            >
+              <ClipboardList size={13} strokeWidth={1.8} /> Assessment
             </button>
           </div>
         </div>
@@ -887,6 +895,12 @@ export default function WriteRx() {
         <ScribePanel
           set={set} setVital={setVital} onClose={() => setShowScribe(false)}
           appt={appt} pastNotes={pastNotes} user={user} form={form}
+        />
+      )}
+
+      {showAssessment && (
+        <AssessmentPanel
+          set={set} onClose={() => setShowAssessment(false)}
         />
       )}
 
