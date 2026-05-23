@@ -10,6 +10,7 @@ const svc     = require('./emr.services.controller');
 const rec     = require('./emr.receipts.controller');
 const docs    = require('./emr.documents.controller');
 const ac      = require('./emr.autocomplete.controller');
+const scribe  = require('./emr.scribe.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -22,6 +23,11 @@ router.get('/autocomplete/ping',    ac.ping);
 
 // ── Protected (all routes below require EMR JWT) ───────────────────────────
 router.use(emrAuth);
+
+// Medical Scribe (Whisper + Ollama)
+router.get ('/scribe/status',     scribe.status);
+router.post('/scribe/transcribe', ...scribe.transcribe);
+router.post('/scribe/soap',       scribe.extractSOAP);
 
 // Auth helpers
 router.post  ('/auth/add-doctor',    auth.addDoctor);

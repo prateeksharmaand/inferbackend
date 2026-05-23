@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, LayoutTemplate, Settings2,
   Printer, Eye, Trash2, SlidersHorizontal, CheckCircle, X, Plus,
-  Share2, Calendar, Download, CreditCard, FileText, Star, LogOut,
+  Share2, Calendar, Download, CreditCard, FileText, Star, LogOut, Mic,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +12,7 @@ import MedicalRecordsTab from '../components/MedicalRecordsTab';
 import CreateReceiptModal from '../components/CreateReceiptModal';
 import DrawingCanvas from '../components/DrawingCanvas';
 import InferPad from '../components/InferPad';
+import ScribePanel from '../components/ScribePanel';
 import styles from './WriteRx.module.css';
 
 const TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
@@ -255,6 +256,7 @@ export default function WriteRx() {
   const [prescriptionMode,setPrescriptionMode] = useState(false);
   const [showPreview,     setShowPreview]     = useState(false);
   const [showConfigure,   setShowConfigure]   = useState(false);
+  const [showScribe,      setShowScribe]      = useState(false);
   const [showPostVisit,   setShowPostVisit]   = useState(false);
   const [showReceipt,     setShowReceipt]     = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
@@ -735,6 +737,12 @@ export default function WriteRx() {
             <button className={styles.linkBtn} onClick={() => setShowConfigure(true)}>
               <Settings2 size={13} strokeWidth={1.8} /> Configure your InferPad
             </button>
+            <button
+              className={`${styles.linkBtn} ${showScribe ? styles.linkBtnActive : ''}`}
+              onClick={() => setShowScribe(s => !s)}
+            >
+              <Mic size={13} strokeWidth={1.8} /> Scribe
+            </button>
           </div>
         </div>
 
@@ -873,6 +881,10 @@ export default function WriteRx() {
           onClose={() => setShowPreview(false)}
           onPrint={handlePrint}
         />
+      )}
+
+      {showScribe && (
+        <ScribePanel set={set} setVital={setVital} onClose={() => setShowScribe(false)} />
       )}
 
       {showConfigure && (

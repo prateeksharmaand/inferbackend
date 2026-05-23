@@ -38,6 +38,21 @@ services:
       - logs_data:/app/logs
     restart: unless-stopped
 
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: phr_whisper
+    environment:
+      ASR_MODEL: base
+      ASR_ENGINE: faster_whisper
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    container_name: phr_ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
   fhir:
     image: hapiproject/hapi:latest
     container_name: phr_fhir
@@ -75,3 +90,4 @@ volumes:
   logs_data:
   ssl_certs:
   fhir_data:
+  ollama_data:

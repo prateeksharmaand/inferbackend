@@ -43,6 +43,7 @@
   color: var(--color-text-2); cursor: pointer; transition: all .12s; white-space: nowrap;
 }
 .linkBtn:hover { background: #f5f3ff; border-color: var(--color-primary); color: var(--color-primary); }
+.linkBtnActive { background: #f5f3ff; border-color: var(--color-primary); color: var(--color-primary); }
 
 /* ── Tab body ── */
 .tabBody {
