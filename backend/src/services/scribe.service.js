@@ -2,9 +2,10 @@ const axios = require('axios');
 const FormData = require('form-data');
 const { spawn } = require('child_process');
 
-const WHISPER_BASE = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
-const OLLAMA_BASE  = process.env.OLLAMA_BASE_URL  || 'http://ollama:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL     || 'medllama2';
+const WHISPER_BASE  = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
+const GEMINI_KEY    = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL  = 'gemini-1.5-flash';
+const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const WHISPER_PROMPT = encodeURIComponent(
   'This is a medical consultation between a doctor and patient. ' +
@@ -36,7 +37,7 @@ function cleanAudio(buffer) {
       if (code === 0) {
         resolve(Buffer.concat(chunks));
       } else {
-        const msg = errLines.join('').slice(-400); // last 400 chars of stderr
+        const msg = errLines.join('').slice(-400);
         reject(new Error(`ffmpeg exited ${code}: ${msg}`));
       }
     });
@@ -105,21 +106,23 @@ const SOAP_PROMPT =
   '}\n\n' +
   'Cleaned transcript:\n';
 
-async function ollamaGenerate(prompt, maxTokens = 512, forceJson = false) {
+async function geminiGenerate(prompt, json = false) {
+  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY env var not set');
   const body = {
-    model: OLLAMA_MODEL,
-    prompt,
-    stream: false,
-    options: { temperature: 0.1, num_predict: maxTokens },
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: json ? 1024 : 512,
+      ...(json ? { responseMimeType: 'application/json' } : {}),
+    },
   };
-  if (forceJson) body.format = 'json';
-  const res = await axios.post(`${OLLAMA_BASE}/api/generate`, body, { timeout: 120_000 });
-  return res.data?.response || '';
+  const res = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 60_000 });
+  return res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 async function cleanTranscript(rawTranscript) {
   try {
-    const cleaned = await ollamaGenerate(CLEANUP_PROMPT + rawTranscript, 512, false);
+    const cleaned = await geminiGenerate(CLEANUP_PROMPT + rawTranscript, false);
     return cleaned.trim() || rawTranscript;
   } catch (err) {
     console.warn('[scribe] cleanup pass failed, using raw transcript:', err.message);
@@ -129,8 +132,7 @@ async function cleanTranscript(rawTranscript) {
 
 async function extractSOAP(transcript) {
   const cleaned = await cleanTranscript(transcript);
-
-  const raw = await ollamaGenerate(SOAP_PROMPT + cleaned, 1024, true);
+  const raw = await geminiGenerate(SOAP_PROMPT + cleaned, true);
   try {
     return { cleaned, soap: JSON.parse(raw) };
   } catch {

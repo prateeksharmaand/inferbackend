@@ -32,17 +32,29 @@ const extractSOAP = async (req, res) => {
   }
 };
 
-// GET /api/emr/scribe/status  — health check for whisper + ollama
+// GET /api/emr/scribe/status  — health check for whisper + gemini
 const status = async (req, res) => {
   const axios = require('axios');
   const WHISPER = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
-  const OLLAMA  = process.env.OLLAMA_BASE_URL  || 'http://ollama:11434';
-  const check = async (url) => {
-    try { await axios.get(url, { timeout: 3000 }); return 'ok'; }
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+
+  const checkWhisper = async () => {
+    try { await axios.get(WHISPER, { timeout: 3000 }); return 'ok'; }
     catch { return 'unavailable'; }
   };
-  const [whisper, ollama] = await Promise.all([check(WHISPER), check(`${OLLAMA}/api/tags`)]);
-  res.json({ whisper, ollama });
+  const checkGemini = async () => {
+    if (!GEMINI_KEY) return 'no api key';
+    try {
+      await axios.get(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash?key=${GEMINI_KEY}`,
+        { timeout: 5000 }
+      );
+      return 'ok';
+    } catch { return 'unavailable'; }
+  };
+
+  const [whisper, gemini] = await Promise.all([checkWhisper(), checkGemini()]);
+  res.json({ whisper, gemini });
 };
 
 module.exports = { transcribe, extractSOAP, status };

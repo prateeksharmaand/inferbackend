@@ -46,13 +46,6 @@ services:
       ASR_ENGINE: faster_whisper
     restart: unless-stopped
 
-  ollama:
-    image: ollama/ollama
-    container_name: phr_ollama
-    volumes:
-      - ollama_data:/root/.ollama
-    restart: unless-stopped
-
   fhir:
     image: hapiproject/hapi:latest
     container_name: phr_fhir
@@ -90,4 +83,3 @@ volumes:
   logs_data:
   ssl_certs:
   fhir_data:
-  ollama_data:
