@@ -7,13 +7,12 @@ const GEMINI_KEY    = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL  = 'gemini-2.5-flash';
 const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
+// Keyword-list format biases Whisper vocabulary without giving it sentences to hallucinate
 const WHISPER_PROMPT = encodeURIComponent(
-  'This is a medical consultation between a doctor and patient. ' +
-  'Medical terminology is used. Transcribe accurately: chief complaint, ' +
-  'symptoms and duration, past medical history, current medications with dose and frequency, ' +
-  'allergies, vital signs (blood pressure, pulse, temperature, SpO2, respiratory rate, weight, height, BMI), ' +
-  'physical examination findings, diagnosis, prescribed medications with instructions, ' +
-  'lab tests ordered, referrals, follow-up date and instructions, and patient advice.'
+  'chief complaint, fever, cough, shortness of breath, hypertension, diabetes, ' +
+  'blood pressure, pulse, SpO2, temperature, hemoglobin, CBC, ECG, X-ray, ' +
+  'paracetamol, amoxicillin, metformin, atorvastatin, omeprazole, ' +
+  'mg, mcg, OD, BD, TDS, QID, SOS, diagnosis, prescription, follow-up'
 );
 
 function cleanAudio(buffer) {
@@ -46,6 +45,30 @@ function cleanAudio(buffer) {
   });
 }
 
+const HALLUCINATION_PHRASES = [
+  'this is a medical consultation',
+  'medical terminology is used',
+  'transcribe accurately',
+  'dose and frequency',
+  'thank you for watching',
+  'thank you for your time',
+  'please subscribe',
+];
+
+function isHallucination(text) {
+  if (!text || text.length < 8) return true;
+  const lower = text.toLowerCase();
+  // reject if any known hallucination phrase appears
+  if (HALLUCINATION_PHRASES.some(p => lower.includes(p))) return true;
+  // reject if >40% of words are repetitions (Whisper loop hallucination)
+  const words = lower.split(/\s+/);
+  if (words.length > 6) {
+    const unique = new Set(words).size;
+    if (unique / words.length < 0.4) return true;
+  }
+  return false;
+}
+
 async function transcribeAudio(buffer, mimetype = 'audio/webm') {
   let audioBuffer = buffer;
   let audioMime = mimetype;
@@ -67,7 +90,8 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm') {
     form,
     { headers: form.getHeaders(), timeout: 60_000 }
   );
-  return (res.data?.text || '').trim();
+  const text = (res.data?.text || '').trim();
+  return isHallucination(text) ? '' : text;
 }
 
 const HALLUCINATION_GUARD =
