@@ -9,7 +9,8 @@ const transcribe = [
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'audio_file required' });
     try {
-      const text = await scribe.transcribeAudio(req.file.buffer, req.file.mimetype);
+      const language = req.body.language || 'en';
+      const text = await scribe.transcribeAudio(req.file.buffer, req.file.mimetype, language);
       res.json({ text });
     } catch (err) {
       const detail = err.response?.data || err.message;

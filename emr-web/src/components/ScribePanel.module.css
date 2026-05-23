@@ -37,10 +37,25 @@
 
 /* Controls */
 .controls {
-  display: flex; gap: 8px; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 8px; padding: 12px 16px;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
+.controlRow {
+  display: flex; gap: 8px;
+}
+.langSelect {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  appearance: auto;
+}
+.langSelect:disabled { opacity: .5; cursor: not-allowed; }
 .btnRecord {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--color-primary); color: #fff;

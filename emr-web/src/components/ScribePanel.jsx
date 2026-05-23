@@ -5,6 +5,20 @@ import styles from './ScribePanel.module.css';
 
 const SEGMENT_MS = 15000;
 
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'auto', label: 'Auto-detect' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'ta', label: 'Tamil' },
+  { code: 'te', label: 'Telugu' },
+  { code: 'kn', label: 'Kannada' },
+  { code: 'ml', label: 'Malayalam' },
+  { code: 'bn', label: 'Bengali' },
+  { code: 'mr', label: 'Marathi' },
+  { code: 'gu', label: 'Gujarati' },
+  { code: 'pa', label: 'Punjabi' },
+];
+
 async function recordSegment(stream, ms) {
   return new Promise(resolve => {
     const chunks = [];
@@ -16,9 +30,10 @@ async function recordSegment(stream, ms) {
   });
 }
 
-async function sendChunk(blob) {
+async function sendChunk(blob, language = 'en') {
   const form = new FormData();
   form.append('audio_file', blob, 'chunk.webm');
+  form.append('language', language);
   const token = localStorage.getItem('emr_token');
   const res = await fetch('/api/emr/scribe/transcribe', {
     method: 'POST',
@@ -38,6 +53,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
   const [errMsg,     setErrMsg]     = useState('');
   const [elapsed,    setElapsed]    = useState(0);
   const [pending,    setPending]    = useState(0); // chunks in-flight to Whisper
+  const [language,   setLanguage]   = useState('en');
 
   const streamRef     = useRef(null);
   const recordingRef  = useRef(false);
@@ -77,7 +93,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
           if (blob.size < 500) continue;
 
           setPending(n => n + 1);
-          sendChunk(blob)
+          sendChunk(blob, language)
             .then(text => { if (text) setTranscript(t => t ? t + ' ' + text : text); })
             .catch(() => {})
             .finally(() => setPending(n => n - 1));
@@ -207,24 +223,36 @@ export default function ScribePanel({ set, setVital, onClose }) {
 
       {/* Controls */}
       <div className={styles.controls}>
-        {status !== 'recording' ? (
-          <button className={styles.btnRecord} onClick={startRecording} disabled={status === 'extracting'}>
-            <Mic size={15} /> Start Recording
-          </button>
-        ) : (
-          <button className={`${styles.btnRecord} ${styles.btnStop}`} onClick={stopRecording}>
-            <MicOff size={15} /> Stop Recording
-          </button>
-        )}
-        <button
-          className={styles.btnExtract}
-          onClick={extractSOAP}
-          disabled={!transcript.trim() || status === 'recording' || status === 'extracting'}
+        <select
+          className={styles.langSelect}
+          value={language}
+          onChange={e => setLanguage(e.target.value)}
+          disabled={status === 'recording'}
         >
-          {status === 'extracting'
-            ? <><Loader size={14} className={styles.spin} /> Extracting…</>
-            : <><Sparkles size={14} /> Extract SOAP</>}
-        </button>
+          {LANGUAGES.map(l => (
+            <option key={l.code} value={l.code}>{l.label}</option>
+          ))}
+        </select>
+        <div className={styles.controlRow}>
+          {status !== 'recording' ? (
+            <button className={styles.btnRecord} onClick={startRecording} disabled={status === 'extracting'}>
+              <Mic size={15} /> Start Recording
+            </button>
+          ) : (
+            <button className={`${styles.btnRecord} ${styles.btnStop}`} onClick={stopRecording}>
+              <MicOff size={15} /> Stop Recording
+            </button>
+          )}
+          <button
+            className={styles.btnExtract}
+            onClick={extractSOAP}
+            disabled={!transcript.trim() || status === 'recording' || status === 'extracting'}
+          >
+            {status === 'extracting'
+              ? <><Loader size={14} className={styles.spin} /> Extracting…</>
+              : <><Sparkles size={14} /> Extract SOAP</>}
+          </button>
+        </div>
       </div>
 
       {/* Recording bar */}

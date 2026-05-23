@@ -72,7 +72,7 @@ function isHallucination(text) {
   return false;
 }
 
-async function transcribeAudio(buffer, mimetype = 'audio/webm') {
+async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en') {
   let audioBuffer = buffer;
   let audioMime = mimetype;
   let filename = 'audio.webm';
@@ -88,8 +88,9 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm') {
   const form = new FormData();
   form.append('audio_file', audioBuffer, { filename, contentType: audioMime });
 
+  const langParam = language === 'auto' ? '' : `&language=${language}`;
   const res = await axios.post(
-    `${WHISPER_BASE}/asr?task=transcribe&language=en&output=json&vad_filter=true&initial_prompt=${WHISPER_PROMPT}`,
+    `${WHISPER_BASE}/asr?task=transcribe${langParam}&output=json&vad_filter=true&initial_prompt=${WHISPER_PROMPT}`,
     form,
     { headers: form.getHeaders(), timeout: 60_000 }
   );
@@ -105,13 +106,15 @@ const HALLUCINATION_GUARD =
 
 const CLEANUP_PROMPT =
   'You are a medical transcription editor. Your only task is to clean up the raw speech-to-text transcript below.\n' +
+  'The transcript may be in English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, or a mix (Hinglish).\n' +
   'Rules:\n' +
   '- Fix grammar and punctuation.\n' +
   '- Expand common medical abbreviations (e.g. "BP" → "blood pressure", "SOB" → "shortness of breath", "Hx" → "history", "Rx" → "prescription", "OD" → "once daily", "BD" → "twice daily", "TDS" → "three times daily").\n' +
   '- Correct obvious mis-transcriptions of medical terms (e.g. "hamoglobin" → "hemoglobin").\n' +
+  '- Translate the entire output to English, preserving all clinical meaning exactly.\n' +
   '- Keep the meaning and all factual content exactly as spoken. Do not add, remove, or rephrase clinical information.\n' +
   HALLUCINATION_GUARD + '\n' +
-  'Return ONLY the cleaned transcript text, nothing else.\n\n' +
+  'Return ONLY the cleaned English transcript text, nothing else.\n\n' +
   'Raw transcript:\n';
 
 const SOAP_PROMPT =
