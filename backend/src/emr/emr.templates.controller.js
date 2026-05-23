@@ -4,14 +4,21 @@ const { getPredefinedTemplates } = require('../services/scribe.templates');
 // GET /api/emr/scribe/templates
 // Returns predefined templates + this clinic's custom templates
 const listTemplates = async (req, res) => {
-  const { rows } = await pool.query(
-    `SELECT id, name, description, focus_prompt, specialty, false AS is_predefined, created_at
-     FROM scribe_templates WHERE clinic_id=$1 ORDER BY name`,
-    [req.emrUser.clinic_id]
-  );
+  let custom = [];
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, description, focus_prompt, specialty, false AS is_predefined, created_at
+       FROM scribe_templates WHERE clinic_id=$1 ORDER BY name`,
+      [req.emrUser.clinic_id]
+    );
+    custom = rows;
+  } catch (err) {
+    // Table may not exist yet (migration pending) — still return predefined templates
+    console.warn('[templates] DB query failed (migration pending?):', err.message);
+  }
   res.json({
     predefined: getPredefinedTemplates(),
-    custom: rows,
+    custom,
   });
 };
 

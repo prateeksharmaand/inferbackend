@@ -90,7 +90,7 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
   useEffect(() => {
     api.get('/scribe/templates')
       .then(data => setTemplates(data))
-      .catch(() => {});
+      .catch(err => console.warn('[scribe] failed to load templates:', err.message));
   }, []);
 
   // Flat list: predefined first, then custom
