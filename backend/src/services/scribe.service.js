@@ -121,6 +121,7 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en',
     { headers: form.getHeaders(), timeout: 60_000 }
   );
   const text = (res.data?.text || '').trim();
+  console.log('[scribe] whisper raw:', JSON.stringify(res.data), '| filtered:', isHallucination(text));
   return isHallucination(text) ? '' : text;
 }
 
