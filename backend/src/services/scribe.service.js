@@ -182,27 +182,19 @@ function buildPatientContext(ctx) {
     : '';
 }
 
-const CLEANUP_PROMPT =
-  'You are a medical transcription editor. Your only task is to clean up the raw speech-to-text transcript below.\n' +
-  'The transcript may be in English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, or a mix (Hinglish).\n' +
-  'Rules:\n' +
-  '- Fix grammar and punctuation.\n' +
-  '- Expand common medical abbreviations (e.g. "BP" → "blood pressure", "SOB" → "shortness of breath", "Hx" → "history", "Rx" → "prescription", "OD" → "once daily", "BD" → "twice daily", "TDS" → "three times daily").\n' +
-  '- Correct obvious mis-transcriptions of medical terms (e.g. "hamoglobin" → "hemoglobin").\n' +
-  '- Translate the entire output to English, preserving all clinical meaning exactly.\n' +
-  '- Keep the meaning and all factual content exactly as spoken. Do not add, remove, or rephrase clinical information.\n' +
-  '- Use the patient context (if provided) only to resolve ambiguous drug names or medical terms — never to add information not in the transcript.\n' +
-  HALLUCINATION_GUARD + '\n' +
-  'Return ONLY the cleaned English transcript text, nothing else.\n\n' +
-  'Raw transcript:\n';
-
-const SOAP_PROMPT =
-  'You are a medical scribe. Extract structured SOAP notes from the cleaned doctor-patient conversation below.\n' +
-  '- Use the patient context (if provided) to correctly attribute known conditions vs. newly mentioned ones.\n' +
+// Single-pass prompt: clean the transcript AND extract SOAP in one Gemini call.
+// This halves latency compared to two sequential calls.
+const MERGED_PROMPT =
+  'You are a medical scribe. Given a raw speech-to-text transcript, perform two tasks in one response:\n' +
+  '1. CLEAN: Fix grammar and punctuation. Expand medical abbreviations (BP→blood pressure, SOB→shortness of breath, OD→once daily, BD→twice daily, TDS→three times daily, Hx→history, Rx→prescription). Correct obvious mis-transcriptions. Translate everything to English preserving all clinical meaning. Use patient context (if provided) only to resolve ambiguous terms.\n' +
+  '2. EXTRACT: Extract structured SOAP data from the cleaned transcript.\n' +
+  'The transcript may be in English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, or a mix.\n' +
+  '- Use the patient context (if provided) to correctly attribute known vs. newly mentioned conditions.\n' +
   '- Prefer drug names from the clinic formulary when they match what was said.\n' +
   HALLUCINATION_GUARD + '\n' +
-  'Return ONLY a valid JSON object with this exact structure (use null for missing fields, empty arrays [] if nothing found):\n' +
+  'Return ONLY a valid JSON object (use null for missing fields, [] if nothing found):\n' +
   '{\n' +
+  '  "cleaned": "the full cleaned English transcript text",\n' +
   '  "chief_complaint": "string or null",\n' +
   '  "past_medical_history": [{"condition": "string", "since": "string or null"}],\n' +
   '  "symptoms": [{"name": "string", "since": "string or null", "severity": "Mild or Moderate or Severe or null"}],\n' +
@@ -219,7 +211,7 @@ const SOAP_PROMPT =
   '  "next_visit_date": "YYYY-MM-DD or null",\n' +
   '  "next_visit_notes": "string or null"\n' +
   '}\n\n' +
-  'Cleaned transcript:\n';
+  'Raw transcript:\n';
 
 async function geminiGenerate(prompt, json = false) {
   if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY env var not set');
@@ -235,30 +227,23 @@ async function geminiGenerate(prompt, json = false) {
   return res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function cleanTranscript(rawTranscript, patientContext = '') {
-  try {
-    const cleaned = await geminiGenerate(CLEANUP_PROMPT + patientContext + rawTranscript, false);
-    return cleaned.trim() || rawTranscript;
-  } catch (err) {
-    console.warn('[scribe] cleanup pass failed, using raw transcript:', err.message);
-    return rawTranscript;
-  }
-}
-
 async function extractSOAP(transcript, ctx = null, focusPrompt = '') {
   const patientContext = buildPatientContext(ctx);
   const templateSection = focusPrompt
     ? '\n\n--- TEMPLATE FOCUS (follow these extraction rules for this consultation type) ---\n' +
       focusPrompt.trim() + '\n---\n\n'
     : '';
-  const cleaned = await cleanTranscript(transcript, patientContext);
-  const raw = await geminiGenerate(SOAP_PROMPT + patientContext + templateSection + cleaned, true);
+  const prompt = MERGED_PROMPT + patientContext + templateSection + transcript;
+  const raw = await geminiGenerate(prompt, true);
+  let parsed;
   try {
-    return { cleaned, soap: JSON.parse(raw) };
+    parsed = JSON.parse(raw);
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
-    return { cleaned, soap: match ? JSON.parse(match[0]) : {} };
+    parsed = match ? JSON.parse(match[0]) : {};
   }
+  const { cleaned = transcript, ...soap } = parsed;
+  return { cleaned, soap };
 }
 
-module.exports = { transcribeAudio, cleanTranscript, extractSOAP };
+module.exports = { transcribeAudio, extractSOAP };

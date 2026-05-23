@@ -44,6 +44,7 @@ services:
     environment:
       ASR_MODEL: medium
       ASR_ENGINE: faster_whisper
+      ASR_QUANTIZATION: int8
     restart: unless-stopped
 
   fhir:
