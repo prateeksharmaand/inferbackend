@@ -5,12 +5,21 @@ const WHISPER_BASE = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
 const OLLAMA_BASE  = process.env.OLLAMA_BASE_URL  || 'http://ollama:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL     || 'gemma2:2b';
 
+const WHISPER_PROMPT = encodeURIComponent(
+  'This is a medical consultation between a doctor and patient. ' +
+  'Medical terminology is used. Transcribe accurately: chief complaint, ' +
+  'symptoms and duration, past medical history, current medications with dose and frequency, ' +
+  'allergies, vital signs (blood pressure, pulse, temperature, SpO2, respiratory rate, weight, height, BMI), ' +
+  'physical examination findings, diagnosis, prescribed medications with instructions, ' +
+  'lab tests ordered, referrals, follow-up date and instructions, and patient advice.'
+);
+
 async function transcribeAudio(buffer, mimetype = 'audio/webm') {
   const form = new FormData();
   form.append('audio_file', buffer, { filename: 'audio.webm', contentType: mimetype });
 
   const res = await axios.post(
-    `${WHISPER_BASE}/asr?task=transcribe&language=en&output=json`,
+    `${WHISPER_BASE}/asr?task=transcribe&language=en&output=json&initial_prompt=${WHISPER_PROMPT}`,
     form,
     { headers: form.getHeaders(), timeout: 60_000 }
   );
