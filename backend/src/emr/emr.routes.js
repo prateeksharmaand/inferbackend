@@ -21,11 +21,11 @@ router.get('/autocomplete/icd10',   ac.searchICD10);
 router.get('/autocomplete/rxterms', ac.searchRxTerms);
 router.get('/autocomplete/ping',    ac.ping);
 
+// Scribe health — public so ops can check without a token
+router.get('/scribe/status', scribe.status);
+
 // ── Protected (all routes below require EMR JWT) ───────────────────────────
 router.use(emrAuth);
-
-// Medical Scribe (Whisper + Ollama)
-router.get ('/scribe/status',     scribe.status);
 router.post('/scribe/transcribe', ...scribe.transcribe);
 router.post('/scribe/soap',       scribe.extractSOAP);
 

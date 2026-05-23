@@ -105,29 +105,32 @@ const SOAP_PROMPT =
   '}\n\n' +
   'Cleaned transcript:\n';
 
-async function ollamaGenerate(prompt, maxTokens = 512) {
-  const res = await axios.post(
-    `${OLLAMA_BASE}/api/generate`,
-    {
-      model: OLLAMA_MODEL,
-      prompt,
-      stream: false,
-      options: { temperature: 0.1, num_predict: maxTokens },
-    },
-    { timeout: 120_000 }
-  );
+async function ollamaGenerate(prompt, maxTokens = 512, forceJson = false) {
+  const body = {
+    model: OLLAMA_MODEL,
+    prompt,
+    stream: false,
+    options: { temperature: 0.1, num_predict: maxTokens },
+  };
+  if (forceJson) body.format = 'json';
+  const res = await axios.post(`${OLLAMA_BASE}/api/generate`, body, { timeout: 120_000 });
   return res.data?.response || '';
 }
 
 async function cleanTranscript(rawTranscript) {
-  const cleaned = await ollamaGenerate(CLEANUP_PROMPT + rawTranscript, 512);
-  return cleaned.trim() || rawTranscript;
+  try {
+    const cleaned = await ollamaGenerate(CLEANUP_PROMPT + rawTranscript, 512, false);
+    return cleaned.trim() || rawTranscript;
+  } catch (err) {
+    console.warn('[scribe] cleanup pass failed, using raw transcript:', err.message);
+    return rawTranscript;
+  }
 }
 
 async function extractSOAP(transcript) {
   const cleaned = await cleanTranscript(transcript);
 
-  const raw = await ollamaGenerate(SOAP_PROMPT + cleaned, 1024);
+  const raw = await ollamaGenerate(SOAP_PROMPT + cleaned, 1024, true);
   try {
     return { cleaned, soap: JSON.parse(raw) };
   } catch {
