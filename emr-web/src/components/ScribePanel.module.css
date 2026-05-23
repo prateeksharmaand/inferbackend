@@ -1,13 +1,24 @@
 .panel {
   position: fixed;
   top: 60px; right: 0;
-  width: 380px; height: calc(100vh - 60px);
+  width: 40vw; min-width: 360px;
+  height: calc(100vh - 60px);
   background: #fff;
   border-left: 1px solid var(--color-border);
   box-shadow: -4px 0 24px rgba(0,0,0,.1);
   display: flex; flex-direction: column;
   z-index: 500;
   overflow: hidden;
+}
+
+/* Fullscreen / standalone variant — fills the content area */
+.panelFullscreen {
+  position: relative;
+  top: auto; right: auto;
+  width: 100%; height: 100%;
+  box-shadow: none;
+  border-left: none;
+  min-width: 0;
 }
 
 /* Header */
@@ -41,11 +52,14 @@
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
+.controlsRow2 {
+  display: flex; gap: 8px; align-items: center;
+}
 .controlRow {
   display: flex; gap: 8px;
 }
 .langSelect {
-  width: 100%;
+  flex: 1;
   padding: 6px 10px;
   font-size: 12px; font-weight: 500;
   border: 1px solid var(--color-border);
@@ -54,12 +68,13 @@
   color: var(--color-text);
   cursor: pointer;
   appearance: auto;
+  max-width: 130px;
 }
 .langSelect:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Template row */
 .templateRow {
-  display: flex; gap: 6px; align-items: center;
+  display: flex; gap: 6px; align-items: center; flex: 1;
 }
 .templateSelect {
   flex: 1;
@@ -76,7 +91,7 @@
 .templateDesc {
   font-size: 11px; color: var(--color-text-3);
   line-height: 1.4; margin: 0;
-  padding: 3px 2px;
+  padding: 2px 2px;
 }
 .btnManage {
   flex-shrink: 0;
@@ -86,6 +101,7 @@
   color: var(--color-text-2); transition: all .1s;
 }
 .btnManage:hover { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
 .btnRecord {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--color-primary); color: #fff;
@@ -148,37 +164,63 @@
   flex-shrink: 0;
 }
 
+/* Scrollable content area */
+.scrollArea {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+/* Live transcript collapse animation */
+.txSection {
+  overflow: hidden;
+  max-height: 400px;
+  opacity: 1;
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+  flex-shrink: 0;
+}
+.txSectionHidden {
+  max-height: 0;
+  opacity: 0;
+}
+
 /* Sections */
 .section {
   display: flex; flex-direction: column; gap: 6px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--color-border);
-  flex: 1; min-height: 0; overflow: hidden;
 }
-.section:last-child { border-bottom: none; flex: 1; }
+.section:last-child { border-bottom: none; }
 
 .sectionLabel {
   font-size: 10px; font-weight: 800; text-transform: uppercase;
   letter-spacing: .6px; color: var(--color-text-3);
-  flex-shrink: 0;
 }
+.sectionLabelRow {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.txToggle {
+  display: flex; align-items: center; gap: 3px;
+  background: none; border: 1px solid var(--color-border);
+  border-radius: 6px; padding: 2px 7px;
+  font-size: 10px; font-weight: 600; color: var(--color-text-3);
+  cursor: pointer; transition: all .1s;
+}
+.txToggle:hover { background: var(--color-bg); color: var(--color-text); }
 
 /* Transcript */
 .transcriptBox {
-  flex: 1; overflow-y: auto;
+  overflow-y: auto;
   font-size: 13px; line-height: 1.6; color: var(--color-text);
   background: var(--color-bg); border: 1px solid var(--color-border);
-  border-radius: 8px; padding: 10px 12px; min-height: 80px;
+  border-radius: 8px; padding: 10px 12px; min-height: 60px; max-height: 200px;
 }
 .placeholder { color: var(--color-text-3); font-style: italic; }
 
 /* SOAP */
 .soapBox {
-  flex: 1; overflow-y: auto;
   background: var(--color-bg); border: 1px solid var(--color-border);
   border-radius: 8px; padding: 10px 12px;
   display: flex; flex-direction: column; gap: 6px;
-  min-height: 0;
 }
 .soapRow { display: flex; flex-direction: column; gap: 1px; }
 .soapLabel {
@@ -187,12 +229,24 @@
 }
 .soapValue { font-size: 12px; color: var(--color-text); line-height: 1.5; }
 
+.soapActions {
+  display: flex; gap: 8px; margin-top: 4px;
+}
+.btnCopy {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  flex: 1;
+  background: var(--color-bg); color: var(--color-text-2);
+  border: 1px solid var(--color-border); border-radius: 8px; padding: 9px;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all .1s;
+}
+.btnCopy:hover { background: var(--color-surface); color: var(--color-text); }
 .btnApply {
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  width: 100%; background: var(--color-primary); color: #fff;
+  flex: 2;
+  background: var(--color-primary); color: #fff;
   border: none; border-radius: 8px; padding: 10px;
   font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: background .1s; flex-shrink: 0; margin-top: 4px;
+  transition: background .1s;
 }
 .btnApply:hover { background: var(--color-primary-dk); }
 
@@ -214,9 +268,7 @@
   50%       { opacity: 0.5; transform: scale(0.85); }
 }
 .aiLabel { flex: 1; }
-.aiDots {
-  display: flex; gap: 3px; align-items: center;
-}
+.aiDots { display: flex; gap: 3px; align-items: center; }
 .aiDots span {
   width: 5px; height: 5px; border-radius: 50%;
   background: #6366f1;
@@ -235,7 +287,6 @@
   text-align: center;
 }
 
-/* Spinner */
 .spin {
   animation: spin .8s linear infinite;
 }

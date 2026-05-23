@@ -8,6 +8,7 @@ import QueueSetup from './pages/QueueSetup';
 import Patients from './pages/Patients';
 import WriteRx from './pages/WriteRx';
 import Settings from './pages/Settings';
+import VoiceAI  from './pages/VoiceAI';
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="queue/setup"        element={<QueueSetup />} />
             <Route path="patients"           element={<Patients />} />
             <Route path="rx/:appointmentId"  element={<WriteRx />} />
+            <Route path="voice"              element={<VoiceAI />} />
             <Route path="settings"           element={<Settings />} />
           </Route>
         </Routes>
