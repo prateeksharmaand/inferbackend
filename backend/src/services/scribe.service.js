@@ -112,7 +112,7 @@ async function geminiGenerate(prompt, json = false) {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: json ? 1024 : 512,
+      maxOutputTokens: json ? 8192 : 2048,
       ...(json ? { responseMimeType: 'application/json' } : {}),
     },
   };
