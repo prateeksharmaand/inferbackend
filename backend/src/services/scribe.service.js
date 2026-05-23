@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 
 const WHISPER_BASE = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
 const OLLAMA_BASE  = process.env.OLLAMA_BASE_URL  || 'http://ollama:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL     || 'gemma2:2b';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL     || 'qwen2:1.5b';
 
 const WHISPER_PROMPT = encodeURIComponent(
   'This is a medical consultation between a doctor and patient. ' +
