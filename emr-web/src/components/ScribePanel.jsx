@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Sparkles, X, CheckCheck, Loader, AlertCircle, Brain } from 'lucide-react';
+import { Mic, MicOff, Sparkles, X, CheckCheck, Loader, AlertCircle, Brain, Settings } from 'lucide-react';
 import { api } from '../api/client';
+import ManageTemplatesModal from './ManageTemplatesModal';
 import styles from './ScribePanel.module.css';
 
 const SEGMENT_MS = 15000;
@@ -47,16 +48,21 @@ async function sendChunk(blob, language = 'en', specialization = '', drugFormula
   return data.text || '';
 }
 
+const DEFAULT_TEMPLATE_ID = 'infercare';
+
 // appt: appointment object, pastNotes: last encounters, user: logged-in doctor, form: current InferPad form
 export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, user, form: rxForm }) {
-  const [status,     setStatus]     = useState('idle');
-  const [transcript, setTranscript] = useState('');
-  const [cleaned,    setCleaned]    = useState('');
-  const [soap,       setSoap]       = useState(null);
-  const [errMsg,     setErrMsg]     = useState('');
-  const [elapsed,    setElapsed]    = useState(0);
-  const [pending,    setPending]    = useState(0); // chunks in-flight to Whisper
-  const [language,   setLanguage]   = useState('en');
+  const [status,         setStatus]         = useState('idle');
+  const [transcript,     setTranscript]     = useState('');
+  const [cleaned,        setCleaned]        = useState('');
+  const [soap,           setSoap]           = useState(null);
+  const [errMsg,         setErrMsg]         = useState('');
+  const [elapsed,        setElapsed]        = useState(0);
+  const [pending,        setPending]        = useState(0);
+  const [language,       setLanguage]       = useState('en');
+  const [templates,      setTemplates]      = useState({ predefined: [], custom: [] });
+  const [templateId,     setTemplateId]     = useState(DEFAULT_TEMPLATE_ID);
+  const [showManage,     setShowManage]     = useState(false);
 
   const streamRef     = useRef(null);
   const recordingRef  = useRef(false);
@@ -80,7 +86,18 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
     return () => clearInterval(timerRef.current);
   }, [status]);
 
-  // Build patient context object for Gemini (SOAP extraction)
+  // Fetch templates once on mount
+  useEffect(() => {
+    api.get('/scribe/templates')
+      .then(data => setTemplates(data))
+      .catch(() => {});
+  }, []);
+
+  // Flat list: predefined first, then custom
+  const allTemplates = [...(templates.predefined || []), ...(templates.custom || [])];
+  const selectedTemplate = allTemplates.find(t => t.id === templateId) || null;
+
+  // Build patient context for Gemini
   const buildContext = useCallback(() => {
     const ctx = {};
     if (appt) {
@@ -116,7 +133,6 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
       recordingRef.current = true;
       setStatus('recording');
 
-      // Fire each chunk to Whisper in parallel — don't await, keep recording immediately
       (async () => {
         while (recordingRef.current) {
           const blob = await recordSegment(streamRef.current, SEGMENT_MS);
@@ -149,7 +165,8 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
     setStatus('extracting'); setErrMsg('');
     try {
       const context = buildContext();
-      const data = await api.post('/scribe/soap', { transcript: tx, context });
+      const focusPrompt = selectedTemplate?.focus_prompt || '';
+      const data = await api.post('/scribe/soap', { transcript: tx, context, focusPrompt });
       setCleaned(data.cleaned || '');
       setSoap(data.soap || data);
       setStatus('done');
@@ -157,7 +174,7 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
       setErrMsg('SOAP extraction failed: ' + err.message);
       setStatus('error');
     }
-  }, [buildContext]);
+  }, [buildContext, selectedTemplate]);
 
   const applyToInferPad = useCallback(() => {
     if (!soap) return;
@@ -239,6 +256,16 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
   const isTranscribing = pending > 0;
 
+  if (showManage) {
+    return (
+      <ManageTemplatesModal
+        templates={templates}
+        onClose={() => setShowManage(false)}
+        onRefresh={() => api.get('/scribe/templates').then(setTemplates).catch(() => {})}
+      />
+    );
+  }
+
   return (
     <div className={styles.panel}>
       {/* Header */}
@@ -255,6 +282,7 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
 
       {/* Controls */}
       <div className={styles.controls}>
+        {/* Language */}
         <select
           className={styles.langSelect}
           value={language}
@@ -265,6 +293,44 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
             <option key={l.code} value={l.code}>{l.label}</option>
           ))}
         </select>
+
+        {/* Template selector */}
+        <div className={styles.templateRow}>
+          <select
+            className={styles.templateSelect}
+            value={templateId}
+            onChange={e => setTemplateId(e.target.value)}
+            disabled={status === 'recording' || status === 'extracting'}
+          >
+            {templates.predefined?.length > 0 && (
+              <optgroup label="Predefined Templates">
+                {templates.predefined.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </optgroup>
+            )}
+            {templates.custom?.length > 0 && (
+              <optgroup label="My Templates">
+                {templates.custom.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          <button
+            className={styles.btnManage}
+            onClick={() => setShowManage(true)}
+            title="Manage Templates"
+          >
+            <Settings size={13} />
+          </button>
+        </div>
+
+        {/* Template description */}
+        {selectedTemplate?.description && (
+          <p className={styles.templateDesc}>{selectedTemplate.description}</p>
+        )}
+
         <div className={styles.controlRow}>
           {status !== 'recording' ? (
             <button className={styles.btnRecord} onClick={startRecording} disabled={status === 'extracting'}>
@@ -287,7 +353,7 @@ export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, u
         </div>
       </div>
 
-      {/* Context badge — shows active context so doctor knows what's loaded */}
+      {/* Context badge */}
       {(appt || pastNotes?.length > 0) && (
         <div className={styles.contextBar}>
           {appt && <span className={styles.contextChip}>{appt.patient_name}</span>}

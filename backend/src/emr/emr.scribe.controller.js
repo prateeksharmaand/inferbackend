@@ -21,13 +21,13 @@ const transcribe = [
   },
 ];
 
-// POST /api/emr/scribe/soap  — { transcript: string, context?: object }
+// POST /api/emr/scribe/soap  — { transcript: string, context?: object, focusPrompt?: string }
 // Returns { cleaned, soap }
 const extractSOAP = async (req, res) => {
-  const { transcript, context } = req.body;
+  const { transcript, context, focusPrompt } = req.body;
   if (!transcript?.trim()) return res.status(400).json({ error: 'transcript required' });
   try {
-    const { cleaned, soap } = await scribe.extractSOAP(transcript, context || null);
+    const { cleaned, soap } = await scribe.extractSOAP(transcript, context || null, focusPrompt || '');
     res.json({ cleaned, soap });
   } catch (err) {
     const detail = err.response?.data || err.message;

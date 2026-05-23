@@ -11,6 +11,7 @@ const rec     = require('./emr.receipts.controller');
 const docs    = require('./emr.documents.controller');
 const ac      = require('./emr.autocomplete.controller');
 const scribe  = require('./emr.scribe.controller');
+const tpl     = require('./emr.templates.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -26,8 +27,12 @@ router.get('/scribe/status', scribe.status);
 
 // ── Protected (all routes below require EMR JWT) ───────────────────────────
 router.use(emrAuth);
-router.post('/scribe/transcribe', ...scribe.transcribe);
-router.post('/scribe/soap',       scribe.extractSOAP);
+router.post  ('/scribe/transcribe',    ...scribe.transcribe);
+router.post  ('/scribe/soap',          scribe.extractSOAP);
+router.get   ('/scribe/templates',     tpl.listTemplates);
+router.post  ('/scribe/templates',     tpl.createTemplate);
+router.put   ('/scribe/templates/:id', tpl.updateTemplate);
+router.delete('/scribe/templates/:id', tpl.deleteTemplate);
 
 // Auth helpers
 router.post  ('/auth/add-doctor',    auth.addDoctor);

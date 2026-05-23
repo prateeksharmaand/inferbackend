@@ -56,6 +56,36 @@
   appearance: auto;
 }
 .langSelect:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Template row */
+.templateRow {
+  display: flex; gap: 6px; align-items: center;
+}
+.templateSelect {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  appearance: auto;
+}
+.templateSelect:disabled { opacity: .5; cursor: not-allowed; }
+.templateDesc {
+  font-size: 11px; color: var(--color-text-3);
+  line-height: 1.4; margin: 0;
+  padding: 3px 2px;
+}
+.btnManage {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-bg); border: 1px solid var(--color-border);
+  border-radius: 8px; padding: 7px 8px; cursor: pointer;
+  color: var(--color-text-2); transition: all .1s;
+}
+.btnManage:hover { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
 .btnRecord {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--color-primary); color: #fff;

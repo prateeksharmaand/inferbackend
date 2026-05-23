@@ -245,10 +245,14 @@ async function cleanTranscript(rawTranscript, patientContext = '') {
   }
 }
 
-async function extractSOAP(transcript, ctx = null) {
+async function extractSOAP(transcript, ctx = null, focusPrompt = '') {
   const patientContext = buildPatientContext(ctx);
+  const templateSection = focusPrompt
+    ? '\n\n--- TEMPLATE FOCUS (follow these extraction rules for this consultation type) ---\n' +
+      focusPrompt.trim() + '\n---\n\n'
+    : '';
   const cleaned = await cleanTranscript(transcript, patientContext);
-  const raw = await geminiGenerate(SOAP_PROMPT + patientContext + cleaned, true);
+  const raw = await geminiGenerate(SOAP_PROMPT + patientContext + templateSection + cleaned, true);
   try {
     return { cleaned, soap: JSON.parse(raw) };
   } catch {
