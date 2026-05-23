@@ -59,11 +59,11 @@ function isHallucination(text) {
   const lower = text.toLowerCase();
   // reject if any known hallucination phrase appears
   if (HALLUCINATION_PHRASES.some(p => lower.includes(p))) return true;
-  // reject if >40% of words are repetitions (Whisper loop hallucination)
+  // reject only clear loop hallucinations — same phrase repeated 4+ times
   const words = lower.split(/\s+/);
-  if (words.length > 6) {
+  if (words.length > 16) {
     const unique = new Set(words).size;
-    if (unique / words.length < 0.4) return true;
+    if (unique / words.length < 0.25) return true;
   }
   return false;
 }
@@ -85,7 +85,7 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm') {
   form.append('audio_file', audioBuffer, { filename, contentType: audioMime });
 
   const res = await axios.post(
-    `${WHISPER_BASE}/asr?task=transcribe&language=en&output=json&initial_prompt=${WHISPER_PROMPT}`,
+    `${WHISPER_BASE}/asr?task=transcribe&language=en&output=json&vad_filter=true&initial_prompt=${WHISPER_PROMPT}`,
     form,
     { headers: form.getHeaders(), timeout: 60_000 }
   );

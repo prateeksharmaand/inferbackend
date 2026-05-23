@@ -3,7 +3,7 @@ import { Mic, MicOff, Sparkles, X, CheckCheck, Loader, AlertCircle } from 'lucid
 import { api } from '../api/client';
 import styles from './ScribePanel.module.css';
 
-const SEGMENT_MS = 8000; // record in 8-second segments for real-time feel
+const SEGMENT_MS = 15000; // 15s gives Whisper enough context to handle short sentences
 
 async function recordSegment(stream, ms) {
   return new Promise(resolve => {
@@ -197,7 +197,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
       {status === 'recording' && (
         <div className={styles.recordingBar}>
           <span className={styles.recDot} />
-          <span>Recording — transcribing every {SEGMENT_MS / 1000}s</span>
+          <span>Recording — transcribing every {SEGMENT_MS / 1000} seconds</span>
         </div>
       )}
 
