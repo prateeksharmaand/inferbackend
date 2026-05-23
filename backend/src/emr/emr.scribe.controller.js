@@ -9,8 +9,10 @@ const transcribe = [
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'audio_file required' });
     try {
-      const language = req.body.language || 'en';
-      const text = await scribe.transcribeAudio(req.file.buffer, req.file.mimetype, language);
+      const language       = req.body.language       || 'en';
+      const specialization = req.body.specialization || 'general';
+      const drugFormulary  = req.body.drugFormulary  || '';
+      const text = await scribe.transcribeAudio(req.file.buffer, req.file.mimetype, language, specialization, drugFormulary);
       res.json({ text });
     } catch (err) {
       const detail = err.response?.data || err.message;
@@ -19,13 +21,13 @@ const transcribe = [
   },
 ];
 
-// POST /api/emr/scribe/soap  — { transcript: string }
+// POST /api/emr/scribe/soap  — { transcript: string, context?: object }
 // Returns { cleaned, soap }
 const extractSOAP = async (req, res) => {
-  const { transcript } = req.body;
+  const { transcript, context } = req.body;
   if (!transcript?.trim()) return res.status(400).json({ error: 'transcript required' });
   try {
-    const { cleaned, soap } = await scribe.extractSOAP(transcript);
+    const { cleaned, soap } = await scribe.extractSOAP(transcript, context || null);
     res.json({ cleaned, soap });
   } catch (err) {
     const detail = err.response?.data || err.message;

@@ -884,7 +884,10 @@ export default function WriteRx() {
       )}
 
       {showScribe && (
-        <ScribePanel set={set} setVital={setVital} onClose={() => setShowScribe(false)} />
+        <ScribePanel
+          set={set} setVital={setVital} onClose={() => setShowScribe(false)}
+          appt={appt} pastNotes={pastNotes} user={user} form={form}
+        />
       )}
 
       {showConfigure && (

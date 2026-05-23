@@ -30,10 +30,12 @@ async function recordSegment(stream, ms) {
   });
 }
 
-async function sendChunk(blob, language = 'en') {
+async function sendChunk(blob, language = 'en', specialization = '', drugFormulary = '') {
   const form = new FormData();
   form.append('audio_file', blob, 'chunk.webm');
   form.append('language', language);
+  if (specialization) form.append('specialization', specialization);
+  if (drugFormulary)  form.append('drugFormulary', drugFormulary);
   const token = localStorage.getItem('emr_token');
   const res = await fetch('/api/emr/scribe/transcribe', {
     method: 'POST',
@@ -45,7 +47,8 @@ async function sendChunk(blob, language = 'en') {
   return data.text || '';
 }
 
-export default function ScribePanel({ set, setVital, onClose }) {
+// appt: appointment object, pastNotes: last encounters, user: logged-in doctor, form: current InferPad form
+export default function ScribePanel({ set, setVital, onClose, appt, pastNotes, user, form: rxForm }) {
   const [status,     setStatus]     = useState('idle');
   const [transcript, setTranscript] = useState('');
   const [cleaned,    setCleaned]    = useState('');
@@ -77,8 +80,36 @@ export default function ScribePanel({ set, setVital, onClose }) {
     return () => clearInterval(timerRef.current);
   }, [status]);
 
+  // Build patient context object for Gemini (SOAP extraction)
+  const buildContext = useCallback(() => {
+    const ctx = {};
+    if (appt) {
+      ctx.patient = {
+        name:            appt.patient_name   || null,
+        age:             appt.patient_age    || null,
+        gender:          appt.patient_gender === 'M' ? 'Male'
+                       : appt.patient_gender === 'F' ? 'Female'
+                       : null,
+        medical_history: rxForm?.medical_history || [],
+        medications:     rxForm?.medications     || [],
+      };
+    }
+    if (pastNotes?.length) {
+      ctx.pastNotes = pastNotes.slice(0, 2);
+    }
+    if (user?.specialization) {
+      ctx.specialization = user.specialization;
+    }
+    if (user?.drug_formulary) {
+      ctx.drugFormulary = user.drug_formulary;
+    }
+    return ctx;
+  }, [appt, pastNotes, user, rxForm]);
+
   const startRecording = useCallback(async () => {
     setErrMsg(''); setSoap(null); setTranscript(''); setCleaned(''); setElapsed(0); setPending(0);
+    const spec  = user?.specialization || '';
+    const drugs = user?.drug_formulary  || '';
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -93,7 +124,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
           if (blob.size < 500) continue;
 
           setPending(n => n + 1);
-          sendChunk(blob, language)
+          sendChunk(blob, language, spec, drugs)
             .then(text => { if (text) setTranscript(t => t ? t + ' ' + text : text); })
             .catch(() => {})
             .finally(() => setPending(n => n - 1));
@@ -103,7 +134,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
       setErrMsg('Microphone access denied. Please allow microphone and retry.');
       setStatus('error');
     }
-  }, []);
+  }, [language, user]);
 
   const stopRecording = useCallback(() => {
     recordingRef.current = false;
@@ -117,7 +148,8 @@ export default function ScribePanel({ set, setVital, onClose }) {
     if (!tx) return;
     setStatus('extracting'); setErrMsg('');
     try {
-      const data = await api.post('/scribe/soap', { transcript: tx });
+      const context = buildContext();
+      const data = await api.post('/scribe/soap', { transcript: tx, context });
       setCleaned(data.cleaned || '');
       setSoap(data.soap || data);
       setStatus('done');
@@ -125,7 +157,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
       setErrMsg('SOAP extraction failed: ' + err.message);
       setStatus('error');
     }
-  }, []);
+  }, [buildContext]);
 
   const applyToInferPad = useCallback(() => {
     if (!soap) return;
@@ -254,6 +286,19 @@ export default function ScribePanel({ set, setVital, onClose }) {
           </button>
         </div>
       </div>
+
+      {/* Context badge — shows active context so doctor knows what's loaded */}
+      {(appt || pastNotes?.length > 0) && (
+        <div className={styles.contextBar}>
+          {appt && <span className={styles.contextChip}>{appt.patient_name}</span>}
+          {pastNotes?.length > 0 && (
+            <span className={styles.contextChip}>{pastNotes.length} past visit{pastNotes.length > 1 ? 's' : ''}</span>
+          )}
+          {user?.specialization && (
+            <span className={styles.contextChip}>{user.specialization}</span>
+          )}
+        </div>
+      )}
 
       {/* Recording bar */}
       {status === 'recording' && (

@@ -76,6 +76,21 @@
 .btnExtract:hover:not(:disabled) { background: #dcfce7; }
 .btnExtract:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Context badge bar */
+.contextBar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  padding: 5px 16px;
+  background: #f8faff;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.contextChip {
+  font-size: 10px; font-weight: 600;
+  background: #e0e7ff; color: #3730a3;
+  padding: 2px 8px; border-radius: 20px;
+  white-space: nowrap;
+}
+
 /* Recording bar */
 .recordingBar {
   display: flex; align-items: center; gap: 8px;

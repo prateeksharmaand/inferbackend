@@ -7,17 +7,39 @@ const GEMINI_KEY    = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL  = 'gemini-2.5-flash';
 const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-// Keyword-list format biases Whisper vocabulary without giving it sentences to hallucinate
-const WHISPER_PROMPT = encodeURIComponent(
+// Base vocabulary — specialization vocab + drug formulary appended dynamically per request
+const WHISPER_PROMPT_BASE =
   'chief complaint, fever, cough, shortness of breath, chest pain, dizziness, fatigue, ' +
   'hypertension, diabetes, asthma, thyroid, anemia, infection, fracture, ' +
   'blood pressure, systolic, diastolic, pulse rate, SpO2, temperature, respiratory rate, ' +
   'height, weight, BMI, hemoglobin, CBC, LFT, RFT, ECG, X-ray, ultrasound, MRI, CT scan, ' +
-  'paracetamol, ibuprofen, amoxicillin, azithromycin, metformin, atorvastatin, ' +
-  'amlodipine, omeprazole, pantoprazole, cetirizine, montelukast, insulin, ' +
   '500mg, 250mg, 10mg, 5mg, OD, BD, TDS, QID, SOS, after meals, before meals, ' +
-  'refer, follow-up, review, discharge, admitted, prescription, diagnosis'
-);
+  'refer, follow-up, review, discharge, admitted, prescription, diagnosis';
+
+const SPECIALIZATION_VOCAB = {
+  cardiology:       'troponin, stent, angiography, pacemaker, atrial fibrillation, coronary artery disease, ejection fraction, echocardiogram, stress test, beta blocker, ACE inhibitor, warfarin, catheterization, cardiac enzymes',
+  dermatology:      'eczema, psoriasis, dermatitis, acne, rosacea, topical steroid, urticaria, seborrheic, antifungal, patch test, lesion, biopsy, melanoma, pruritus',
+  orthopedics:      'fracture, dislocation, ligament tear, meniscus, arthritis, osteoporosis, physiotherapy, NSAID, calcium supplement, joint replacement, cast, splint, brace, scoliosis, tendon',
+  pediatrics:       'immunization, vaccination, growth chart, milestone, jaundice, dehydration, oral rehydration, nebulization, vitamin D, zinc, iron drops, weight for age, birth weight',
+  gynecology:       'menstruation, dysmenorrhea, PCOS, fibroid, ovarian cyst, prenatal, antenatal, contraception, FSH, LH, progesterone, estrogen, HRT, pap smear, fetal heart rate',
+  neurology:        'seizure, epilepsy, migraine, stroke, EEG, nerve conduction, tremor, Parkinson, dementia, anticonvulsant, levetiracetam, valproate, phenytoin, sumatriptan, neuropathy',
+  psychiatry:       'depression, anxiety, bipolar, schizophrenia, insomnia, SSRI, SNRI, antipsychotic, mood stabilizer, lithium, counseling, CBT, panic attack, OCD, PTSD, hallucination',
+  ophthalmology:    'visual acuity, intraocular pressure, glaucoma, cataract, retina, diabetic retinopathy, fundus, slit lamp, refractive error, myopia, hyperopia, astigmatism, eye drops',
+  ent:              'sinusitis, otitis media, hearing loss, tonsillitis, rhinitis, nasal polyp, vertigo, tinnitus, audiogram, laryngoscopy, decongestant, adenoids, mastoid',
+  endocrinology:    'TSH, T3, T4, HbA1c, fasting glucose, insulin resistance, hypothyroidism, hyperthyroidism, adrenal, cortisol, DEXA scan, thyroid nodule, polycystic',
+  pulmonology:      'spirometry, peak flow, inhaler, bronchodilator, salbutamol, budesonide, oxygen saturation, COPD, bronchitis, pneumonia, respiratory distress, pleural effusion',
+  gastroenterology: 'GERD, peptic ulcer, IBS, Crohn, colitis, cirrhosis, hepatitis, endoscopy, colonoscopy, bilirubin, ALT, AST, PPI, antacid, prokinetic, dyspepsia',
+  nephrology:       'creatinine, BUN, GFR, proteinuria, hematuria, kidney stone, dialysis, nephritis, diuretic, phosphate binder, erythropoietin, renal function test',
+};
+
+const DEFAULT_DRUG_FORMULARY =
+  'paracetamol, ibuprofen, aspirin, diclofenac, amoxicillin, azithromycin, ciprofloxacin, ' +
+  'doxycycline, cefixime, metronidazole, metformin, glipizide, sitagliptin, insulin, ' +
+  'atorvastatin, rosuvastatin, amlodipine, losartan, telmisartan, ramipril, enalapril, ' +
+  'omeprazole, pantoprazole, domperidone, ondansetron, cetirizine, levocetrizine, montelukast, ' +
+  'salbutamol, budesonide, levothyroxine, prednisolone, dexamethasone, ' +
+  'vitamin D3, vitamin B12, folic acid, iron tablets, calcium carbonate, ' +
+  'alprazolam, clonazepam, escitalopram, sertraline';
 
 function cleanAudio(buffer) {
   return new Promise((resolve, reject) => {
@@ -61,9 +83,7 @@ const HALLUCINATION_PHRASES = [
 function isHallucination(text) {
   if (!text || text.length < 8) return true;
   const lower = text.toLowerCase();
-  // reject if any known hallucination phrase appears
   if (HALLUCINATION_PHRASES.some(p => lower.includes(p))) return true;
-  // reject only clear loop hallucinations — same phrase repeated 4+ times
   const words = lower.split(/\s+/);
   if (words.length > 16) {
     const unique = new Set(words).size;
@@ -72,7 +92,7 @@ function isHallucination(text) {
   return false;
 }
 
-async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en') {
+async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en', specialization = 'general', drugFormulary = '') {
   let audioBuffer = buffer;
   let audioMime = mimetype;
   let filename = 'audio.webm';
@@ -85,12 +105,18 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en')
     console.warn('[scribe] ffmpeg preprocessing failed, sending raw audio:', err.message);
   }
 
+  // Build dynamic Whisper vocabulary: base + specialization keywords + drug formulary
+  const specVocab = SPECIALIZATION_VOCAB[specialization?.toLowerCase()] || '';
+  const drugs = (drugFormulary || DEFAULT_DRUG_FORMULARY).trim();
+  const promptParts = [WHISPER_PROMPT_BASE, specVocab, drugs].filter(Boolean);
+  const promptText = promptParts.join(', ');
+
   const form = new FormData();
   form.append('audio_file', audioBuffer, { filename, contentType: audioMime });
 
   const langParam = language === 'auto' ? '' : `&language=${language}`;
   const res = await axios.post(
-    `${WHISPER_BASE}/asr?task=transcribe${langParam}&output=json&vad_filter=true&initial_prompt=${WHISPER_PROMPT}`,
+    `${WHISPER_BASE}/asr?task=transcribe${langParam}&output=json&vad_filter=true&initial_prompt=${encodeURIComponent(promptText)}`,
     form,
     { headers: form.getHeaders(), timeout: 60_000 }
   );
@@ -104,6 +130,58 @@ const HALLUCINATION_GUARD =
   '(2) If a field value is uncertain or not clearly stated, write "unclear" for string fields or null for missing ones. ' +
   '(3) Only extract what was directly said. Do not complete, guess, or embellish.';
 
+function buildPatientContext(ctx) {
+  if (!ctx) return '';
+  const lines = [];
+
+  if (ctx.patient) {
+    const { name, age, gender, medical_history, medications } = ctx.patient;
+    const parts = [];
+    if (name)   parts.push(`Name: ${name}`);
+    if (age)    parts.push(`Age: ${age}`);
+    if (gender) parts.push(`Gender: ${gender}`);
+    if (parts.length) lines.push('PATIENT: ' + parts.join(', '));
+
+    if (medical_history?.length) {
+      const conditions = medical_history
+        .map(h => h.condition || h.label || h.key)
+        .filter(Boolean);
+      if (conditions.length) lines.push('KNOWN CONDITIONS: ' + conditions.join(', '));
+    }
+    if (medications?.length) {
+      const meds = medications.map(m => m.name).filter(Boolean);
+      if (meds.length) lines.push('CURRENT MEDICATIONS: ' + meds.join(', '));
+    }
+  }
+
+  if (ctx.pastNotes?.length) {
+    const recent = ctx.pastNotes.slice(0, 2);
+    lines.push('RECENT ENCOUNTERS:');
+    recent.forEach((note, i) => {
+      const date = note.created_at
+        ? new Date(note.created_at).toLocaleDateString('en-IN')
+        : `visit ${i + 1}`;
+      const parts = [];
+      if (note.diagnosis?.length)
+        parts.push('Dx: ' + note.diagnosis.map(d => d.display || d).join(', '));
+      if (note.symptoms?.length)
+        parts.push('Sx: ' + note.symptoms.map(s => s.name || s).join(', '));
+      if (note.medications?.length)
+        parts.push('Rx: ' + note.medications.map(m => m.name).filter(Boolean).join(', '));
+      if (parts.length) lines.push(`  [${date}] ${parts.join(' | ')}`);
+    });
+  }
+
+  if (ctx.drugFormulary) {
+    lines.push('CLINIC FORMULARY (prefer these drug names when they match what was said): ' + ctx.drugFormulary);
+  }
+
+  return lines.length
+    ? '\n\n--- PATIENT CONTEXT (use only to improve accuracy; do not add unstated information) ---\n' +
+      lines.join('\n') + '\n---\n\n'
+    : '';
+}
+
 const CLEANUP_PROMPT =
   'You are a medical transcription editor. Your only task is to clean up the raw speech-to-text transcript below.\n' +
   'The transcript may be in English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, or a mix (Hinglish).\n' +
@@ -113,12 +191,15 @@ const CLEANUP_PROMPT =
   '- Correct obvious mis-transcriptions of medical terms (e.g. "hamoglobin" → "hemoglobin").\n' +
   '- Translate the entire output to English, preserving all clinical meaning exactly.\n' +
   '- Keep the meaning and all factual content exactly as spoken. Do not add, remove, or rephrase clinical information.\n' +
+  '- Use the patient context (if provided) only to resolve ambiguous drug names or medical terms — never to add information not in the transcript.\n' +
   HALLUCINATION_GUARD + '\n' +
   'Return ONLY the cleaned English transcript text, nothing else.\n\n' +
   'Raw transcript:\n';
 
 const SOAP_PROMPT =
   'You are a medical scribe. Extract structured SOAP notes from the cleaned doctor-patient conversation below.\n' +
+  '- Use the patient context (if provided) to correctly attribute known conditions vs. newly mentioned ones.\n' +
+  '- Prefer drug names from the clinic formulary when they match what was said.\n' +
   HALLUCINATION_GUARD + '\n' +
   'Return ONLY a valid JSON object with this exact structure (use null for missing fields, empty arrays [] if nothing found):\n' +
   '{\n' +
@@ -154,9 +235,9 @@ async function geminiGenerate(prompt, json = false) {
   return res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function cleanTranscript(rawTranscript) {
+async function cleanTranscript(rawTranscript, patientContext = '') {
   try {
-    const cleaned = await geminiGenerate(CLEANUP_PROMPT + rawTranscript, false);
+    const cleaned = await geminiGenerate(CLEANUP_PROMPT + patientContext + rawTranscript, false);
     return cleaned.trim() || rawTranscript;
   } catch (err) {
     console.warn('[scribe] cleanup pass failed, using raw transcript:', err.message);
@@ -164,9 +245,10 @@ async function cleanTranscript(rawTranscript) {
   }
 }
 
-async function extractSOAP(transcript) {
-  const cleaned = await cleanTranscript(transcript);
-  const raw = await geminiGenerate(SOAP_PROMPT + cleaned, true);
+async function extractSOAP(transcript, ctx = null) {
+  const patientContext = buildPatientContext(ctx);
+  const cleaned = await cleanTranscript(transcript, patientContext);
+  const raw = await geminiGenerate(SOAP_PROMPT + patientContext + cleaned, true);
   try {
     return { cleaned, soap: JSON.parse(raw) };
   } catch {
