@@ -42,9 +42,10 @@ function patientResource(appt) {
 }
 
 function appointmentResource(appt, patientRef) {
-  const start = appt.appointment_date
-    ? `${appt.appointment_date}T${appt.appointment_time || '00:00:00'}`
-    : new Date().toISOString();
+  const dateStr = appt.appointment_date
+    ? new Date(appt.appointment_date).toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
+  const start = `${dateStr}T${appt.appointment_time || '00:00:00'}`;
   return {
     resourceType: 'Appointment',
     status: 'booked',
@@ -63,7 +64,7 @@ function encounterResource(appt, patientRef, appointmentRef) {
     type: [{ coding: [{ system: 'http://snomed.info/sct', code: '11429006', display: 'Consultation' }] }],
     subject: { reference: patientRef },
     ...(appointmentRef && { appointment: [{ reference: appointmentRef }] }),
-    period: { start: appt.appointment_date ? `${appt.appointment_date}T00:00:00` : new Date().toISOString() },
+    period: { start: appt.appointment_date ? new Date(appt.appointment_date).toISOString().slice(0, 10) + 'T00:00:00' : new Date().toISOString() },
   };
 }
 
