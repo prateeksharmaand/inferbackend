@@ -1846,7 +1846,7 @@ async function submitConsent() {
     const result = await api('POST', '/consents', {
       patientAbha: abha, hipId, purpose, hiTypes,
       dateFrom: dateFrom ? new Date(dateFrom).toISOString() : null,
-      dateTo:   dateTo   ? new Date(dateTo + 'T23:59:59').toISOString() : null,
+      dateTo:   dateTo   ? new Date(Math.min(new Date(dateTo + 'T23:59:59').getTime(), Date.now())).toISOString() : null,
       requesterName, requesterReg,
     });
     if (result.patientLinked === false) {
