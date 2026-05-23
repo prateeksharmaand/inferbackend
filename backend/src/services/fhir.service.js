@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const FHIR_BASE = process.env.FHIR_BASE_URL || 'http://phr_fhir:8080/fhir';
+const FHIR_BASE = process.env.FHIR_BASE_URL || 'http://fhir:8080/fhir';
 
 const fhirClient = axios.create({
   baseURL: FHIR_BASE,
