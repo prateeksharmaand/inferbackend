@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS scribe_templates (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  clinic_id    UUID NOT NULL REFERENCES emr_clinics(id) ON DELETE CASCADE,
+  id           SERIAL PRIMARY KEY,
+  clinic_id    INTEGER NOT NULL REFERENCES emr_clinics(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
   description  TEXT,
   focus_prompt TEXT NOT NULL DEFAULT '',
