@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Sparkles, X, CheckCheck, Loader, AlertCircle } from 'lucide-react';
+import { Mic, MicOff, Sparkles, X, CheckCheck, Loader, AlertCircle, Brain } from 'lucide-react';
 import { api } from '../api/client';
 import styles from './ScribePanel.module.css';
 
-const SEGMENT_MS = 15000; // 15s gives Whisper enough context to handle short sentences
+const SEGMENT_MS = 15000;
 
 async function recordSegment(stream, ms) {
   return new Promise(resolve => {
@@ -19,9 +19,8 @@ async function recordSegment(stream, ms) {
 async function sendChunk(blob) {
   const form = new FormData();
   form.append('audio_file', blob, 'chunk.webm');
-  const BASE = '/api/emr';
   const token = localStorage.getItem('emr_token');
-  const res = await fetch(`${BASE}/scribe/transcribe`, {
+  const res = await fetch('/api/emr/scribe/transcribe', {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -32,28 +31,26 @@ async function sendChunk(blob) {
 }
 
 export default function ScribePanel({ set, setVital, onClose }) {
-  const [status,     setStatus]     = useState('idle');   // idle | recording | extracting | done | error
+  const [status,     setStatus]     = useState('idle');
   const [transcript, setTranscript] = useState('');
   const [cleaned,    setCleaned]    = useState('');
   const [soap,       setSoap]       = useState(null);
   const [errMsg,     setErrMsg]     = useState('');
   const [elapsed,    setElapsed]    = useState(0);
+  const [pending,    setPending]    = useState(0); // chunks in-flight to Whisper
 
-  const streamRef    = useRef(null);
-  const recordingRef = useRef(false);
-  const transcriptRef= useRef('');
-  const timerRef     = useRef(null);
-  const txAreaRef    = useRef(null);
+  const streamRef     = useRef(null);
+  const recordingRef  = useRef(false);
+  const transcriptRef = useRef('');
+  const timerRef      = useRef(null);
+  const txAreaRef     = useRef(null);
 
-  // keep transcriptRef in sync for async loop
   useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
 
-  // auto-scroll transcript
   useEffect(() => {
     if (txAreaRef.current) txAreaRef.current.scrollTop = txAreaRef.current.scrollHeight;
   }, [transcript]);
 
-  // elapsed timer
   useEffect(() => {
     if (status === 'recording') {
       timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
@@ -65,26 +62,28 @@ export default function ScribePanel({ set, setVital, onClose }) {
   }, [status]);
 
   const startRecording = useCallback(async () => {
-    setErrMsg(''); setSoap(null); setTranscript(''); setCleaned(''); setElapsed(0);
+    setErrMsg(''); setSoap(null); setTranscript(''); setCleaned(''); setElapsed(0); setPending(0);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       recordingRef.current = true;
       setStatus('recording');
 
-      // recording loop — each segment is an independent decodable webm
+      // Fire each chunk to Whisper in parallel — don't await, keep recording immediately
       (async () => {
         while (recordingRef.current) {
           const blob = await recordSegment(streamRef.current, SEGMENT_MS);
           if (!recordingRef.current) break;
           if (blob.size < 500) continue;
-          try {
-            const text = await sendChunk(blob);
-            if (text) setTranscript(t => t ? t + ' ' + text : text);
-          } catch { /* ignore individual chunk errors */ }
+
+          setPending(n => n + 1);
+          sendChunk(blob)
+            .then(text => { if (text) setTranscript(t => t ? t + ' ' + text : text); })
+            .catch(() => {})
+            .finally(() => setPending(n => n - 1));
         }
       })();
-    } catch (err) {
+    } catch {
       setErrMsg('Microphone access denied. Please allow microphone and retry.');
       setStatus('error');
     }
@@ -114,25 +113,23 @@ export default function ScribePanel({ set, setVital, onClose }) {
 
   const applyToInferPad = useCallback(() => {
     if (!soap) return;
-
-    if (soap.chief_complaint)     set('notes', soap.chief_complaint);
-    if (soap.symptoms?.length)    set('symptoms', soap.symptoms.map(s => ({
+    if (soap.chief_complaint)        set('notes', soap.chief_complaint);
+    if (soap.symptoms?.length)       set('symptoms', soap.symptoms.map(s => ({
       name: s.name, since: s.since || '', severity: s.severity || '', code: '',
     })));
-    if (soap.diagnosis?.length)   set('diagnosis', soap.diagnosis.map(d => ({
+    if (soap.diagnosis?.length)      set('diagnosis', soap.diagnosis.map(d => ({
       display: d.display, code: d.code || '', system: d.system || 'http://snomed.info/sct', status: 'active',
     })));
-    if (soap.medications?.length) set('medications', soap.medications.map(m => ({
+    if (soap.medications?.length)    set('medications', soap.medications.map(m => ({
       name: m.name, dose: m.dose || '', frequency: m.frequency || '',
       duration: m.duration || '', instructions: m.instructions || '', timing: '',
     })));
     if (soap.lab_investigations?.length) set('lab_investigations',
       soap.lab_investigations.map(l => ({ test: l.test, remarks: l.remarks || '' })));
-    if (soap.examination_findings) set('examination_findings', soap.examination_findings);
-    if (soap.advices)              set('advices', soap.advices);
-    if (soap.refer_to)             set('refer_to', soap.refer_to);
-    if (soap.next_visit_date)      set('next_visit_date', soap.next_visit_date);
-
+    if (soap.examination_findings)   set('examination_findings', soap.examination_findings);
+    if (soap.advices)                set('advices', soap.advices);
+    if (soap.refer_to)               set('refer_to', soap.refer_to);
+    if (soap.next_visit_date)        set('next_visit_date', soap.next_visit_date);
     if (soap.vitals) {
       const v = soap.vitals;
       if (v.bp_systolic)      setVital('bp_systolic',      String(v.bp_systolic));
@@ -144,11 +141,11 @@ export default function ScribePanel({ set, setVital, onClose }) {
       if (v.height)           setVital('height',           String(v.height));
       if (v.weight)           setVital('weight',           String(v.weight));
     }
-
     onClose();
   }, [soap, set, setVital, onClose]);
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+  const isTranscribing = pending > 0;
 
   return (
     <div className={styles.panel}>
@@ -157,9 +154,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
         <div className={styles.headerLeft}>
           <Mic size={16} className={styles.headerIcon} />
           <span>Medical Scribe</span>
-          {status === 'recording' && (
-            <span className={styles.timer}>{fmt(elapsed)}</span>
-          )}
+          {status === 'recording' && <span className={styles.timer}>{fmt(elapsed)}</span>}
         </div>
         <button className={styles.closeBtn} onClick={() => { stopRecording(); onClose(); }}>
           <X size={16} />
@@ -169,11 +164,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
       {/* Controls */}
       <div className={styles.controls}>
         {status !== 'recording' ? (
-          <button
-            className={styles.btnRecord}
-            onClick={startRecording}
-            disabled={status === 'extracting'}
-          >
+          <button className={styles.btnRecord} onClick={startRecording} disabled={status === 'extracting'}>
             <Mic size={15} /> Start Recording
           </button>
         ) : (
@@ -181,7 +172,6 @@ export default function ScribePanel({ set, setVital, onClose }) {
             <MicOff size={15} /> Stop Recording
           </button>
         )}
-
         <button
           className={styles.btnExtract}
           onClick={extractSOAP}
@@ -193,11 +183,23 @@ export default function ScribePanel({ set, setVital, onClose }) {
         </button>
       </div>
 
-      {/* Recording indicator */}
+      {/* Recording bar */}
       {status === 'recording' && (
         <div className={styles.recordingBar}>
           <span className={styles.recDot} />
-          <span>Recording — transcribing every {SEGMENT_MS / 1000} seconds</span>
+          <span>Recording — sending every {SEGMENT_MS / 1000}s</span>
+        </div>
+      )}
+
+      {/* AI transcribing animation */}
+      {isTranscribing && (
+        <div className={styles.aiBar}>
+          <Brain size={13} className={styles.aiBrainSpin} />
+          <span className={styles.aiLabel}>AI transcribing</span>
+          <span className={styles.aiDots}>
+            <span /><span /><span />
+          </span>
+          {pending > 1 && <span className={styles.aiBadge}>{pending}</span>}
         </div>
       )}
 
@@ -216,13 +218,11 @@ export default function ScribePanel({ set, setVital, onClose }) {
         </div>
       </div>
 
-      {/* Cleaned transcript (after LLM grammar fix + abbreviation expansion) */}
+      {/* Cleaned transcript */}
       {cleaned && (
         <div className={styles.section}>
           <div className={styles.sectionLabel}>Cleaned Transcript</div>
-          <div className={styles.transcriptBox}>
-            {cleaned}
-          </div>
+          <div className={styles.transcriptBox}>{cleaned}</div>
         </div>
       )}
 
@@ -233,13 +233,17 @@ export default function ScribePanel({ set, setVital, onClose }) {
           <div className={styles.soapBox}>
             {soap.chief_complaint && <SoapRow label="Chief Complaint" value={soap.chief_complaint} />}
             {soap.symptoms?.length > 0 && (
-              <SoapRow label="Symptoms" value={soap.symptoms.map(s => `${s.name}${s.severity ? ` (${s.severity})` : ''}${s.since ? `, since ${s.since}` : ''}`).join(' · ')} />
+              <SoapRow label="Symptoms" value={soap.symptoms.map(s =>
+                `${s.name}${s.severity ? ` (${s.severity})` : ''}${s.since ? `, since ${s.since}` : ''}`
+              ).join(' · ')} />
             )}
             {soap.diagnosis?.length > 0 && (
               <SoapRow label="Diagnosis" value={soap.diagnosis.map(d => d.display).join(' · ')} />
             )}
             {soap.medications?.length > 0 && (
-              <SoapRow label="Medications" value={soap.medications.map(m => `${m.name}${m.dose ? ` ${m.dose}` : ''}${m.frequency ? `, ${m.frequency}` : ''}${m.duration ? ` × ${m.duration}` : ''}`).join(' · ')} />
+              <SoapRow label="Medications" value={soap.medications.map(m =>
+                `${m.name}${m.dose ? ` ${m.dose}` : ''}${m.frequency ? `, ${m.frequency}` : ''}${m.duration ? ` × ${m.duration}` : ''}`
+              ).join(' · ')} />
             )}
             {soap.lab_investigations?.length > 0 && (
               <SoapRow label="Labs" value={soap.lab_investigations.map(l => l.test).join(', ')} />
@@ -252,12 +256,11 @@ export default function ScribePanel({ set, setVital, onClose }) {
               <SoapRow label="Vitals" value={
                 Object.entries(soap.vitals)
                   .filter(([, v]) => v)
-                  .map(([k, v]) => `${k.replace(/_/g,' ')}: ${v}`)
+                  .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
                   .join(', ')
               } />
             )}
           </div>
-
           <button className={styles.btnApply} onClick={applyToInferPad}>
             <CheckCheck size={14} /> Apply to InferPad
           </button>

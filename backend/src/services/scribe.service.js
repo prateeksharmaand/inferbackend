@@ -9,10 +9,14 @@ const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/$
 
 // Keyword-list format biases Whisper vocabulary without giving it sentences to hallucinate
 const WHISPER_PROMPT = encodeURIComponent(
-  'chief complaint, fever, cough, shortness of breath, hypertension, diabetes, ' +
-  'blood pressure, pulse, SpO2, temperature, hemoglobin, CBC, ECG, X-ray, ' +
-  'paracetamol, amoxicillin, metformin, atorvastatin, omeprazole, ' +
-  'mg, mcg, OD, BD, TDS, QID, SOS, diagnosis, prescription, follow-up'
+  'chief complaint, fever, cough, shortness of breath, chest pain, dizziness, fatigue, ' +
+  'hypertension, diabetes, asthma, thyroid, anemia, infection, fracture, ' +
+  'blood pressure, systolic, diastolic, pulse rate, SpO2, temperature, respiratory rate, ' +
+  'height, weight, BMI, hemoglobin, CBC, LFT, RFT, ECG, X-ray, ultrasound, MRI, CT scan, ' +
+  'paracetamol, ibuprofen, amoxicillin, azithromycin, metformin, atorvastatin, ' +
+  'amlodipine, omeprazole, pantoprazole, cetirizine, montelukast, insulin, ' +
+  '500mg, 250mg, 10mg, 5mg, OD, BD, TDS, QID, SOS, after meals, before meals, ' +
+  'refer, follow-up, review, discharge, admitted, prescription, diagnosis'
 );
 
 function cleanAudio(buffer) {
