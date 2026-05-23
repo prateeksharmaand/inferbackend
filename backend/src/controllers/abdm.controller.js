@@ -393,7 +393,10 @@ const createConsent = async (req, res) => {
 
   const result = await abdm.createConsentRequest(
     rows[0].abha_address, hiuId, purpose, hiTypes,
-    { from: dateFrom ?? new Date(Date.now() - 365 * 24 * 3600_000).toISOString(), to: dateTo ?? new Date().toISOString() }
+    {
+      from: dateFrom ?? new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
+      to:   dateTo && new Date(dateTo) <= new Date() ? dateTo : new Date().toISOString(),
+    }
   );
 
   await pool.query(
