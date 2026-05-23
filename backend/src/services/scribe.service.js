@@ -120,16 +120,20 @@ const SOAP_PROMPT =
   'Return ONLY a valid JSON object with this exact structure (use null for missing fields, empty arrays [] if nothing found):\n' +
   '{\n' +
   '  "chief_complaint": "string or null",\n' +
+  '  "past_medical_history": [{"condition": "string", "since": "string or null"}],\n' +
   '  "symptoms": [{"name": "string", "since": "string or null", "severity": "Mild or Moderate or Severe or null"}],\n' +
   '  "diagnosis": [{"display": "string", "code": "SNOMED code or null", "system": "http://snomed.info/sct"}],\n' +
-  '  "medications": [{"name": "string", "dose": "string or null", "frequency": "string or null", "duration": "string or null", "instructions": "string or null"}],\n' +
+  '  "medications": [{"name": "string", "dose": "string or null", "frequency": "string or null", "duration": "string or null", "timing": "string or null", "instructions": "string or null"}],\n' +
   '  "lab_investigations": [{"test": "string", "remarks": "string or null"}],\n' +
+  '  "lab_results": [{"test": "string", "result": "string or null", "unit": "string or null", "range": "string or null"}],\n' +
+  '  "procedures": ["string"],\n' +
   '  "vitals": {"bp_systolic": null, "bp_diastolic": null, "pulse": null, "temp": null, "spo2": null, "respiratory_rate": null, "height": null, "weight": null},\n' +
   '  "examination_findings": "string or null",\n' +
   '  "notes": "string or null",\n' +
   '  "refer_to": "string or null",\n' +
   '  "advices": "string or null",\n' +
-  '  "next_visit_date": "YYYY-MM-DD or null"\n' +
+  '  "next_visit_date": "YYYY-MM-DD or null",\n' +
+  '  "next_visit_notes": "string or null"\n' +
   '}\n\n' +
   'Cleaned transcript:\n';
 

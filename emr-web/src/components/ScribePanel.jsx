@@ -113,23 +113,66 @@ export default function ScribePanel({ set, setVital, onClose }) {
 
   const applyToInferPad = useCallback(() => {
     if (!soap) return;
-    if (soap.chief_complaint)        set('notes', soap.chief_complaint);
-    if (soap.symptoms?.length)       set('symptoms', soap.symptoms.map(s => ({
-      name: s.name, since: s.since || '', severity: s.severity || '', code: '',
-    })));
-    if (soap.diagnosis?.length)      set('diagnosis', soap.diagnosis.map(d => ({
-      display: d.display, code: d.code || '', system: d.system || 'http://snomed.info/sct', status: 'active',
-    })));
-    if (soap.medications?.length)    set('medications', soap.medications.map(m => ({
-      name: m.name, dose: m.dose || '', frequency: m.frequency || '',
-      duration: m.duration || '', instructions: m.instructions || '', timing: '',
-    })));
-    if (soap.lab_investigations?.length) set('lab_investigations',
-      soap.lab_investigations.map(l => ({ test: l.test, remarks: l.remarks || '' })));
-    if (soap.examination_findings)   set('examination_findings', soap.examination_findings);
-    if (soap.advices)                set('advices', soap.advices);
-    if (soap.refer_to)               set('refer_to', soap.refer_to);
-    if (soap.next_visit_date)        set('next_visit_date', soap.next_visit_date);
+
+    if (soap.chief_complaint)
+      set('notes', soap.chief_complaint);
+
+    if (soap.past_medical_history?.length)
+      set('medical_history', soap.past_medical_history.map(h => ({
+        key: h.condition.toLowerCase().replace(/\s+/g, '_'),
+        label: h.condition, condition: h.condition,
+        since: h.since || '', frequency: '',
+      })));
+
+    if (soap.symptoms?.length)
+      set('symptoms', soap.symptoms.map(s => ({
+        name: s.name, since: s.since || '', severity: s.severity || '', code: '',
+      })));
+
+    if (soap.diagnosis?.length)
+      set('diagnosis', soap.diagnosis.map(d => ({
+        display: d.display, code: d.code || '',
+        system: d.system || 'http://snomed.info/sct', status: 'active',
+      })));
+
+    if (soap.medications?.length)
+      set('medications', soap.medications.map(m => ({
+        name: m.name, dose: m.dose || '', frequency: m.frequency || '',
+        duration: m.duration || '', instructions: m.instructions || '',
+        timing: m.timing || '',
+      })));
+
+    if (soap.lab_investigations?.length)
+      set('lab_investigations', soap.lab_investigations.map(l => ({
+        test: l.test, remarks: l.remarks || '',
+      })));
+
+    if (soap.lab_results?.length)
+      set('lab_results', soap.lab_results.map(r => ({
+        test: r.test, result: r.result || '', unit: r.unit || '', range: r.range || '',
+      })));
+
+    if (soap.procedures?.length)
+      set('procedures', soap.procedures);
+
+    if (soap.examination_findings)
+      set('examination_findings', soap.examination_findings);
+
+    if (soap.notes)
+      set('notes', soap.notes);
+
+    if (soap.advices)
+      set('advices', soap.advices);
+
+    if (soap.refer_to)
+      set('refer_to', soap.refer_to);
+
+    if (soap.next_visit_date)
+      set('next_visit_date', soap.next_visit_date);
+
+    if (soap.next_visit_notes)
+      set('next_visit_notes', soap.next_visit_notes);
+
     if (soap.vitals) {
       const v = soap.vitals;
       if (v.bp_systolic)      setVital('bp_systolic',      String(v.bp_systolic));
@@ -141,6 +184,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
       if (v.height)           setVital('height',           String(v.height));
       if (v.weight)           setVital('weight',           String(v.weight));
     }
+
     onClose();
   }, [soap, set, setVital, onClose]);
 
@@ -232,6 +276,11 @@ export default function ScribePanel({ set, setVital, onClose }) {
           <div className={styles.sectionLabel}>Extracted SOAP</div>
           <div className={styles.soapBox}>
             {soap.chief_complaint && <SoapRow label="Chief Complaint" value={soap.chief_complaint} />}
+            {soap.past_medical_history?.length > 0 && (
+              <SoapRow label="Past History" value={soap.past_medical_history.map(h =>
+                `${h.condition}${h.since ? ` (since ${h.since})` : ''}`
+              ).join(' · ')} />
+            )}
             {soap.symptoms?.length > 0 && (
               <SoapRow label="Symptoms" value={soap.symptoms.map(s =>
                 `${s.name}${s.severity ? ` (${s.severity})` : ''}${s.since ? `, since ${s.since}` : ''}`
@@ -246,12 +295,16 @@ export default function ScribePanel({ set, setVital, onClose }) {
               ).join(' · ')} />
             )}
             {soap.lab_investigations?.length > 0 && (
-              <SoapRow label="Labs" value={soap.lab_investigations.map(l => l.test).join(', ')} />
+              <SoapRow label="Lab Orders" value={soap.lab_investigations.map(l => l.test).join(', ')} />
             )}
-            {soap.examination_findings && <SoapRow label="Examination" value={soap.examination_findings} />}
-            {soap.advices && <SoapRow label="Advice" value={soap.advices} />}
-            {soap.refer_to && <SoapRow label="Referral" value={soap.refer_to} />}
-            {soap.next_visit_date && <SoapRow label="Follow-up" value={soap.next_visit_date} />}
+            {soap.lab_results?.length > 0 && (
+              <SoapRow label="Lab Results" value={soap.lab_results.map(r =>
+                `${r.test}${r.result ? `: ${r.result}${r.unit ? ' ' + r.unit : ''}` : ''}`
+              ).join(' · ')} />
+            )}
+            {soap.procedures?.length > 0 && (
+              <SoapRow label="Procedures" value={soap.procedures.join(', ')} />
+            )}
             {soap.vitals && Object.values(soap.vitals).some(Boolean) && (
               <SoapRow label="Vitals" value={
                 Object.entries(soap.vitals)
@@ -259,6 +312,13 @@ export default function ScribePanel({ set, setVital, onClose }) {
                   .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
                   .join(', ')
               } />
+            )}
+            {soap.examination_findings && <SoapRow label="Examination" value={soap.examination_findings} />}
+            {soap.notes && <SoapRow label="Notes" value={soap.notes} />}
+            {soap.advices && <SoapRow label="Advice" value={soap.advices} />}
+            {soap.refer_to && <SoapRow label="Referral" value={soap.refer_to} />}
+            {soap.next_visit_date && (
+              <SoapRow label="Follow-up" value={[soap.next_visit_date, soap.next_visit_notes].filter(Boolean).join(' · ')} />
             )}
           </div>
           <button className={styles.btnApply} onClick={applyToInferPad}>
