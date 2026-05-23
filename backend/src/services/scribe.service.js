@@ -1,5 +1,6 @@
 const axios = require('axios');
 const FormData = require('form-data');
+const { spawn } = require('child_process');
 
 const WHISPER_BASE = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
 const OLLAMA_BASE  = process.env.OLLAMA_BASE_URL  || 'http://ollama:11434';
@@ -14,9 +15,51 @@ const WHISPER_PROMPT = encodeURIComponent(
   'lab tests ordered, referrals, follow-up date and instructions, and patient advice.'
 );
 
+function cleanAudio(buffer) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    const errLines = [];
+    const ff = spawn('ffmpeg', [
+      '-nostdin',
+      '-i', 'pipe:0',
+      '-af', 'afftdn=nf=-25,loudnorm',
+      '-ar', '16000',
+      '-ac', '1',
+      '-f', 'wav',
+      '-y',
+      'pipe:1',
+    ]);
+    ff.stdout.on('data', d => chunks.push(d));
+    ff.stderr.on('data', d => errLines.push(d.toString()));
+    ff.on('error', reject);
+    ff.on('close', code => {
+      if (code === 0) {
+        resolve(Buffer.concat(chunks));
+      } else {
+        const msg = errLines.join('').slice(-400); // last 400 chars of stderr
+        reject(new Error(`ffmpeg exited ${code}: ${msg}`));
+      }
+    });
+    ff.stdin.write(buffer);
+    ff.stdin.end();
+  });
+}
+
 async function transcribeAudio(buffer, mimetype = 'audio/webm') {
+  let audioBuffer = buffer;
+  let audioMime = mimetype;
+  let filename = 'audio.webm';
+
+  try {
+    audioBuffer = await cleanAudio(buffer);
+    audioMime = 'audio/wav';
+    filename = 'audio.wav';
+  } catch (err) {
+    console.warn('[scribe] ffmpeg preprocessing failed, sending raw audio:', err.message);
+  }
+
   const form = new FormData();
-  form.append('audio_file', buffer, { filename: 'audio.webm', contentType: mimetype });
+  form.append('audio_file', audioBuffer, { filename, contentType: audioMime });
 
   const res = await axios.post(
     `${WHISPER_BASE}/asr?task=transcribe&language=en&output=json&initial_prompt=${WHISPER_PROMPT}`,
@@ -26,45 +69,71 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm') {
   return (res.data?.text || '').trim();
 }
 
-const SOAP_PROMPT = `You are a medical scribe. Extract structured SOAP notes from the doctor-patient conversation below.
-Return ONLY a valid JSON object with this exact structure (use null for missing fields, empty arrays [] if nothing found):
-{
-  "chief_complaint": "string or null",
-  "symptoms": [{"name": "string", "since": "string or null", "severity": "Mild or Moderate or Severe or null"}],
-  "diagnosis": [{"display": "string", "code": "SNOMED code or null", "system": "http://snomed.info/sct"}],
-  "medications": [{"name": "string", "dose": "string or null", "frequency": "string or null", "duration": "string or null", "instructions": "string or null"}],
-  "lab_investigations": [{"test": "string", "remarks": "string or null"}],
-  "vitals": {"bp_systolic": null, "bp_diastolic": null, "pulse": null, "temp": null, "spo2": null, "respiratory_rate": null, "height": null, "weight": null},
-  "examination_findings": "string or null",
-  "notes": "string or null",
-  "refer_to": "string or null",
-  "advices": "string or null",
-  "next_visit_date": "YYYY-MM-DD or null"
-}
+const HALLUCINATION_GUARD =
+  'STRICT RULES: ' +
+  '(1) Do not assume, infer, or add any symptom, diagnosis, medication, test, or advice not explicitly stated in the transcript. ' +
+  '(2) If a field value is uncertain or not clearly stated, write "unclear" for string fields or null for missing ones. ' +
+  '(3) Only extract what was directly said. Do not complete, guess, or embellish.';
 
-Transcript:
-`;
+const CLEANUP_PROMPT =
+  'You are a medical transcription editor. Your only task is to clean up the raw speech-to-text transcript below.\n' +
+  'Rules:\n' +
+  '- Fix grammar and punctuation.\n' +
+  '- Expand common medical abbreviations (e.g. "BP" → "blood pressure", "SOB" → "shortness of breath", "Hx" → "history", "Rx" → "prescription", "OD" → "once daily", "BD" → "twice daily", "TDS" → "three times daily").\n' +
+  '- Correct obvious mis-transcriptions of medical terms (e.g. "hamoglobin" → "hemoglobin").\n' +
+  '- Keep the meaning and all factual content exactly as spoken. Do not add, remove, or rephrase clinical information.\n' +
+  HALLUCINATION_GUARD + '\n' +
+  'Return ONLY the cleaned transcript text, nothing else.\n\n' +
+  'Raw transcript:\n';
 
-async function extractSOAP(transcript) {
+const SOAP_PROMPT =
+  'You are a medical scribe. Extract structured SOAP notes from the cleaned doctor-patient conversation below.\n' +
+  HALLUCINATION_GUARD + '\n' +
+  'Return ONLY a valid JSON object with this exact structure (use null for missing fields, empty arrays [] if nothing found):\n' +
+  '{\n' +
+  '  "chief_complaint": "string or null",\n' +
+  '  "symptoms": [{"name": "string", "since": "string or null", "severity": "Mild or Moderate or Severe or null"}],\n' +
+  '  "diagnosis": [{"display": "string", "code": "SNOMED code or null", "system": "http://snomed.info/sct"}],\n' +
+  '  "medications": [{"name": "string", "dose": "string or null", "frequency": "string or null", "duration": "string or null", "instructions": "string or null"}],\n' +
+  '  "lab_investigations": [{"test": "string", "remarks": "string or null"}],\n' +
+  '  "vitals": {"bp_systolic": null, "bp_diastolic": null, "pulse": null, "temp": null, "spo2": null, "respiratory_rate": null, "height": null, "weight": null},\n' +
+  '  "examination_findings": "string or null",\n' +
+  '  "notes": "string or null",\n' +
+  '  "refer_to": "string or null",\n' +
+  '  "advices": "string or null",\n' +
+  '  "next_visit_date": "YYYY-MM-DD or null"\n' +
+  '}\n\n' +
+  'Cleaned transcript:\n';
+
+async function ollamaGenerate(prompt, maxTokens = 512) {
   const res = await axios.post(
     `${OLLAMA_BASE}/api/generate`,
     {
       model: OLLAMA_MODEL,
-      prompt: SOAP_PROMPT + transcript,
+      prompt,
       stream: false,
-      format: 'json',
-      options: { temperature: 0.1, num_predict: 1024 },
+      options: { temperature: 0.1, num_predict: maxTokens },
     },
     { timeout: 120_000 }
   );
+  return res.data?.response || '';
+}
 
-  const raw = res.data?.response || '{}';
+async function cleanTranscript(rawTranscript) {
+  const cleaned = await ollamaGenerate(CLEANUP_PROMPT + rawTranscript, 512);
+  return cleaned.trim() || rawTranscript;
+}
+
+async function extractSOAP(transcript) {
+  const cleaned = await cleanTranscript(transcript);
+
+  const raw = await ollamaGenerate(SOAP_PROMPT + cleaned, 1024);
   try {
-    return JSON.parse(raw);
+    return { cleaned, soap: JSON.parse(raw) };
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
-    return match ? JSON.parse(match[0]) : {};
+    return { cleaned, soap: match ? JSON.parse(match[0]) : {} };
   }
 }
 
-module.exports = { transcribeAudio, extractSOAP };
+module.exports = { transcribeAudio, cleanTranscript, extractSOAP };

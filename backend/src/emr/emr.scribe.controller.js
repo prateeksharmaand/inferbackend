@@ -19,12 +19,13 @@ const transcribe = [
 ];
 
 // POST /api/emr/scribe/soap  — { transcript: string }
+// Returns { cleaned, soap }
 const extractSOAP = async (req, res) => {
   const { transcript } = req.body;
   if (!transcript?.trim()) return res.status(400).json({ error: 'transcript required' });
   try {
-    const soap = await scribe.extractSOAP(transcript);
-    res.json(soap);
+    const { cleaned, soap } = await scribe.extractSOAP(transcript);
+    res.json({ cleaned, soap });
   } catch (err) {
     const detail = err.response?.data || err.message;
     res.status(502).json({ error: 'SOAP extraction failed', detail });

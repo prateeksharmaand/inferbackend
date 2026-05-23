@@ -34,6 +34,7 @@ async function sendChunk(blob) {
 export default function ScribePanel({ set, setVital, onClose }) {
   const [status,     setStatus]     = useState('idle');   // idle | recording | extracting | done | error
   const [transcript, setTranscript] = useState('');
+  const [cleaned,    setCleaned]    = useState('');
   const [soap,       setSoap]       = useState(null);
   const [errMsg,     setErrMsg]     = useState('');
   const [elapsed,    setElapsed]    = useState(0);
@@ -64,7 +65,7 @@ export default function ScribePanel({ set, setVital, onClose }) {
   }, [status]);
 
   const startRecording = useCallback(async () => {
-    setErrMsg(''); setSoap(null); setTranscript(''); setElapsed(0);
+    setErrMsg(''); setSoap(null); setTranscript(''); setCleaned(''); setElapsed(0);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -102,7 +103,8 @@ export default function ScribePanel({ set, setVital, onClose }) {
     setStatus('extracting'); setErrMsg('');
     try {
       const data = await api.post('/scribe/soap', { transcript: tx });
-      setSoap(data);
+      setCleaned(data.cleaned || '');
+      setSoap(data.soap || data);
       setStatus('done');
     } catch (err) {
       setErrMsg('SOAP extraction failed: ' + err.message);
@@ -213,6 +215,16 @@ export default function ScribePanel({ set, setVital, onClose }) {
           {transcript || <span className={styles.placeholder}>Transcript will appear here as you speak…</span>}
         </div>
       </div>
+
+      {/* Cleaned transcript (after LLM grammar fix + abbreviation expansion) */}
+      {cleaned && (
+        <div className={styles.section}>
+          <div className={styles.sectionLabel}>Cleaned Transcript</div>
+          <div className={styles.transcriptBox}>
+            {cleaned}
+          </div>
+        </div>
+      )}
 
       {/* SOAP Notes */}
       {soap && (
