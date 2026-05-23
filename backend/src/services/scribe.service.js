@@ -22,7 +22,6 @@ function cleanAudio(buffer) {
     const ff = spawn('ffmpeg', [
       '-nostdin',
       '-i', 'pipe:0',
-      '-af', 'afftdn=nf=-25,loudnorm',
       '-ar', '16000',
       '-ac', '1',
       '-f', 'wav',
