@@ -204,10 +204,6 @@ export default function Analytics() {
       {/* ── Form 25 table section ── */}
       <div className={styles.tableSection}>
         <div className={styles.tableHeader}>
-          <div>
-            <span className={styles.form25Title}>Form 25</span>
-            <span className={styles.form25Sub}>Daily Case Register — Rule 6F</span>
-          </div>
           <div className={styles.tableHeaderRight}>
             <div className={styles.searchBox}>
               <Search size={13} className={styles.searchIcon} />
