@@ -132,16 +132,6 @@ export default function Analytics() {
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: 'var(--color-bg)', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-      {/* ── Header ── */}
-      <div className={styles.header}>
-        <div>
-
-        </div>
-        <button className={styles.exportBtn} onClick={handleExport} disabled={!total}>
-          <Download size={14} /> Export CSV
-        </button>
-      </div>
-
       {/* ── FY Summary cards ── */}
       {summary && (
         <div className={styles.summaryRow}>
@@ -198,6 +188,10 @@ export default function Analytics() {
           <option value="">All Doctors</option>
           {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
+
+        <button className={styles.exportBtn} onClick={handleExport} disabled={!total}>
+          <Download size={14} /> Export CSV
+        </button>
       </div>
 
       {/* ── Form 25 table section ── */}
