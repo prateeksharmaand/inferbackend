@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ChevronLeft, LayoutTemplate, Settings2,
+  ChevronLeft, Settings2,
   Printer, Eye, Trash2, SlidersHorizontal, CheckCircle, X, Plus,
   Share2, Calendar, Download, CreditCard, FileText, Star, LogOut, Mic, ClipboardList,
 } from 'lucide-react';
@@ -775,7 +775,6 @@ export default function WriteRx() {
             ))}
           </nav>
           <div className={styles.linkBtns}>
-            <button className={styles.linkBtn}><LayoutTemplate size={13} strokeWidth={1.8} /> Templates</button>
             <button className={styles.linkBtn} onClick={() => setShowConfigure(true)}>
               <Settings2 size={13} strokeWidth={1.8} /> Configure your InferPad
             </button>
