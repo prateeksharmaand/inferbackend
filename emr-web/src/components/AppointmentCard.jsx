@@ -6,7 +6,9 @@ import BookSlotModal from './BookSlotModal';
 import ViewReceiptsModal from './ViewReceiptsModal';
 import MedicalDocumentsModal from './MedicalDocumentsModal';
 import { api } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import AppointmentSlipModal from './AppointmentSlipModal';
+import MedicalDocModal from './MedicalDocModal';
 import styles from './AppointmentCard.module.css';
 
 const STATUS_COLOR = {
@@ -21,7 +23,7 @@ const ACTIONS = {
   parked:     ['Resume', 'Complete'],
 };
 
-const MORE_ACTIONS = ['Write Rx', 'Print Appointment Slip', 'No Show', 'Cancel'];
+const MORE_ACTIONS = ['Write Rx', 'Print Appointment Slip', 'Medical Document', 'No Show', 'Cancel'];
 
 function durationText(from, to) {
   if (!from || !to) return null;
@@ -81,6 +83,7 @@ function reminderTime(timeStr) {
 }
 
 export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen }) {
+  const { user } = useAuth();
   const [appt,           setAppt]           = useState(initialAppt);
   useEffect(() => { setAppt(initialAppt); }, [initialAppt.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showTagDialog,  setShowTagDialog]  = useState(false);
@@ -92,6 +95,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const [showReceipts,   setShowReceipts]   = useState(false);
   const [showDocs,       setShowDocs]       = useState(false);
   const [showSlip,       setShowSlip]       = useState(false);
+  const [showMedDoc,     setShowMedDoc]     = useState(false);
   const moreRef = useRef(null);
 
   const color   = STATUS_COLOR[appt.status] || '#94a3b8';
@@ -132,6 +136,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
     if (map[action]) onStatusChange(appt.id, map[action]);
     if (action === 'Write Rx') onOpen('rx');
     if (action === 'Print Appointment Slip') setShowSlip(true);
+    if (action === 'Medical Document')       setShowMedDoc(true);
   };
 
   const handleSendReminder = async (e) => {
@@ -331,6 +336,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
       )}
       {showSlip && (
         <AppointmentSlipModal appt={appt} onClose={() => setShowSlip(false)} />
+      )}
+      {showMedDoc && (
+        <MedicalDocModal appt={appt} user={user} onClose={() => setShowMedDoc(false)} />
       )}
       {showReceipts && (
         <ViewReceiptsModal
