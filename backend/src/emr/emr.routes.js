@@ -152,7 +152,11 @@ router.get ('/consents/health-records',         emr.getConsentHealthRecords);
 router.post('/consents/:requestId/respond',     emr.respondConsent);
 router.post('/consents/:requestId/pull-data',   emr.pullConsentData);
 
-// Analytics — Form 25 (Income Tax Rule 6F daily case register)
+// Analytics dashboards
+router.get('/analytics/appointments',   analytics.getAppointmentDashboard);
+router.get('/analytics/patients',       analytics.getPatientsDashboard);
+router.get('/analytics/realtime',       analytics.getRealtimeDashboard);
+router.get('/analytics/prescriptions',  analytics.getPrescriptionAnalytics);
 router.get('/analytics/form25',         analytics.getForm25);
 router.get('/analytics/form25/summary', analytics.getForm25Summary);
 
