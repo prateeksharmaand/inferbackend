@@ -248,12 +248,20 @@ async function verifyMobileLoginOtp(otp, txnId) {
 // ─── Login with ABHA (Aadhaar OTP or Mobile OTP, via ABHA Number or Address) ──
 
 async function loginRequestAbhaOtp(loginId, loginHint, otpSystem) {
-  const normalised = loginHint === 'abha-number' ? loginId.replace(/-/g, '') : loginId;
-  const encryptedId = await rsaEncrypt(normalised);
+  const isAbhaAddress = loginId.includes('@');
+  let finalLoginId;
+
+  if (isAbhaAddress) {
+    finalLoginId = loginId;
+  } else {
+    const normalised = loginId.replace(/-/g, '');
+    finalLoginId = await rsaEncrypt(normalised);
+  }
+
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
     scope: ['abha-login', 'mobile-verify'],
     loginHint,
-    loginId: encryptedId,
+    loginId: finalLoginId,
     otpSystem,
   });
 }
