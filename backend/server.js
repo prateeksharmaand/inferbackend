@@ -99,11 +99,12 @@ app.post('/v3/hip/patient/share',                   hipCtrl.handlePatientSharePr
 app.post('/api/v3/hip/patient/share/profile',       hipCtrl.handlePatientShareProfile);
 app.post('/api/v3/hip/patient/share',               hipCtrl.handlePatientShareProfile);
 
-// ── Telnyx inbound webhooks (public, Ed25519 verified internally) ──────────
-app.post('/webhook/telnyx',         inboundWebhook.handleSmsWebhook);
-app.post('/webhook/telnyx/status',  inboundWebhook.handleStatusWebhook);
-app.post('/webhook/telnyx/voice',   inboundWebhook.handleVoiceWebhook);
-app.post('/webhook/telnyx/gather',  inboundWebhook.handleVoiceGather);
+// ── Twilio inbound webhooks (public, HMAC-SHA1 verified internally) ────────
+// India: Register DLT entity/template at trai.gov.in before going live with SMS.
+app.post('/webhook/twilio',         inboundWebhook.handleSmsWebhook);
+app.post('/webhook/twilio/status',  inboundWebhook.handleStatusWebhook);
+app.post('/webhook/twilio/voice',   inboundWebhook.handleVoiceWebhook);
+app.post('/webhook/twilio/gather',  inboundWebhook.handleVoiceGather);
 
 // Error handler
 app.use(errorHandler);

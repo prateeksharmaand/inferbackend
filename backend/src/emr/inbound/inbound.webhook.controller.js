@@ -1,34 +1,37 @@
 /**
- * Telnyx webhook handlers
- * ─ POST /webhook/telnyx         → SMS + WhatsApp inbound
- * ─ POST /webhook/telnyx/voice   → IVR call initiated
- * ─ POST /webhook/telnyx/gather  → IVR digit/speech collected
+ * Twilio webhook handlers (India-compatible)
+ * ─ POST /webhook/twilio         → SMS + WhatsApp inbound (form-encoded)
+ * ─ POST /webhook/twilio/voice   → IVR call initiated (form-encoded)
+ * ─ POST /webhook/twilio/gather  → DTMF digit collected (form-encoded)
+ * ─ POST /webhook/twilio/status  → Delivery status callbacks
  *
- * All endpoints are PUBLIC (no EMR JWT) but signature-verified.
+ * All endpoints are PUBLIC (no EMR JWT) but HMAC-SHA1 verified.
+ *
+ * India note: Twilio requires DLT registration for A2P transactional SMS in India.
+ * Register at https://www.trai.gov.in/dlt before sending bulk appointment messages.
  */
-const telnyx      = require('./telnyx.service');
+const twilio       = require('./telnyx.service');   // Twilio adapter (same exported API)
 const orchestrator = require('./booking.orchestrator');
-const slot        = require('./slot.service');
-const { pool }    = require('../../config/database');
-const logger      = require('../../utils/logger');
+const slot         = require('./slot.service');
+const { pool }     = require('../../config/database');
+const logger       = require('../../utils/logger');
 
-// ── POST /webhook/telnyx ─────────────────────────────────────────────────
+// ── POST /webhook/twilio ─────────────────────────────────────────────────
+// Twilio sends application/x-www-form-urlencoded
 const handleSmsWebhook = async (req, res) => {
-  // Telnyx expects 200 fast; process async
-  res.sendStatus(200);
+  // Twilio expects a 200 with empty TwiML or plain 200 to stop retry attempts
+  res.type('text/xml').status(200).send('<Response></Response>');
 
-  // Verify signature
-  const sig  = req.headers['telnyx-signature-ed25519-signature']  || '';
-  const ts   = req.headers['telnyx-signature-ed25519-timestamp']  || '';
-  const body = req.rawBody || JSON.stringify(req.body);
-
-  if (!telnyx.verifyWebhookSignature(body, sig, ts)) {
-    logger.warn('[Webhook/SMS] Signature verification failed');
+  // Verify Twilio signature
+  const sig     = req.headers['x-twilio-signature'] || '';
+  const fullUrl = `${process.env.BACKEND_URL}/webhook/twilio`;
+  if (!twilio.verifyWebhookSignature(null, sig, null, fullUrl, req.body)) {
+    logger.warn('[Webhook/SMS] Twilio signature verification failed');
     return;
   }
 
-  const event = telnyx.parseInboundSmsEvent(req.body);
-  if (!event || event.eventType !== 'message.received') return;
+  const event = twilio.parseInboundSmsEvent(req.body);
+  if (!event) return;
 
   logger.info(`[Webhook/SMS] ${event.channel} from ${event.from} to ${event.to}: "${event.text}"`);
 
@@ -39,46 +42,43 @@ const handleSmsWebhook = async (req, res) => {
   }
 };
 
-// ── POST /webhook/telnyx/voice — call arrives ────────────────────────────
+// ── POST /webhook/twilio/voice — call arrives ────────────────────────────
 const handleVoiceWebhook = async (req, res) => {
-  const event = telnyx.parseInboundCallEvent(req.body);
-  if (!event) return res.sendStatus(400);
+  const event = twilio.parseInboundCallEvent(req.body);
+  if (!event) return res.status(400).end();
 
   logger.info(`[Webhook/IVR] call from ${event.from} to ${event.to}`);
 
-  // Lookup clinic for IVR channel
   const { rows: [clinic] } = await pool.query(
     `SELECT ccc.clinic_id, ec.name AS clinic_name
      FROM clinic_channel_config ccc
      JOIN emr_clinics ec ON ec.id = ccc.clinic_id
-     WHERE ccc.channel = 'ivr' AND ccc.channel_address = $1 AND ccc.is_active=TRUE LIMIT 1`,
+     WHERE ccc.channel = 'ivr' AND ccc.channel_address = $1 AND ccc.is_active = TRUE LIMIT 1`,
     [event.to]
   );
 
   const clinicName = clinic?.clinic_name || 'the clinic';
   const clinicId   = clinic?.clinic_id;
 
-  // Fetch doctors for menu
   let doctors = [];
-  if (clinicId) doctors = await slot.getDoctors(clinicId);
+  if (clinicId) doctors = await slot.getDoctors(parseInt(clinicId, 10));
 
-  const gatherUrl = `${process.env.BACKEND_URL}/webhook/telnyx/gather?` +
+  const gatherUrl = `${process.env.BACKEND_URL}/webhook/twilio/gather?` +
     `from=${encodeURIComponent(event.from)}&to=${encodeURIComponent(event.to)}&clinicId=${clinicId || ''}`;
 
-  // Log IVR session
   if (clinicId) {
     await pool.query(
       `INSERT INTO inbound_conversations (clinic_id, channel, channel_id, to_address, state)
-       VALUES ($1,'ivr',$2,$3,'active')
-       ON CONFLICT DO NOTHING`,
+       VALUES ($1,'ivr',$2,$3,'active') ON CONFLICT DO NOTHING`,
       [clinicId, event.from, event.to]
     ).catch(() => {});
   }
 
-  res.type('text/xml').send(telnyx.buildGreetingTeXml(clinicName, gatherUrl));
+  res.type('text/xml').send(twilio.buildGreetingTeXml(clinicName, gatherUrl));
 };
 
-// ── POST /webhook/telnyx/gather — DTMF digit collected ───────────────────
+// ── POST /webhook/twilio/gather — DTMF digit collected ───────────────────
+// Twilio sends Digits in form body (same as Telnyx Gather action)
 const handleVoiceGather = async (req, res) => {
   const { Digits, from, to, clinicId, step = 'main' } = { ...req.query, ...req.body };
   const digit = String(Digits || '').trim();
@@ -89,76 +89,73 @@ const handleVoiceGather = async (req, res) => {
 
   if (step === 'main') {
     if (digit === '0') {
-      res.type('text/xml').send(telnyx.buildHandoffTeXml());
-      return;
+      res.type('text/xml').send(twilio.buildHandoffTeXml()); return;
     }
+
     if (digit === '2') {
-      // Cancel flow — ask for SMS confirmation
-      const smsUrl = `${backendUrl}/webhook/telnyx/gather?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&clinicId=${clinicId}&step=cancel`;
+      await twilio.sendSms(to, from,
+        'Reply CANCEL + your appointment date to cancel. E.g.: CANCEL 2025-06-10'
+      ).catch(() => {});
       res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Aditi" language="en-IN">
-    We will send you an SMS to confirm your cancellation. Goodbye.
+    We will send you an SMS with instructions to cancel. Goodbye.
   </Say>
   <Hangup/>
 </Response>`);
-      // Send SMS with cancel instructions
-      await telnyx.sendSms(to, from, 'Reply CANCEL + your appointment date to cancel. E.g.: CANCEL 2025-06-10').catch(() => {});
       return;
     }
+
     if (digit === '1') {
-      // Appointment booking — show doctor menu
       let doctors = [];
       if (clinicId) doctors = await slot.getDoctors(parseInt(clinicId, 10));
       if (!doctors.length) {
-        res.type('text/xml').send(telnyx.buildGoodbyeTeXml('No doctors available right now. We will call you back.'));
+        res.type('text/xml').send(twilio.buildGoodbyeTeXml('No doctors available right now. Please call back later.'));
         return;
       }
-      const docGatherUrl = `${backendUrl}/webhook/telnyx/gather?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&clinicId=${clinicId}&step=doctor&` +
+      const docGatherUrl = `${backendUrl}/webhook/twilio/gather?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&clinicId=${clinicId}&step=doctor&` +
         doctors.slice(0, 9).map((d, i) => `d${i + 1}=${d.id}`).join('&');
-      res.type('text/xml').send(telnyx.buildDoctorMenuTeXml(doctors, docGatherUrl));
+      res.type('text/xml').send(twilio.buildDoctorMenuTeXml(doctors, docGatherUrl));
       return;
     }
-    res.type('text/xml').send(telnyx.buildGoodbyeTeXml('Invalid selection. Please call again.'));
+
+    res.type('text/xml').send(twilio.buildGoodbyeTeXml('Invalid selection. Please call again.'));
 
   } else if (step === 'doctor') {
-    const idx = parseInt(digit, 10);
+    const idx      = parseInt(digit, 10);
     const doctorId = req.query[`d${idx}`] ? parseInt(req.query[`d${idx}`], 10) : null;
 
     if (!doctorId || digit === '0') {
-      res.type('text/xml').send(telnyx.buildGoodbyeTeXml('Going back. Please call again to start over.'));
+      res.type('text/xml').send(twilio.buildGoodbyeTeXml('Please call again to start over.'));
       return;
     }
 
     const { rows: [doc] } = await pool.query(`SELECT name FROM emr_doctors WHERE id=$1`, [doctorId]);
     const doctorName = doc?.name || 'the doctor';
 
-    // Send SMS to continue booking over text
-    const smsText = `You called to book with ${doctorName}. Please reply with your preferred date (e.g. "tomorrow" or "June 15") to continue booking via SMS.`;
-    await telnyx.sendSms(to, from, smsText).catch(() => {});
+    await twilio.sendSms(to, from,
+      `You called to book with ${doctorName}. Reply with your preferred date (e.g. "tomorrow" or "15 June") to continue via SMS.`
+    ).catch(() => {});
 
-    // Seed the conversation context
     if (clinicId) {
       await pool.query(
         `INSERT INTO inbound_conversations (clinic_id, channel, channel_id, to_address, state, context)
          VALUES ($1,'sms',$2,$3,'active',$4)
          ON CONFLICT (channel, channel_id) DO UPDATE SET context=EXCLUDED.context, updated_at=NOW()`,
-        [parseInt(clinicId, 10), from, to, JSON.stringify({ doctor_id: doctorId, doctor_name: doctorName, ivr_initiated: true })]
+        [parseInt(clinicId, 10), from, to,
+         JSON.stringify({ doctor_id: doctorId, doctor_name: doctorName, ivr_initiated: true })]
       ).catch(() => {});
     }
 
-    res.type('text/xml').send(telnyx.buildCallbackTeXml(doctorName));
+    res.type('text/xml').send(twilio.buildCallbackTeXml(doctorName));
   }
 };
 
-// ── POST /webhook/telnyx/status — delivery status updates ────────────────
+// ── POST /webhook/twilio/status — delivery status ────────────────────────
 const handleStatusWebhook = async (req, res) => {
-  res.sendStatus(200);
-  const event = req.body?.data;
-  if (event?.event_type === 'message.finalized') {
-    const status = event.payload?.to?.[0]?.status;
-    logger.info(`[Webhook/Status] msg delivery: ${status}`, { id: event.payload?.id });
-  }
+  res.status(200).end();
+  const { MessageSid, MessageStatus, To } = req.body || {};
+  if (MessageSid) logger.info(`[Webhook/Status] ${MessageSid} → ${MessageStatus} for ${To}`);
 };
 
 module.exports = { handleSmsWebhook, handleVoiceWebhook, handleVoiceGather, handleStatusWebhook };
