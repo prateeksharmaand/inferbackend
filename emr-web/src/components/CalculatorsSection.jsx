@@ -188,7 +188,10 @@ export default function CalculatorsSection({ enabledIds, vitals, calcResults = {
         const displayVal = r ? `${r.value}${r.unit ? ' ' + r.unit : ''}` : '';
         return (
           <div key={calc.id} className={s.calcRow}>
-            <span className={s.rowLabel} title={calc.desc}>{calc.name}</span>
+            <div className={s.rowTop}>
+              <span className={s.rowLabel} title={calc.desc}>{calc.name}</span>
+              {r?.label && <span className={s.rowInterp} style={{ color: r.color }}>{r.label}</span>}
+            </div>
             <input
               className={s.rowInput}
               style={r?.color ? { borderColor: r.color, color: r.color, fontWeight: 700 } : {}}
@@ -197,7 +200,6 @@ export default function CalculatorsSection({ enabledIds, vitals, calcResults = {
               title={r?.label || 'Enter value or click Calculate'}
               onChange={e => handleManualEntry(calc, e.target.value)}
             />
-            {r?.label && <span className={s.rowInterp} style={{ color: r.color }}>{r.label}</span>}
             <button className={s.rowBtn} onClick={() => setActiveCalc(calc)}>Calculate</button>
           </div>
         );
