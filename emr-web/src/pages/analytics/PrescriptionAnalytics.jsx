@@ -103,7 +103,7 @@ export default function PrescriptionAnalytics() {
 
   return (
     <div className={s.dash}>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className={s.filterBar}>
         <input type="date" className={s.dateInput} value={from} onChange={e => setFrom(e.target.value)} />
         <span className={s.dateSep}>–</span>
         <input type="date" className={s.dateInput} value={to}   onChange={e => setTo(e.target.value)} />

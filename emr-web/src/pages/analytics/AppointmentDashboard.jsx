@@ -45,7 +45,7 @@ export default function AppointmentDashboard({ doctors = [] }) {
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className={s.filterBar}>
         <DateFilter from={from} to={to} onFrom={setFrom} onTo={setTo} onApply={load} />
         <select className={s.dateInput} value={docId} onChange={e => setDocId(e.target.value)}>
           <option value="">All Doctors</option>

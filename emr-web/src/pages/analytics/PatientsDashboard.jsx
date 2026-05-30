@@ -46,7 +46,7 @@ export default function PatientsDashboard() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className={s.filterBar}>
         <DateFilter from={from} to={to} onFrom={setFrom} onTo={setTo} onApply={load} />
       </div>
 
