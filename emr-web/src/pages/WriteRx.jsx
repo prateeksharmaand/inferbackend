@@ -879,9 +879,6 @@ export default function WriteRx() {
             ))}
           </nav>
           <div className={styles.linkBtns}>
-            <button className={styles.linkBtn} onClick={() => setShowConfigure(true)}>
-              <Settings2 size={13} strokeWidth={1.8} /> Configure your InferPad
-            </button>
             <button
               className={`${styles.linkBtn} ${showPatientCtx ? styles.linkBtnActive : ''}`}
               onClick={() => { setShowPatientCtx(p => !p); setPatientMinimized(false); }}
@@ -1092,15 +1089,6 @@ export default function WriteRx() {
         />
       )}
 
-      {showConfigure && (
-        <ConfigureInferPadModal
-          clinicId={user?.clinic_id || 'default'}
-          onClose={(saved) => {
-            setShowConfigure(false);
-            if (saved) setRxImages(loadRxImages());
-          }}
-        />
-      )}
     </>
   );
 }

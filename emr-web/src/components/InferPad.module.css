@@ -510,3 +510,26 @@
 .vcCalcItem:hover { background: #f8fafc; }
 .vcCalcInfo { display: flex; flex-direction: column; gap: 2px; }
 .vcCalcDesc { font-size: 11px; color: #94a3b8; }
+
+/* ── InferPad Settings card ── */
+.settingsBody {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.settingRow {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.settingInfo { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.settingLabel { font-size: 13px; font-weight: 600; color: var(--color-text, #1e293b); }
+.settingHint  { font-size: 11px; color: var(--color-text-3, #94a3b8); line-height: 1.4; }
+.settingInput {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;
+  transition: border-color .12s;
+}
+.settingInput:focus { border-color: var(--color-primary); }
+.settingSave {
+  align-self: flex-end; padding: 8px 20px; border-radius: 8px;
+  background: var(--color-primary, #2563eb); color: #fff; border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: background .12s;
+}
+.settingSave:hover { background: var(--color-primary-dk, #1d4ed8); }
