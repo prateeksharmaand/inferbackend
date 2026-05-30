@@ -13,6 +13,7 @@ const ac      = require('./emr.autocomplete.controller');
 const scribe      = require('./emr.scribe.controller');
 const tpl         = require('./emr.templates.controller');
 const assessment  = require('../controllers/assessment.controller');
+const inbound     = require('./inbound/inbound.routes');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -149,5 +150,8 @@ router.get ('/consents',                        emr.listConsentRequests);
 router.get ('/consents/health-records',         emr.getConsentHealthRecords);
 router.post('/consents/:requestId/respond',     emr.respondConsent);
 router.post('/consents/:requestId/pull-data',   emr.pullConsentData);
+
+// Inbound automated appointment booking (Telnyx + Gemini)
+router.use('/inbound', inbound);
 
 module.exports = router;

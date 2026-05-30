@@ -12,6 +12,8 @@ const routes = require('./src/routes');
 const errorHandler = require('./src/middleware/errorHandler');
 const logger = require('./src/utils/logger');
 const { startReminderCron, startGmailSyncCron } = require('./src/services/cron.service');
+const inboundWebhook = require('./src/emr/inbound/inbound.webhook.controller');
+const { sendPendingReminders } = require('./src/emr/inbound/booking.orchestrator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,8 +33,10 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { er
 app.use('/api/auth', authLimiter);
 app.use('/api', limiter);
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
+// Body parsing — capture rawBody for Telnyx Ed25519 signature verification
+app.use((req, res, next) => {
+  express.json({ limit: '10mb', verify: (r, _, buf) => { r.rawBody = buf.toString('utf8'); } })(req, res, next);
+});
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files (encrypted uploads)
@@ -95,6 +99,12 @@ app.post('/v3/hip/patient/share',                   hipCtrl.handlePatientSharePr
 app.post('/api/v3/hip/patient/share/profile',       hipCtrl.handlePatientShareProfile);
 app.post('/api/v3/hip/patient/share',               hipCtrl.handlePatientShareProfile);
 
+// ── Telnyx inbound webhooks (public, Ed25519 verified internally) ──────────
+app.post('/webhook/telnyx',         inboundWebhook.handleSmsWebhook);
+app.post('/webhook/telnyx/status',  inboundWebhook.handleStatusWebhook);
+app.post('/webhook/telnyx/voice',   inboundWebhook.handleVoiceWebhook);
+app.post('/webhook/telnyx/gather',  inboundWebhook.handleVoiceGather);
+
 // Error handler
 app.use(errorHandler);
 
@@ -109,6 +119,10 @@ async function start() {
       logger.info(`PHR Backend running on port ${PORT}`);
       startReminderCron();
       startGmailSyncCron();
+      // Inbound appointment reminders — check every 5 minutes
+      const cron = require('node-cron');
+      cron.schedule('*/5 * * * *', () => sendPendingReminders().catch(() => {}));
+      logger.info('Inbound appointment reminder cron started');
     });
   } catch (err) {
     logger.error('Failed to start server:', err);
