@@ -6,6 +6,7 @@ import BookSlotModal from './BookSlotModal';
 import ViewReceiptsModal from './ViewReceiptsModal';
 import MedicalDocumentsModal from './MedicalDocumentsModal';
 import { api } from '../api/client';
+import AppointmentSlipModal from './AppointmentSlipModal';
 import styles from './AppointmentCard.module.css';
 
 const STATUS_COLOR = {
@@ -20,7 +21,7 @@ const ACTIONS = {
   parked:     ['Resume', 'Complete'],
 };
 
-const MORE_ACTIONS = ['Write Rx', 'No Show', 'Cancel'];
+const MORE_ACTIONS = ['Write Rx', 'Print Appointment Slip', 'No Show', 'Cancel'];
 
 function durationText(from, to) {
   if (!from || !to) return null;
@@ -90,6 +91,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const [receipts,       setReceipts]       = useState(null);
   const [showReceipts,   setShowReceipts]   = useState(false);
   const [showDocs,       setShowDocs]       = useState(false);
+  const [showSlip,       setShowSlip]       = useState(false);
   const moreRef = useRef(null);
 
   const color   = STATUS_COLOR[appt.status] || '#94a3b8';
@@ -129,6 +131,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
     };
     if (map[action]) onStatusChange(appt.id, map[action]);
     if (action === 'Write Rx') onOpen('rx');
+    if (action === 'Print Appointment Slip') setShowSlip(true);
   };
 
   const handleSendReminder = async (e) => {
@@ -288,6 +291,10 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {actions.map(a => (
                 <button key={a} className={styles.actionBtn} onClick={() => handleAction(a)}>{a}</button>
               ))}
+              <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
+                onClick={e => { e.stopPropagation(); setShowSlip(true); }}>
+                <Printer size={12} strokeWidth={2} /> Slip
+              </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
@@ -306,6 +313,10 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); onOpen('print'); }}>
                 <Printer size={12} strokeWidth={2} /> Rx Print
               </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
+                onClick={e => { e.stopPropagation(); setShowSlip(true); }}>
+                <Printer size={12} strokeWidth={2} /> Slip
+              </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
@@ -317,6 +328,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
       {showDocs && (
         <MedicalDocumentsModal appt={appt} onClose={() => setShowDocs(false)} />
+      )}
+      {showSlip && (
+        <AppointmentSlipModal appt={appt} onClose={() => setShowSlip(false)} />
       )}
       {showReceipts && (
         <ViewReceiptsModal
