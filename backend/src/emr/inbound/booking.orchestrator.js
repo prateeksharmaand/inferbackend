@@ -18,11 +18,12 @@ const MAX_TURNS_BEFORE_HANDOFF     = 20;
 const CONVERSATION_TTL_HOURS       = 4; // expire inactive sessions after 4h
 
 // ── Main entry point called by all channel adapters ───────────────────────
-async function handleInboundMessage(channel, channelId, messageText, toAddress) {
+// extraMeta: optional { phoneNumberId } for WhatsApp Cloud API replies
+async function handleInboundMessage(channel, channelId, messageText, toAddress, extraMeta = {}) {
   const text = (messageText || '').trim();
   if (!text) return null;
 
-  // 1. Resolve clinic from the "to" address (Telnyx number)
+  // 1. Resolve clinic from the "to" address (phone number or phoneNumberId)
   const clinicRow = await _resolveClinic(channel, toAddress);
   if (!clinicRow) {
     logger.warn(`[Orchestrator] No clinic found for ${channel}:${toAddress}`);

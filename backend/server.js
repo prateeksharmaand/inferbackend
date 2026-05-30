@@ -13,6 +13,7 @@ const errorHandler = require('./src/middleware/errorHandler');
 const logger = require('./src/utils/logger');
 const { startReminderCron, startGmailSyncCron } = require('./src/services/cron.service');
 const inboundWebhook = require('./src/emr/inbound/inbound.webhook.controller');
+const waWebhook      = require('./src/emr/inbound/whatsapp.webhook.controller');
 const { sendPendingReminders } = require('./src/emr/inbound/booking.orchestrator');
 
 const app = express();
@@ -99,10 +100,14 @@ app.post('/v3/hip/patient/share',                   hipCtrl.handlePatientSharePr
 app.post('/api/v3/hip/patient/share/profile',       hipCtrl.handlePatientShareProfile);
 app.post('/api/v3/hip/patient/share',               hipCtrl.handlePatientShareProfile);
 
-// ── Exotel inbound webhooks — SMS + WhatsApp + IVR (single India provider) ──
+// ── Meta WhatsApp Cloud API webhook (registered in Facebook Developer Console) ──
+// GET  = hub challenge verification  POST = inbound messages + status updates
+app.get ('/webhook/whatsapp', waWebhook.verify);
+app.post('/webhook/whatsapp', waWebhook.handle);
+
+// ── Exotel inbound webhooks — SMS + IVR (India) ────────────────────────────
 // Exotel signs each request with HMAC-SHA1 in X-Exotel-Signature header.
 app.post('/webhook/exotel/sms',      inboundWebhook.handleSmsWebhook);
-app.post('/webhook/exotel/whatsapp', inboundWebhook.handleWhatsAppWebhook);
 app.post('/webhook/exotel/status',   inboundWebhook.handleStatusWebhook);
 app.post('/webhook/exotel/voice',    inboundWebhook.handleVoiceWebhook);
 app.post('/webhook/exotel/gather',   inboundWebhook.handleVoiceGather);
