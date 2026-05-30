@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronDown, Globe } from 'lucide-react';
+import { Plus, ChevronDown } from 'lucide-react';
 import styles from './InferPad.module.css';
 import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
-import { RX_LANGUAGES } from '../data/rxTranslations';
 
 // ── Backend proxy helpers (avoids CSP restrictions) ──────────────────────────
 
@@ -566,26 +565,6 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
       <button className={styles.addSection} onClick={addCustom}>
         <Plus size={14} /> Add Custom Section
       </button>
-
-      {/* ── Prescription Language ── */}
-      <div className={styles.langSection}>
-        <div className={styles.langHeader}>
-          <Globe size={14} className={styles.langIcon} />
-          <span className={styles.langTitle}>Prescription Language</span>
-          <span className={styles.langHint}>Translate labels &amp; dosage instructions for the patient</span>
-        </div>
-        <div className={styles.langPills}>
-          {RX_LANGUAGES.map(l => (
-            <button
-              key={l.code}
-              className={`${styles.langPill} ${(form.rx_language || 'en') === l.code ? styles.langPillActive : ''}`}
-              onClick={() => set('rx_language', l.code === 'en' ? '' : l.code)}
-            >
-              {l.native}
-            </button>
-          ))}
-        </div>
-      </div>
 
     </div>
   );

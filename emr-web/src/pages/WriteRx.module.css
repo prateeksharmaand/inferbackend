@@ -288,6 +288,21 @@
 }
 .btnPrintSettings:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
 
+.langDropWrap {
+  display: flex; align-items: center; gap: 5px;
+  border: 1px solid var(--color-border); border-radius: 7px;
+  padding: 0 10px; background: var(--color-bg, #f8fafc);
+  transition: border-color .15s;
+}
+.langDropWrap:focus-within { border-color: #7c3aed; }
+.langDropIcon { color: #7c3aed; flex-shrink: 0; }
+.langDropSelect {
+  appearance: none; -webkit-appearance: none;
+  border: none; background: transparent; font-size: 12px; font-weight: 500;
+  color: var(--color-text, #1e293b); cursor: pointer; outline: none;
+  padding: 7px 0; min-width: 80px;
+}
+
 .btnPreview, .btnPrint {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 500;

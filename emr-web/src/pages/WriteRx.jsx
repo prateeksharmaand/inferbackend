@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ChevronLeft, Settings2,
+  ChevronLeft, Settings2, Globe,
   Printer, Eye, Trash2, SlidersHorizontal, CheckCircle, X, Plus,
   Share2, Calendar, Download, CreditCard, FileText, Star, LogOut, Mic, ClipboardList,
 } from 'lucide-react';
@@ -926,6 +926,20 @@ export default function WriteRx() {
             <button className={styles.btnPrintSettings}>
               <SlidersHorizontal size={13} strokeWidth={2} /> Print Settings
             </button>
+            <div className={styles.langDropWrap}>
+              <Globe size={13} strokeWidth={2} className={styles.langDropIcon} />
+              <select
+                className={styles.langDropSelect}
+                value={form.rx_language || ''}
+                onChange={e => set('rx_language', e.target.value)}
+              >
+                {RX_LANGUAGES.map(l => (
+                  <option key={l.code} value={l.code === 'en' ? '' : l.code}>
+                    {l.native}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className={styles.bottomRight}>
             <button className={styles.btnPreview} onClick={() => setShowPreview(true)}>
