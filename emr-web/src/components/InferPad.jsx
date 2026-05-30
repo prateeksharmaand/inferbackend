@@ -3,6 +3,8 @@ import { Plus, ChevronDown, Settings2, X, Search, GripVertical } from 'lucide-re
 import styles from './InferPad.module.css';
 import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
+import CalculatorsSection from './CalculatorsSection';
+import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
 
 // ── Backend proxy helpers (avoids CSP restrictions) ──────────────────────────
 
@@ -101,9 +103,11 @@ function saveVitalsPrefs(clinicId, keys) {
 }
 
 // ── Vitals Configure Modal ────────────────────────────────────────────────────
-function VitalsConfigModal({ clinicId, current, onSave, onClose }) {
+function VitalsConfigModal({ clinicId, current, currentCalcs = [], onSave, onClose }) {
+  const [activeTab, setActiveTab] = useState('vitals'); // 'vitals' | 'calcs'
   const [search, setSearch]   = useState('');
-  const [order,  setOrder]    = useState(current); // array of enabled keys in order
+  const [order,  setOrder]    = useState(current); // array of enabled vital keys in order
+  const [calcIds, setCalcIds] = useState(currentCalcs); // array of enabled calculator ids
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
 
@@ -137,85 +141,109 @@ function VitalsConfigModal({ clinicId, current, onSave, onClose }) {
     .map(k => VITALS_ALL.find(v => v.key === k))
     .filter(Boolean);
 
+  const calcSearch = CALCULATORS.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.desc.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSave = () => {
+    saveVitalsPrefs(clinicId, order);
+    saveCalcPrefs(clinicId, calcIds);
+    onSave(order, calcIds);
+  };
+
   return (
     <div className={styles.vcOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.vcModal}>
         <div className={styles.vcHead}>
-          <span className={styles.vcTitle}>Configure Vitals</span>
+          <span className={styles.vcTitle}>Configure Vitals &amp; Calculators</span>
           <button className={styles.vcClose} onClick={onClose}><X size={15} /></button>
         </div>
 
-        <div className={styles.vcBody}>
-          {/* Left: search + toggle list */}
-          <div className={styles.vcLeft}>
+        {/* Tab strip */}
+        <div className={styles.vcTabs}>
+          <button className={`${styles.vcTab} ${activeTab === 'vitals' ? styles.vcTabActive : ''}`}
+            onClick={() => { setActiveTab('vitals'); setSearch(''); }}>
+            Vitals
+          </button>
+          <button className={`${styles.vcTab} ${activeTab === 'calcs' ? styles.vcTabActive : ''}`}
+            onClick={() => { setActiveTab('calcs'); setSearch(''); }}>
+            Calculators <span className={styles.vcTabBadge}>{calcIds.length}</span>
+          </button>
+        </div>
+
+        {activeTab === 'calcs' ? (
+          <div className={styles.vcCalcBody}>
             <div className={styles.vcSearchBox}>
               <Search size={13} className={styles.vcSearchIcon} />
-              <input
-                className={styles.vcSearchInput}
-                placeholder="Search vitals…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+              <input className={styles.vcSearchInput} placeholder="Search calculators…"
+                value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <div className={styles.vcList}>
-              {filtered.map(v => (
-                <label key={v.key} className={styles.vcItem}>
-                  <input
-                    type="checkbox"
-                    className={styles.vcCheck}
-                    checked={isEnabled(v.key)}
-                    onChange={() => toggle(v.key)}
+            <div className={styles.vcCalcList}>
+              {calcSearch.map(c => (
+                <label key={c.id} className={styles.vcCalcItem}>
+                  <input type="checkbox" className={styles.vcCheck}
+                    checked={calcIds.includes(c.id)}
+                    onChange={() => setCalcIds(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])}
                   />
-                  <span className={styles.vcItemLabel}>{v.label}</span>
-                  <span className={styles.vcItemUnit}>{v.unit}</span>
+                  <div className={styles.vcCalcInfo}>
+                    <span className={styles.vcItemLabel}>{c.name}</span>
+                    <span className={styles.vcCalcDesc}>{c.desc}</span>
+                  </div>
                 </label>
               ))}
             </div>
           </div>
-
-          {/* Right: drag-to-reorder enabled vitals */}
-          <div className={styles.vcRight}>
-            <div className={styles.vcRightHead}>Drag to reorder</div>
-            <div className={styles.vcOrder}>
-              {enabledVitals.map((v, i) => (
-                <div
-                  key={v.key}
-                  className={[
-                    styles.vcOrderRow,
-                    dragIdx === i ? styles.vcDragging : '',
-                    overIdx === i ? styles.vcDragOver : '',
-                  ].filter(Boolean).join(' ')}
-                  draggable
-                  onDragStart={() => onDragStart(i)}
-                  onDragOver={e  => onDragOver(e, i)}
-                  onDrop={() => onDrop(i)}
-                  onDragEnd={onDragEnd}
-                >
-                  <GripVertical size={14} className={styles.vcGrip} />
-                  <span className={styles.vcOrderLabel}>{v.label}</span>
-                  <span className={styles.vcOrderUnit}>{v.unit}</span>
-                  <button className={styles.vcOrderRemove} onClick={() => toggle(v.key)}>
-                    <X size={11} />
-                  </button>
-                </div>
-              ))}
-              {enabledVitals.length === 0 && (
-                <div className={styles.vcEmpty}>No vitals selected</div>
-              )}
+        ) : (
+          <div className={styles.vcBody}>
+            {/* Left: search + toggle list */}
+            <div className={styles.vcLeft}>
+              <div className={styles.vcSearchBox}>
+                <Search size={13} className={styles.vcSearchIcon} />
+                <input className={styles.vcSearchInput} placeholder="Search vitals…"
+                  value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <div className={styles.vcList}>
+                {filtered.map(v => (
+                  <label key={v.key} className={styles.vcItem}>
+                    <input type="checkbox" className={styles.vcCheck}
+                      checked={isEnabled(v.key)} onChange={() => toggle(v.key)} />
+                    <span className={styles.vcItemLabel}>{v.label}</span>
+                    <span className={styles.vcItemUnit}>{v.unit}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
-            {/* BMI note */}
-            <div className={styles.vcBmiNote}>
-              BMI is always shown (auto-calculated from Height &amp; Weight)
+            {/* Right: drag-to-reorder */}
+            <div className={styles.vcRight}>
+              <div className={styles.vcRightHead}>Drag to reorder</div>
+              <div className={styles.vcOrder}>
+                {enabledVitals.map((v, i) => (
+                  <div key={v.key}
+                    className={[styles.vcOrderRow, dragIdx === i ? styles.vcDragging : '', overIdx === i ? styles.vcDragOver : ''].filter(Boolean).join(' ')}
+                    draggable
+                    onDragStart={() => onDragStart(i)}
+                    onDragOver={e => onDragOver(e, i)}
+                    onDrop={() => onDrop(i)}
+                    onDragEnd={onDragEnd}
+                  >
+                    <GripVertical size={14} className={styles.vcGrip} />
+                    <span className={styles.vcOrderLabel}>{v.label}</span>
+                    <span className={styles.vcOrderUnit}>{v.unit}</span>
+                    <button className={styles.vcOrderRemove} onClick={() => toggle(v.key)}><X size={11} /></button>
+                  </div>
+                ))}
+                {enabledVitals.length === 0 && <div className={styles.vcEmpty}>No vitals selected</div>}
+              </div>
+              <div className={styles.vcBmiNote}>BMI is always shown (auto-calculated from Height &amp; Weight)</div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className={styles.vcFoot}>
           <button className={styles.vcBtnCancel} onClick={onClose}>Cancel</button>
-          <button className={styles.vcBtnSave} onClick={() => { saveVitalsPrefs(clinicId, order); onSave(order); }}>
-            Save Changes
-          </button>
+          <button className={styles.vcBtnSave} onClick={handleSave}>Save Changes</button>
         </div>
       </div>
     </div>
@@ -307,6 +335,7 @@ function SeverityPills({ value, onChange }) {
 export default function InferPad({ form, set, setVital, appt, pastNotes = [], clinicId = 'default' }) {
   const [showVitalsCfg, setShowVitalsCfg] = useState(false);
   const [vitalsOrder,   setVitalsOrder]   = useState(() => getVitalsPrefs(clinicId));
+  const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
 
   const visibleVitals = vitalsOrder
     .map(k => VITALS_ALL.find(v => v.key === k))
@@ -445,10 +474,14 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [], cl
         <VitalsConfigModal
           clinicId={clinicId}
           current={vitalsOrder}
-          onSave={order => { setVitalsOrder(order); setShowVitalsCfg(false); }}
+          currentCalcs={calcOrder}
+          onSave={(order, calcs) => { setVitalsOrder(order); setCalcOrder(calcs); setShowVitalsCfg(false); }}
           onClose={() => setShowVitalsCfg(false)}
         />
       )}
+
+      {/* Calculators section — shown below vitals */}
+      <CalculatorsSection enabledIds={calcOrder} vitals={form.vitals} />
 
       {/* 2 — Patient Medical History (same grid as Check-In) */}
       <ICard title="Patient Medical History" icon="📋" color="#64748b">
