@@ -273,6 +273,10 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 <CalendarClock size={11} strokeWidth={2} />
                 Reschedule
               </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
+                onClick={e => { e.stopPropagation(); setShowMedDoc(true); }}>
+                <FileText size={12} strokeWidth={2} /> Med Doc
+              </button>
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
                   onClick={e => { e.stopPropagation(); setShowMore(v => !v); }}
