@@ -314,7 +314,8 @@ const listPatientHistory = async (req, res) => {
             e.chief_complaint, e.symptoms, e.diagnosis, e.medications,
             e.vitals, e.lab_investigations, e.lab_results,
             e.advices, e.notes AS encounter_notes,
-            e.next_visit_date, e.procedures, e.examination_findings, e.refer_to
+            e.next_visit_date, e.procedures, e.examination_findings, e.refer_to,
+            e.vaccinations
      FROM emr_appointments a
      LEFT JOIN emr_doctors    d ON d.id = a.doctor_id
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id

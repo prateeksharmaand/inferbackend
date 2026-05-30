@@ -670,3 +670,38 @@
   content: ',';
   margin-right: 1px;
 }
+
+/* ── Vaccinations tab ── */
+.vaccSummary {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 16px;
+}
+.vaccKpi {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px; border-radius: 10px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  text-align: center;
+}
+.vaccKpiVal   { font-size: 24px; font-weight: 700; line-height: 1; }
+.vaccKpiLabel { font-size: 11px; color: #64748b; margin-top: 4px; text-align: center; }
+
+.vaccGroup { margin-bottom: 12px; border-radius: 10px; overflow: hidden; border: 1px solid var(--color-border, #e2e8f0); }
+.vaccGroupHead {
+  padding: 7px 14px; font-size: 11px; font-weight: 700;
+  letter-spacing: .3px; border-bottom: 1px solid;
+}
+.vaccTable { display: flex; flex-direction: column; }
+.vaccRow {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+  background: var(--color-surface, #fff);
+}
+.vaccRow:last-child { border-bottom: none; }
+.vaccRowLeft  { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vaccRowRight { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.vaccRowName  { font-size: 13px; font-weight: 600; color: #1e293b; }
+.vaccRowType  { font-size: 10px; color: #94a3b8; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
+.vaccRowDate  { font-size: 12px; font-weight: 600; color: #2563eb; }
+.vaccRowMeta  { font-size: 11px; color: #64748b; }
+.vaccRowVisit { font-size: 10px; color: #94a3b8; }

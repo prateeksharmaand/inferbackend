@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   X, User, Clock, Stethoscope, ClipboardList, FileText,
   Activity, Search, PlusCircle, IndianRupee, Paperclip,
-  ChevronRight, CalendarCheck,
+  ChevronRight, CalendarCheck, Syringe,
 } from 'lucide-react';
 import { api } from '../api/client';
 import MedicalHistorySection from './MedicalHistorySection';
@@ -52,6 +52,7 @@ const TABS = [
   { key: 'Medical Records',      icon: FileText },
   { key: 'Vitals & Lab Results', icon: Activity },
   { key: 'Assessments',          icon: Search },
+  { key: 'Vaccinations',         icon: Syringe },
   { key: 'Create New Visit',     icon: PlusCircle },
   { key: 'Receipts',             icon: IndianRupee },
   { key: 'Medical Documents',    icon: Paperclip },
@@ -353,6 +354,94 @@ function ReceiptsTab({ receipts, loading }) {
   );
 }
 
+// ── Vaccinations ─────────────────────────────────────────────────────────────
+const STATUS_CFG = {
+  given:   { label: 'Given',           color: '#16a34a', bg: '#f0fdf4', border: '#86efac' },
+  due:     { label: 'Due',             color: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
+  refused: { label: 'Patient Refused', color: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
+  missed:  { label: 'Missed',          color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+};
+
+function VaccinationsTab({ history, appt }) {
+  // Collect all vaccination entries across all encounters, deduplicate by key (latest wins)
+  const merged = {};
+  [...history].reverse().forEach(h => {
+    if (h.vaccinations && typeof h.vaccinations === 'object') {
+      Object.entries(h.vaccinations).forEach(([k, v]) => {
+        if (v?.status) merged[k] = { ...v, visitDate: h.appointment_date, visitId: h.id };
+      });
+    }
+  });
+
+  const entries = Object.entries(merged).map(([k, v]) => ({
+    key: k,
+    name: k.replace(/^(iap_|other_)/, '').replace(/_/g, ' '),
+    type: k.startsWith('iap_') ? 'IAP' : 'Other',
+    ...v,
+  }));
+
+  // Group by status
+  const groups = { given: [], due: [], missed: [], refused: [] };
+  entries.forEach(e => { if (groups[e.status]) groups[e.status].push(e); });
+
+  const total = entries.length;
+  const givenCount = groups.given.length;
+
+  if (total === 0) {
+    return (
+      <EmptyState text="No vaccination records found. Update vaccines in Write Rx." />
+    );
+  }
+
+  return (
+    <div className={styles.tabPad}>
+      {/* Summary strip */}
+      <div className={styles.vaccSummary}>
+        {[
+          { label: 'Total Recorded', value: total,                   color: '#7c3aed' },
+          { label: 'Given',          value: givenCount,              color: '#16a34a' },
+          { label: 'Due',            value: groups.due.length,       color: '#2563eb' },
+          { label: 'Missed/Refused', value: groups.missed.length + groups.refused.length, color: '#dc2626' },
+        ].map(s => (
+          <div key={s.label} className={styles.vaccKpi}>
+            <span className={styles.vaccKpiVal} style={{ color: s.color }}>{s.value}</span>
+            <span className={styles.vaccKpiLabel}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-status sections */}
+      {Object.entries(groups).map(([status, items]) => {
+        if (!items.length) return null;
+        const cfg = STATUS_CFG[status];
+        return (
+          <div key={status} className={styles.vaccGroup}>
+            <div className={styles.vaccGroupHead} style={{ color: cfg.color, borderColor: cfg.border, background: cfg.bg }}>
+              {cfg.label} ({items.length})
+            </div>
+            <div className={styles.vaccTable}>
+              {items.map(e => (
+                <div key={e.key} className={styles.vaccRow}>
+                  <div className={styles.vaccRowLeft}>
+                    <span className={styles.vaccRowName}>{e.name}</span>
+                    <span className={styles.vaccRowType}>{e.type}</span>
+                  </div>
+                  <div className={styles.vaccRowRight}>
+                    {e.date    && <span className={styles.vaccRowDate}>{e.date}</span>}
+                    {e.brand   && <span className={styles.vaccRowMeta}>{e.brand}</span>}
+                    {e.batch   && <span className={styles.vaccRowMeta}>#{e.batch}</span>}
+                    {e.visitDate && <span className={styles.vaccRowVisit}>Visit: {fmtDate(e.visitDate)}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main panel ────────────────────────────────────────────────────────────────
 export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
   const [tab,            setTab]            = useState('Past Visits');
@@ -461,6 +550,9 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
             )}
             {tab === 'Assessments' && (
               <Assessments history={history} />
+            )}
+            {tab === 'Vaccinations' && (
+              <VaccinationsTab history={history} appt={appt} />
             )}
             {tab === 'Create New Visit' && (
               <CreateNewVisit appt={appt} onNewVisit={onNewVisit} />
