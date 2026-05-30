@@ -130,7 +130,7 @@ export default function Analytics() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <div className={styles.page}>
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: 'var(--color-bg)', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
       {/* ── Header ── */}
       <div className={styles.header}>

@@ -108,7 +108,7 @@
 .tableSection {
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 12px; overflow: hidden; box-shadow: var(--shadow);
-  display: flex; flex-direction: column; flex: 1; min-height: 450px;
+  display: flex; flex-direction: column; flex: 1;
 }
 
 .tableHeader {
