@@ -332,7 +332,7 @@ function SeverityPills({ value, onChange }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function InferPad({ form, set, setVital, appt, pastNotes = [], clinicId = 'default' }) {
+export default function InferPad({ form, set, setVital, setCalcResult, appt, pastNotes = [], clinicId = 'default' }) {
   const [showVitalsCfg, setShowVitalsCfg] = useState(false);
   const [vitalsOrder,   setVitalsOrder]   = useState(() => getVitalsPrefs(clinicId));
   const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
@@ -481,7 +481,12 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [], cl
       )}
 
       {/* Calculators section — shown below vitals */}
-      <CalculatorsSection enabledIds={calcOrder} vitals={form.vitals} />
+      <CalculatorsSection
+        enabledIds={calcOrder}
+        vitals={form.vitals}
+        calcResults={form.calc_results || {}}
+        onResult={(id, r) => setCalcResult?.(id, r)}
+      />
 
       {/* 2 — Patient Medical History (same grid as Check-In) */}
       <ICard title="Patient Medical History" icon="📋" color="#64748b">

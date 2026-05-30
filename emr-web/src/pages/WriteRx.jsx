@@ -15,6 +15,7 @@ import DrawingCanvas from '../components/DrawingCanvas';
 import InferPad from '../components/InferPad';
 import VaccinationChart from '../components/VaccinationChart';
 import { VITALS_ALL, getVitalsPrefs } from '../components/InferPad';
+import { CALCULATORS } from '../data/calculators';
 import ScribePanel from '../components/ScribePanel';
 import PatientContextPanel from '../components/PatientContextPanel';
 import AssessmentPanel from '../components/AssessmentPanel';
@@ -105,6 +106,7 @@ const EMPTY_FORM = {
   canvasImage: '',
   vaccinations: {},
   rx_language: '',
+  calc_results: {},  // { [calcId]: { value, unit, label, color } }
 };
 
 // ── Prescription data formatting ─────────────────────────────────────────────
@@ -421,8 +423,9 @@ export default function WriteRx() {
           procedures:           data.procedures || [],
           custom_sections:      data.custom_sections || [],
           canvasImage:          data.canvas_image || '',
-          vaccinations:         data.vaccinations || {},
-          rx_language:          data.rx_language  || '',
+          vaccinations:         data.vaccinations  || {},
+          rx_language:          data.rx_language   || '',
+          calc_results:         data.calc_results  || {},
         }));
         if (searchParams.get('print') === '1') {
           setTimeout(() => { setShowPreview(true); window.print(); }, 400);
@@ -433,6 +436,7 @@ export default function WriteRx() {
 
   const set      = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setVital = (k, v) => setForm(f => ({ ...f, vitals: { ...f.vitals, [k]: v } }));
+  const setCalcResult = (id, r) => setForm(f => ({ ...f, calc_results: { ...f.calc_results, [id]: r } }));
 
   // Auto-calculate BMI whenever height or weight changes
   useEffect(() => {
@@ -505,7 +509,8 @@ export default function WriteRx() {
         procedures:           form.procedures,
         custom_sections:      form.custom_sections || [],
         canvas_image:         form.canvasImage || null,
-        vaccinations:         form.vaccinations || {},
+        vaccinations:         form.vaccinations  || {},
+        calc_results:         form.calc_results  || {},
         rx_language:          form.rx_language  || '',
       });
       setShowPostVisit(true);
@@ -569,6 +574,16 @@ export default function WriteRx() {
               <input type="number" value={form.vitals.bmi || ''} onChange={e => setVital('bmi', e.target.value)}
                 placeholder="auto" style={form.vitals.bmi ? { background: '#f0fdf4', color: '#065f46', fontWeight: 700 } : {}} />
             </div>
+            {/* Calc results inline with vitals */}
+            {Object.entries(form.calc_results || {}).filter(([,r]) => r?.value).map(([id, r]) => {
+              const calc = CALCULATORS.find(c => c.id === id);
+              return (
+                <div key={id} className={styles.vitalCell}>
+                  <label>{calc?.name || id} {r.unit && <span className={styles.unit}>{r.unit}</span>}</label>
+                  <input readOnly value={r.value} style={{ fontWeight: 700, color: r.color, borderColor: r.color + '66', background: r.color + '0d' }} />
+                </div>
+              );
+            })}
           </div>
         </RxSection>
 
@@ -925,6 +940,19 @@ export default function WriteRx() {
                             <span className={styles.vitalDisplayLabel} title={v.label}>{v.label}</span>
                           </div>
                         ))}
+                        {/* Calculator results */}
+                        {Object.entries(form.calc_results || {}).filter(([,r]) => r?.value).map(([id, r]) => {
+                          const calc = CALCULATORS.find(c => c.id === id);
+                          return (
+                            <div key={id} className={styles.vitalDisplayCell}>
+                              <div className={styles.vitalDisplayBar} style={{ background: r.color + '18', borderColor: r.color + '44' }}>
+                                <span className={styles.vitalDisplayValue} style={{ color: r.color }}>{r.value}</span>
+                                {r.unit && <span className={styles.vitalDisplayUnit}>{r.unit}</span>}
+                              </div>
+                              <span className={styles.vitalDisplayLabel} title={r.label}>{calc?.name || id}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -963,7 +991,7 @@ export default function WriteRx() {
           )}
 
           {tab === 'InferPad' && (
-            <InferPad form={form} set={set} setVital={setVital} appt={appt} pastNotes={pastNotes} clinicId={user?.clinic_id || 'default'} />
+            <InferPad form={form} set={set} setVital={setVital} setCalcResult={setCalcResult} appt={appt} pastNotes={pastNotes} clinicId={user?.clinic_id || 'default'} />
           )}
 
           {tab === 'Canvas' && (

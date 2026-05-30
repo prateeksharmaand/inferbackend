@@ -98,6 +98,20 @@ function VitalsTab({ history, loading }) {
               ))}
             </div>
           )}
+          {/* Calculator results */}
+          {h.calc_results && Object.entries(h.calc_results).filter(([,r]) => r?.value).length > 0 && (
+            <div className={s.labResults}>
+              <div className={s.labRow} style={{ color: '#7c3aed', fontWeight: 700, fontSize: 10, paddingBottom: 2 }}>
+                Calculators
+              </div>
+              {Object.entries(h.calc_results).filter(([,r]) => r?.value).map(([id, r]) => (
+                <div key={id} className={s.labRow}>
+                  <span className={s.labTest}>{id.replace(/_/g, ' ')}</span>
+                  <span className={s.labVal} style={{ color: r.color }}>{r.value}{r.unit ? ` ${r.unit}` : ''}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>

@@ -107,15 +107,13 @@ function CalcModal({ calc, vitals, onDone, onClose }) {
 }
 
 // ── Calculators section ───────────────────────────────────────────────────────
-export default function CalculatorsSection({ enabledIds, vitals }) {
+export default function CalculatorsSection({ enabledIds, vitals, calcResults = {}, onResult }) {
   const [activeCalc, setActiveCalc] = useState(null);
-  // store result per calculator id
-  const [results, setResults] = useState({});
 
   const enabled = enabledIds.map(id => CALCULATORS.find(c => c.id === id)).filter(Boolean);
   if (!enabled.length) return null;
 
-  const setResult = (id, r) => setResults(prev => ({ ...prev, [id]: r }));
+  const setResult = (id, r) => { onResult?.(id, r); };
 
   return (
     <div className={s.section}>
@@ -126,7 +124,7 @@ export default function CalculatorsSection({ enabledIds, vitals }) {
 
       <div className={s.rows}>
         {enabled.map(calc => {
-          const r = results[calc.id];
+          const r = calcResults[calc.id];
           return (
             <div key={calc.id} className={s.calcRow}>
               {/* Label */}
