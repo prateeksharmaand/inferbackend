@@ -411,7 +411,10 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [], cl
             );
             return (
               <div key={key} className={styles.vCell}>
-                <label>{label} <span className={styles.unit}>{unit}</span></label>
+                <label title={`${label}${unit ? ` (${unit})` : ''}`}>
+                  <span className={styles.vLabelText}>{label}</span>
+                  {unit && <span className={styles.unit}>{unit}</span>}
+                </label>
                 <input
                   type="number"
                   step={decimal === false ? '1' : 'any'}
@@ -425,7 +428,9 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [], cl
             );
           })}
           <div className={styles.vCell}>
-            <label>BMI <span className={styles.unit}>kg/m²</span>
+            <label title="BMI (kg/m²)">
+              <span className={styles.vLabelText}>BMI</span>
+              <span className={styles.unit}>kg/m²</span>
               {form.vitals.bmi && <span className={styles.autoTag}>auto</span>}
             </label>
             <input type="number"
