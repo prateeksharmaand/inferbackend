@@ -18,6 +18,12 @@ export const CALCULATORS = [
     id: 'BSA', name: 'BSA Score', desc: 'Body Surface Area (Mosteller)',
     longDesc: 'Body Surface Area is used to calculate drug dosages, especially chemotherapy, and to assess burn size. The Mosteller formula is the most widely used due to its simplicity and accuracy.',
     formula: 'BSA (m²) = √(Height(cm) × Weight(kg) / 3600)',
+    interpretation: [
+      { range: '< 1.5',    gender: 'Any', category: 'LOW',    color: AMBER },
+      { range: '1.5 – 2.1',gender: 'Any', category: 'NORMAL', color: GREEN },
+      { range: '> 2.1',    gender: 'Any', category: 'HIGH',   color: AMBER },
+    ],
+    howToUse: '1. Enter the patient\'s height in cm and weight in kg.\n2. Click Calculate.\n3. The result is used to calculate chemotherapy doses, cardiac output, and burn surface area.\n\nNote: Average adult BSA is ~1.7–1.9 m². Most drug doses are standardized to 1.73 m².',
     inputs: [
       { key: 'height', label: 'Height', unit: 'cm',  type: 'number', vitalKey: 'height' },
       { key: 'weight', label: 'Weight', unit: 'kg',  type: 'number', vitalKey: 'weight' },
@@ -35,6 +41,13 @@ export const CALCULATORS = [
     id: 'WAIST_HIP_RATIO', name: 'Waist Hip Ratio', desc: 'Abdominal obesity risk',
     longDesc: 'WHR is a measure of abdominal obesity and cardiovascular risk. Central adiposity (apple shape) is a stronger predictor of metabolic syndrome than overall BMI. WHO defines high risk as WHR >0.90 (male) or >0.85 (female).',
     formula: 'WHR = Waist circumference (cm) ÷ Hip circumference (cm)',
+    interpretation: [
+      { range: '0.0 – 0.85', gender: 'Female', category: 'NORMAL', color: GREEN },
+      { range: '0.85 – 100', gender: 'Female', category: 'HIGH',   color: AMBER },
+      { range: '0.0 – 0.9',  gender: 'Male',   category: 'NORMAL', color: GREEN },
+      { range: '0.9 – 100',  gender: 'Male',   category: 'HIGH',   color: AMBER },
+    ],
+    howToUse: '1. Measure waist circumference at the narrowest point (between ribs and iliac crest).\n2. Measure hip circumference at the widest point (over the buttocks).\n3. Select patient sex — thresholds differ by gender.\n4. Click Calculate.\n\nWHO cut-offs: Female HIGH >0.85 | Male HIGH >0.90',
     inputs: [
       { key: 'waist', label: 'Waist',  unit: 'cm', type: 'number', vitalKey: 'waist' },
       { key: 'hip',   label: 'Hip',    unit: 'cm', type: 'number' },
@@ -711,6 +724,260 @@ export const CALCULATORS = [
     },
   },
 ];
+
+// ── Interpretation tables + how-to-use for remaining calculators ─────────────
+const EXTRA = {
+  QUICKI: {
+    interpretation: [
+      { range: '> 0.45',       gender: 'Any', category: 'NORMAL (healthy)',     color: GREEN },
+      { range: '0.30 – 0.45',  gender: 'Any', category: 'INSULIN RESISTANT',    color: AMBER },
+      { range: '< 0.30',       gender: 'Any', category: 'DIABETIC RANGE',       color: RED   },
+    ],
+    howToUse: '1. Obtain fasting glucose (mg/dL) and fasting insulin (μIU/mL) — both must be from the same fasting sample.\n2. Enter values and click Calculate.\n3. Higher QUICKI = better insulin sensitivity.\n\nNote: QUICKI is most useful to monitor response to lifestyle or pharmacological intervention in pre-diabetic patients.',
+  },
+  CHILD_PUGH: {
+    interpretation: [
+      { range: '5 – 6 pts',  gender: 'Any', category: 'CLASS A (compensated)',  color: GREEN },
+      { range: '7 – 9 pts',  gender: 'Any', category: 'CLASS B',                color: AMBER },
+      { range: '10 – 15 pts',gender: 'Any', category: 'CLASS C (decompensated)',color: RED   },
+    ],
+    howToUse: '1. Obtain bilirubin, albumin, and INR from recent labs.\n2. Assess ascites clinically (none/mild/moderate-severe).\n3. Assess hepatic encephalopathy grade clinically.\n4. Click Calculate.\n\nClass A: 1-year survival ~100%, 2-year ~85%\nClass B: 1-year ~80%, 2-year ~60%\nClass C: 1-year ~45%, 2-year ~35%',
+  },
+  MELD: {
+    interpretation: [
+      { range: '< 10',  gender: 'Any', category: '<10% 3-mo mortality', color: GREEN },
+      { range: '10–19', gender: 'Any', category: '6% 3-mo mortality',   color: AMBER },
+      { range: '20–29', gender: 'Any', category: '19.6% 3-mo mortality',color: AMBER },
+      { range: '30–39', gender: 'Any', category: '52.6% 3-mo mortality',color: RED   },
+      { range: '≥ 40',  gender: 'Any', category: '71.3% 3-mo mortality',color: RED   },
+    ],
+    howToUse: '1. Enter creatinine, bilirubin, and INR from recent labs.\n2. Enter sodium (optional) to calculate MELD-Na.\n3. Values are automatically capped: creatinine max 4, min 1; bilirubin min 1; INR min 1.\n4. Click Calculate.\n\nUsed by UNOS for liver transplant prioritization. Score recalculated every 7–30 days.',
+  },
+  GFR: {
+    interpretation: [
+      { range: '≥ 90',    gender: 'Any', category: 'G1 – NORMAL',           color: GREEN },
+      { range: '60 – 89', gender: 'Any', category: 'G2 – MILD REDUCTION',   color: GREEN },
+      { range: '45 – 59', gender: 'Any', category: 'G3a – MILD-MODERATE',   color: AMBER },
+      { range: '30 – 44', gender: 'Any', category: 'G3b – MODERATE-SEVERE', color: AMBER },
+      { range: '15 – 29', gender: 'Any', category: 'G4 – SEVERE',           color: RED   },
+      { range: '< 15',    gender: 'Any', category: 'G5 – KIDNEY FAILURE',   color: RED   },
+    ],
+    howToUse: '1. Enter serum creatinine (mg/dL), age, and sex.\n2. Uses the 2021 CKD-EPI creatinine equation (race-free).\n3. CKD confirmed if eGFR <60 for >3 months.\n\nDrug dosing guidance:\n• <60: review renal drug dosing\n• <30: avoid NSAIDs, metformin, contrast\n• <15: dialysis consideration',
+  },
+  CRCL: {
+    interpretation: [
+      { range: '≥ 90',    gender: 'Any', category: 'NORMAL',              color: GREEN },
+      { range: '60 – 89', gender: 'Any', category: 'MILDLY REDUCED',      color: GREEN },
+      { range: '30 – 59', gender: 'Any', category: 'MODERATELY REDUCED',  color: AMBER },
+      { range: '< 30',    gender: 'Any', category: 'SEVERELY REDUCED',    color: RED   },
+    ],
+    howToUse: '1. Enter serum creatinine, age, weight, and sex.\n2. Female multiplier (×0.85) is applied automatically.\n3. Use IDEAL body weight in obese patients.\n\nUsed for: antibiotic dosing (vancomycin, aminoglycosides), LMWH, DOACs, renally-cleared drugs.',
+  },
+  FIB_4: {
+    interpretation: [
+      { range: '< 1.30',       gender: 'Any', category: 'LOW RISK (F0–F1)',        color: GREEN },
+      { range: '1.30 – 2.67',  gender: 'Any', category: 'INDETERMINATE',           color: AMBER },
+      { range: '> 2.67',       gender: 'Any', category: 'HIGH RISK (F3–F4)',       color: RED   },
+    ],
+    howToUse: '1. Enter patient age, AST, ALT, and platelet count (×10⁹/L).\n2. Click Calculate.\n3. Low score (<1.30): no advanced fibrosis — no biopsy needed.\n4. High score (>2.67): advanced fibrosis likely — consider biopsy or elastography.\n5. Indeterminate: consider fibroscan or other testing.\n\nBest validated in NAFLD, HCV, and HIV/HCV co-infection.',
+  },
+  NAFLD: {
+    interpretation: [
+      { range: '< −1.455',      gender: 'Any', category: 'LOW RISK (<5% fibrosis)',   color: GREEN },
+      { range: '−1.455 – 0.676',gender: 'Any', category: 'INDETERMINATE',             color: AMBER },
+      { range: '> 0.676',       gender: 'Any', category: 'HIGH RISK (>5% fibrosis)',  color: RED   },
+    ],
+    howToUse: '1. Enter age, BMI, IFG/T2DM status, AST, ALT, platelet count, and albumin.\n2. IFG = impaired fasting glucose ≥100 mg/dL or known T2DM.\n3. Click Calculate.\n\nHigh score: refer to hepatology + consider biopsy or FibroScan.\nCombine with FIB-4 for best accuracy.',
+  },
+  GCS: {
+    interpretation: [
+      { range: '13 – 15', gender: 'Any', category: 'MILD',     color: GREEN },
+      { range: '9 – 12',  gender: 'Any', category: 'MODERATE', color: AMBER },
+      { range: '3 – 8',   gender: 'Any', category: 'SEVERE',   color: RED   },
+    ],
+    howToUse: '1. Assess Eye Opening (1–4), Verbal Response (1–5), Motor Response (1–6).\n2. Select the best response in each category.\n3. GCS ≤8: coma — consider intubation to protect airway.\n4. Document GCS trend over time, not just a single value.\n\nMinimum score = 3 (deep coma). Score <8 = intubation threshold.',
+  },
+  CHA2DS2_VASC: {
+    interpretation: [
+      { range: '0 (male)',   gender: 'Male',   category: 'LOW – No anticoagulation',      color: GREEN },
+      { range: '1 (male)',   gender: 'Male',   category: 'LOW-MOD – Consider anticoag',   color: AMBER },
+      { range: '≥2 (male)',  gender: 'Male',   category: 'HIGH – Anticoagulate',          color: RED   },
+      { range: '1 (female)', gender: 'Female', category: 'LOW – No anticoagulation',      color: GREEN },
+      { range: '2 (female)', gender: 'Female', category: 'LOW-MOD – Consider anticoag',   color: AMBER },
+      { range: '≥3 (female)',gender: 'Female', category: 'HIGH – Anticoagulate',          color: RED   },
+    ],
+    howToUse: '1. Check each criterion applicable to the patient.\n2. Note: Age ≥75 scores 2 points; Prior stroke/TIA scores 2 points.\n3. Female sex adds 1 point but does not independently trigger anticoagulation.\n4. Annual stroke risk: score 0=0%, 1=1.3%, 2=2.2%, 3=3.2%, 4=4%, 5=6.7%.\n\nESC Guidelines: anticoagulate if score ≥1 (male) or ≥2 (female).',
+  },
+  HAS_BLED: {
+    interpretation: [
+      { range: '0 – 2', gender: 'Any', category: 'LOW bleeding risk',      color: GREEN },
+      { range: '3 – 4', gender: 'Any', category: 'MODERATE bleeding risk', color: AMBER },
+      { range: '≥ 5',   gender: 'Any', category: 'HIGH bleeding risk',     color: RED   },
+    ],
+    howToUse: '1. Check each applicable risk factor.\n2. A=Abnormal renal OR liver function = 1 point each (max 2).\n3. D=Drugs (antiplatelet/NSAIDs) OR alcohol = 1 point each (max 2).\n4. Click Calculate.\n\n⚠️ Score ≥3 does NOT mean stop anticoagulation — it means identify and correct modifiable risk factors (uncontrolled BP, labile INR, alcohol use).',
+  },
+  RCRI: {
+    interpretation: [
+      { range: '0',  gender: 'Any', category: '0.4% MACE risk', color: GREEN },
+      { range: '1',  gender: 'Any', category: '1.0% MACE risk', color: GREEN },
+      { range: '2',  gender: 'Any', category: '2.4% MACE risk', color: AMBER },
+      { range: '≥3', gender: 'Any', category: '≥5.4% MACE risk',color: RED   },
+    ],
+    howToUse: '1. Assess all 6 criteria based on patient history and surgery type.\n2. High-risk surgery: suprainguinal vascular, intrathoracic, intraperitoneal.\n3. RCRI ≥3: consider cardiology referral or stress testing.\n\nMACE = Major Adverse Cardiac Events (MI, cardiac arrest, complete heart block).',
+  },
+  ABCD_TIA: {
+    interpretation: [
+      { range: '0 – 3', gender: 'Any', category: 'LOW RISK – 1% 2-day stroke',  color: GREEN },
+      { range: '4 – 5', gender: 'Any', category: 'MOD RISK – 4% 2-day stroke',  color: AMBER },
+      { range: '6 – 7', gender: 'Any', category: 'HIGH RISK – 8% 2-day stroke', color: RED   },
+    ],
+    howToUse: '1. Select clinical features observed during the TIA episode.\n2. Duration refers to how long the TIA symptoms lasted.\n3. Score ≥4: admit for urgent investigation and secondary prevention.\n\n2-day stroke risk: Score 1=0%, 3=1%, 5=4%, 6=8%, 7=10%.',
+  },
+  STOP_BANG: {
+    interpretation: [
+      { range: '0 – 2', gender: 'Any', category: 'LOW OSA risk',      color: GREEN },
+      { range: '3 – 4', gender: 'Any', category: 'MODERATE OSA risk', color: AMBER },
+      { range: '5 – 8', gender: 'Any', category: 'HIGH OSA risk',     color: RED   },
+    ],
+    howToUse: '1. Answer Yes/No for each of the 8 items.\n2. Score ≥3: consider polysomnography referral.\n3. For surgical patients: score ≥3 warrants pre-op OSA evaluation.\n\nHigh-risk criteria (for severe OSA):\n• STOP ≥2 + BMI>35, or STOP ≥2 + male, or STOP ≥2 + neck>40cm',
+  },
+  ESS: {
+    interpretation: [
+      { range: '0 – 7',   gender: 'Any', category: 'NORMAL alertness',     color: GREEN },
+      { range: '8 – 10',  gender: 'Any', category: 'MILD sleepiness',      color: GREEN },
+      { range: '11 – 16', gender: 'Any', category: 'MODERATE sleepiness',  color: AMBER },
+      { range: '17 – 24', gender: 'Any', category: 'SEVERE sleepiness',    color: RED   },
+    ],
+    howToUse: '1. Ask patient to rate the chance of dozing in each of 8 situations (0=never, 3=high chance).\n2. Situations range from sitting reading to being a passenger in a car for an hour.\n3. Score >10: further evaluation for sleep disorders (OSA, narcolepsy).\n\nCombine with STOP-BANG for comprehensive OSA screening.',
+  },
+  IPSS: {
+    interpretation: [
+      { range: '0 – 7',   gender: 'Male', category: 'MILD LUTS',     color: GREEN },
+      { range: '8 – 19',  gender: 'Male', category: 'MODERATE LUTS', color: AMBER },
+      { range: '20 – 35', gender: 'Male', category: 'SEVERE LUTS',   color: RED   },
+    ],
+    howToUse: '1. Ask patient to answer 7 questions about urinary symptoms over the past month.\n2. Each question scored 0–5 (0=not at all, 5=almost always).\n3. Mild (0–7): watchful waiting.\n4. Moderate (8–19): alpha blocker ± 5-ARI.\n5. Severe (20–35): urology referral + consider surgery.\n\nAlso includes optional QoL question (0–6) not included in score.',
+  },
+  DASI: {
+    interpretation: [
+      { range: '< 14',   gender: 'Any', category: 'POOR (<4 METs)',     color: RED   },
+      { range: '14 – 34',gender: 'Any', category: 'MODERATE (4–10 METs)',color: AMBER },
+      { range: '> 34',   gender: 'Any', category: 'EXCELLENT (>10 METs)',color: GREEN },
+    ],
+    howToUse: '1. Ask patient if they can do each activity WITHOUT chest pain or dyspnea.\n2. Check all activities they can perform.\n3. VO₂ peak = 0.43 × DASI + 9.6 mL/kg/min.\n4. <4 METs: elevated perioperative cardiac risk.\n5. ≥4 METs: proceed to surgery without further cardiac testing (unless high-risk).',
+  },
+  VITAL_CAPACITY: {
+    interpretation: [
+      { range: '≥ 80% predicted', gender: 'Any', category: 'NORMAL',           color: GREEN },
+      { range: '60–79% predicted', gender: 'Any', category: 'MILD restriction', color: AMBER },
+      { range: '50–59% predicted', gender: 'Any', category: 'MODERATE',         color: AMBER },
+      { range: '< 50% predicted',  gender: 'Any', category: 'SEVERE restriction',color: RED  },
+    ],
+    howToUse: '1. Enter height (cm), age, and sex to get the predicted FVC.\n2. Compare with spirometry result: FVC%predicted = measured/predicted × 100.\n3. Reduced FVC with normal FEV1/FVC ratio = restrictive pattern.\n\nUsed as reference value — actual measurement requires spirometry.',
+  },
+  BODE_INDEX: {
+    interpretation: [
+      { range: '0 – 2',  gender: 'Any', category: 'Q1 – ~15% 4-yr mortality', color: GREEN },
+      { range: '3 – 4',  gender: 'Any', category: 'Q2 – ~30% 4-yr mortality', color: AMBER },
+      { range: '5 – 6',  gender: 'Any', category: 'Q3 – ~64% 4-yr mortality', color: RED   },
+      { range: '7 – 10', gender: 'Any', category: 'Q4 – ~82% 4-yr mortality', color: RED   },
+    ],
+    howToUse: '1. Enter BMI, FEV1% predicted (from spirometry), mMRC dyspnea grade, and 6-minute walk distance.\n2. mMRC 0=only strenuous exercise, 4=too breathless to leave house.\n3. Score >4: pulmonology referral; score >7: lung transplant evaluation.\n\nmMRC grades: 0=exercise, 1=hurrying, 2=own pace, 3=100m, 4=housebound.',
+  },
+  IV_FLOW_RATE: {
+    interpretation: [
+      { range: 'Any', gender: 'Any', category: 'CHECK against prescribed rate', color: BLUE },
+    ],
+    howToUse: '1. Enter total volume (mL) and infusion time (hours).\n2. Select drop factor from IV set packaging:\n   • 10 gtt/mL – standard blood sets\n   • 15 gtt/mL – standard IV sets\n   • 20 gtt/mL – most common macro sets\n   • 60 gtt/mL – micro/paediatric sets\n3. Result = drops per minute to count at drip chamber.\n4. Also shows mL/hr for pump programming.',
+  },
+  PEDIATRIC_DOSE: {
+    interpretation: [
+      { range: "Young's", gender: 'Any', category: 'Age-based approximation', color: BLUE   },
+      { range: "Clark's", gender: 'Any', category: 'Weight-based (kg/70)',    color: BLUE   },
+      { range: 'mg/kg',   gender: 'Any', category: 'Most accurate method',   color: GREEN  },
+    ],
+    howToUse: '1. Enter adult dose (mg) and child\'s age or weight.\n2. Weight-based (mg/kg): most accurate when child weight is known.\n3. Young\'s: use when only age is known (less accurate).\n4. Clark\'s: use weight in lbs/kg relative to 70kg adult.\n\n⚠️ Always verify against paediatric formulary. Maximum dose must not exceed adult dose.',
+  },
+  CVD_RISK: {
+    interpretation: [
+      { range: '< 7.5%',  gender: 'Any', category: 'LOW RISK',           color: GREEN },
+      { range: '7.5–20%', gender: 'Any', category: 'INTERMEDIATE RISK',  color: AMBER },
+      { range: '> 20%',   gender: 'Any', category: 'HIGH RISK',          color: RED   },
+    ],
+    howToUse: '1. Enter age, sex, total cholesterol, HDL, systolic BP.\n2. Check BP treatment, smoking, and diabetes status.\n3. Click Calculate.\n4. Low: lifestyle modification only.\n5. Intermediate: shared decision-making for statin therapy.\n6. High: statin + aspirin recommended.\n\nBased on Framingham Risk Score (Anderson 1991).',
+  },
+  LMP_EDD: {
+    interpretation: [
+      { range: '< 13 wks', gender: 'Any', category: '1st TRIMESTER',  color: PURPLE },
+      { range: '13–27 wks',gender: 'Any', category: '2nd TRIMESTER',  color: BLUE   },
+      { range: '≥ 28 wks', gender: 'Any', category: '3rd TRIMESTER',  color: GREEN  },
+    ],
+    howToUse: '1. Enter the first day of the last normal menstrual period (LMP).\n2. EDD is calculated by adding 280 days (Naegele\'s rule).\n3. Assumes regular 28-day cycles — may be inaccurate with irregular cycles.\n4. Confirm with first-trimester ultrasound for dating.\n\nGA displayed = current gestational age from today.',
+  },
+  US_EDD: {
+    interpretation: [
+      { range: 'CRL (1st tri)', gender: 'Any', category: '±5 days accuracy',    color: GREEN },
+      { range: 'BPD (2nd tri)', gender: 'Any', category: '±10–14 days accuracy',color: AMBER },
+      { range: 'BPD (3rd tri)', gender: 'Any', category: '±21–28 days accuracy',color: AMBER },
+    ],
+    howToUse: '1. Enter the date of the ultrasound.\n2. Enter gestational age in weeks and days as reported at that scan.\n3. Click Calculate to get the EDD adjusted for the ultrasound dating.\n\nFirst trimester USG is most accurate (CRL). USG EDD overrides LMP EDD when scan is done before 20 weeks.',
+  },
+  GESTATIONAL_AGE: {
+    interpretation: [
+      { range: '< 13 wks', gender: 'Any', category: '1st TRIMESTER',  color: PURPLE },
+      { range: '13–27 wks',gender: 'Any', category: '2nd TRIMESTER',  color: BLUE   },
+      { range: '≥ 28 wks', gender: 'Any', category: '3rd TRIMESTER',  color: GREEN  },
+    ],
+    howToUse: '1. Enter the first day of the last menstrual period.\n2. Gestational age is calculated from today\'s date.\n3. Term = 37–42 weeks. Preterm = <37 weeks.\n\nScheduled visits:\n• 1st trimester: 8–12 weeks (NT scan)\n• 2nd trimester: 18–20 weeks (anomaly scan)\n• 3rd trimester: 32, 36 weeks',
+  },
+  PGE2: {
+    interpretation: [
+      { range: '< 100',  gender: 'Any', category: 'LUTEAL PHASE DEFECT', color: RED   },
+      { range: '≥ 100',  gender: 'Any', category: 'ADEQUATE LUTEAL PHASE',color: GREEN },
+    ],
+    howToUse: '1. Obtain mid-luteal phase progesterone (ng/mL) and estradiol (pg/mL) — typically day 21 of a 28-day cycle.\n2. Enter values and click Calculate.\n3. Ratio <100: consider progesterone supplementation.\n\nUsed in fertility evaluation and IVF cycle monitoring.',
+  },
+  COPD_CAT: {
+    interpretation: [
+      { range: '0 – 9',   gender: 'Any', category: 'LOW impact',       color: GREEN },
+      { range: '10 – 20', gender: 'Any', category: 'MEDIUM impact',    color: AMBER },
+      { range: '21 – 30', gender: 'Any', category: 'HIGH impact',      color: RED   },
+      { range: '31 – 40', gender: 'Any', category: 'VERY HIGH impact', color: RED   },
+    ],
+    howToUse: '1. Ask patient to score each of 8 COPD symptoms on a scale of 0–5.\n2. 0 = no symptom, 5 = worst possible.\n3. CAT <10: "less symptoms" group (GOLD A/C).\n4. CAT ≥10: "more symptoms" group (GOLD B/D) — intensify treatment.\n\nAdminister at every clinic visit to track COPD control.',
+  },
+  CCI: {
+    interpretation: [
+      { range: '0',    gender: 'Any', category: '~98% 10-yr survival',  color: GREEN },
+      { range: '1–2',  gender: 'Any', category: '~89% 10-yr survival',  color: GREEN },
+      { range: '3–4',  gender: 'Any', category: '~77% 10-yr survival',  color: AMBER },
+      { range: '≥ 5',  gender: 'Any', category: '<21% 10-yr survival',  color: RED   },
+    ],
+    howToUse: '1. Check all comorbid conditions present in the patient.\n2. Items marked (×2), (×3), or (×6) contribute more points.\n3. Score predicts 10-year survival probability.\n4. Age-adjusted CCI: add 1 point per decade over 50 years.\n\nWidely used in research to control for comorbidity burden. Useful for treatment decision-making.',
+  },
+  Q_RISK: {
+    interpretation: [
+      { range: '< 10%',  gender: 'Any', category: 'LOW CVD risk',           color: GREEN },
+      { range: '10–20%', gender: 'Any', category: 'INTERMEDIATE CVD risk',  color: AMBER },
+      { range: '> 20%',  gender: 'Any', category: 'HIGH CVD risk',          color: RED   },
+    ],
+    howToUse: '1. Enter age, sex, SBP, total cholesterol/HDL ratio.\n2. Select smoking status (each level increases risk).\n3. Check DM type, BP treatment, and AF.\n4. This is a simplified approximation — full QRISK3 requires 20+ variables.\n\nFor official QRISK3 calculation visit qrisk.org. Used by NICE (UK) guidelines.',
+  },
+  REVEAL_TEST: {
+    interpretation: [
+      { range: '≤ 6',  gender: 'Any', category: 'LOW – >95% 1-yr survival',    color: GREEN },
+      { range: '7 – 8',gender: 'Any', category: 'AVERAGE – ~90% 1-yr survival', color: AMBER },
+      { range: '9',    gender: 'Any', category: 'MOD-HIGH – ~70% 1-yr survival',color: RED   },
+      { range: '≥ 10', gender: 'Any', category: 'HIGH – <65% 1-yr survival',    color: RED   },
+    ],
+    howToUse: '1. Enter WHO functional class, RVSP (from echo), BUN, SBP, and heart rate.\n2. Check if patient is male ≥60 years.\n3. Select PAH subtype: CTD-PAH (higher risk), IPAH/familial (lower risk).\n4. Click Calculate.\n\nHigher scores prompt escalation to combination therapy or transplant referral.',
+  },
+};
+
+// Merge interpretation + howToUse into CALCULATORS
+CALCULATORS.forEach(c => {
+  if (EXTRA[c.id]) Object.assign(c, EXTRA[c.id]);
+});
 
 // ── Calculator config helpers ─────────────────────────────────────────────────
 export function getCalcPrefs(clinicId) {

@@ -1,9 +1,79 @@
 import { useState } from 'react';
-import { X, Calculator } from 'lucide-react';
+import { X, Calculator, ChevronUp, HelpCircle } from 'lucide-react';
 import { CALCULATORS } from '../data/calculators';
 import s from './CalculatorsSection.module.css';
 
-// ── Calculator modal (opens when user clicks Calculate) ───────────────────────
+// ── Right-panel tabs: Interpretation + How to use ─────────────────────────────
+function InfoPanel({ calc }) {
+  const [tab, setTab] = useState('interp');
+  return (
+    <div className={s.infoPanel}>
+      <div className={s.infoTabs}>
+        <button
+          className={`${s.infoTab} ${tab === 'interp' ? s.infoTabActive : ''}`}
+          onClick={() => setTab('interp')}
+        >
+          <ChevronUp size={13} /> Interpretation
+        </button>
+        <button
+          className={`${s.infoTab} ${tab === 'how' ? s.infoTabActive : ''}`}
+          onClick={() => setTab('how')}
+        >
+          <HelpCircle size={13} /> How to use
+        </button>
+      </div>
+
+      <div className={s.infoBody}>
+        {tab === 'interp' ? (
+          calc.interpretation?.length ? (
+            <>
+              {/* Description + formula compact */}
+              {calc.longDesc && <p className={s.infoDesc}>{calc.longDesc}</p>}
+              {calc.formula && (
+                <div className={s.infoFormula}>
+                  <span className={s.infoFormulaLbl}>Formula</span>
+                  <pre className={s.infoFormulaText}>{calc.formula}</pre>
+                </div>
+              )}
+              {/* Interpretation table */}
+              <table className={s.interpTable}>
+                <thead>
+                  <tr>
+                    <th>RANGE</th>
+                    <th>GENDER</th>
+                    <th>CATEGORY</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calc.interpretation.map((row, i) => (
+                    <tr key={i}>
+                      <td style={{ color: row.color }}>{row.range}</td>
+                      <td style={{ color: '#64748b' }}>{row.gender}</td>
+                      <td style={{ color: row.color, fontWeight: 700 }}>{row.category}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <p className={s.infoDesc}>{calc.longDesc || 'No interpretation data available.'}</p>
+          )
+        ) : (
+          <div className={s.howToUse}>
+            {calc.howToUse
+              ? calc.howToUse.split('\n').map((line, i) => (
+                  <p key={i} className={line.startsWith('•') || /^\d\./.test(line) ? s.howLine : s.howNote}>{line}</p>
+                ))
+              : <p className={s.infoDesc}>No instructions available.</p>
+            }
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Calculator modal ──────────────────────────────────────────────────────────
 function CalcModal({ calc, vitals, onDone, onClose }) {
   const defaults = {};
   calc.inputs.forEach(inp => {
@@ -21,7 +91,7 @@ function CalcModal({ calc, vitals, onDone, onClose }) {
     try {
       const r = calc.calculate(vals);
       setResult(r);
-      if (r) onDone(r); // push result back to the inline row immediately
+      if (r) onDone(r);
     } catch { setResult(null); }
   };
 
@@ -40,66 +110,59 @@ function CalcModal({ calc, vitals, onDone, onClose }) {
           <button className={s.mClose} onClick={onClose}><X size={15} /></button>
         </div>
 
-        {/* Description + formula */}
-        {(calc.longDesc || calc.formula) && (
-          <div className={s.mInfo}>
-            {calc.longDesc && <p className={s.mLongDesc}>{calc.longDesc}</p>}
-            {calc.formula && (
-              <div className={s.mFormula}>
-                <span className={s.mFormulaLabel}>Formula</span>
-                <pre className={s.mFormulaText}>{calc.formula}</pre>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Inputs */}
-        <div className={s.mBody}>
-          <div className={s.mInputs}>
-            {calc.inputs.map(inp => (
-              <div key={inp.key} className={`${s.mField} ${inp.type === 'checkbox' ? s.mFieldCheck : ''}`}>
-                {inp.type === 'checkbox' ? (
-                  <label className={s.mCheckLabel}>
-                    <input type="checkbox" className={s.mCheckbox}
-                      checked={!!vals[inp.key]} onChange={e => set(inp.key, e.target.checked)} />
-                    <span>{inp.label}</span>
-                  </label>
-                ) : (
-                  <>
-                    <label className={s.mLabel}>
-                      {inp.label}
-                      {inp.unit && <span className={s.mUnit}> {inp.unit}</span>}
+        {/* Two-column body */}
+        <div className={s.mBodyWrap}>
+          {/* Left: inputs + result */}
+          <div className={s.mLeft}>
+            <div className={s.mInputs}>
+              {calc.inputs.map(inp => (
+                <div key={inp.key} className={`${s.mField} ${inp.type === 'checkbox' ? s.mFieldCheck : ''}`}>
+                  {inp.type === 'checkbox' ? (
+                    <label className={s.mCheckLabel}>
+                      <input type="checkbox" className={s.mCheckbox}
+                        checked={!!vals[inp.key]} onChange={e => set(inp.key, e.target.checked)} />
+                      <span>{inp.label}</span>
                     </label>
-                    {inp.type === 'select' ? (
-                      <select className={s.mSelect} value={vals[inp.key]} onChange={e => set(inp.key, e.target.value)}>
-                        {inp.options.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    ) : inp.type === 'date' ? (
-                      <input type="date" className={s.mInput} value={vals[inp.key] || ''} onChange={e => set(inp.key, e.target.value)} />
-                    ) : (
-                      <input type="number" step="any" className={s.mInput} value={vals[inp.key] || ''} placeholder="—"
-                        onChange={e => set(inp.key, e.target.value)} />
-                    )}
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <label className={s.mLabel}>
+                        {inp.label}
+                        {inp.unit && <span className={s.mUnit}> {inp.unit}</span>}
+                      </label>
+                      {inp.type === 'select' ? (
+                        <select className={s.mSelect} value={vals[inp.key]} onChange={e => set(inp.key, e.target.value)}>
+                          {inp.options.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      ) : inp.type === 'date' ? (
+                        <input type="date" className={s.mInput} value={vals[inp.key] || ''} onChange={e => set(inp.key, e.target.value)} />
+                      ) : (
+                        <input type="number" step="any" className={s.mInput} value={vals[inp.key] || ''} placeholder="—"
+                          onChange={e => set(inp.key, e.target.value)} />
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Result + Calculate */}
+            <div className={s.mCalcRow}>
+              <div className={s.mResultWrap}>
+                <label className={s.mResultLbl}>Result</label>
+                <input readOnly className={s.mResultBox}
+                  style={result ? { borderColor: result.color, color: result.color } : {}}
+                  value={result ? `${result.value}${result.unit ? ' ' + result.unit : ''}` : ''}
+                  placeholder="—" />
+                {result?.label && <span className={s.mResultInterp} style={{ color: result.color }}>{result.label}</span>}
               </div>
-            ))}
+              <button className={s.mCalcBtn} onClick={handleCalc}>
+                <Calculator size={14} /> Calculate
+              </button>
+            </div>
           </div>
 
-          {/* Result + Calculate */}
-          <div className={s.mCalcRow}>
-            <div className={s.mResultWrap}>
-              <label className={s.mResultLbl}>Result</label>
-              <input readOnly className={s.mResultBox}
-                style={result ? { borderColor: result.color, color: result.color } : {}}
-                value={result ? `${result.value}${result.unit ? ' ' + result.unit : ''}` : ''}
-                placeholder="—" />
-              {result?.label && <span className={s.mResultInterp} style={{ color: result.color }}>{result.label}</span>}
-            </div>
-            <button className={s.mCalcBtn} onClick={handleCalc}>
-              <Calculator size={14} /> Calculate
-            </button>
-          </div>
+          {/* Right: interpretation + how to use */}
+          <InfoPanel calc={calc} />
         </div>
       </div>
     </div>
@@ -109,11 +172,8 @@ function CalcModal({ calc, vitals, onDone, onClose }) {
 // ── Calculators section ───────────────────────────────────────────────────────
 export default function CalculatorsSection({ enabledIds, vitals, calcResults = {}, onResult }) {
   const [activeCalc, setActiveCalc] = useState(null);
-
   const enabled = enabledIds.map(id => CALCULATORS.find(c => c.id === id)).filter(Boolean);
   if (!enabled.length) return null;
-
-  const setResult = (id, r) => { onResult?.(id, r); };
 
   return (
     <div className={s.section}>
@@ -127,36 +187,22 @@ export default function CalculatorsSection({ enabledIds, vitals, calcResults = {
           const r = calcResults[calc.id];
           return (
             <div key={calc.id} className={s.calcRow}>
-              {/* Label */}
               <span className={s.rowLabel} title={calc.desc}>{calc.name}</span>
-
-              {/* Result text box */}
-              <input
-                readOnly
-                className={s.rowInput}
+              <input readOnly className={s.rowInput}
                 style={r ? { borderColor: r.color, color: r.color, fontWeight: 700 } : {}}
                 value={r ? `${r.value}${r.unit ? ' ' + r.unit : ''}` : ''}
-                placeholder="—"
-                title={r?.label || ''}
-              />
+                placeholder="—" title={r?.label || ''} />
               {r?.label && <span className={s.rowInterp} style={{ color: r.color }}>{r.label}</span>}
-
-              {/* Calculate button */}
-              <button className={s.rowBtn} onClick={() => setActiveCalc(calc)}>
-                Calculate
-              </button>
+              <button className={s.rowBtn} onClick={() => setActiveCalc(calc)}>Calculate</button>
             </div>
           );
         })}
       </div>
 
       {activeCalc && (
-        <CalcModal
-          calc={activeCalc}
-          vitals={vitals}
-          onDone={r => setResult(activeCalc.id, r)}
-          onClose={() => setActiveCalc(null)}
-        />
+        <CalcModal calc={activeCalc} vitals={vitals}
+          onDone={r => onResult?.(activeCalc.id, r)}
+          onClose={() => setActiveCalc(null)} />
       )}
     </div>
   );
