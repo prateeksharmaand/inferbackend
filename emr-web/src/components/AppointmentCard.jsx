@@ -192,9 +192,14 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {appt.appointment_time && (
                 <span className={styles.infoText}>⏰ {appt.appointment_time}</span>
               )}
-              {appt.channel && (
+              {appt.channel && (['sms','whatsapp','ivr','chat'].includes(appt.channel) ? (
+                <span className={styles.inboundBadge}>
+                  {appt.channel === 'sms' ? '💬' : appt.channel === 'whatsapp' ? '📲' : appt.channel === 'ivr' ? '📞' : '💻'}
+                  {' '}{appt.channel.toUpperCase()}
+                </span>
+              ) : (
                 <span className={styles.infoText}>{appt.channel.replace('_', ' ')}</span>
-              )}
+              ))}
               {reminder && (
                 <span className={styles.reminderBadge}>
                   <Bell size={10} strokeWidth={2.5} /> {reminder}

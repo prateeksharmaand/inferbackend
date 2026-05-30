@@ -10,6 +10,7 @@ import WriteRx from './pages/WriteRx';
 import Settings from './pages/Settings';
 import VoiceAI    from './pages/VoiceAI';
 import Assessment from './pages/Assessment';
+import Inbound    from './pages/Inbound';
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="voice"              element={<VoiceAI />} />
             <Route path="assessment"         element={<Assessment />} />
             <Route path="settings"           element={<Settings />} />
+            <Route path="inbound"            element={<Inbound />} />
           </Route>
         </Routes>
       </BrowserRouter>
