@@ -445,6 +445,60 @@ const getPrescriptionAnalytics = async (req, res) => {
              COUNT(*) FILTER (WHERE e.chief_complaint IS NOT NULL AND e.chief_complaint != '') AS with_complaint
       ${base}`, p);
     result = { data: rows[0] };
+
+  } else if (tab === 'vaccinations') {
+    // Top vaccines given (by name)
+    const { rows: topRows } = await pool.query(`
+      SELECT vacc_entry.key AS vacc_key,
+             vacc_entry.value->>'status' AS status,
+             COUNT(*) AS cnt
+      FROM emr_encounters e
+      JOIN emr_appointments a ON a.id = e.appointment_id,
+      jsonb_each(COALESCE(e.vaccinations, '{}')) AS vacc_entry
+      WHERE a.clinic_id=$1 AND a.appointment_date BETWEEN $2 AND $3
+        AND vacc_entry.value->>'status' IS NOT NULL
+        AND vacc_entry.value->>'status' != ''
+      GROUP BY vacc_key, status
+      ORDER BY cnt DESC`, p);
+
+    // Aggregate top 15 given vaccines
+    const givenMap = {};
+    const statusTotals = { given: 0, due: 0, refused: 0, missed: 0 };
+    topRows.forEach(r => {
+      const name = r.vacc_key.replace(/^(iap_|other_)/, '').replace(/_/g, ' ');
+      const st   = r.status;
+      const cnt  = parseInt(r.cnt, 10);
+      if (st === 'given') givenMap[name] = (givenMap[name] || 0) + cnt;
+      if (statusTotals[st] !== undefined) statusTotals[st] += cnt;
+    });
+    const topGiven = Object.entries(givenMap)
+      .sort((a, b) => b[1] - a[1]).slice(0, 15)
+      .map(([name, value]) => ({ name, value }));
+
+    // Monthly vaccination trend
+    const { rows: monthRows } = await pool.query(`
+      SELECT TO_CHAR(a.appointment_date, 'Mon YYYY') AS month,
+             DATE_TRUNC('month', a.appointment_date) AS month_ts,
+             COUNT(*) AS total_given
+      FROM emr_encounters e
+      JOIN emr_appointments a ON a.id = e.appointment_id,
+      jsonb_each(COALESCE(e.vaccinations, '{}')) AS vacc_entry
+      WHERE a.clinic_id=$1 AND a.appointment_date BETWEEN $2 AND $3
+        AND vacc_entry.value->>'status' = 'given'
+      GROUP BY month, month_ts ORDER BY month_ts`, p);
+
+    result = {
+      data: {
+        topGiven,
+        statusBreakdown: [
+          { name: 'Given',           value: statusTotals.given,   color: '#16a34a' },
+          { name: 'Due',             value: statusTotals.due,     color: '#2563eb' },
+          { name: 'Patient Refused', value: statusTotals.refused, color: '#d97706' },
+          { name: 'Missed',          value: statusTotals.missed,  color: '#dc2626' },
+        ].filter(s => s.value > 0),
+        monthlyTrend: monthRows.map(r => ({ month: r.month, given: parseInt(r.total_given, 10) })),
+      }
+    };
   }
 
   res.json({ tab, ...result });

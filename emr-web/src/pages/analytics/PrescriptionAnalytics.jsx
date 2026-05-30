@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  BarChart, Bar, LineChart, Line, Cell,
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { api } from '../../api/client';
@@ -18,7 +18,8 @@ const TABS = [
   { id: 'procedure', label: 'Procedures' },
   { id: 'vitals', label: 'Vitals Trend' },
   { id: 'medications', label: 'Medications' },
-  { id: 'assessments', label: 'Assessments' },
+  { id: 'assessments',  label: 'Assessments' },
+  { id: 'vaccinations', label: 'Vaccinations' },
 ];
 
 export default function PrescriptionAnalytics() {
@@ -94,6 +95,98 @@ export default function PrescriptionAnalytics() {
             <div style={{ fontSize: 32, fontWeight: 700, color: C[2] }}>{d.with_complaint || 0}</div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>With Chief Complaint</div>
           </div>
+        </div>
+      );
+    }
+
+    // Vaccinations — 3 charts
+    if (tab === 'vaccinations') {
+      const { topGiven = [], statusBreakdown = [], monthlyTrend = [] } = d;
+      const totalGiven  = statusBreakdown.find(s => s.name === 'Given')?.value || 0;
+      const totalLogged = statusBreakdown.reduce((s, r) => s + r.value, 0);
+
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* KPI row */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Total Logged', value: totalLogged, color: C[0] },
+              { label: 'Given',        value: totalGiven,  color: '#16a34a' },
+              { label: 'Due',          value: statusBreakdown.find(s => s.name === 'Due')?.value || 0, color: '#2563eb' },
+              { label: 'Missed / Refused', value: (statusBreakdown.find(s => s.name === 'Missed')?.value || 0) + (statusBreakdown.find(s => s.name === 'Patient Refused')?.value || 0), color: '#dc2626' },
+            ].map(k => (
+              <div key={k.label} className={s.kpi} style={{ flex: 1, minWidth: 120 }}>
+                <div className={s.kpiValue} style={{ color: k.color }}>{k.value}</div>
+                <div className={s.kpiLabel}>{k.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16 }}>
+            {/* Top 15 given vaccines */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.3px' }}>Top Vaccines Given</div>
+              {topGiven.length === 0
+                ? <Empty />
+                : <ResponsiveContainer width="100%" height={Math.max(topGiven.length * 28, 180)}>
+                    <BarChart data={topGiven} layout="vertical" margin={{ left: 150, right: 24 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={148} />
+                      <Tooltip content={<TIP />} />
+                      <Bar dataKey="value" name="Given" fill="#16a34a" radius={[0,4,4,0]}>
+                        {topGiven.map((_, i) => <Cell key={i} fill={C[i % C.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+              }
+            </div>
+
+            {/* Status breakdown donut */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.3px' }}>Status Breakdown</div>
+              {statusBreakdown.length === 0
+                ? <Empty />
+                : <>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <PieChart>
+                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                          dataKey="value" nameKey="name" paddingAngle={3}>
+                          {statusBreakdown.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                        </Pie>
+                        <Tooltip formatter={(v, n) => [v, n]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                      {statusBreakdown.map(s => (
+                        <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                          <span style={{ flex: 1, color: '#64748b' }}>{s.name}</span>
+                          <span style={{ fontWeight: 700, color: s.color }}>{s.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+              }
+            </div>
+          </div>
+
+          {/* Monthly trend */}
+          {monthlyTrend.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.3px' }}>Monthly Vaccination Trend</div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={monthlyTrend} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip content={<TIP />} />
+                  <Line type="monotone" dataKey="given" name="Vaccines Given" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       );
     }
