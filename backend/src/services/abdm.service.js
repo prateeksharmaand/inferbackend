@@ -343,7 +343,9 @@ async function getAbhaSuggestions(xToken, txnId) {
 }
 
 async function setAbhaAddress(xToken, abhaAddress, txnId) {
-  return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/abha-address`, { abhaAddress, txnId, preferred: 1 }, xToken);
+  const cleanAddress = abhaAddress.replace(/@sbx$/, '').toLowerCase();
+  logger.info('setAbhaAddress', { original: abhaAddress, cleaned: cleanAddress });
+  return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/abha-address`, { abhaAddress: cleanAddress, txnId, preferred: 1 }, xToken);
 }
 
 // ─── M2: Care-context discovery ───────────────────────────────────────────────
