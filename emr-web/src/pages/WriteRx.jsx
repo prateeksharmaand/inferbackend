@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { RX_LANGUAGES, getLang, translateTiming, translateFrequency, translateDuration, translateDose } from '../data/rxTranslations';
 import ConfigureInferPadModal from '../components/ConfigureInferPadModal';
 import MedicalRecordsTab from '../components/MedicalRecordsTab';
 import CreateReceiptModal from '../components/CreateReceiptModal';
@@ -50,6 +51,7 @@ const EMPTY_FORM = {
   custom_sections: [],
   canvasImage: '',
   vaccinations: {},
+  rx_language: '',
 };
 
 // ── Prescription data formatting ─────────────────────────────────────────────
@@ -74,6 +76,8 @@ function RxInlineRow({ label, value }) {
 
 // ── Shared prescription document (used in preview modal + post-visit screen) ──
 function RxDocumentBody({ form, appt, user, rxImages = {} }) {
+  const lang = form.rx_language || 'en';
+  const t    = getLang(lang);
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
   const dateStr  = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -117,26 +121,32 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
       <hr className={styles.rxHr} />
 
       <div className={styles.rxBody}>
-        {vitalsStr   && <RxInlineRow label="VITALS"                  value={vitalsStr} />}
-        {histStr     && <RxInlineRow label="PATIENT MEDICAL HISTORY" value={histStr} />}
-        {symptomsStr && <RxInlineRow label="SYMPTOMS"                value={symptomsStr} />}
-        {diagStr     && <RxInlineRow label="DIAGNOSIS"               value={diagStr} />}
+        {vitalsStr   && <RxInlineRow label={t.VITALS}   value={vitalsStr} />}
+        {histStr     && <RxInlineRow label={t.HISTORY}  value={histStr} />}
+        {symptomsStr && <RxInlineRow label={t.SYMPTOMS} value={symptomsStr} />}
+        {diagStr     && <RxInlineRow label={t.DIAGNOSIS} value={diagStr} />}
 
         {form.medications.length > 0 && (
           <div className={styles.rxMedSection}>
             <div className={styles.rxPrescriptionHeading}>
-              <span className={styles.rxPrescriptionLine} />PRESCRIPTION<span className={styles.rxPrescriptionLine} />
+              <span className={styles.rxPrescriptionLine} />{t.PRESCRIPTION_HEADING}<span className={styles.rxPrescriptionLine} />
             </div>
             <table className={styles.rxMedTable}>
-              <thead><tr><th>#</th><th>Medications</th><th>Dose</th><th>Frequency</th><th>Duration</th><th>Remarks</th></tr></thead>
+              <thead><tr><th>{t.COL_SNo}</th><th>{t.COL_MEDICINE}</th><th>{t.COL_DOSE}</th><th>{t.COL_FREQUENCY}</th><th>{t.COL_DURATION}</th><th>{t.COL_REMARKS}</th></tr></thead>
               <tbody>
                 {form.medications.map((m,i) => (
                   <tr key={i}>
                     <td className={styles.rxMedNum}>{i+1}</td>
-                    <td><strong>{m.name}</strong>{m.timing&&<div className={styles.rxMedSub}>{m.timing}</div>}</td>
-                    <td>{m.dose||m.dosage}</td>
-                    <td>{m.frequency}</td>
-                    <td className={styles.rxMedDuration}>{m.duration}{m.start_from&&<div className={styles.rxMedSub}>(From {m.start_from})</div>}</td>
+                    <td>
+                      <strong>{m.name}</strong>
+                      {m.timing && <div className={styles.rxMedSub}>{translateTiming(m.timing, lang)}</div>}
+                    </td>
+                    <td>{translateDose(m.dose||m.dosage, lang)}</td>
+                    <td>{translateFrequency(m.frequency, lang)}</td>
+                    <td className={styles.rxMedDuration}>
+                      {translateDuration(m.duration, lang)}
+                      {m.start_from && <div className={styles.rxMedSub}>({t.FROM_LABEL} {m.start_from})</div>}
+                    </td>
                     <td>{m.instructions}</td>
                   </tr>
                 ))}
@@ -145,14 +155,14 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
           </div>
         )}
 
-        {labInvLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>PRESCRIBED LAB TESTS :&nbsp;</span><span className={styles.rxInlineValue}>{labInvLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
-        {labResultLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>INVESTIGATIVE READINGS :&nbsp;</span><span className={styles.rxInlineValue}>{labResultLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
-        {form.examination_findings && <RxInlineRow label="EXAMINATION FINDINGS" value={form.examination_findings} />}
-        {form.notes    && <RxInlineRow label="NOTES"       value={form.notes} />}
-        {form.advices  && <RxInlineRow label="ADVICES"     value={form.advices} />}
-        {form.refer_to && <RxInlineRow label="REFERRED TO" value={form.refer_to} />}
-        {(followupStr||form.next_visit_notes) && <RxInlineRow label="FOLLOWUP" value={[followupStr,form.next_visit_notes].filter(Boolean).join(' · ')} />}
-        {proceduresStr && <RxInlineRow label="PROCEDURES" value={proceduresStr} />}
+        {labInvLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>{t.LAB_TESTS} :&nbsp;</span><span className={styles.rxInlineValue}>{labInvLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
+        {labResultLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>{t.LAB_RESULTS} :&nbsp;</span><span className={styles.rxInlineValue}>{labResultLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
+        {form.examination_findings && <RxInlineRow label={t.EXAM_FINDINGS} value={form.examination_findings} />}
+        {form.notes    && <RxInlineRow label={t.NOTES}       value={form.notes} />}
+        {form.advices  && <RxInlineRow label={t.ADVICES}     value={form.advices} />}
+        {form.refer_to && <RxInlineRow label={t.REFERRED_TO} value={form.refer_to} />}
+        {(followupStr||form.next_visit_notes) && <RxInlineRow label={t.FOLLOWUP} value={[followupStr,form.next_visit_notes].filter(Boolean).join(' · ')} />}
+        {proceduresStr && <RxInlineRow label={t.PROCEDURES} value={proceduresStr} />}
         {(form.custom_sections||[]).filter(s=>s.content).map(s=><RxInlineRow key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}
         {form.vaccinations && Object.keys(form.vaccinations).length > 0 && (() => {
           const groups = { given: [], due: [], missed: [], refused: [] };
@@ -168,7 +178,7 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
             groups.refused.length && `Patient Refused: ${groups.refused.join(', ')}`,
           ].filter(Boolean);
           return parts.length > 0
-            ? <RxInlineRow label="VACCINATIONS" value={parts.join(' | ')} />
+            ? <RxInlineRow label={t.VACCINATIONS} value={parts.join(' | ')} />
             : null;
         })()}
         {form.canvasImage && <div style={{marginTop:8}}><img src={form.canvasImage} alt="Clinical drawing" style={{width:'100%',borderRadius:4,border:'1px solid #e2e8f0'}} /></div>}
@@ -351,6 +361,7 @@ export default function WriteRx() {
           custom_sections:      data.custom_sections || [],
           canvasImage:          data.canvas_image || '',
           vaccinations:         data.vaccinations || {},
+          rx_language:          data.rx_language  || '',
         }));
         if (searchParams.get('print') === '1') {
           setTimeout(() => { setShowPreview(true); window.print(); }, 400);
@@ -434,6 +445,7 @@ export default function WriteRx() {
         custom_sections:      form.custom_sections || [],
         canvas_image:         form.canvasImage || null,
         vaccinations:         form.vaccinations || {},
+        rx_language:          form.rx_language  || '',
       });
       setShowPostVisit(true);
     } catch (err) {

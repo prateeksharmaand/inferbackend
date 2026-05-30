@@ -1,0 +1,2 @@
+ALTER TABLE emr_encounters
+  ADD COLUMN IF NOT EXISTS rx_language VARCHAR(10) DEFAULT '';

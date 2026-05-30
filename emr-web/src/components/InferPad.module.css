@@ -321,3 +321,36 @@
   font-size: 13px; font-weight: 600; cursor: pointer; transition: all .12s; width: 100%;
 }
 .addSection:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
+
+
+/* ── Prescription Language selector ── */
+.langSection {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.langHeader {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.langIcon { color: #7c3aed; flex-shrink: 0; }
+.langTitle {
+  font-size: 13px; font-weight: 700; color: var(--color-text, #1e293b);
+}
+.langHint {
+  font-size: 11px; color: var(--color-text-3, #94a3b8); margin-left: auto;
+}
+.langPills {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.langPill {
+  padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-bg, #f8fafc); color: var(--color-text-2, #64748b);
+  cursor: pointer; transition: all .15s;
+}
+.langPill:hover { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
+.langPillActive {
+  background: #7c3aed; color: #fff; border-color: #7c3aed;
+}
+.langPillActive:hover { background: #6d28d9; border-color: #6d28d9; }
