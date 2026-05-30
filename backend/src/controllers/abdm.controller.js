@@ -78,9 +78,10 @@ const mobileVerifyOtp = async (req, res) => {
 // ─── M1: ABHA Login ───────────────────────────────────────────────────────────
 
 const loginGenerateOtp = async (req, res) => {
-  const { abhaNumber } = req.body;
-  if (!abhaNumber) return res.status(400).json({ error: 'abhaNumber required' });
-  const result = await abdm.loginRequestOtp(abhaNumber);
+  const { abhaNumber, abhaAddress } = req.body;
+  const input = abhaNumber || abhaAddress;
+  if (!input) return res.status(400).json({ error: 'abhaNumber or abhaAddress required' });
+  const result = await abdm.loginRequestAbhaOtp(input, 'abha-number', 'abdm');
   res.json({ txnId: result.txnId });
 };
 

@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter analyze *)"
+      "Bash(flutter analyze *)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); node --version; npm --version)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); npm install -g @anthropic-ai/claude-code)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude --version)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude mcp list)",
+      "Read(//d//**)",
+      "Bash(xargs grep -l \"assessment\\\\|Assessment\")",
+      "Bash(xargs grep -l \"BlocProvider.*SelfAssessmentCubit\\\\|SelfAssessmentCubit\")"
     ]
   }
 }
