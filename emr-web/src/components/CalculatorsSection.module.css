@@ -139,3 +139,27 @@
 .mResultEmpty {
   font-size: 12px; color: #94a3b8; text-align: center; padding: 8px 0;
 }
+
+/* Description + formula section */
+.mInfo {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 20px; background: #fafafa;
+  display: flex; flex-direction: column; gap: 8px;
+  flex-shrink: 0;
+}
+.mLongDesc {
+  font-size: 12px; color: #475569; line-height: 1.6; margin: 0;
+}
+.mFormula {
+  background: #f1f5f9; border-radius: 8px; padding: 10px 12px;
+  border-left: 3px solid #7c3aed;
+}
+.mFormulaLabel {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .4px; color: #7c3aed; display: block; margin-bottom: 4px;
+}
+.mFormulaText {
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 11px; color: #1e293b; margin: 0;
+  white-space: pre-wrap; line-height: 1.6;
+}

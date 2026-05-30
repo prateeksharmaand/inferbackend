@@ -16,6 +16,8 @@ export const CALCULATORS = [
   // ── BSA ───────────────────────────────────────────────────────────────────
   {
     id: 'BSA', name: 'BSA Score', desc: 'Body Surface Area (Mosteller)',
+    longDesc: 'Body Surface Area is used to calculate drug dosages, especially chemotherapy, and to assess burn size. The Mosteller formula is the most widely used due to its simplicity and accuracy.',
+    formula: 'BSA (m²) = √(Height(cm) × Weight(kg) / 3600)',
     inputs: [
       { key: 'height', label: 'Height', unit: 'cm',  type: 'number', vitalKey: 'height' },
       { key: 'weight', label: 'Weight', unit: 'kg',  type: 'number', vitalKey: 'weight' },
@@ -31,6 +33,8 @@ export const CALCULATORS = [
   // ── WAIST_HIP_RATIO ───────────────────────────────────────────────────────
   {
     id: 'WAIST_HIP_RATIO', name: 'Waist Hip Ratio', desc: 'Abdominal obesity risk',
+    longDesc: 'WHR is a measure of abdominal obesity and cardiovascular risk. Central adiposity (apple shape) is a stronger predictor of metabolic syndrome than overall BMI. WHO defines high risk as WHR >0.90 (male) or >0.85 (female).',
+    formula: 'WHR = Waist circumference (cm) ÷ Hip circumference (cm)',
     inputs: [
       { key: 'waist', label: 'Waist',  unit: 'cm', type: 'number', vitalKey: 'waist' },
       { key: 'hip',   label: 'Hip',    unit: 'cm', type: 'number' },
@@ -48,6 +52,8 @@ export const CALCULATORS = [
   // ── QUICKI ────────────────────────────────────────────────────────────────
   {
     id: 'QUICKI', name: 'QUICKI', desc: 'Quantitative Insulin Sensitivity Check Index',
+    longDesc: 'QUICKI assesses insulin sensitivity from fasting glucose and insulin. It correlates well with the euglycemic-hyperinsulinemic clamp (gold standard). Lower values indicate insulin resistance and higher diabetes risk.',
+    formula: 'QUICKI = 1 / [log(Fasting Insulin μIU/mL) + log(Fasting Glucose mg/dL)]\nNormal >0.45 | Insulin resistant 0.30–0.45 | Diabetes <0.30',
     inputs: [
       { key: 'glucose',  label: 'Fasting Glucose',  unit: 'mg/dL',   type: 'number', vitalKey: 'fbs' },
       { key: 'insulin',  label: 'Fasting Insulin',  unit: 'μIU/mL',  type: 'number', vitalKey: 'fasting_insulin' },
@@ -63,6 +69,8 @@ export const CALCULATORS = [
   // ── CHILD_PUGH ───────────────────────────────────────────────────────────
   {
     id: 'CHILD_PUGH', name: 'Child-Pugh', desc: 'Liver cirrhosis severity',
+    longDesc: 'The Child-Pugh score classifies severity of liver cirrhosis and guides management decisions, including liver transplant eligibility. It considers both lab values and clinical signs of decompensation.',
+    formula: 'Score = Bilirubin + Albumin + INR + Ascites + Encephalopathy (each 1–3 pts)\nClass A: 5–6 pts (well compensated) | Class B: 7–9 pts | Class C: 10–15 pts (decompensated)',
     inputs: [
       { key: 'bilirubin', label: 'Bilirubin',      unit: 'mg/dL', type: 'number' },
       { key: 'albumin',   label: 'Albumin',         unit: 'g/dL',  type: 'number' },
@@ -86,6 +94,8 @@ export const CALCULATORS = [
   // ── MELD ─────────────────────────────────────────────────────────────────
   {
     id: 'MELD', name: 'MELD Score', desc: 'Model for End-stage Liver Disease',
+    longDesc: 'MELD-Na predicts 90-day mortality in patients with end-stage liver disease and is used by UNOS to prioritize liver transplant allocation. Higher scores = higher urgency. If sodium is entered, MELD-Na is calculated.',
+    formula: 'MELD = 3.78×ln(Bilirubin) + 11.2×ln(INR) + 9.57×ln(Creatinine) + 6.43\nMELD-Na = MELD + 1.32×(137−Na) − 0.033×MELD×(137−Na)',
     inputs: [
       { key: 'creatinine',  label: 'Creatinine',  unit: 'mg/dL', type: 'number', vitalKey: 'creatinine' },
       { key: 'bilirubin',   label: 'Bilirubin',   unit: 'mg/dL', type: 'number' },
@@ -111,6 +121,8 @@ export const CALCULATORS = [
   // ── GFR ──────────────────────────────────────────────────────────────────
   {
     id: 'GFR', name: 'eGFR', desc: 'Estimated GFR (CKD-EPI)',
+    longDesc: 'eGFR estimates kidney filtration capacity using the 2021 CKD-EPI creatinine equation (race-free). It classifies CKD stages G1–G5 and guides drug dosing. Values below 60 for >3 months confirm CKD.',
+    formula: 'CKD-EPI: 142 × min(Cr/κ,1)^α × max(Cr/κ,1)^−1.200 × 0.9938^Age × (1.012 if female)\nκ=0.7(F)/0.9(M), α=−0.241(F)/−0.302(M)',
     inputs: [
       { key: 'creatinine', label: 'Creatinine', unit: 'mg/dL', type: 'number', vitalKey: 'creatinine' },
       { key: 'age',        label: 'Age',         unit: 'yrs',   type: 'number' },
@@ -134,6 +146,8 @@ export const CALCULATORS = [
   // ── CRCL ─────────────────────────────────────────────────────────────────
   {
     id: 'CRCL', name: 'Creatinine Clearance (CrCl)', desc: 'Cockcroft-Gault',
+    longDesc: 'Cockcroft-Gault estimates creatinine clearance to guide drug dosing, especially for renally-cleared medications (antibiotics, anticoagulants, chemotherapy). Multiply by 0.85 for females.',
+    formula: 'CrCl = [(140 − Age) × Weight(kg)] / [72 × Serum Creatinine(mg/dL)]\n× 0.85 for females',
     inputs: [
       { key: 'creatinine', label: 'Creatinine', unit: 'mg/dL', type: 'number', vitalKey: 'creatinine' },
       { key: 'age',        label: 'Age',         unit: 'yrs',   type: 'number' },
@@ -153,6 +167,8 @@ export const CALCULATORS = [
   // ── FIB_4 ─────────────────────────────────────────────────────────────────
   {
     id: 'FIB_4', name: 'FIB-4', desc: 'Liver fibrosis index',
+    longDesc: 'FIB-4 is a non-invasive test to assess advanced liver fibrosis in patients with chronic liver disease (NAFLD, hepatitis B/C). It avoids the need for liver biopsy in many cases. Validated in HIV/HCV co-infection.',
+    formula: 'FIB-4 = (Age × AST) / (Platelets(×10⁹/L) × √ALT)\n<1.30: low risk (F0–F1) | 1.30–2.67: indeterminate | >2.67: high risk (F3–F4)',
     inputs: [
       { key: 'age',       label: 'Age',       unit: 'yrs',    type: 'number' },
       { key: 'ast',       label: 'AST',       unit: 'IU/L',   type: 'number' },
@@ -170,6 +186,8 @@ export const CALCULATORS = [
   // ── NAFLD ────────────────────────────────────────────────────────────────
   {
     id: 'NAFLD', name: 'NAFLD Fibrosis Score', desc: 'Advanced fibrosis in NAFLD',
+    longDesc: 'The NAFLD Fibrosis Score (NFS) distinguishes patients with NAFLD who do or do not have advanced hepatic fibrosis (F3–F4). A score above 0.676 strongly predicts advanced fibrosis and warrants biopsy or specialist referral.',
+    formula: 'NFS = −1.675 + 0.037×Age + 0.094×BMI + 1.13×IFG/DM + 0.99×(AST/ALT) − 0.013×Platelets − 0.66×Albumin\n<−1.455: low | −1.455 to 0.676: indeterminate | >0.676: high',
     inputs: [
       { key: 'age',       label: 'Age',       unit: 'yrs',   type: 'number' },
       { key: 'bmi',       label: 'BMI',       unit: 'kg/m²', type: 'number', vitalKey: 'bmi' },
@@ -191,6 +209,8 @@ export const CALCULATORS = [
   // ── GCS ──────────────────────────────────────────────────────────────────
   {
     id: 'GCS', name: 'Glasgow Coma Scale', desc: 'Level of consciousness',
+    longDesc: 'GCS measures level of consciousness after brain injury or altered sensorium. Used widely in ICUs, ERs, and trauma settings. Scores ≤8 indicate coma and the need for airway protection.',
+    formula: 'GCS = Eye Opening (1–4) + Verbal Response (1–5) + Motor Response (1–6)\nSevere: 3–8 | Moderate: 9–12 | Mild: 13–15',
     inputs: [
       { key: 'eyes',   label: 'Eye Opening',   type: 'select', options: ['1 - No response','2 - To pain','3 - To voice','4 - Spontaneous'] },
       { key: 'verbal', label: 'Verbal Response',type: 'select', options: ['1 - No response','2 - Incomprehensible','3 - Inappropriate','4 - Confused','5 - Oriented'] },
@@ -208,6 +228,8 @@ export const CALCULATORS = [
   // ── CHA2DS2_VASC ─────────────────────────────────────────────────────────
   {
     id: 'CHA2DS2_VASC', name: 'CHA₂DS₂-VASc Score', desc: 'Stroke risk in atrial fibrillation',
+    longDesc: 'Used to determine whether anticoagulation is needed in non-valvular AFib. Score ≥2 (male) or ≥3 (female) warrants anticoagulation. Score of 1 in males or 2 in females requires individual assessment.',
+    formula: 'C=CHF(1), H=HTN(1), A2=Age≥75(2), D=DM(1), S2=Stroke/TIA(2), V=Vascular(1), A=Age65–74(1), Sc=Female(1)\nMax 9 pts',
     inputs: [
       { key: 'chf',      label: 'Congestive Heart Failure',     type: 'checkbox' },
       { key: 'htn',      label: 'Hypertension',                 type: 'checkbox' },
@@ -228,6 +250,8 @@ export const CALCULATORS = [
   // ── HAS_BLED ─────────────────────────────────────────────────────────────
   {
     id: 'HAS_BLED', name: 'HAS-BLED Score', desc: 'Bleeding risk in AFib',
+    longDesc: 'HAS-BLED estimates annual bleeding risk in patients on anticoagulation for AFib. Score ≥3 indicates high bleeding risk — use to identify modifiable risk factors, NOT to withhold anticoagulation.',
+    formula: 'H=HTN(1), A=Abnormal renal/liver(1–2), S=Stroke(1), B=Bleeding history(1), L=Labile INR(1), E=Elderly>65(1), D=Drugs/alcohol(1–2)\n≥3 = high risk',
     inputs: [
       { key: 'htn',      label: 'Hypertension (uncontrolled SBP>160)', type: 'checkbox' },
       { key: 'renal',    label: 'Abnormal renal function',             type: 'checkbox' },
@@ -249,6 +273,8 @@ export const CALCULATORS = [
   // ── RCRI ─────────────────────────────────────────────────────────────────
   {
     id: 'RCRI', name: 'RCRI', desc: 'Revised Cardiac Risk Index (pre-op)',
+    longDesc: 'RCRI predicts risk of major adverse cardiac events (MACE) in patients undergoing non-cardiac surgery. Developed by Lee et al. (1999). Guides pre-operative cardiac workup and anesthesia planning.',
+    formula: '6 independent predictors, 1 point each: IHD, CHF, CVD, Insulin-DM, Cr>2, High-risk surgery\n0=0.4% | 1=1.0% | 2=2.4% | ≥3=5.4% 30-day MACE',
     inputs: [
       { key: 'ihd',     label: 'Ischemic heart disease',          type: 'checkbox' },
       { key: 'chf',     label: 'Congestive heart failure',        type: 'checkbox' },
@@ -268,6 +294,8 @@ export const CALCULATORS = [
   // ── ABCD_TIA ─────────────────────────────────────────────────────────────
   {
     id: 'ABCD_TIA', name: 'ABCD² Score', desc: 'Stroke risk after TIA',
+    longDesc: 'The ABCD² score stratifies the short-term risk of stroke within 2 days after a TIA. High-risk patients (score ≥4) should be admitted urgently for investigation and secondary prevention.',
+    formula: 'A=Age≥60(1), B=BP≥140/90(1), C=Clinical(unilateral weakness=2, speech only=1), D=Duration(≥60min=2, 10–59min=1), D2=Diabetes(1)\nMax 7 | Low<4 | Moderate 4–5 | High 6–7',
     inputs: [
       { key: 'age',      label: 'Age ≥ 60',                     type: 'checkbox' },
       { key: 'bp',       label: 'BP ≥ 140/90 mmHg',             type: 'checkbox' },
@@ -285,6 +313,8 @@ export const CALCULATORS = [
   // ── STOP_BANG ─────────────────────────────────────────────────────────────
   {
     id: 'STOP_BANG', name: 'STOP-BANG', desc: 'Obstructive sleep apnea screening',
+    longDesc: 'STOP-BANG is a validated screening tool for obstructive sleep apnea (OSA) in surgical and general populations. Score ≥3 indicates high risk and warrants polysomnography referral.',
+    formula: 'S=Snoring, T=Tired, O=Observed apnea, P=Pressure(HTN), B=BMI>35, A=Age>50, N=Neck>40cm, G=Male gender\n0–2: Low | 3–4: Moderate | 5–8: High OSA risk',
     inputs: [
       { key: 'snoring',  label: 'S — Snore loudly',              type: 'checkbox' },
       { key: 'tired',    label: 'T — Tired / sleepy daytime',    type: 'checkbox' },
@@ -305,6 +335,8 @@ export const CALCULATORS = [
   // ── ESS ──────────────────────────────────────────────────────────────────
   {
     id: 'ESS', name: 'Epworth Sleepiness Scale', desc: 'Daytime sleepiness assessment',
+    longDesc: 'ESS measures the level of daytime sleepiness using eight situational questions, each scored 0–3. It helps diagnose narcolepsy, OSA, and idiopathic hypersomnia. Developed by Murray Johns (1991).',
+    formula: 'Sum of 8 items (0=never, 1=slight, 2=moderate, 3=high chance of dozing)\n0–7: Normal | 8–10: Mild | 11–16: Moderate | 17–24: Severe EDS',
     inputs: [
       { key: 's1', label: 'Sitting and reading',              type: 'select', options: ['0','1','2','3'] },
       { key: 's2', label: 'Watching TV',                      type: 'select', options: ['0','1','2','3'] },
@@ -325,6 +357,8 @@ export const CALCULATORS = [
   // ── IPSS ─────────────────────────────────────────────────────────────────
   {
     id: 'IPSS', name: 'IPSS', desc: 'International Prostate Symptom Score',
+    longDesc: 'IPSS quantifies lower urinary tract symptoms (LUTS) in men with benign prostatic hyperplasia (BPH). Guides treatment decisions — watchful waiting (mild), medical therapy (moderate), or surgical referral (severe).',
+    formula: '7 symptoms scored 0–5 (frequency, nocturia, urgency, weak stream, intermittency, incomplete emptying, straining)\n0–7: Mild | 8–19: Moderate | 20–35: Severe',
     inputs: [
       { key: 'q1', label: 'Incomplete emptying',     type: 'select', options: ['0','1','2','3','4','5'] },
       { key: 'q2', label: 'Frequency',               type: 'select', options: ['0','1','2','3','4','5'] },
@@ -346,6 +380,8 @@ export const CALCULATORS = [
   // ── DASI ─────────────────────────────────────────────────────────────────
   {
     id: 'DASI', name: 'DASI', desc: 'Duke Activity Status Index',
+    longDesc: 'DASI estimates functional capacity (in METs) from 12 self-reported activities of daily living. It predicts perioperative cardiac complications and correlates with peak VO₂ on exercise testing.',
+    formula: 'Weighted sum of 12 activities (weights 1.75–8.00)\nVO₂ peak (mL/kg/min) = 0.43 × DASI + 9.6\n<14: <4 METs (poor) | 14–34: moderate | >34: excellent',
     inputs: [
       { key: 'a1',  label: 'Self-care (eat, dress, use toilet)',   type: 'checkbox' },
       { key: 'a2',  label: 'Walk indoors',                         type: 'checkbox' },
@@ -373,6 +409,8 @@ export const CALCULATORS = [
   // ── VITAL_CAPACITY ───────────────────────────────────────────────────────
   {
     id: 'VITAL_CAPACITY', name: 'Vital Capacity', desc: 'Predicted FVC / vital capacity',
+    longDesc: 'Predicted vital capacity estimates the maximum air that can be exhaled after a full inhalation, based on age, sex, and height. Used as a reference to interpret spirometry results and detect restrictive lung disease.',
+    formula: 'Male: FVC = −4.34 + 0.576×Height(dm) − 0.026×Age\nFemale: FVC = −3.19 + 0.546×Height(dm) − 0.026×Age',
     inputs: [
       { key: 'height', label: 'Height', unit: 'cm',  type: 'number', vitalKey: 'height' },
       { key: 'age',    label: 'Age',    unit: 'yrs', type: 'number' },
@@ -390,6 +428,8 @@ export const CALCULATORS = [
   // ── BODE_INDEX ───────────────────────────────────────────────────────────
   {
     id: 'BODE_INDEX', name: 'BODE Index', desc: 'COPD mortality predictor',
+    longDesc: 'BODE Index predicts all-cause and respiratory mortality in COPD better than FEV1 alone. It incorporates BMI, airflow obstruction, dyspnea, and exercise capacity. Higher scores indicate worse prognosis.',
+    formula: 'B=BMI≤21(1), O=FEV1%(<50=3, 50–64=2, 65–79=1, ≥80=0), D=mMRC dyspnea(0–4), E=6min walk(<150=3)\nScore 0–10 | Quartile 1(0–2): ~15% 4-yr mortality → Q4(7–10): ~82%',
     inputs: [
       { key: 'bmi',   label: 'BMI',          unit: 'kg/m²', type: 'number', vitalKey: 'bmi' },
       { key: 'fev1',  label: 'FEV1',         unit: '% pred',type: 'number' },
@@ -411,6 +451,8 @@ export const CALCULATORS = [
   // ── IV_FLOW_RATE ─────────────────────────────────────────────────────────
   {
     id: 'IV_FLOW_RATE', name: 'IV Flow Rate', desc: 'Infusion drip rate calculator',
+    longDesc: 'Calculates the IV drip rate (drops per minute) and flow rate (mL/hr) for manual gravity infusions. The drop factor depends on the IV set used — macro sets: 10–20 gtt/mL; micro sets: 60 gtt/mL.',
+    formula: 'Drops/min = (Volume(mL) × Drop factor(gtt/mL)) / (Time(hrs) × 60)\nmL/hr = Volume(mL) / Time(hrs)',
     inputs: [
       { key: 'volume',     label: 'Volume',      unit: 'mL',     type: 'number' },
       { key: 'time',       label: 'Time',        unit: 'hours',  type: 'number' },
@@ -428,6 +470,8 @@ export const CALCULATORS = [
   // ── PEDIATRIC_DOSE ───────────────────────────────────────────────────────
   {
     id: 'PEDIATRIC_DOSE', name: 'Pediatric Dose', desc: "Young's / Clark's / Weight-based",
+    longDesc: "Estimates the appropriate pediatric drug dose from the adult dose using three validated methods. Weight-based dosing (mg/kg) is most accurate when the child's weight is known. Young's and Clark's are approximation formulas.",
+    formula: "Young's: Child dose = Adult dose × Age / (Age + 12)\nClark's: Child dose = Adult dose × Weight(kg) / 70\nWeight-based: Dose = Adult dose(mg/kg) × Child weight(kg)",
     inputs: [
       { key: 'adult_dose', label: 'Adult dose',  unit: 'mg',  type: 'number' },
       { key: 'age',        label: 'Child age',   unit: 'yrs', type: 'number' },
@@ -448,6 +492,8 @@ export const CALCULATORS = [
   // ── CVD_RISK ─────────────────────────────────────────────────────────────
   {
     id: 'CVD_RISK', name: 'CVD 10-Year Risk', desc: 'Framingham risk score',
+    longDesc: 'Estimates 10-year risk of a cardiovascular event (MI, stroke, coronary death) based on traditional risk factors. Used to guide statin and aspirin therapy decisions. Low <7.5%, Intermediate 7.5–20%, High >20%.',
+    formula: 'Framingham (Anderson 1991): Multivariable logistic model using age, total cholesterol, HDL, SBP, BP treatment, smoking, diabetes\nDifferent coefficients for male and female',
     inputs: [
       { key: 'age',     label: 'Age',          unit: 'yrs',   type: 'number' },
       { key: 'sex',     label: 'Sex',          type: 'select', options: ['Male','Female'] },
@@ -479,6 +525,8 @@ export const CALCULATORS = [
   // ── LMP_EDD ──────────────────────────────────────────────────────────────
   {
     id: 'LMP_EDD', name: 'EDD by LMP', desc: "Naegele's rule — Estimated Due Date",
+    longDesc: "Naegele's rule calculates the Estimated Due Date (EDD) by adding 280 days (40 weeks) to the first day of the Last Menstrual Period. Also calculates current gestational age. Assumes a regular 28-day cycle.",
+    formula: 'EDD = LMP + 280 days\nGA (weeks) = (Today − LMP) ÷ 7',
     inputs: [
       { key: 'lmp', label: 'Last Menstrual Period', type: 'date', vitalKey: 'lmp' },
     ],
@@ -497,6 +545,8 @@ export const CALCULATORS = [
   // ── US_EDD ───────────────────────────────────────────────────────────────
   {
     id: 'US_EDD', name: 'EDD by USG', desc: 'Estimated Due Date from ultrasound',
+    longDesc: 'Calculates EDD based on gestational age measured at ultrasound. USG dating is more accurate than LMP, especially in irregular cycles. First trimester USG (CRL) is most accurate (±5 days).',
+    formula: 'EDD = USG Date + (280 − GA at scan in days)\nGA at scan = Weeks × 7 + Days',
     inputs: [
       { key: 'usg_date', label: 'USG Date',        type: 'date' },
       { key: 'ga_weeks', label: 'GA at USG (wks)', unit: 'wks', type: 'number' },
@@ -515,6 +565,8 @@ export const CALCULATORS = [
   // ── GESTATIONAL_AGE ──────────────────────────────────────────────────────
   {
     id: 'GESTATIONAL_AGE', name: 'Gestational Age', desc: 'Current gestational age from LMP',
+    longDesc: 'Calculates the current gestational age (GA) from the first day of the last menstrual period. Identifies the trimester and helps schedule antenatal care visits and screening tests.',
+    formula: 'GA = (Today − LMP) ÷ 7 days\n1st Trimester: <13 weeks | 2nd: 13–27 weeks | 3rd: ≥28 weeks',
     inputs: [
       { key: 'lmp', label: 'Last Menstrual Period', type: 'date', vitalKey: 'lmp' },
     ],
@@ -531,6 +583,8 @@ export const CALCULATORS = [
   // ── PGE2 ─────────────────────────────────────────────────────────────────
   {
     id: 'PGE2', name: 'Progesterone/Estradiol Ratio', desc: 'P/E2 ratio for luteal phase',
+    longDesc: 'The P/E2 ratio assesses the quality of the luteal phase in fertility evaluation and IVF cycles. A low ratio suggests luteal phase defect or inadequate progesterone support despite normal estradiol.',
+    formula: 'P/E2 = Progesterone(ng/mL) / [Estradiol(pg/mL) ÷ 1000]\nRatio >100: adequate luteal phase | <100: possible luteal phase defect',
     inputs: [
       { key: 'prog',  label: 'Progesterone', unit: 'ng/mL', type: 'number' },
       { key: 'e2',    label: 'Estradiol',    unit: 'pg/mL', type: 'number' },
@@ -546,6 +600,8 @@ export const CALCULATORS = [
   // ── COPD_CAT ─────────────────────────────────────────────────────────────
   {
     id: 'COPD_CAT', name: 'COPD - CAT', desc: 'COPD Assessment Test',
+    longDesc: 'COPD Assessment Test (CAT) measures the impact of COPD on daily life and wellbeing. Used to classify patients as "less symptoms" (CAT<10) or "more symptoms" (CAT≥10) per GOLD 2023 guidelines.',
+    formula: '8 items scored 0–5 (cough, phlegm, chest tightness, breathlessness, home activities, leaving home, sleep, energy)\n0–9: Low impact | 10–20: Medium | 21–30: High | 31–40: Very high',
     inputs: [
       { key: 'q1', label: 'Cough',            type: 'select', options: ['0','1','2','3','4','5'] },
       { key: 'q2', label: 'Phlegm',           type: 'select', options: ['0','1','2','3','4','5'] },
@@ -566,6 +622,8 @@ export const CALCULATORS = [
   // ── CCI ──────────────────────────────────────────────────────────────────
   {
     id: 'CCI', name: 'CCI', desc: 'Charlson Comorbidity Index',
+    longDesc: 'CCI predicts 10-year survival based on 17 comorbid conditions, each weighted by relative mortality risk. Widely used in research to adjust for comorbidity burden. An age-adjusted version adds 1 point per decade over 40.',
+    formula: 'Weighted sum of 17 conditions (weights: 1, 2, 3, or 6)\n10-yr survival ≈ 0.983^exp(0.9 × CCI)\nScore 0: ~98% | 1–2: ~89% | 3–4: ~77% | ≥5: <21%',
     inputs: [
       { key: 'mi',      label: 'Myocardial infarction',       type: 'checkbox' },
       { key: 'chf',     label: 'CHF',                         type: 'checkbox' },
@@ -595,6 +653,8 @@ export const CALCULATORS = [
   // ── Q_RISK ───────────────────────────────────────────────────────────────
   {
     id: 'Q_RISK', name: 'QRISK3 (Simplified)', desc: 'Cardiovascular risk score',
+    longDesc: 'QRISK3 is the UK\'s primary CVD risk algorithm, updated in 2017 to include additional risk factors. This is a simplified approximation — the full QRISK3 uses 20+ variables including ethnicity, deprivation, and comorbidities.',
+    formula: 'Approximate: weighted combination of age, sex, SBP, cholesterol ratio, smoking, DM type, BP treatment, AFib\nFull QRISK3 available at qrisk.org',
     inputs: [
       { key: 'age',    label: 'Age',                   unit: 'yrs',   type: 'number' },
       { key: 'sex',    label: 'Sex',                   type: 'select', options: ['Male','Female'] },
@@ -625,6 +685,8 @@ export const CALCULATORS = [
   // ── REVEAL_TEST ──────────────────────────────────────────────────────────
   {
     id: 'REVEAL_TEST', name: 'REVEAL 2.0', desc: 'PAH risk calculator',
+    longDesc: 'REVEAL 2.0 predicts 1-year survival in pulmonary arterial hypertension (PAH). It guides treatment decisions and timing of lung transplant referral. Developed from the REVEAL Registry of >2700 PAH patients.',
+    formula: 'Score from: WHO FC, RVSP, BUN, SBP, HR, Male≥60, PAH subtype\nLow(≤6): >95% 1-yr survival | Average(7–8): ~90% | Mod-High(9): ~70% | High(≥10): <65%',
     inputs: [
       { key: 'who_fc',  label: 'WHO Functional Class', type: 'select', options: ['I','II','III','IV'] },
       { key: 'rvsp',    label: 'RVSP',                 unit: 'mmHg', type: 'number' },

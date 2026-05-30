@@ -44,6 +44,19 @@ function CalcModal({ calc, vitals, onClose }) {
           <button className={s.mClose} onClick={onClose}><X size={15} /></button>
         </div>
 
+        {/* Description + formula */}
+        {(calc.longDesc || calc.formula) && (
+          <div className={s.mInfo}>
+            {calc.longDesc && <p className={s.mLongDesc}>{calc.longDesc}</p>}
+            {calc.formula && (
+              <div className={s.mFormula}>
+                <span className={s.mFormulaLabel}>Formula</span>
+                <pre className={s.mFormulaText}>{calc.formula}</pre>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Inputs */}
         <div className={s.mBody}>
           <div className={s.mInputs}>
