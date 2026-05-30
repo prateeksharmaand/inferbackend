@@ -957,7 +957,7 @@ export default function WriteRx() {
           )}
 
           {tab === 'InferPad' && (
-            <InferPad form={form} set={set} setVital={setVital} appt={appt} pastNotes={pastNotes} />
+            <InferPad form={form} set={set} setVital={setVital} appt={appt} pastNotes={pastNotes} clinicId={user?.clinic_id || 'default'} />
           )}
 
           {tab === 'Canvas' && (

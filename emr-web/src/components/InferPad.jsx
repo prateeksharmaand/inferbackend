@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, ChevronDown } from 'lucide-react';
+import { Plus, ChevronDown, Settings2, X, Search, GripVertical } from 'lucide-react';
 import styles from './InferPad.module.css';
 import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
@@ -24,16 +24,166 @@ async function fetchRxTerms(query) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const VITALS_CONFIG = [
-  { key: 'bp_systolic',      label: 'Systolic BP',      unit: 'mmHg', placeholder: '120'  },
-  { key: 'bp_diastolic',     label: 'Diastolic BP',      unit: 'mmHg', placeholder: '80'   },
-  { key: 'temp',             label: 'Temperature',       unit: '°C',   placeholder: '37.2' },
-  { key: 'spo2',             label: 'SpO₂',              unit: '%',    placeholder: '98'   },
-  { key: 'pulse',            label: 'Pulse',             unit: 'bpm',  placeholder: '72'   },
-  { key: 'respiratory_rate', label: 'Respiratory Rate',  unit: '/min', placeholder: '16'   },
-  { key: 'height',           label: 'Height',            unit: 'cm',   placeholder: '170'  },
-  { key: 'weight',           label: 'Weight',            unit: 'kg',   placeholder: '70'   },
+// All available vitals (superset — doctors can pick which to show)
+const VITALS_ALL = [
+  { key: 'bp_systolic',      label: 'Systolic BP',        unit: 'mmHg',   placeholder: '120',  defaultOn: true  },
+  { key: 'bp_diastolic',     label: 'Diastolic BP',       unit: 'mmHg',   placeholder: '80',   defaultOn: true  },
+  { key: 'pulse',            label: 'Pulse',              unit: 'bpm',    placeholder: '72',   defaultOn: true  },
+  { key: 'temp',             label: 'Temperature',        unit: '°C',     placeholder: '37.2', defaultOn: true  },
+  { key: 'spo2',             label: 'SpO₂',               unit: '%',      placeholder: '98',   defaultOn: true  },
+  { key: 'respiratory_rate', label: 'Respiratory Rate',   unit: '/min',   placeholder: '16',   defaultOn: true  },
+  { key: 'height',           label: 'Height',             unit: 'cm',     placeholder: '170',  defaultOn: true  },
+  { key: 'weight',           label: 'Weight',             unit: 'kg',     placeholder: '70',   defaultOn: true  },
+  { key: 'blood_glucose',    label: 'Blood Glucose',      unit: 'mg/dL',  placeholder: '100',  defaultOn: false },
+  { key: 'hba1c',            label: 'HbA1c',              unit: '%',      placeholder: '5.7',  defaultOn: false },
+  { key: 'cholesterol',      label: 'Cholesterol',        unit: 'mg/dL',  placeholder: '180',  defaultOn: false },
+  { key: 'uric_acid',        label: 'Uric Acid',          unit: 'mg/dL',  placeholder: '6.0',  defaultOn: false },
+  { key: 'creatinine',       label: 'Creatinine',         unit: 'mg/dL',  placeholder: '1.0',  defaultOn: false },
+  { key: 'hemoglobin',       label: 'Hemoglobin',         unit: 'g/dL',   placeholder: '13.5', defaultOn: false },
+  { key: 'waist',            label: 'Waist Circumference',unit: 'cm',     placeholder: '80',   defaultOn: false },
+  { key: 'head_circ',        label: 'Head Circumference', unit: 'cm',     placeholder: '35',   defaultOn: false },
+  { key: 'muac',             label: 'MUAC',               unit: 'cm',     placeholder: '14',   defaultOn: false },
+  { key: 'inr',              label: 'INR',                unit: '',       placeholder: '1.0',  defaultOn: false },
+  { key: 'platelets',        label: 'Platelets',          unit: 'lakhs',  placeholder: '2.5',  defaultOn: false },
+  { key: 'pain_score',       label: 'Pain Score (0-10)',  unit: '/10',    placeholder: '0',    defaultOn: false },
 ];
+
+const VITALS_CONFIG = VITALS_ALL; // kept for backward compat
+
+// ── Vitals config localStorage helpers ───────────────────────────────────────
+function getVitalsPrefs(clinicId) {
+  try {
+    const raw = localStorage.getItem(`vitals_cfg_${clinicId}`);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  // Default: all defaultOn vitals in original order
+  return VITALS_ALL.filter(v => v.defaultOn).map(v => v.key);
+}
+function saveVitalsPrefs(clinicId, keys) {
+  localStorage.setItem(`vitals_cfg_${clinicId}`, JSON.stringify(keys));
+}
+
+// ── Vitals Configure Modal ────────────────────────────────────────────────────
+function VitalsConfigModal({ clinicId, current, onSave, onClose }) {
+  const [search, setSearch]   = useState('');
+  const [order,  setOrder]    = useState(current); // array of enabled keys in order
+  const [dragIdx, setDragIdx] = useState(null);
+  const [overIdx, setOverIdx] = useState(null);
+
+  const isEnabled = key => order.includes(key);
+
+  const toggle = key => {
+    setOrder(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
+  // Drag handlers
+  const onDragStart = (i) => setDragIdx(i);
+  const onDragOver  = (e, i) => { e.preventDefault(); setOverIdx(i); };
+  const onDrop      = (i) => {
+    if (dragIdx === null || dragIdx === i) return;
+    const next = [...order];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(i, 0, moved);
+    setOrder(next);
+    setDragIdx(null); setOverIdx(null);
+  };
+  const onDragEnd   = () => { setDragIdx(null); setOverIdx(null); };
+
+  const filtered = VITALS_ALL.filter(v =>
+    v.label.toLowerCase().includes(search.toLowerCase()) ||
+    v.unit.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const enabledVitals = order
+    .map(k => VITALS_ALL.find(v => v.key === k))
+    .filter(Boolean);
+
+  return (
+    <div className={styles.vcOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className={styles.vcModal}>
+        <div className={styles.vcHead}>
+          <span className={styles.vcTitle}>Configure Vitals</span>
+          <button className={styles.vcClose} onClick={onClose}><X size={15} /></button>
+        </div>
+
+        <div className={styles.vcBody}>
+          {/* Left: search + toggle list */}
+          <div className={styles.vcLeft}>
+            <div className={styles.vcSearchBox}>
+              <Search size={13} className={styles.vcSearchIcon} />
+              <input
+                className={styles.vcSearchInput}
+                placeholder="Search vitals…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <div className={styles.vcList}>
+              {filtered.map(v => (
+                <label key={v.key} className={styles.vcItem}>
+                  <input
+                    type="checkbox"
+                    className={styles.vcCheck}
+                    checked={isEnabled(v.key)}
+                    onChange={() => toggle(v.key)}
+                  />
+                  <span className={styles.vcItemLabel}>{v.label}</span>
+                  <span className={styles.vcItemUnit}>{v.unit}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: drag-to-reorder enabled vitals */}
+          <div className={styles.vcRight}>
+            <div className={styles.vcRightHead}>Drag to reorder</div>
+            <div className={styles.vcOrder}>
+              {enabledVitals.map((v, i) => (
+                <div
+                  key={v.key}
+                  className={[
+                    styles.vcOrderRow,
+                    dragIdx === i ? styles.vcDragging : '',
+                    overIdx === i ? styles.vcDragOver : '',
+                  ].filter(Boolean).join(' ')}
+                  draggable
+                  onDragStart={() => onDragStart(i)}
+                  onDragOver={e  => onDragOver(e, i)}
+                  onDrop={() => onDrop(i)}
+                  onDragEnd={onDragEnd}
+                >
+                  <GripVertical size={14} className={styles.vcGrip} />
+                  <span className={styles.vcOrderLabel}>{v.label}</span>
+                  <span className={styles.vcOrderUnit}>{v.unit}</span>
+                  <button className={styles.vcOrderRemove} onClick={() => toggle(v.key)}>
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+              {enabledVitals.length === 0 && (
+                <div className={styles.vcEmpty}>No vitals selected</div>
+              )}
+            </div>
+
+            {/* BMI note */}
+            <div className={styles.vcBmiNote}>
+              BMI is always shown (auto-calculated from Height &amp; Weight)
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.vcFoot}>
+          <button className={styles.vcBtnCancel} onClick={onClose}>Cancel</button>
+          <button className={styles.vcBtnSave} onClick={() => { saveVitalsPrefs(clinicId, order); onSave(order); }}>
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const SEVERITIES = ['Mild', 'Moderate', 'Severe'];
 
@@ -81,7 +231,7 @@ function NumberUnitInput({ value, onChange, placeholder, className }) {
 
 // ── Collapsible card ─────────────────────────────────────────────────────────
 
-function ICard({ title, icon, badge, color = '#6366f1', defaultOpen = true, children }) {
+function ICard({ title, icon, badge, color = '#6366f1', defaultOpen = true, action, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className={styles.card} style={{ '--cc': color }}>
@@ -92,6 +242,7 @@ function ICard({ title, icon, badge, color = '#6366f1', defaultOpen = true, chil
         {badge && <span className={styles.badge}>{badge}</span>}
         <ChevronDown size={15} strokeWidth={2}
           className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`} />
+        {action && <span onClick={e => e.stopPropagation()}>{action}</span>}
       </div>
       {open && <div className={styles.cardBody}>{children}</div>}
     </div>
@@ -116,7 +267,13 @@ function SeverityPills({ value, onChange }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) {
+export default function InferPad({ form, set, setVital, appt, pastNotes = [], clinicId = 'default' }) {
+  const [showVitalsCfg, setShowVitalsCfg] = useState(false);
+  const [vitalsOrder,   setVitalsOrder]   = useState(() => getVitalsPrefs(clinicId));
+
+  const visibleVitals = vitalsOrder
+    .map(k => VITALS_ALL.find(v => v.key === k))
+    .filter(Boolean);
 
   // ── Symptom helpers ──────────────────────────────────────────────────────
   const addSymptom = (nameOrItem) => {
@@ -194,9 +351,15 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
     <div className={styles.wrap}>
 
       {/* 1 — Vitals */}
-      <ICard title="Vitals" icon="🩺" color="#3b82f6">
+      <ICard title="Vitals" icon="🩺" color="#3b82f6"
+        action={
+          <button className={styles.vitalsConfigBtn} onClick={e => { e.stopPropagation(); setShowVitalsCfg(true); }} title="Configure vitals">
+            <Settings2 size={13} strokeWidth={2} />
+          </button>
+        }
+      >
         <div className={styles.vitalsGrid}>
-          {VITALS_CONFIG.map(({ key, label, unit, placeholder }) => (
+          {visibleVitals.map(({ key, label, unit, placeholder }) => (
             <div key={key} className={styles.vCell}>
               <label>{label} <span className={styles.unit}>{unit}</span></label>
               <input type="number" value={form.vitals[key] || ''}
@@ -214,6 +377,15 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [] }) 
           </div>
         </div>
       </ICard>
+
+      {showVitalsCfg && (
+        <VitalsConfigModal
+          clinicId={clinicId}
+          current={vitalsOrder}
+          onSave={order => { setVitalsOrder(order); setShowVitalsCfg(false); }}
+          onClose={() => setShowVitalsCfg(false)}
+        />
+      )}
 
       {/* 2 — Patient Medical History (same grid as Check-In) */}
       <ICard title="Patient Medical History" icon="📋" color="#64748b">
