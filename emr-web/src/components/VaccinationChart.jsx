@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Syringe } from 'lucide-react';
+import { ChevronDown, Syringe, X, RefreshCw } from 'lucide-react';
 import s from './VaccinationChart.module.css';
 
 // ── IAP Schedule ─────────────────────────────────────────────────────────────
@@ -124,15 +124,201 @@ const STATUS_CONFIG = {
 };
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 function fmtVaccDate(d) {
   if (!d) return '';
   return `${d.getDate()} ${MONTHS[d.getMonth()]}'${String(d.getFullYear()).slice(2)}`;
 }
+
 function addDays(date, n) {
   return new Date(date.getTime() + n * 86400000);
 }
 
-// ── Status popover cell ───────────────────────────────────────────────────────
+// Convert Date → YYYY-MM-DD for <input type="date">
+function toInputDate(d) {
+  if (!d) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+// Convert YYYY-MM-DD → "DD Mon'YY"
+function fmtInputDate(str) {
+  if (!str) return '';
+  const d = new Date(str + 'T00:00:00');
+  return fmtVaccDate(d);
+}
+
+// ── Status badge (read-only display in grid) ──────────────────────────────────
+function StatusBadge({ status }) {
+  const cfg = status ? STATUS_CONFIG[status] : null;
+  if (!cfg) return null;
+  return (
+    <span className={s.statusBadge} style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}>
+      {cfg.label}
+    </span>
+  );
+}
+
+// ── Status dropdown (used inside modal) ──────────────────────────────────────
+function StatusSelect({ value, onChange }) {
+  const ref = useRef(null);
+  const [open, setOpen] = useState(false);
+  const cfg = value ? STATUS_CONFIG[value] : null;
+
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  return (
+    <div ref={ref} className={s.mselWrap}>
+      <button
+        className={s.mselBtn}
+        style={cfg ? { color: cfg.color, borderColor: cfg.border, background: cfg.bg } : {}}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span>{cfg ? cfg.label : 'Select Status'}</span>
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div className={s.mselDrop}>
+          <button className={s.mselOpt} style={{ color: '#64748b' }} onClick={() => { onChange(''); setOpen(false); }}>
+            — None —
+          </button>
+          {Object.entries(STATUS_CONFIG).map(([k, c]) => (
+            <button key={k} className={s.mselOpt} style={{ color: c.color }}
+              onClick={() => { onChange(k); setOpen(false); }}>
+              <span className={s.statusDot} style={{ background: c.color }} />
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Update Vaccine Modal ──────────────────────────────────────────────────────
+function UpdateVaccineModal({ entries, onClose, onDone }) {
+  // entries: [{ vaccKey, vaccineName, defaultDate }]
+  const [rows, setRows] = useState(() =>
+    entries.map(e => ({
+      vaccKey:     e.vaccKey,
+      vaccineName: e.vaccineName,
+      defaultDate: e.defaultDate,
+      status:      e.existing?.status || '',
+      date:        e.existing?.inputDate || e.defaultDate || '',
+      brand:       e.existing?.brand || '',
+      batch:       e.existing?.batch || '',
+      notes:       e.existing?.notes || '',
+    }))
+  );
+
+  const update = (i, field, val) => {
+    setRows(r => r.map((row, idx) => idx === i ? { ...row, [field]: val } : row));
+  };
+
+  const reset = (i) => {
+    setRows(r => r.map((row, idx) => idx === i ? {
+      ...row, status: '', date: row.defaultDate || '', brand: '', batch: '', notes: '',
+    } : row));
+  };
+
+  const handleDone = () => {
+    const updates = {};
+    rows.forEach(row => {
+      if (row.status || row.brand || row.batch || row.notes) {
+        updates[row.vaccKey] = {
+          status:    row.status,
+          date:      fmtInputDate(row.date),
+          inputDate: row.date,
+          brand:     row.brand,
+          batch:     row.batch,
+          notes:     row.notes,
+        };
+      }
+    });
+    onDone(updates);
+  };
+
+  return (
+    <div className={s.modalOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className={s.modal}>
+        <div className={s.modalHead}>
+          <span className={s.modalTitle}>Update vaccines</span>
+          <button className={s.modalClose} onClick={onClose}><X size={16} /></button>
+        </div>
+
+        <div className={s.modalBody}>
+          <table className={s.modalTable}>
+            <thead>
+              <tr>
+                <th>Vaccine</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Brand</th>
+                <th>Batch Number</th>
+                <th>Notes (If Any)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={row.vaccKey}>
+                  <td className={s.mtVaccName}>{row.vaccineName}</td>
+                  <td>
+                    <StatusSelect value={row.status} onChange={v => update(i, 'status', v)} />
+                  </td>
+                  <td>
+                    <div className={s.mtDateWrap}>
+                      <span className={s.mtDateDisplay}>
+                        {row.date ? fmtInputDate(row.date) : '—'}
+                      </span>
+                      <input
+                        type="date"
+                        className={s.mtDateInput}
+                        value={row.date}
+                        onChange={e => update(i, 'date', e.target.value)}
+                      />
+                    </div>
+                  </td>
+                  <td>
+                    <input className={s.mtInput} placeholder="Brand name"
+                      value={row.brand} onChange={e => update(i, 'brand', e.target.value)} />
+                  </td>
+                  <td>
+                    <input className={s.mtInput} placeholder="Batch number"
+                      value={row.batch} onChange={e => update(i, 'batch', e.target.value)} />
+                  </td>
+                  <td>
+                    <textarea className={s.mtNotes} placeholder="Notes..."
+                      value={row.notes} onChange={e => update(i, 'notes', e.target.value)} rows={1} />
+                  </td>
+                  <td>
+                    <button className={s.mtReset} onClick={() => reset(i)} title="Reset">
+                      <RefreshCw size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className={s.modalFoot}>
+          <button className={s.modalBtnClose} onClick={onClose}>Close</button>
+          <button className={s.modalBtnDone} onClick={handleDone}>Done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Other Vaccines status cell (inline popover, kept for Other tab) ───────────
 function StatusCell({ vaccKey, vaccinations, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -188,6 +374,7 @@ function StatusCell({ vaccKey, vaccinations, onChange }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function VaccinationChart({ dob, age, vaccinations = {}, onChange }) {
   const [mode, setMode] = useState('iap');
+  const [modalEntries, setModalEntries] = useState(null); // null = closed
 
   const dobDate = dob ? new Date(dob + 'T00:00:00') : null;
   const today   = new Date();
@@ -212,7 +399,8 @@ export default function VaccinationChart({ dob, age, vaccinations = {}, onChange
     const next = { ...vaccinations };
     g.vaccines.forEach(v => {
       const k = `iap_${v.id}`;
-      if (checked) next[k] = { status: 'given', date: fmtVaccDate(getDate(g.days, v.extraDays || 0)) };
+      const d = getDate(g.days, v.extraDays || 0);
+      if (checked) next[k] = { status: 'given', date: fmtVaccDate(d), inputDate: toInputDate(d) };
       else delete next[k];
     });
     onChange(next);
@@ -224,7 +412,8 @@ export default function VaccinationChart({ dob, age, vaccinations = {}, onChange
       const d = getDate(g.days);
       if (d && d > today) break;
       g.vaccines.forEach(v => {
-        next[`iap_${v.id}`] = { status: 'given', date: fmtVaccDate(getDate(g.days, v.extraDays || 0)) };
+        const vd = getDate(g.days, v.extraDays || 0);
+        next[`iap_${v.id}`] = { status: 'given', date: fmtVaccDate(vd), inputDate: toInputDate(vd) };
       });
     }
     onChange(next);
@@ -235,14 +424,28 @@ export default function VaccinationChart({ dob, age, vaccinations = {}, onChange
     if (!g) return;
     const next = { ...vaccinations };
     g.vaccines.forEach(v => {
-      next[`iap_${v.id}`] = { status: 'given', date: fmtVaccDate(getDate(g.days, v.extraDays || 0)) };
+      const vd = getDate(g.days, v.extraDays || 0);
+      next[`iap_${v.id}`] = { status: 'given', date: fmtVaccDate(vd), inputDate: toInputDate(vd) };
     });
     onChange(next);
   };
 
+  const openModal = (vaccKey, vaccineName, scheduledDate) => {
+    setModalEntries([{
+      vaccKey,
+      vaccineName,
+      defaultDate:  toInputDate(scheduledDate),
+      existing:     vaccinations[vaccKey] || null,
+    }]);
+  };
+
+  const handleModalDone = (updates) => {
+    onChange({ ...vaccinations, ...updates });
+    setModalEntries(null);
+  };
+
   const otherKey = (cat, name) => `other_${(cat + '_' + name).replace(/[\s/]+/g, '_')}`;
 
-  // Count given vaccines for summary
   const givenCount = Object.values(vaccinations).filter(v => v.status === 'given').length;
   const totalSet   = Object.keys(vaccinations).length;
 
@@ -309,19 +512,25 @@ export default function VaccinationChart({ dob, age, vaccinations = {}, onChange
             {IAP_GROUPS.map(g => (
               <div key={g.id + '_v'} className={s.colBody}>
                 {g.vaccines.map(v => {
-                  const k   = `iap_${v.id}`;
-                  const rec = vaccinations[k];
-                  const cfg = rec ? STATUS_CONFIG[rec.status] : null;
-                  const vd  = getDate(g.days, v.extraDays || 0);
+                  const k    = `iap_${v.id}`;
+                  const rec  = vaccinations[k];
+                  const cfg  = rec?.status ? STATUS_CONFIG[rec.status] : null;
+                  const vd   = getDate(g.days, v.extraDays || 0);
                   return (
                     <div
                       key={v.id}
                       className={s.vaccCell}
                       style={cfg ? { borderLeftColor: cfg.color } : {}}
+                      onClick={() => openModal(k, v.name, vd)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => e.key === 'Enter' && openModal(k, v.name, vd)}
                     >
                       <span className={s.vaccName}>{v.name}</span>
                       {vd && <span className={s.vaccDate}>{fmtVaccDate(vd)}</span>}
-                      <StatusCell vaccKey={k} vaccinations={vaccinations} onChange={onChange} />
+                      {cfg && <StatusBadge status={rec.status} />}
+                      {rec?.brand && <span className={s.vaccMeta}>{rec.brand}</span>}
+                      {rec?.batch && <span className={s.vaccMeta}>#{rec.batch}</span>}
                     </div>
                   );
                 })}
@@ -357,6 +566,15 @@ export default function VaccinationChart({ dob, age, vaccinations = {}, onChange
             </div>
           ))}
         </div>
+      )}
+
+      {/* ── Modal ── */}
+      {modalEntries && (
+        <UpdateVaccineModal
+          entries={modalEntries}
+          onClose={() => setModalEntries(null)}
+          onDone={handleModalDone}
+        />
       )}
     </div>
   );

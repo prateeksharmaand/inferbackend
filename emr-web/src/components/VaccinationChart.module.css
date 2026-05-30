@@ -121,12 +121,23 @@
   transition: border-left-color .15s;
 }
 
+.vaccCell { cursor: pointer; }
+.vaccCell:hover { background: #f8fafc; }
+
 .vaccName {
   font-size: 12px; font-weight: 600; color: var(--color-text, #1e293b);
   line-height: 1.3;
 }
 .vaccDate {
   font-size: 11px; color: #2563eb; font-weight: 500;
+}
+.statusBadge {
+  display: inline-block;
+  padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
+  border: 1px solid transparent;
+}
+.vaccMeta {
+  font-size: 10px; color: var(--color-text-3, #94a3b8);
 }
 
 /* ── Status cell ── */
@@ -176,7 +187,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 10px;
-  padding: 14px 16px;
+  padding: 14px 16px 80px 16px;
 }
 
 .otherCard {
@@ -208,3 +219,130 @@
   font-size: 12px; font-weight: 500; color: var(--color-text, #1e293b);
   flex: 1;
 }
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.modalOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 800; padding: 20px;
+}
+.modal {
+  background: #fff; border-radius: 12px;
+  width: 100%; max-width: 900px;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  max-height: 80vh;
+  animation: modalIn .15s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.97) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)  translateY(0); }
+}
+.modalHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid #e2e8f0;
+}
+.modalTitle { font-size: 15px; font-weight: 700; color: #1e293b; }
+.modalClose {
+  background: none; border: none; cursor: pointer; color: #64748b;
+  display: flex; align-items: center; padding: 4px;
+  border-radius: 6px; transition: background .12s;
+}
+.modalClose:hover { background: #f1f5f9; }
+
+.modalBody { overflow-y: auto; }
+
+.modalTable {
+  width: 100%; border-collapse: collapse;
+}
+.modalTable thead tr {
+  background: #f8fafc;
+}
+.modalTable th {
+  padding: 10px 14px; font-size: 11px; font-weight: 700;
+  letter-spacing: .3px; text-transform: uppercase; color: #64748b;
+  border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap;
+}
+.modalTable tbody tr { border-bottom: 1px solid #f1f5f9; }
+.modalTable tbody tr:last-child { border-bottom: none; }
+.modalTable td { padding: 10px 14px; vertical-align: middle; }
+
+.mtVaccName { font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; }
+
+/* Status dropdown inside modal */
+.mselWrap { position: relative; min-width: 130px; }
+.mselBtn {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  width: 100%; padding: 6px 10px; border-radius: 7px; font-size: 12px; font-weight: 500;
+  border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b;
+  cursor: pointer; transition: border-color .12s; white-space: nowrap;
+}
+.mselBtn:hover { border-color: #7c3aed; }
+.mselDrop {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 60;
+  min-width: 150px; background: #fff;
+  border: 1px solid #e2e8f0; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12); overflow: hidden;
+  animation: popIn .12s ease;
+}
+.mselOpt {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 12px; font-size: 12px; font-weight: 500;
+  border: none; background: none; cursor: pointer; text-align: left;
+}
+.mselOpt:hover { background: #f1f5f9; }
+
+/* Date cell */
+.mtDateWrap {
+  position: relative; display: flex; align-items: center;
+  border: 1px solid #e2e8f0; border-radius: 7px;
+  background: #f8fafc; padding: 6px 10px; gap: 6px;
+  cursor: pointer; min-width: 110px;
+}
+.mtDateDisplay { font-size: 12px; font-weight: 500; color: #1e293b; flex: 1; white-space: nowrap; }
+.mtDateInput {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+}
+
+/* Text inputs */
+.mtInput {
+  width: 100%; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 7px;
+  font-size: 12px; color: #1e293b; background: #f8fafc; outline: none;
+  transition: border-color .12s; min-width: 110px;
+}
+.mtInput:focus { border-color: #7c3aed; background: #fff; }
+.mtInput::placeholder { color: #94a3b8; }
+
+.mtNotes {
+  width: 100%; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 7px;
+  font-size: 12px; color: #1e293b; background: #f8fafc; outline: none;
+  transition: border-color .12s; resize: none; min-width: 120px;
+  font-family: inherit;
+}
+.mtNotes:focus { border-color: #7c3aed; background: #fff; }
+.mtNotes::placeholder { color: #94a3b8; }
+
+.mtReset {
+  background: none; border: 1px solid #e2e8f0; border-radius: 6px;
+  color: #94a3b8; cursor: pointer; padding: 5px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.mtReset:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+
+.modalFoot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px; border-top: 1px solid #e2e8f0;
+}
+.modalBtnClose {
+  padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  border: 1px solid #e2e8f0; background: #fff; color: #1e293b; cursor: pointer;
+  transition: background .12s;
+}
+.modalBtnClose:hover { background: #f1f5f9; }
+.modalBtnDone {
+  padding: 9px 24px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  border: none; background: #2563eb; color: #fff; cursor: pointer;
+  transition: background .12s;
+}
+.modalBtnDone:hover { background: #1d4ed8; }
