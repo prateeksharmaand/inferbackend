@@ -137,7 +137,12 @@
 }
 
 /* ── Table ── */
-.tableWrap { overflow-x: auto; overflow-y: auto; flex: 1; min-height: 0; }
+.tableWrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
 .table {
   width: 100%; border-collapse: collapse; font-size: 13px;
   min-width: 1000px;
