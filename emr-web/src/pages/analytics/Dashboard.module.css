@@ -6,9 +6,9 @@
 
 /* ── KPI card ── */
 .kpi {
-  background: var(--color-surface); border: 1px solid var(--color-border);
+  background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e2e8f0);
   border-radius: 12px; padding: 16px 18px;
-  display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--shadow);
+  display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--shadow, 0 1px 4px rgba(0,0,0,.06));
 }
 .kpiIcon { width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .kpiValue { font-size: 22px; font-weight: 700; color: var(--color-text); line-height: 1.1; }

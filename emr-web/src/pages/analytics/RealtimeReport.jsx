@@ -33,6 +33,15 @@ export default function RealtimeReport({ doctors = [] }) {
 
   return (
     <div className={s.dash}>
+      {data && (
+        <div className={s.kpiRow}>
+          <KpiCard icon={IndianRupee} label="Total Amount Collected"  value={fmtAmt(kpi.total_collected)} color="#16a34a" />
+          <KpiCard icon={Tag}         label="Total Discount Given"    value={fmtAmt(kpi.total_discount)}  color="#d97706" />
+          <KpiCard icon={Receipt}     label="Receipts Issued"         value={kpi.receipt_count}           color="#2563eb" />
+          <KpiCard icon={Users}       label="Patients Billed"         value={kpi.patient_count}           color="#7c3aed" />
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <DateFilter from={from} to={to} onFrom={setFrom} onTo={setTo} onApply={load} />
         <select className={s.dateInput} value={docId} onChange={e => setDocId(e.target.value)}>
@@ -42,12 +51,6 @@ export default function RealtimeReport({ doctors = [] }) {
       </div>
 
       {loading ? <Spinner /> : !data ? <Empty /> : <>
-        <div className={s.kpiRow}>
-          <KpiCard icon={IndianRupee} label="Total Amount Collected"  value={fmtAmt(kpi.total_collected)} color="#16a34a" />
-          <KpiCard icon={Tag}         label="Total Discount Given"    value={fmtAmt(kpi.total_discount)}  color="#d97706" />
-          <KpiCard icon={Receipt}     label="Receipts Issued"         value={kpi.receipt_count}           color="#2563eb" />
-          <KpiCard icon={Users}       label="Patients Billed"         value={kpi.patient_count}           color="#7c3aed" />
-        </div>
 
         <div className={s.chartGrid}>
           {/* Paymode distribution */}

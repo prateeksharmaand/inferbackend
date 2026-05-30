@@ -33,6 +33,17 @@ export default function AppointmentDashboard({ doctors = [] }) {
 
   return (
     <div className={s.dash}>
+      {/* KPIs */}
+      {data && (
+        <div className={s.kpiRow}>
+          <KpiCard icon={Calendar}     label="Total Appointments"              value={kpi.total}           color="#2563eb" />
+          <KpiCard icon={Clock}        label="Avg Waiting Time (min)"          value={kpi.avg_wait_min || '—'}    color="#d97706" sub="Scheduled → Check-in" />
+          <KpiCard icon={Clock}        label="Avg Consultation Time (min)"     value={kpi.avg_consult_min || '—'} color="#7c3aed" sub="Check-in → Completed" />
+          <KpiCard icon={CheckCircle}  label="Completed"                       value={kpi.completed}       color="#16a34a" />
+          <KpiCard icon={Users}        label="Cancelled / No Show"             value={kpi.cancelled}       color="#dc2626" />
+        </div>
+      )}
+
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <DateFilter from={from} to={to} onFrom={setFrom} onTo={setTo} onApply={load} />
@@ -43,14 +54,6 @@ export default function AppointmentDashboard({ doctors = [] }) {
       </div>
 
       {loading ? <Spinner /> : !data ? <Empty /> : <>
-        {/* KPIs */}
-        <div className={s.kpiRow}>
-          <KpiCard icon={Calendar}     label="Total Appointments"              value={kpi.total}           color="#2563eb" />
-          <KpiCard icon={Clock}        label="Avg Waiting Time (min)"          value={kpi.avg_wait_min || '—'}    color="#d97706" sub="Scheduled → Check-in" />
-          <KpiCard icon={Clock}        label="Avg Consultation Time (min)"     value={kpi.avg_consult_min || '—'} color="#7c3aed" sub="Check-in → Completed" />
-          <KpiCard icon={CheckCircle}  label="Completed"                       value={kpi.completed}       color="#16a34a" />
-          <KpiCard icon={Users}        label="Cancelled / No Show"             value={kpi.cancelled}       color="#dc2626" />
-        </div>
 
         <div className={s.chartGrid}>
           {/* Weekly trend */}

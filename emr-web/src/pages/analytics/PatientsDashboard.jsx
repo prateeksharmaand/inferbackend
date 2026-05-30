@@ -37,17 +37,20 @@ export default function PatientsDashboard() {
 
   return (
     <div className={s.dash}>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <DateFilter from={from} to={to} onFrom={setFrom} onTo={setTo} onApply={load} />
-      </div>
-
-      {loading ? <Spinner /> : !data ? <Empty /> : <>
+      {data && (
         <div className={s.kpiRow}>
           <KpiCard icon={Users}     label="Patient Database"    value={kpi.total_patients?.toLocaleString('en-IN')} color="#2563eb" sub="Unique patients" />
           <KpiCard icon={Activity}  label="Total Visits"        value={kpi.total_visits?.toLocaleString('en-IN')}   color="#7c3aed" />
           <KpiCard icon={UserCheck} label="Active (last 90d)"  value={(kpi.total_patients - kpi.churned_patients)?.toLocaleString('en-IN')} color="#16a34a" />
           <KpiCard icon={UserX}     label="Churned (>90 days)" value={kpi.churned_patients?.toLocaleString('en-IN')} color="#dc2626" sub="No visit in 90+ days" />
         </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <DateFilter from={from} to={to} onFrom={setFrom} onTo={setTo} onApply={load} />
+      </div>
+
+      {loading ? <Spinner /> : !data ? <Empty /> : <>
 
         <div className={s.chartGrid}>
           {/* Monthly new vs returning */}
