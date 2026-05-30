@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, MicOff, Sparkles, X, CheckCheck, Loader, AlertCircle, Brain,
-         Settings, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+         Settings, ChevronDown, ChevronUp, Copy, Check, Minimize2, ChevronLeft } from 'lucide-react';
 import { api } from '../api/client';
 import ManageTemplatesModal from './ManageTemplatesModal';
 import styles from './ScribePanel.module.css';
@@ -256,10 +256,12 @@ export default function ScribePanel({
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
   const isTranscribing = pending > 0;
+  const [minimized, setMinimized] = useState(false);
 
   const panelClass = [
     styles.panel,
     fullscreen ? styles.panelFullscreen : '',
+    minimized  ? styles.panelMinimized  : '',
   ].filter(Boolean).join(' ');
 
   return (
@@ -275,21 +277,36 @@ export default function ScribePanel({
       )}
 
       {/* Header */}
-      <div className={styles.header}>
+      {/* Minimized tab strip */}
+      {minimized && (
+        <button className={styles.minTab} onClick={() => setMinimized(false)}>
+          <ChevronLeft size={14} />
+          <Mic size={14} strokeWidth={1.8} />
+          <span className={styles.minTabLabel}>Scribe</span>
+          {status === 'recording' && <span className={styles.minTabRec}>●</span>}
+        </button>
+      )}
+
+      {!minimized && <div className={styles.header}>
         <div className={styles.headerLeft}>
           <Mic size={16} className={styles.headerIcon} />
           <span>{standalone ? 'Infer Voice AI' : 'Medical Scribe'}</span>
           {status === 'recording' && <span className={styles.timer}>{fmt(elapsed)}</span>}
         </div>
-        {onClose && (
-          <button className={styles.closeBtn} onClick={() => { stopRecording(); onClose(); }}>
-            <X size={16} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button className={styles.minimizeBtn} onClick={() => setMinimized(true)} title="Minimize">
+            <Minimize2 size={14} />
           </button>
-        )}
-      </div>
+          {onClose && (
+            <button className={styles.closeBtn} onClick={() => { stopRecording(); onClose(); }}>
+              <X size={16} />
+            </button>
+          )}
+        </div>
+      </div>}
 
-      {/* Controls */}
-      <div className={styles.controls}>
+      {/* Controls + body — hidden when minimized */}
+      {!minimized && <div className={styles.controls}>
         <div className={styles.controlsRow2}>
           <select
             className={styles.langSelect}
@@ -504,7 +521,7 @@ export default function ScribePanel({
             </div>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

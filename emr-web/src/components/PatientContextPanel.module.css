@@ -15,6 +15,29 @@
 .panelShifted {
   right: 40vw;
 }
+.panelMinimized {
+  width: 36px !important;
+  transform: none;
+}
+
+/* Minimized tab strip */
+.minTab {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-start; gap: 10px;
+  width: 36px; height: 100%; padding: 14px 0;
+  background: linear-gradient(180deg, #7c3aed 0%, #4f46e5 100%);
+  border: none; cursor: pointer; color: #fff;
+  transition: background .15s;
+}
+.minTab:hover { background: linear-gradient(180deg, #6d28d9 0%, #4338ca 100%); }
+.minTabLabel {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .5px; white-space: nowrap;
+  color: #fff;
+}
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to   { transform: translateX(0);    opacity: 1; }
@@ -36,6 +59,12 @@
 .headerInfo { flex: 1; min-width: 0; }
 .headerName { font-size: 14px; font-weight: 700; color: var(--color-text, #1e293b); }
 .headerMeta { font-size: 11px; color: var(--color-text-3, #94a3b8); margin-top: 1px; }
+.headerBtn {
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-3, #94a3b8); padding: 4px;
+  border-radius: 6px; display: flex; transition: all .12s;
+}
+.headerBtn:hover { background: #f1f5f9; color: #7c3aed; }
 .closeBtn {
   background: none; border: none; cursor: pointer;
   color: var(--color-text-3, #94a3b8); padding: 4px;

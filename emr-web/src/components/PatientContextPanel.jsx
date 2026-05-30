@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Clock, Activity, FileText, Syringe } from 'lucide-react';
+import { X, Clock, Activity, FileText, Syringe, Minimize2, ChevronLeft } from 'lucide-react';
 import { api } from '../api/client';
 import s from './PatientContextPanel.module.css';
 
@@ -226,9 +226,12 @@ function VaccinationsTab({ history, loading }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function PatientContextPanel({ appt, onClose, shifted = false }) {
-  const [activeTab, setActiveTab] = useState('history');
-  const [history,   setHistory]   = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const [activeTab,  setActiveTab]  = useState('history');
+  const [history,    setHistory]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [minimized,  setMinimized]  = useState(false);
+
+  const activeTabCfg = TABS.find(t => t.id === activeTab);
 
   useEffect(() => {
     if (!appt) return;
@@ -247,9 +250,19 @@ export default function PatientContextPanel({ appt, onClose, shifted = false }) 
   const initials = (appt?.patient_name || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
-    <div className={`${s.panel} ${shifted ? s.panelShifted : ''}`}>
+    <div className={[s.panel, shifted ? s.panelShifted : '', minimized ? s.panelMinimized : ''].filter(Boolean).join(' ')}>
+
+      {/* Minimized tab strip — click to restore */}
+      {minimized && (
+        <button className={s.minTab} onClick={() => setMinimized(false)}>
+          <ChevronLeft size={14} />
+          {activeTabCfg && <activeTabCfg.icon size={14} strokeWidth={1.8} />}
+          <span className={s.minTabLabel}>Past Visits</span>
+        </button>
+      )}
+
       {/* Header */}
-      <div className={s.header}>
+      {!minimized && <div className={s.header}>
         <div className={s.avatar}>{initials}</div>
         <div className={s.headerInfo}>
           <div className={s.headerName}>{appt?.patient_name}</div>
@@ -261,11 +274,12 @@ export default function PatientContextPanel({ appt, onClose, shifted = false }) 
             ].filter(Boolean).join('  ·  ')}
           </div>
         </div>
+        <button className={s.headerBtn} onClick={() => setMinimized(true)} title="Minimize"><Minimize2 size={13} /></button>
         <button className={s.closeBtn} onClick={onClose}><X size={15} /></button>
-      </div>
+      </div>}
 
       {/* Icon tab bar */}
-      <div className={s.tabBar}>
+      {!minimized && <div className={s.tabBar}>
         {TABS.map(t => (
           <button
             key={t.id}
@@ -277,15 +291,15 @@ export default function PatientContextPanel({ appt, onClose, shifted = false }) 
             <span className={s.tabLabel}>{t.label}</span>
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Content */}
-      <div className={s.body}>
+      {!minimized && <div className={s.body}>
         {activeTab === 'history'      && <HistoryTab      history={history} loading={loading} />}
         {activeTab === 'vitals'       && <VitalsTab       history={history} loading={loading} />}
         {activeTab === 'records'      && <RecordsTab      history={history} loading={loading} />}
         {activeTab === 'vaccinations' && <VaccinationsTab history={history} loading={loading} />}
-      </div>
+      </div>}
     </div>
   );
 }
