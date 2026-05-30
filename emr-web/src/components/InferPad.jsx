@@ -482,7 +482,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
 
       {/* Calculators — inside same card style as vitals */}
       {calcOrder.length > 0 && (
-        <ICard title="Calculators" icon="🧮" color="#7c3aed">
+        <ICard title="Calculators" icon="🧮" color="#2563eb">
           <CalculatorsSection
             enabledIds={calcOrder}
             vitals={form.vitals}

@@ -29,11 +29,11 @@
 
 .rowBtn {
   width: 100%; padding: 5px 0;
-  border: 1px solid #7c3aed; border-radius: 6px;
-  background: none; color: #7c3aed; font-size: 11px; font-weight: 600;
+  border: 1px solid var(--color-primary); border-radius: 6px;
+  background: none; color: var(--color-primary); font-size: 11px; font-weight: 600;
   cursor: pointer; transition: all .12s;
 }
-.rowBtn:hover { background: #7c3aed; color: #fff; }
+.rowBtn:hover { background: var(--color-primary); color: #fff; }
 
 /* ── Modal overlay ── */
 .overlay {
@@ -58,12 +58,12 @@
 .mHead {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   padding: 16px 20px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
-  background: linear-gradient(135deg, #faf5ff 0%, #eff6ff 100%);
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
 }
 .mHeadLeft { display: flex; align-items: flex-start; gap: 10px; }
 .mIcon {
   width: 32px; height: 32px; border-radius: 8px;
-  background: #7c3aed; color: #fff;
+  background: var(--color-primary); color: #fff;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .mTitle { font-size: 14px; font-weight: 700; color: #1e293b; }
@@ -100,8 +100,8 @@
   font-size: 12px; font-weight: 600; color: #64748b;
   border-bottom: 2px solid transparent; transition: all .15s;
 }
-.infoTab:hover { color: #7c3aed; background: #f5f3ff; }
-.infoTabActive { color: #7c3aed; border-bottom-color: #7c3aed; background: #fff; }
+.infoTab:hover { color: var(--color-primary); background: #f5f3ff; }
+.infoTabActive { color: var(--color-primary); border-bottom-color: var(--color-primary); background: #fff; }
 .infoBody {
   flex: 1; overflow-y: auto; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 10px;
@@ -109,11 +109,11 @@
 .infoDesc  { font-size: 12px; color: #475569; line-height: 1.6; margin: 0; }
 .infoFormula {
   background: #f1f5f9; border-radius: 8px; padding: 8px 12px;
-  border-left: 3px solid #7c3aed;
+  border-left: 3px solid var(--color-primary);
 }
 .infoFormulaLbl {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .4px; color: #7c3aed; display: block; margin-bottom: 3px;
+  letter-spacing: .4px; color: var(--color-primary); display: block; margin-bottom: 3px;
 }
 .infoFormulaText {
   font-family: monospace; font-size: 11px; color: #1e293b;
@@ -156,7 +156,7 @@
   font-size: 13px; color: #1e293b; outline: none; transition: border-color .12s;
   background: #f8fafc; width: 100%; box-sizing: border-box;
 }
-.mInput:focus, .mSelect:focus { border-color: #7c3aed; background: #fff; }
+.mInput:focus, .mSelect:focus { border-color: var(--color-primary); background: #fff; }
 
 .mCheckLabel {
   display: flex; align-items: center; gap: 8px;
@@ -165,7 +165,7 @@
 }
 .mCheckLabel:hover { background: #f5f3ff; }
 .mCheckbox {
-  width: 15px; height: 15px; accent-color: #7c3aed; cursor: pointer; flex-shrink: 0;
+  width: 15px; height: 15px; accent-color: var(--color-primary); cursor: pointer; flex-shrink: 0;
 }
 
 /* Calculate row */
@@ -194,11 +194,11 @@
 .mCalcBtn {
   display: flex; align-items: center; justify-content: center; gap: 7px;
   padding: 10px 20px; border-radius: 9px; flex-shrink: 0;
-  background: #7c3aed; color: #fff; border: none; cursor: pointer;
+  background: var(--color-primary); color: #fff; border: none; cursor: pointer;
   font-size: 13px; font-weight: 600; transition: background .12s;
   height: 44px;
 }
-.mCalcBtn:hover { background: #6d28d9; }
+.mCalcBtn:hover { background: var(--color-primary-dk, #1d4ed8); }
 
 /* Description + formula section */
 .mInfo {
@@ -212,11 +212,11 @@
 }
 .mFormula {
   background: #f1f5f9; border-radius: 8px; padding: 10px 12px;
-  border-left: 3px solid #7c3aed;
+  border-left: 3px solid var(--color-primary);
 }
 .mFormulaLabel {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .4px; color: #7c3aed; display: block; margin-bottom: 4px;
+  letter-spacing: .4px; color: var(--color-primary); display: block; margin-bottom: 4px;
 }
 .mFormulaText {
   font-family: 'Fira Code', 'Cascadia Code', monospace;
