@@ -132,23 +132,6 @@ export default function Analytics() {
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: 'var(--color-bg)', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-      {/* ── FY Summary cards ── */}
-      {summary && (
-        <div className={styles.summaryRow}>
-          <SummaryCard icon={IndianRupee} label="Collected This FY"
-            value={fmtAmt(summary.fy_total)} color="#16a34a"
-            sub={`Since ${fmt(summary.fy_start)}`} />
-          <SummaryCard icon={FileText} label="Receipts This FY"
-            value={summary.months.reduce((s, m) => s + parseInt(m.receipt_count, 10), 0)}
-            color="#2563eb" sub="Total billing transactions" />
-          {data && (
-            <SummaryCard icon={TrendingUp} label="Collected (filtered)"
-              value={fmtAmt(data.total_collected)} color="#7c3aed"
-              sub={`${total} receipts · ${fmt(from)} – ${fmt(to)}`} />
-          )}
-        </div>
-      )}
-
       {/* ── Filters ── */}
       <div className={styles.filterBar}>
         {/* Quick ranges */}
@@ -192,6 +175,23 @@ export default function Analytics() {
           </div>
         </div>
       </div>
+
+      {/* ── FY Summary cards ── */}
+      {summary && (
+        <div className={styles.summaryRow}>
+          <SummaryCard icon={IndianRupee} label="Collected This FY"
+            value={fmtAmt(summary.fy_total)} color="#16a34a"
+            sub={`Since ${fmt(summary.fy_start)}`} />
+          <SummaryCard icon={FileText} label="Receipts This FY"
+            value={summary.months.reduce((s, m) => s + parseInt(m.receipt_count, 10), 0)}
+            color="#2563eb" sub="Total billing transactions" />
+          {data && (
+            <SummaryCard icon={TrendingUp} label="Collected (filtered)"
+              value={fmtAmt(data.total_collected)} color="#7c3aed"
+              sub={`${total} receipts · ${fmt(from)} – ${fmt(to)}`} />
+          )}
+        </div>
+      )}
 
       {/* ── Form 25 table section ── */}
       <div className={styles.tableSection}>
