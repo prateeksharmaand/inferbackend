@@ -230,7 +230,7 @@ async function generateMobileLoginOtp(mobile) {
     scope: 'mobile',
     loginHint: 'mobile',
     loginId: encryptedId,
-    otpSystem: 'abdm',
+    otpSystem: 'ABDM',
   });
 }
 
@@ -271,7 +271,7 @@ async function loginRequestOtp(abhaNumber) {
     scope: ['abha-login', 'mobile-verify'],
     loginHint: 'abha-number',
     loginId: encryptedId,
-    otpSystem: 'abdm',
+    otpSystem: 'ABDM',
   });
 }
 

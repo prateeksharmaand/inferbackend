@@ -658,7 +658,7 @@ const abdmUpdateBridge = async (req, res) => {
 const abhaLoginRequestOtp = async (req, res) => {
   const { loginId, otpSystem } = req.body;
   if (!loginId) return res.status(400).json({ error: 'loginId required' });
-  const system = otpSystem === 'aadhaar' ? 'aadhaar' : 'abdm';
+  const system = otpSystem === 'aadhaar' ? 'aadhaar' : 'ABDM';
   try {
     const result = await abdmSvc.loginRequestAbhaOtp(loginId, 'abha-number', system);
     res.json(result);

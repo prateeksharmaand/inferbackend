@@ -81,7 +81,7 @@ const loginGenerateOtp = async (req, res) => {
   const { abhaNumber, abhaAddress } = req.body;
   const input = abhaNumber || abhaAddress;
   if (!input) return res.status(400).json({ error: 'abhaNumber or abhaAddress required' });
-  const result = await abdm.loginRequestAbhaOtp(input, 'abha-number', 'abdm');
+  const result = await abdm.loginRequestAbhaOtp(input, 'abha-number', 'ABDM');
   res.json({ txnId: result.txnId });
 };
 
