@@ -20,7 +20,7 @@
 .tabActive { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
 
 /* ── Content area ── */
-.content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.content { flex: 1; overflow: auto; display: flex; flex-direction: column; padding-top: 12px; }
 
 /* ── Header ── */
 .header {
@@ -107,13 +107,13 @@
 .tableSection {
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 12px; overflow: hidden; box-shadow: var(--shadow);
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
 }
 
 .tableHeader {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 18px; border-bottom: 1px solid var(--color-border);
-  gap: 12px; flex-wrap: wrap;
+  gap: 12px; flex-wrap: wrap; flex-shrink: 0;
 }
 .form25Title { font-size: 16px; font-weight: 700; color: var(--color-text); margin-right: 8px; }
 .form25Sub   { font-size: 12px; color: var(--color-text-2); }
@@ -136,7 +136,7 @@
 }
 
 /* ── Table ── */
-.tableWrap { overflow-x: auto; }
+.tableWrap { overflow-x: auto; overflow-y: auto; flex: 1; min-height: 0; }
 .table {
   width: 100%; border-collapse: collapse; font-size: 13px;
   min-width: 1000px;
@@ -185,7 +185,7 @@
 .pagination {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 18px; border-top: 1px solid var(--color-border);
-  background: #f8fafc;
+  background: #f8fafc; flex-shrink: 0;
 }
 .pgInfo    { font-size: 12px; color: var(--color-text-2); }
 .pgBtns    { display: flex; align-items: center; gap: 8px; }
