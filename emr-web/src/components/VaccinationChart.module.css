@@ -250,7 +250,7 @@
 }
 .modalClose:hover { background: #f1f5f9; }
 
-.modalBody { overflow-y: auto; }
+.modalBody { overflow: visible; }
 
 .modalTable {
   width: 100%; border-collapse: collapse;
@@ -269,40 +269,53 @@
 
 .mtVaccName { font-size: 13px; font-weight: 600; color: #1e293b; white-space: nowrap; }
 
-/* Status dropdown inside modal */
-.mselWrap { position: relative; min-width: 130px; }
-.mselBtn {
-  display: flex; align-items: center; justify-content: space-between; gap: 6px;
-  width: 100%; padding: 6px 10px; border-radius: 7px; font-size: 12px; font-weight: 500;
-  border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b;
-  cursor: pointer; transition: border-color .12s; white-space: nowrap;
+/* Native status select */
+.mselNative {
+  position: relative; border: 1px solid #e2e8f0; border-radius: 7px;
+  background: #f8fafc; min-width: 140px; display: flex; align-items: center;
+  transition: border-color .12s;
 }
-.mselBtn:hover { border-color: #7c3aed; }
-.mselDrop {
-  position: absolute; top: calc(100% + 4px); left: 0; z-index: 60;
-  min-width: 150px; background: #fff;
-  border: 1px solid #e2e8f0; border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.12); overflow: hidden;
-  animation: popIn .12s ease;
+.mselNative:focus-within { border-color: #7c3aed; }
+.mselNativeEl {
+  appearance: none; -webkit-appearance: none;
+  width: 100%; padding: 7px 30px 7px 10px;
+  border: none; background: transparent;
+  font-size: 12px; font-weight: 500; cursor: pointer; outline: none;
+  color: #1e293b;
 }
-.mselOpt {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%; padding: 8px 12px; font-size: 12px; font-weight: 500;
-  border: none; background: none; cursor: pointer; text-align: left;
+.mselArrow {
+  position: absolute; right: 8px; pointer-events: none; color: #94a3b8;
 }
-.mselOpt:hover { background: #f1f5f9; }
 
-/* Date cell */
-.mtDateWrap {
-  position: relative; display: flex; align-items: center;
-  border: 1px solid #e2e8f0; border-radius: 7px;
-  background: #f8fafc; padding: 6px 10px; gap: 6px;
-  cursor: pointer; min-width: 110px;
+/* Date input (native, opens calendar) */
+.mtDatePicker {
+  padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 7px;
+  font-size: 12px; color: #1e293b; background: #f8fafc; outline: none;
+  cursor: pointer; width: 130px; transition: border-color .12s;
 }
-.mtDateDisplay { font-size: 12px; font-weight: 500; color: #1e293b; flex: 1; white-space: nowrap; }
-.mtDateInput {
-  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+.mtDatePicker:focus { border-color: #7c3aed; background: #fff; }
+
+/* Brand autocomplete */
+.brandWrap { position: relative; min-width: 150px; }
+.brandInputRow { display: flex; align-items: center; position: relative; }
+.brandArrow {
+  position: absolute; right: 8px; background: none; border: none;
+  cursor: pointer; color: #94a3b8; padding: 0; display: flex; align-items: center;
 }
+.brandDrop {
+  position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 10;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.12); overflow-y: auto; max-height: 180px;
+  animation: popIn .1s ease;
+}
+.brandOpt {
+  display: block; width: 100%; padding: 8px 12px;
+  text-align: left; border: none; background: none;
+  font-size: 12px; color: #1e293b; cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+}
+.brandOpt:last-child { border-bottom: none; }
+.brandOpt:hover { background: #f5f3ff; color: #7c3aed; }
 
 /* Text inputs */
 .mtInput {

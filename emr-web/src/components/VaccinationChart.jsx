@@ -150,6 +150,68 @@ function fmtInputDate(str) {
   return fmtVaccDate(d);
 }
 
+// ── Vaccine brands map ────────────────────────────────────────────────────────
+const VACCINE_BRANDS = {
+  'BCG':              ['BCG Vaccine IP', 'BCG (SSI)'],
+  'HB-1':             ['Engerix-B', 'Recombivax HB', 'Shanvac-B', 'Revac-B mcg', 'Genevac-B'],
+  'HB-2':             ['Engerix-B', 'Recombivax HB', 'Shanvac-B', 'Revac-B mcg', 'Genevac-B'],
+  'HB-3':             ['Engerix-B', 'Recombivax HB', 'Shanvac-B', 'Revac-B mcg', 'Genevac-B'],
+  'HB-4':             ['Engerix-B', 'Recombivax HB', 'Shanvac-B', 'Revac-B mcg', 'Genevac-B'],
+  'OPV':              ['BiOPOL', 'Polio Sabin (GSK)', 'OPV Vaccine IP'],
+  'IPV-1':            ['IMOVAX Polio', 'Poliorix', 'IPV (Sanofi)'],
+  'IPV-2':            ['IMOVAX Polio', 'Poliorix', 'IPV (Sanofi)'],
+  'IPV-3':            ['IMOVAX Polio', 'Poliorix', 'IPV (Sanofi)'],
+  'IPV-B1':           ['IMOVAX Polio', 'Poliorix', 'IPV (Sanofi)'],
+  'IPV-B2':           ['IMOVAX Polio', 'Poliorix', 'IPV (Sanofi)'],
+  'DPT-1':            ['Shan5', 'Pentavac SD', 'Infanrix', 'Pediarix', 'Diptavac', 'Pentaxim'],
+  'DPT-2':            ['Shan5', 'Pentavac SD', 'Infanrix', 'Pediarix', 'Diptavac', 'Pentaxim'],
+  'DPT-3':            ['Shan5', 'Pentavac SD', 'Infanrix', 'Pediarix', 'Diptavac', 'Pentaxim'],
+  'DPT-B1':           ['Boostrix', 'Adacel', 'Tripacel', 'Infanrix'],
+  'DPT-B2':           ['Boostrix', 'Adacel', 'Tripacel', 'Infanrix'],
+  'Hib-1':            ['Act-HIB', 'Hiberix', 'PedvaxHIB'],
+  'Hib-2':            ['Act-HIB', 'Hiberix', 'PedvaxHIB'],
+  'Hib-3':            ['Act-HIB', 'Hiberix', 'PedvaxHIB'],
+  'Hib-B1':           ['Act-HIB', 'Hiberix', 'PedvaxHIB'],
+  'PCV-1':            ['Prevenar 13', 'Synflorix'],
+  'PCV-2':            ['Prevenar 13', 'Synflorix'],
+  'PCV-3':            ['Prevenar 13', 'Synflorix'],
+  'PCV-B':            ['Prevenar 13', 'Synflorix'],
+  'RV-1':             ['Rotarix', 'RotaTeq', 'ROTAVAC', 'Rotasiil'],
+  'RV-2':             ['Rotarix', 'RotaTeq', 'ROTAVAC', 'Rotasiil'],
+  'RV-3':             ['Rotarix', 'RotaTeq', 'ROTAVAC', 'Rotasiil'],
+  'TCV':              ['Typbar TCV', 'PedaTyph'],
+  'Influenza-1':      ['Fluarix Tetra', 'Vaxigrip Tetra', 'Influvac Tetra', 'FluQuadri', 'Agrippal'],
+  'Influenza-2':      ['Fluarix Tetra', 'Vaxigrip Tetra', 'Influvac Tetra', 'FluQuadri', 'Agrippal'],
+  'Meningococcal-1':  ['Menactra', 'Menveo', 'Nimenrix', 'MenQuadfi'],
+  'Meningococcal-2':  ['Menactra', 'Menveo', 'Nimenrix', 'MenQuadfi'],
+  'Yellow-Fever':     ['STAMARIL', 'YF-Vax'],
+  'MMR-1':            ['M-M-R II', 'Tresivac', 'Priorix'],
+  'MMR-2':            ['M-M-R II', 'Tresivac', 'Priorix'],
+  'MMR-3':            ['M-M-R II', 'Tresivac', 'Priorix'],
+  'Hep-A-Live':       ['Biovac-A', 'Healive'],
+  'Hep-A1-Inact':     ['Havrix', 'Vaqta', 'Avaxim', 'Biovac-A'],
+  'Hep-A2-Inact':     ['Havrix', 'Vaqta', 'Avaxim', 'Biovac-A'],
+  'JE-1':             ['Encevac', 'JEEV', 'Imojev', 'JENVAC'],
+  'JE-2':             ['Encevac', 'JEEV', 'Imojev', 'JENVAC'],
+  'Cholera-1':        ['Shanchol', 'ORC-Vax', 'Dukoral'],
+  'Cholera-2':        ['Shanchol', 'ORC-Vax', 'Dukoral'],
+  'Varicella-1':      ['Varivax', 'Varilrix', 'Biovac-V', 'Okavax'],
+  'Varicella-2':      ['Varivax', 'Varilrix', 'Biovac-V', 'Okavax'],
+  'PPSV-23':          ['Pneumovax 23', 'Pneufort'],
+  'Tdap':             ['Boostrix', 'Adacel'],
+  'Td':               ['Td Vaccine IP', 'Tetanus-Diphtheria Vaccine'],
+  'HPV-1':            ['Gardasil', 'Gardasil 9', 'Cervarix'],
+  'HPV-2':            ['Gardasil', 'Gardasil 9', 'Cervarix'],
+  'HPV-D1':           ['Gardasil', 'Gardasil 9', 'Cervarix'],
+  'HPV-D2':           ['Gardasil', 'Gardasil 9', 'Cervarix'],
+  'HPV-D3':           ['Gardasil', 'Gardasil 9', 'Cervarix'],
+};
+
+function getBrands(vaccKey) {
+  const id = vaccKey.replace(/^iap_/, '');
+  return VACCINE_BRANDS[id] || [];
+}
+
 // ── Status badge (read-only display in grid) ──────────────────────────────────
 function StatusBadge({ status }) {
   const cfg = status ? STATUS_CONFIG[status] : null;
@@ -161,11 +223,35 @@ function StatusBadge({ status }) {
   );
 }
 
-// ── Status dropdown (used inside modal) ──────────────────────────────────────
+// ── Status select (native <select> to avoid z-index issues) ──────────────────
 function StatusSelect({ value, onChange }) {
-  const ref = useRef(null);
-  const [open, setOpen] = useState(false);
   const cfg = value ? STATUS_CONFIG[value] : null;
+  return (
+    <div className={s.mselNative} style={cfg ? { borderColor: cfg.border } : {}}>
+      <select
+        className={s.mselNativeEl}
+        style={cfg ? { color: cfg.color, background: cfg.bg } : {}}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      >
+        <option value="">Select Status</option>
+        {Object.entries(STATUS_CONFIG).map(([k, c]) => (
+          <option key={k} value={k}>{c.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={12} className={s.mselArrow} style={cfg ? { color: cfg.color } : {}} />
+    </div>
+  );
+}
+
+// ── Brand autocomplete ────────────────────────────────────────────────────────
+function BrandAutocomplete({ vaccKey, value, onChange }) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const brands = getBrands(vaccKey);
+
+  useEffect(() => { setQuery(value); }, [value]);
 
   useEffect(() => {
     if (!open) return;
@@ -174,27 +260,32 @@ function StatusSelect({ value, onChange }) {
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
 
+  const filtered = query
+    ? brands.filter(b => b.toLowerCase().includes(query.toLowerCase()))
+    : brands;
+
+  const select = (brand) => { setQuery(brand); onChange(brand); setOpen(false); };
+
   return (
-    <div ref={ref} className={s.mselWrap}>
-      <button
-        className={s.mselBtn}
-        style={cfg ? { color: cfg.color, borderColor: cfg.border, background: cfg.bg } : {}}
-        onClick={() => setOpen(o => !o)}
-      >
-        <span>{cfg ? cfg.label : 'Select Status'}</span>
-        <ChevronDown size={12} />
-      </button>
-      {open && (
-        <div className={s.mselDrop}>
-          <button className={s.mselOpt} style={{ color: '#64748b' }} onClick={() => { onChange(''); setOpen(false); }}>
-            — None —
+    <div ref={ref} className={s.brandWrap}>
+      <div className={s.brandInputRow}>
+        <input
+          className={s.mtInput}
+          placeholder="Search brand…"
+          value={query}
+          onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+        />
+        {brands.length > 0 && (
+          <button className={s.brandArrow} onClick={() => setOpen(o => !o)} tabIndex={-1}>
+            <ChevronDown size={12} />
           </button>
-          {Object.entries(STATUS_CONFIG).map(([k, c]) => (
-            <button key={k} className={s.mselOpt} style={{ color: c.color }}
-              onClick={() => { onChange(k); setOpen(false); }}>
-              <span className={s.statusDot} style={{ background: c.color }} />
-              {c.label}
-            </button>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <div className={s.brandDrop}>
+          {filtered.map(b => (
+            <button key={b} className={s.brandOpt} onClick={() => select(b)}>{b}</button>
           ))}
         </div>
       )}
@@ -204,7 +295,6 @@ function StatusSelect({ value, onChange }) {
 
 // ── Update Vaccine Modal ──────────────────────────────────────────────────────
 function UpdateVaccineModal({ entries, onClose, onDone }) {
-  // entries: [{ vaccKey, vaccineName, defaultDate }]
   const [rows, setRows] = useState(() =>
     entries.map(e => ({
       vaccKey:     e.vaccKey,
@@ -218,15 +308,13 @@ function UpdateVaccineModal({ entries, onClose, onDone }) {
     }))
   );
 
-  const update = (i, field, val) => {
+  const update = (i, field, val) =>
     setRows(r => r.map((row, idx) => idx === i ? { ...row, [field]: val } : row));
-  };
 
-  const reset = (i) => {
-    setRows(r => r.map((row, idx) => idx === i ? {
-      ...row, status: '', date: row.defaultDate || '', brand: '', batch: '', notes: '',
-    } : row));
-  };
+  const reset = (i) =>
+    setRows(r => r.map((row, idx) => idx === i
+      ? { ...row, status: '', date: row.defaultDate || '', brand: '', batch: '', notes: '' }
+      : row));
 
   const handleDone = () => {
     const updates = {};
@@ -274,21 +362,19 @@ function UpdateVaccineModal({ entries, onClose, onDone }) {
                     <StatusSelect value={row.status} onChange={v => update(i, 'status', v)} />
                   </td>
                   <td>
-                    <div className={s.mtDateWrap}>
-                      <span className={s.mtDateDisplay}>
-                        {row.date ? fmtInputDate(row.date) : '—'}
-                      </span>
-                      <input
-                        type="date"
-                        className={s.mtDateInput}
-                        value={row.date}
-                        onChange={e => update(i, 'date', e.target.value)}
-                      />
-                    </div>
+                    <input
+                      type="date"
+                      className={s.mtDatePicker}
+                      value={row.date}
+                      onChange={e => update(i, 'date', e.target.value)}
+                    />
                   </td>
                   <td>
-                    <input className={s.mtInput} placeholder="Brand name"
-                      value={row.brand} onChange={e => update(i, 'brand', e.target.value)} />
+                    <BrandAutocomplete
+                      vaccKey={row.vaccKey}
+                      value={row.brand}
+                      onChange={v => update(i, 'brand', v)}
+                    />
                   </td>
                   <td>
                     <input className={s.mtInput} placeholder="Batch number"
