@@ -67,6 +67,7 @@
   font-size: 11px; color: #1e40af; line-height: 1.5; flex-shrink: 0;
 }
 .infoIcon { flex-shrink: 0; margin-top: 1px; }
+.infoIconWrap { display: flex; align-items: center; cursor: default; color: var(--color-text-3); }
 
 /* ── Filter bar ── */
 .filterBar {

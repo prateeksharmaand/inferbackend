@@ -149,16 +149,6 @@ export default function Analytics() {
         </div>
       )}
 
-      {/* ── Info banner ── */}
-      <div className={styles.infoBanner}>
-        <Info size={14} className={styles.infoIcon} />
-        <span>
-          <strong>Form 25</strong> — Daily Case Register required under Income Tax Rules 2026, Rule 6F
-          for medical practitioners with gross receipts &gt; ₹1,50,000 in any of the last 3 FYs.
-          Keep this report ready in case requested by the Assessing Officer.
-        </span>
-      </div>
-
       {/* ── Filters ── */}
       <div className={styles.filterBar}>
         {/* Quick ranges */}
@@ -192,6 +182,10 @@ export default function Analytics() {
         <button className={styles.exportBtn} onClick={handleExport} disabled={!total}>
           <Download size={14} /> Export CSV
         </button>
+
+        <div className={styles.infoIconWrap} title="Form 25 — Daily Case Register required under Income Tax Rules 2026, Rule 6F for medical practitioners with gross receipts > ₹1,50,000 in any of the last 3 FYs. Keep this report ready in case requested by the Assessing Officer.">
+          <Info size={16} className={styles.infoIcon} />
+        </div>
       </div>
 
       {/* ── Form 25 table section ── */}
