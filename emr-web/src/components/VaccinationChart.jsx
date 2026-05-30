@@ -207,7 +207,30 @@ const VACCINE_BRANDS = {
   'HPV-D3':           ['Gardasil', 'Gardasil 9', 'Cervarix'],
 };
 
-function getBrands(vaccKey) {
+const OTHER_VACCINE_BRANDS = {
+  'Td':             ['Td Vaccine IP', 'Tetanus-Diphtheria Vaccine IP'],
+  'Pneumococcal':   ['Prevenar 13', 'Synflorix', 'Pneumovax 23', 'Pneufort', 'Prevnar 20'],
+  'Influenza':      ['Fluarix Tetra', 'Vaxigrip Tetra', 'Influvac Tetra', 'FluQuadri', 'Agrippal', 'Fluzone', 'FLUCELVAX'],
+  'HPV':            ['Gardasil', 'Gardasil 9', 'Cervarix'],
+  'Covid-19':       ['Corbevax', 'Covaxin (BBV152)', 'Covishield (AZ)', 'Comirnaty (Pfizer)', 'Spikevax (Moderna)', 'Sputnik V'],
+  'Rabies':         ['Rabipur', 'Verorab', 'Abhayrab', 'Indirab', 'Rabivax-S'],
+  'Meningococcal':  ['Menactra', 'Menveo', 'Nimenrix', 'MenQuadfi', 'Meningitec'],
+  'Yellow Fever':   ['STAMARIL', 'YF-Vax'],
+  'Hepatitis B':    ['Engerix-B', 'Recombivax HB', 'Shanvac-B', 'Revac-B mcg', 'Genevac-B', 'HEPLISAV-B'],
+  'Hepatitis A':    ['Havrix', 'Vaqta', 'Avaxim', 'Biovac-A', 'Healive'],
+  'JE':             ['Encevac', 'JEEV', 'Imojev', 'JENVAC', 'IXIARO'],
+  'MMR':            ['M-M-R II', 'Tresivac', 'Priorix', 'MMR Vaccine IP'],
+  'Varicella':      ['Varivax', 'Varilrix', 'Biovac-V', 'Okavax'],
+  'Typhoid':        ['Typbar TCV', 'PedaTyph', 'Typhim Vi', 'Typherix', 'Vivotif'],
+  'Hib':            ['Act-HIB', 'Hiberix', 'PedvaxHIB'],
+  'Rotavirus':      ['Rotarix', 'RotaTeq', 'ROTAVAC', 'Rotasiil'],
+  'Cholera':        ['Shanchol', 'Dukoral', 'ORC-Vax'],
+  'Herpes zoster':  ['Shingrix', 'Zostavax'],
+  'DTwP/DTaP':      ['Boostrix', 'Adacel', 'Infanrix', 'Tripacel', 'Daptacel'],
+};
+
+function getBrands(vaccKey, category) {
+  if (category && OTHER_VACCINE_BRANDS[category]) return OTHER_VACCINE_BRANDS[category];
   const id = vaccKey.replace(/^iap_/, '');
   return VACCINE_BRANDS[id] || [];
 }
@@ -245,11 +268,11 @@ function StatusSelect({ value, onChange }) {
 }
 
 // ── Brand autocomplete ────────────────────────────────────────────────────────
-function BrandAutocomplete({ vaccKey, value, onChange }) {
+function BrandAutocomplete({ vaccKey, category, value, onChange }) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const brands = getBrands(vaccKey);
+  const brands = getBrands(vaccKey, category);
 
   useEffect(() => { setQuery(value); }, [value]);
 
@@ -300,6 +323,7 @@ function UpdateVaccineModal({ entries, onClose, onDone }) {
       vaccKey:     e.vaccKey,
       vaccineName: e.vaccineName,
       defaultDate: e.defaultDate,
+      category:    e.category || '',
       status:      e.existing?.status || '',
       date:        e.existing?.inputDate || e.defaultDate || '',
       brand:       e.existing?.brand || '',
@@ -372,6 +396,7 @@ function UpdateVaccineModal({ entries, onClose, onDone }) {
                   <td>
                     <BrandAutocomplete
                       vaccKey={row.vaccKey}
+                      category={row.category}
                       value={row.brand}
                       onChange={v => update(i, 'brand', v)}
                     />
@@ -636,15 +661,33 @@ export default function VaccinationChart({ dob, age, vaccinations = {}, onChange
                 {cat.vaccines.map(vname => {
                   const k   = otherKey(cat.category, vname);
                   const rec = vaccinations[k];
-                  const cfg = rec ? STATUS_CONFIG[rec.status] : null;
+                  const cfg = rec?.status ? STATUS_CONFIG[rec.status] : null;
                   return (
                     <div
                       key={vname}
                       className={s.otherRow}
                       style={cfg ? { borderLeftColor: cfg.color } : {}}
+                      onClick={() => setModalEntries([{
+                        vaccKey:     k,
+                        vaccineName: vname,
+                        category:    cat.category,
+                        defaultDate: toInputDate(new Date()),
+                        existing:    rec || null,
+                      }])}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => e.key === 'Enter' && setModalEntries([{
+                        vaccKey: k, vaccineName: vname, category: cat.category,
+                        defaultDate: toInputDate(new Date()), existing: rec || null,
+                      }])}
                     >
                       <span className={s.otherName}>{vname}</span>
-                      <StatusCell vaccKey={k} vaccinations={vaccinations} onChange={onChange} />
+                      <div className={s.otherRowRight}>
+                        {cfg
+                          ? <StatusBadge status={rec.status} />
+                          : <span className={s.otherTapHint}>Tap to update</span>}
+                        {rec?.brand && <span className={s.vaccMeta}>{rec.brand}</span>}
+                      </div>
                     </div>
                   );
                 })}
