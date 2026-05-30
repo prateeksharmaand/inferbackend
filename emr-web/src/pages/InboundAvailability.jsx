@@ -114,7 +114,7 @@ function ChannelModal({ onSave, onClose }) {
             <label>Phone / Address</label>
             <input className={styles.input} placeholder="+91XXXXXXXXXX or email@domain"
               value={form.channel_address} onChange={e => set('channel_address', e.target.value)} />
-            <p className={styles.hint}>Your Twilio phone number patients message into (e.g. +91XXXXXXXXXX). For WhatsApp use the same number after enabling it in the Twilio console.</p>
+            <p className={styles.hint}>Your Exotel virtual number patients message or call into (e.g. +91XXXXXXXXXX). Use the same number for SMS, WhatsApp, and IVR — all provisioned from the Exotel dashboard.</p>
           </div>
           <div className={styles.checkRow}>
             <input type="checkbox" id="ch-active" checked={form.is_active} onChange={e => set('is_active', e.target.checked)} />

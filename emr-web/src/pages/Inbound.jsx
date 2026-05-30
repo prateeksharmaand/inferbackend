@@ -19,7 +19,7 @@ export default function Inbound() {
       <div className={styles.header}>
         <div className={styles.headerText}>
           <h1 className={styles.title}>Inbound Appointments</h1>
-          <p className={styles.sub}>AI-powered booking via SMS, WhatsApp, IVR & chat — powered by Twilio + Gemini</p>
+          <p className={styles.sub}>AI-powered booking via SMS, WhatsApp & IVR — powered by Exotel + Gemini</p>
         </div>
       </div>
 

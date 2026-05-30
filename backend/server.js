@@ -99,12 +99,13 @@ app.post('/v3/hip/patient/share',                   hipCtrl.handlePatientSharePr
 app.post('/api/v3/hip/patient/share/profile',       hipCtrl.handlePatientShareProfile);
 app.post('/api/v3/hip/patient/share',               hipCtrl.handlePatientShareProfile);
 
-// ── Twilio inbound webhooks (public, HMAC-SHA1 verified internally) ────────
-// India: Register DLT entity/template at trai.gov.in before going live with SMS.
-app.post('/webhook/twilio',         inboundWebhook.handleSmsWebhook);
-app.post('/webhook/twilio/status',  inboundWebhook.handleStatusWebhook);
-app.post('/webhook/twilio/voice',   inboundWebhook.handleVoiceWebhook);
-app.post('/webhook/twilio/gather',  inboundWebhook.handleVoiceGather);
+// ── Exotel inbound webhooks — SMS + WhatsApp + IVR (single India provider) ──
+// Exotel signs each request with HMAC-SHA1 in X-Exotel-Signature header.
+app.post('/webhook/exotel/sms',      inboundWebhook.handleSmsWebhook);
+app.post('/webhook/exotel/whatsapp', inboundWebhook.handleWhatsAppWebhook);
+app.post('/webhook/exotel/status',   inboundWebhook.handleStatusWebhook);
+app.post('/webhook/exotel/voice',    inboundWebhook.handleVoiceWebhook);
+app.post('/webhook/exotel/gather',   inboundWebhook.handleVoiceGather);
 
 // Error handler
 app.use(errorHandler);
