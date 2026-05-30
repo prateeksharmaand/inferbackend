@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ChevronLeft, ChevronDown, Settings2, Globe,
+  ChevronLeft, ChevronDown, Settings2, Globe, User,
   Printer, Eye, Trash2, SlidersHorizontal, CheckCircle, X, Plus,
   Share2, Calendar, Download, CreditCard, FileText, Star, LogOut, Mic, ClipboardList,
 } from 'lucide-react';
@@ -15,6 +15,7 @@ import DrawingCanvas from '../components/DrawingCanvas';
 import InferPad from '../components/InferPad';
 import VaccinationChart from '../components/VaccinationChart';
 import ScribePanel from '../components/ScribePanel';
+import PatientContextPanel from '../components/PatientContextPanel';
 import AssessmentPanel from '../components/AssessmentPanel';
 import styles from './WriteRx.module.css';
 
@@ -350,6 +351,7 @@ export default function WriteRx() {
   const [showConfigure,   setShowConfigure]   = useState(false);
   const [showScribe,      setShowScribe]      = useState(false);
   const [showAssessment,  setShowAssessment]  = useState(false);
+  const [showPatientCtx,  setShowPatientCtx]  = useState(false);
   const [showPostVisit,   setShowPostVisit]   = useState(false);
   const [showReceipt,     setShowReceipt]     = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
@@ -842,14 +844,20 @@ export default function WriteRx() {
               <Settings2 size={13} strokeWidth={1.8} /> Configure your InferPad
             </button>
             <button
+              className={`${styles.linkBtn} ${showPatientCtx ? styles.linkBtnActive : ''}`}
+              onClick={() => { setShowPatientCtx(p => !p); setShowScribe(false); setShowAssessment(false); }}
+            >
+              <User size={13} strokeWidth={1.8} /> Patient
+            </button>
+            <button
               className={`${styles.linkBtn} ${showScribe ? styles.linkBtnActive : ''}`}
-              onClick={() => { setShowScribe(s => !s); setShowAssessment(false); }}
+              onClick={() => { setShowScribe(s => !s); setShowAssessment(false); setShowPatientCtx(false); }}
             >
               <Mic size={13} strokeWidth={1.8} /> Scribe
             </button>
             <button
               className={`${styles.linkBtn} ${showAssessment ? styles.linkBtnActive : ''}`}
-              onClick={() => { setShowAssessment(s => !s); setShowScribe(false); }}
+              onClick={() => { setShowAssessment(s => !s); setShowScribe(false); setShowPatientCtx(false); }}
             >
               <ClipboardList size={13} strokeWidth={1.8} /> Assessment
             </button>
@@ -1013,6 +1021,13 @@ export default function WriteRx() {
       {showAssessment && (
         <AssessmentPanel
           set={set} onClose={() => setShowAssessment(false)}
+        />
+      )}
+
+      {showPatientCtx && appt && (
+        <PatientContextPanel
+          appt={appt}
+          onClose={() => setShowPatientCtx(false)}
         />
       )}
 
