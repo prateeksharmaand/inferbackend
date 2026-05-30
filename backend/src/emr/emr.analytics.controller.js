@@ -374,13 +374,13 @@ const getPrescriptionAnalytics = async (req, res) => {
 
   if (tab === 'symptoms') {
     const { rows } = await pool.query(`
-      SELECT sym AS name, COUNT(*) AS value
+      SELECT sym->>'name' AS name, COUNT(*) AS value
       FROM emr_encounters e
       JOIN emr_appointments a ON a.id = e.appointment_id,
-      jsonb_array_elements_text(e.symptoms) AS sym
+      jsonb_array_elements(e.symptoms) AS sym
       WHERE a.clinic_id=$1 AND a.appointment_date BETWEEN $2 AND $3
-        AND sym IS NOT NULL AND sym != ''
-      GROUP BY sym ORDER BY value DESC LIMIT 20`, p);
+        AND sym->>'name' IS NOT NULL AND sym->>'name' != ''
+      GROUP BY sym->>'name' ORDER BY value DESC LIMIT 20`, p);
     result = { data: rows.map(r => ({ name: r.name, value: parseInt(r.value, 10) })) };
 
   } else if (tab === 'diagnosis') {
