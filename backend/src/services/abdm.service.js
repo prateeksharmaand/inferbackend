@@ -320,7 +320,7 @@ async function getAbhaPngCard(xToken) {
 async function getAbhaSuggestions(xToken) {
   logger.info('getAbhaSuggestions request', { xToken: xToken?.slice(0, 20) + '...' });
   try {
-    const result = await abhaReq('GET', `${ABHA_BASE}/enrollment/enrol/suggestion`, null, xToken);
+    const result = await abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/suggestion`, {}, xToken);
     logger.info('getAbhaSuggestions response', result);
     return result;
   } catch (err) {
