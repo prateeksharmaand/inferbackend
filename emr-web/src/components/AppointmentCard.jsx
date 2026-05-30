@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip } from 'lucide-react';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip, FileText } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
@@ -301,6 +301,10 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 <Printer size={12} strokeWidth={2} /> Slip
               </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
+                onClick={e => { e.stopPropagation(); setShowMedDoc(true); }}>
+                <FileText size={12} strokeWidth={2} /> Med Doc
+              </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
@@ -321,6 +325,10 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
                 onClick={e => { e.stopPropagation(); setShowSlip(true); }}>
                 <Printer size={12} strokeWidth={2} /> Slip
+              </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
+                onClick={e => { e.stopPropagation(); setShowMedDoc(true); }}>
+                <FileText size={12} strokeWidth={2} /> Med Doc
               </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
