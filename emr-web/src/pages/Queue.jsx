@@ -114,15 +114,26 @@ export default function Queue() {
   const [printAppt,    setPrintAppt]    = useState(null);
   const [profileAppt,  setProfileAppt]  = useState(null);
 
+  const dateStr = useCallback(() => {
+    const q = queueDate;
+    return `${q.getFullYear()}-${String(q.getMonth()+1).padStart(2,'0')}-${String(q.getDate()).padStart(2,'0')}`;
+  }, [queueDate]);
+
   useEffect(() => {
-    Promise.all([api.get('/queues'), api.get('/tags')])
+    const d = dateStr();
+    Promise.all([api.get(`/queues?date=${d}`), api.get('/tags')])
       .then(([rows, tags]) => {
         setClinicTags(tags);
         setQueues(rows);
-        if (rows.length) setActiveQueue(rows[0]);
-        else setLoading(false);
+        // Keep the same active queue if it still exists, else default to first
+        setActiveQueue(prev =>
+          prev && rows.find(r => r.id === prev.id)
+            ? rows.find(r => r.id === prev.id)
+            : rows[0] || null
+        );
+        if (!rows.length) setLoading(false);
       }).catch(() => setLoading(false));
-  }, []);
+  }, [dateStr]);
 
   const fetchBoard = useCallback(() => {
     if (!activeQueue) return;
@@ -206,7 +217,6 @@ export default function Queue() {
               <span className={styles.queueCount}>{q.today_count}</span>
             </button>
           ))}
-          <button className={styles.newQueueBtn} onClick={() => navigate('/queue/setup')}>+ Queue</button>
 
           <div className={styles.viewToggle}>
             <button className={`${styles.viewBtn} ${viewMode === 'list'     ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('list')} title="List view">

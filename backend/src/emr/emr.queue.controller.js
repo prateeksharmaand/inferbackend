@@ -5,17 +5,19 @@ const DEFAULT_QUICK_ACTIONS = [
   'check_in','follow_up','past_visits','add_vitals','mark_no_show','exit',
 ];
 
-// GET /api/emr/queues
+// GET /api/emr/queues?date=YYYY-MM-DD
 const listQueues = async (req, res) => {
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
   const { rows } = await pool.query(
     `SELECT q.*, d.name AS doctor_name,
        (SELECT COUNT(*) FROM emr_appointments a
-        WHERE a.queue_id = q.id AND a.appointment_date = CURRENT_DATE
+        WHERE a.queue_id = q.id AND a.appointment_date = $2
           AND a.status NOT IN ('completed','cancelled','aborted')) AS today_count
      FROM emr_queues q
      LEFT JOIN emr_doctors d ON d.id = q.doctor_id
-     WHERE q.clinic_id = $1 ORDER BY q.created_at`,
-    [req.emrUser.clinic_id]
+     WHERE q.clinic_id = $1 AND q.is_active = TRUE
+     ORDER BY q.created_at`,
+    [req.emrUser.clinic_id, date]
   );
   res.json(rows);
 };
