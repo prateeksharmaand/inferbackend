@@ -433,10 +433,11 @@ const abhaCreateMobileVerify = async (req, res) => {
 
 // Step 4 – ABHA address suggestions
 const abhaGetSuggestions = async (req, res) => {
-  const { xToken } = req.body;
+  const { xToken, txnId } = req.body;
   if (!xToken) return res.status(400).json({ error: 'xToken required' });
+  if (!txnId) return res.status(400).json({ error: 'txnId required' });
   try {
-    const result = await abdmSvc.getAbhaSuggestions(xToken);
+    const result = await abdmSvc.getAbhaSuggestions(xToken, txnId);
     res.json(result);
   } catch (err) {
     res.status(err.status || 502).json({ error: err.message });
@@ -658,7 +659,7 @@ const abdmUpdateBridge = async (req, res) => {
 const abhaLoginRequestOtp = async (req, res) => {
   const { loginId, otpSystem } = req.body;
   if (!loginId) return res.status(400).json({ error: 'loginId required' });
-  const system = otpSystem === 'aadhaar' ? 'aadhaar' : 'ABDM';
+  const system = otpSystem === 'aadhaar' ? 'aadhaar' : 'abdm';
   try {
     const result = await abdmSvc.loginRequestAbhaOtp(loginId, 'abha-number', system);
     res.json(result);

@@ -230,7 +230,7 @@ async function generateMobileLoginOtp(mobile) {
     scope: 'mobile',
     loginHint: 'mobile',
     loginId: encryptedId,
-    otpSystem: 'ABDM',
+    otpSystem: 'abdm',
   });
 }
 
@@ -279,7 +279,7 @@ async function loginRequestOtp(abhaNumber) {
     scope: ['abha-login', 'mobile-verify'],
     loginHint: 'abha-number',
     loginId: encryptedId,
-    otpSystem: 'ABDM',
+    otpSystem: 'abdm',
   });
 }
 
@@ -317,15 +317,28 @@ async function getAbhaPngCard(xToken) {
 
 // ─── M1: ABHA address suggestions (during enrollment) ────────────────────────
 
-async function getAbhaSuggestions(xToken) {
-  logger.info('getAbhaSuggestions request', { xToken: xToken?.slice(0, 20) + '...' });
+async function getAbhaSuggestions(xToken, txnId) {
+  logger.info('getAbhaSuggestions request', { xToken: xToken?.slice(0, 20) + '...', txnId });
+  const token = await getGatewayToken();
   try {
-    const result = await abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/suggestion`, {}, xToken);
-    logger.info('getAbhaSuggestions response', result);
-    return result;
+    const res = await abdmAxios.get(`${ABHA_BASE}/enrollment/enrol/suggestion`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Token': xToken,
+        'Transaction_Id': txnId,
+        'X-CM-ID': 'sbx',
+        'REQUEST-ID': uuid(),
+        TIMESTAMP: new Date().toISOString(),
+      },
+    });
+    logger.info('getAbhaSuggestions response', res.data);
+    return res.data;
   } catch (err) {
-    logger.error('getAbhaSuggestions failed', { status: err.status, error: err.message });
-    throw err;
+    const abdmBody = err.response?.data;
+    logger.error('getAbhaSuggestions failed', { status: err.response?.status, body: abdmBody });
+    const fwd = new Error(abdmBody ? JSON.stringify(abdmBody) : err.message);
+    fwd.status = err.response?.status ?? 502;
+    throw fwd;
   }
 }
 
