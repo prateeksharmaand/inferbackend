@@ -318,7 +318,15 @@ async function getAbhaPngCard(xToken) {
 // ─── M1: ABHA address suggestions (during enrollment) ────────────────────────
 
 async function getAbhaSuggestions(xToken) {
-  return abhaReq('GET', `${ABHA_BASE}/enrollment/enrol/suggestion`, null, xToken);
+  logger.info('getAbhaSuggestions request', { xToken: xToken?.slice(0, 20) + '...' });
+  try {
+    const result = await abhaReq('GET', `${ABHA_BASE}/enrollment/enrol/suggestion`, null, xToken);
+    logger.info('getAbhaSuggestions response', result);
+    return result;
+  } catch (err) {
+    logger.error('getAbhaSuggestions failed', { status: err.status, error: err.message });
+    throw err;
+  }
 }
 
 async function setAbhaAddress(xToken, abhaAddress, txnId) {
