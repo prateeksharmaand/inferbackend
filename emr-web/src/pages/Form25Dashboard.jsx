@@ -135,7 +135,8 @@ export default function Analytics() {
       {/* ── Header ── */}
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>{user?.clinic_name}</h1>
+          <h1 className={styles.title}>Infer OPD</h1>
+          <p className={styles.sub}>{user?.clinic_name}</p>
         </div>
         <button className={styles.exportBtn} onClick={handleExport} disabled={!total}>
           <Download size={14} /> Export CSV
