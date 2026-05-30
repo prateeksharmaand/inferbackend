@@ -225,7 +225,7 @@ function VaccinationsTab({ history, loading }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function PatientContextPanel({ appt, onClose }) {
+export default function PatientContextPanel({ appt, onClose, shifted = false }) {
   const [activeTab, setActiveTab] = useState('history');
   const [history,   setHistory]   = useState([]);
   const [loading,   setLoading]   = useState(true);
@@ -247,7 +247,7 @@ export default function PatientContextPanel({ appt, onClose }) {
   const initials = (appt?.patient_name || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
-    <div className={s.panel}>
+    <div className={`${s.panel} ${shifted ? s.panelShifted : ''}`}>
       {/* Header */}
       <div className={s.header}>
         <div className={s.avatar}>{initials}</div>

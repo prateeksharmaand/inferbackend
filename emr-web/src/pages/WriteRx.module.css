@@ -24,7 +24,6 @@
   display: flex; align-items: center; justify-content: space-between;
   background: var(--color-surface); border-bottom: 1px solid var(--color-border);
   padding: 0 20px; flex-shrink: 0; gap: 12px;
-  overflow: visible; position: relative; z-index: 10;
 }
 .tabs { display: flex; align-items: flex-end; }
 .tab {
@@ -36,7 +35,7 @@
 .tab:hover  { color: var(--color-text); }
 .tabActive  { color: var(--color-primary) !important; border-bottom-color: var(--color-primary); font-weight: 600; }
 
-.linkBtns { display: flex; align-items: center; gap: 8px; flex-shrink: 0; position: relative; }
+.linkBtns { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .linkBtn {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;

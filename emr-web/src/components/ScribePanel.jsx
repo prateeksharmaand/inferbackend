@@ -61,7 +61,6 @@ export default function ScribePanel({
   appt, pastNotes, user, form: rxForm,
   standalone = false,
   fullscreen  = false,
-  dropdown    = false,
 }) {
   const [status,         setStatus]         = useState('idle');
   const [transcript,     setTranscript]     = useState('');
@@ -261,7 +260,6 @@ export default function ScribePanel({
   const panelClass = [
     styles.panel,
     fullscreen ? styles.panelFullscreen : '',
-    dropdown   ? styles.panelDropdown   : '',
   ].filter(Boolean).join(' ');
 
   return (

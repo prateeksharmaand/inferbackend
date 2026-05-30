@@ -843,36 +843,21 @@ export default function WriteRx() {
             <button className={styles.linkBtn} onClick={() => setShowConfigure(true)}>
               <Settings2 size={13} strokeWidth={1.8} /> Configure your InferPad
             </button>
-            <div style={{ position: 'relative' }}>
-              <button
-                className={`${styles.linkBtn} ${showPatientCtx ? styles.linkBtnActive : ''}`}
-                onClick={() => { setShowPatientCtx(p => !p); setShowScribe(false); setShowAssessment(false); }}
-              >
-                <User size={13} strokeWidth={1.8} /> Past Visits
-              </button>
-              {showPatientCtx && appt && (
-                <PatientContextPanel appt={appt} onClose={() => setShowPatientCtx(false)} />
-              )}
-            </div>
-
-            <div style={{ position: 'relative' }}>
-              <button
-                className={`${styles.linkBtn} ${showScribe ? styles.linkBtnActive : ''}`}
-                onClick={() => { setShowScribe(s => !s); setShowAssessment(false); setShowPatientCtx(false); }}
-              >
-                <Mic size={13} strokeWidth={1.8} /> Scribe
-              </button>
-              {showScribe && (
-                <ScribePanel dropdown
-                  set={set} setVital={setVital} onClose={() => setShowScribe(false)}
-                  appt={appt} pastNotes={pastNotes} user={user} form={form}
-                />
-              )}
-            </div>
-
+            <button
+              className={`${styles.linkBtn} ${showPatientCtx ? styles.linkBtnActive : ''}`}
+              onClick={() => setShowPatientCtx(p => !p)}
+            >
+              <User size={13} strokeWidth={1.8} /> Past Visits
+            </button>
+            <button
+              className={`${styles.linkBtn} ${showScribe ? styles.linkBtnActive : ''}`}
+              onClick={() => { setShowScribe(s => !s); setShowAssessment(false); }}
+            >
+              <Mic size={13} strokeWidth={1.8} /> Scribe
+            </button>
             <button
               className={`${styles.linkBtn} ${showAssessment ? styles.linkBtnActive : ''}`}
-              onClick={() => { setShowAssessment(s => !s); setShowScribe(false); setShowPatientCtx(false); }}
+              onClick={() => { setShowAssessment(s => !s); setShowScribe(false); }}
             >
               <ClipboardList size={13} strokeWidth={1.8} /> Assessment
             </button>
@@ -1026,9 +1011,24 @@ export default function WriteRx() {
         />
       )}
 
+      {showScribe && (
+        <ScribePanel
+          set={set} setVital={setVital} onClose={() => setShowScribe(false)}
+          appt={appt} pastNotes={pastNotes} user={user} form={form}
+        />
+      )}
+
       {showAssessment && (
         <AssessmentPanel
           set={set} onClose={() => setShowAssessment(false)}
+        />
+      )}
+
+      {showPatientCtx && appt && (
+        <PatientContextPanel
+          appt={appt}
+          onClose={() => setShowPatientCtx(false)}
+          shifted={showScribe}
         />
       )}
 
