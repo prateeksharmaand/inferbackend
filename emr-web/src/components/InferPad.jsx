@@ -24,10 +24,10 @@ async function fetchRxTerms(query) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-// All available vitals — derived from SERVER_VITALS spec
+// All available vitals — derived from SERVER_VITALS spec (exported for use in WriteRx Overview)
 // decimal: true = allow decimals, false = integers only
 // safeRange: {low, high} used for soft validation hint
-const VITALS_ALL = [
+export const VITALS_ALL = [
   // ── Core vitals (on by default) ──────────────────────────────────────────
   { key: 'bp_systolic',      label: 'Systolic BP',                    unit: 'mmHg',    placeholder: '120',  defaultOn: true,  decimal: true,  safeRange: { low: '100', high: '140' } },
   { key: 'bp_diastolic',     label: 'Diastolic BP',                   unit: 'mmHg',    placeholder: '80',   defaultOn: true,  decimal: false, safeRange: { low: '70',  high: '90'  } },
@@ -88,7 +88,7 @@ const VITALS_ALL = [
 const VITALS_CONFIG = VITALS_ALL; // kept for backward compat
 
 // ── Vitals config localStorage helpers ───────────────────────────────────────
-function getVitalsPrefs(clinicId) {
+export function getVitalsPrefs(clinicId) {
   try {
     const raw = localStorage.getItem(`vitals_cfg_${clinicId}`);
     if (raw) return JSON.parse(raw);

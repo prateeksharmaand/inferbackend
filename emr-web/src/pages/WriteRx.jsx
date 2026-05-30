@@ -14,6 +14,7 @@ import CreateReceiptModal from '../components/CreateReceiptModal';
 import DrawingCanvas from '../components/DrawingCanvas';
 import InferPad from '../components/InferPad';
 import VaccinationChart from '../components/VaccinationChart';
+import { VITALS_ALL, getVitalsPrefs } from '../components/InferPad';
 import ScribePanel from '../components/ScribePanel';
 import PatientContextPanel from '../components/PatientContextPanel';
 import AssessmentPanel from '../components/AssessmentPanel';
@@ -890,40 +891,45 @@ export default function WriteRx() {
                 )
               }
 
-              {/* ── Vitals card — display only ── */}
-              <div className={styles.summaryCard}>
-                <div className={styles.summaryCardHeader}>
-                  <span className={styles.summaryCardTitle}>Vitals</span>
-                </div>
-                {Object.values(form.vitals).every(v => !v) ? (
-                  <div className={styles.summaryEmptyState}>
-                    <span className={styles.summaryEmptyIcon}>🩺</span>
-                    <span className={styles.summaryEmptyText}>No Vitals Added!</span>
-                  </div>
-                ) : (
-                  <div className={styles.vitalsDisplayGrid}>
-                    {[
-                      ['bp_systolic',      'BP Systolic',     'mmHg',  '#3b82f6'],
-                      ['bp_diastolic',     'BP Diastolic',    'mmHg',  '#6366f1'],
-                      ['pulse',            'Pulse',           'bpm',   '#f59e0b'],
-                      ['spo2',             'SpO₂',            '%',     '#06b6d4'],
-                      ['temp',             'Temp',            '°C',    '#ef4444'],
-                      ['respiratory_rate', 'Resp Rate',       '/min',  '#0891b2'],
-                      ['weight',           'Weight',          'kg',    '#8b5cf6'],
-                      ['height',           'Height',          'cm',    '#10b981'],
-                      ['bmi',              'BMI',             'kg/m²', '#16a34a'],
-                    ].filter(([k]) => form.vitals[k]).map(([k, label, unit, color]) => (
-                      <div key={k} className={styles.vitalDisplayCell}>
-                        <div className={styles.vitalDisplayBar} style={{ background: color + '18', borderColor: color + '44' }}>
-                          <span className={styles.vitalDisplayValue} style={{ color }}>{form.vitals[k]}</span>
-                          <span className={styles.vitalDisplayUnit}>{unit}</span>
-                        </div>
-                        <span className={styles.vitalDisplayLabel}>{label}</span>
+              {/* ── Vitals card — display only (uses configured vitals order) ── */}
+              {(() => {
+                const cid = user?.clinic_id || 'default';
+                const orderedKeys = getVitalsPrefs(cid);
+                const COLORS = ['#3b82f6','#6366f1','#f59e0b','#06b6d4','#ef4444','#0891b2','#8b5cf6','#10b981','#16a34a','#7c3aed','#d97706','#dc2626'];
+                // Show configured vitals + BMI + any extra vitals that have values
+                const configured = orderedKeys
+                  .map((k, i) => ({ ...(VITALS_ALL.find(v => v.key === k) || { key: k, label: k, unit: '' }), color: COLORS[i % COLORS.length] }))
+                  .filter(v => form.vitals[v.key]);
+                const bmiEntry  = form.vitals.bmi ? [{ key: 'bmi', label: 'BMI', unit: 'kg/m²', color: '#16a34a' }] : [];
+                const extraKeys = Object.keys(form.vitals).filter(k => form.vitals[k] && k !== 'bmi' && !orderedKeys.includes(k));
+                const extra     = extraKeys.map((k, i) => ({ ...(VITALS_ALL.find(v => v.key === k) || { key: k, label: k, unit: '' }), color: COLORS[(orderedKeys.length + i) % COLORS.length] }));
+                const allDisplay = [...configured, ...bmiEntry, ...extra];
+                return (
+                  <div className={styles.summaryCard}>
+                    <div className={styles.summaryCardHeader}>
+                      <span className={styles.summaryCardTitle}>Vitals</span>
+                    </div>
+                    {allDisplay.length === 0 ? (
+                      <div className={styles.summaryEmptyState}>
+                        <span className={styles.summaryEmptyIcon}>🩺</span>
+                        <span className={styles.summaryEmptyText}>No Vitals Added!</span>
                       </div>
-                    ))}
+                    ) : (
+                      <div className={styles.vitalsDisplayGrid}>
+                        {allDisplay.map(v => (
+                          <div key={v.key} className={styles.vitalDisplayCell}>
+                            <div className={styles.vitalDisplayBar} style={{ background: v.color + '18', borderColor: v.color + '44' }}>
+                              <span className={styles.vitalDisplayValue} style={{ color: v.color }}>{form.vitals[v.key]}</span>
+                              <span className={styles.vitalDisplayUnit}>{v.unit}</span>
+                            </div>
+                            <span className={styles.vitalDisplayLabel} title={v.label}>{v.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
 
               {/* ── Lab Results card — display only ── */}
               <div className={styles.summaryCard}>
