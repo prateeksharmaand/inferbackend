@@ -829,8 +829,8 @@ export default function WriteRx() {
             onBookAgain={handleBookAgain}
             onPrint={() => window.print()}
             onGoogleReview={() => {
-              const link = rxImages.googleReviewLink;
-              link ? window.open(link, '_blank') : alert('No Google review link set. Add it in Configure → InferPad Settings.');
+              const link = user?.google_review_link || rxImages.googleReviewLink;
+              link ? window.open(link, '_blank') : alert('No Google review link set. Add it in Settings → Doctors → Edit your profile.');
             }}
             onBillPatient={() => setShowReceipt(true)}
             onEndVisit={() => navigate('/queue')}

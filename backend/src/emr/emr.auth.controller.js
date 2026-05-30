@@ -42,7 +42,7 @@ const login = async (req, res) => {
       clinic_phone:   user.clinic_phone   || '',
       plan:           user.plan,
       max_patients:   user.max_patients,
-      ...(role === 'doctor' ? { specialization: user.specialization, qualification: user.qualification } : {}),
+      ...(role === 'doctor' ? { specialization: user.specialization, qualification: user.qualification, google_review_link: user.google_review_link || '' } : {}),
     },
   });
 };
@@ -80,14 +80,14 @@ const registerClinic = async (req, res) => {
 
 // POST /api/emr/auth/add-doctor  (staff only)
 const addDoctor = async (req, res) => {
-  const { name, email, password, specialization, qualification, registration_no } = req.body;
+  const { name, email, password, specialization, qualification, registration_no, google_review_link } = req.body;
   const clinic_id = req.emrUser.clinic_id;
   if (!name || !email || !password) return res.status(400).json({ error: 'name, email, password required' });
   const hash = await bcrypt.hash(password, 10);
   const { rows } = await pool.query(
-    `INSERT INTO emr_doctors (clinic_id, name, email, password_hash, specialization, qualification, registration_no)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, name, email, specialization`,
-    [clinic_id, name, email, hash, specialization || null, qualification || null, registration_no || null]
+    `INSERT INTO emr_doctors (clinic_id, name, email, password_hash, specialization, qualification, registration_no, google_review_link)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, name, email, specialization, google_review_link`,
+    [clinic_id, name, email, hash, specialization || null, qualification || null, registration_no || null, google_review_link || null]
   );
   res.status(201).json(rows[0]);
 };
@@ -95,7 +95,7 @@ const addDoctor = async (req, res) => {
 // GET /api/emr/auth/doctors
 const listDoctors = async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, name, email, specialization, qualification, registration_no, is_active
+    `SELECT id, name, email, specialization, qualification, registration_no, is_active, google_review_link
      FROM emr_doctors WHERE clinic_id=$1 ORDER BY name`,
     [req.emrUser.clinic_id]
   );
@@ -104,15 +104,16 @@ const listDoctors = async (req, res) => {
 
 // PATCH /api/emr/auth/doctors/:id
 const updateDoctor = async (req, res) => {
-  const { name, email, password, specialization, qualification, registration_no, is_active } = req.body;
+  const { name, email, password, specialization, qualification, registration_no, is_active, google_review_link } = req.body;
   const sets = []; const params = [];
   let i = 1;
-  if (name            !== undefined) { sets.push(`name=$${i++}`);            params.push(name); }
-  if (email           !== undefined) { sets.push(`email=$${i++}`);           params.push(email); }
-  if (specialization  !== undefined) { sets.push(`specialization=$${i++}`);  params.push(specialization); }
-  if (qualification   !== undefined) { sets.push(`qualification=$${i++}`);   params.push(qualification); }
-  if (registration_no !== undefined) { sets.push(`registration_no=$${i++}`); params.push(registration_no); }
-  if (is_active       !== undefined) { sets.push(`is_active=$${i++}`);       params.push(is_active); }
+  if (name               !== undefined) { sets.push(`name=$${i++}`);               params.push(name); }
+  if (email              !== undefined) { sets.push(`email=$${i++}`);              params.push(email); }
+  if (specialization     !== undefined) { sets.push(`specialization=$${i++}`);     params.push(specialization); }
+  if (qualification      !== undefined) { sets.push(`qualification=$${i++}`);      params.push(qualification); }
+  if (registration_no    !== undefined) { sets.push(`registration_no=$${i++}`);    params.push(registration_no); }
+  if (is_active          !== undefined) { sets.push(`is_active=$${i++}`);          params.push(is_active); }
+  if (google_review_link !== undefined) { sets.push(`google_review_link=$${i++}`); params.push(google_review_link || null); }
   if (password) {
     const hash = await bcrypt.hash(password, 10);
     sets.push(`password_hash=$${i++}`); params.push(hash);
@@ -122,7 +123,7 @@ const updateDoctor = async (req, res) => {
   const { rows } = await pool.query(
     `UPDATE emr_doctors SET ${sets.join(', ')}
      WHERE id=$${i++} AND clinic_id=$${i++}
-     RETURNING id, name, email, specialization, qualification, registration_no, is_active`,
+     RETURNING id, name, email, specialization, qualification, registration_no, is_active, google_review_link`,
     params
   );
   if (!rows.length) return res.status(404).json({ error: 'Doctor not found' });

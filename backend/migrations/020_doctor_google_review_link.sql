@@ -1,0 +1,2 @@
+ALTER TABLE emr_doctors
+  ADD COLUMN IF NOT EXISTS google_review_link TEXT DEFAULT NULL;

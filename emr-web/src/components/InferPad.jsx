@@ -854,19 +854,14 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
 function InferPadSettings({ clinicId }) {
   const key = (t) => `rx_${t}_${clinicId}`;
   const [vaccChart, setVaccChart] = useState(() => localStorage.getItem(key('vaccination_chart')) === 'true');
-  const [googleLink, setGoogleLink] = useState(() => localStorage.getItem(key('google_review')) || '');
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     vaccChart
       ? localStorage.setItem(key('vaccination_chart'), 'true')
       : localStorage.removeItem(key('vaccination_chart'));
-    googleLink
-      ? localStorage.setItem(key('google_review'), googleLink)
-      : localStorage.removeItem(key('google_review'));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-    // trigger a storage event so WriteRx tab list re-evaluates
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -884,19 +879,6 @@ function InferPadSettings({ clinicId }) {
             <input type="checkbox" checked={vaccChart} onChange={e => setVaccChart(e.target.checked)} />
             <span className={styles.toggleSlider} />
           </label>
-        </div>
-
-        {/* Google Review Link */}
-        <div className={styles.settingRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
-          <span className={styles.settingLabel}>Google Review Link</span>
-          <span className={styles.settingHint}>Shared with patients after each visit via the "Send Google Review" button.</span>
-          <input
-            type="url"
-            className={styles.settingInput}
-            placeholder="https://g.page/r/XXXXXXXX/review"
-            value={googleLink}
-            onChange={e => setGoogleLink(e.target.value)}
-          />
         </div>
 
         <button className={styles.settingSave} onClick={handleSave}>

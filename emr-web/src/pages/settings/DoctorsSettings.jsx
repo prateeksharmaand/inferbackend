@@ -4,7 +4,7 @@ import { api } from '../../api/client';
 import styles from './ServicesSettings.module.css';
 import ds from './DoctorsSettings.module.css';
 
-const EMPTY_FORM = { name: '', email: '', password: '', specialization: '', qualification: '', registration_no: '' };
+const EMPTY_FORM = { name: '', email: '', password: '', specialization: '', qualification: '', registration_no: '', google_review_link: '' };
 
 function DoctorModal({ doctor, onSave, onClose }) {
   const [form, setForm]   = useState(doctor ? { ...doctor, password: '' } : EMPTY_FORM);
@@ -59,6 +59,11 @@ function DoctorModal({ doctor, onSave, onClose }) {
           <div className={styles.field}>
             <label>Registration No.</label>
             <input className={styles.input} value={form.registration_no} onChange={e => set('registration_no', e.target.value)} placeholder="MCI/State council registration" />
+          </div>
+          <div className={styles.field}>
+            <label>Google Review Link</label>
+            <input className={styles.input} type="url" value={form.google_review_link || ''} onChange={e => set('google_review_link', e.target.value)} placeholder="https://g.page/r/XXXXXXXX/review" />
+            <span style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Shared with patients after each visit via the "Send Google Review" button.</span>
           </div>
           {error && <p className={styles.error}>{error}</p>}
           <div className={styles.modalFooter}>
