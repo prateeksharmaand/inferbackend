@@ -24,28 +24,65 @@ async function fetchRxTerms(query) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-// All available vitals (superset — doctors can pick which to show)
+// All available vitals — derived from SERVER_VITALS spec
+// decimal: true = allow decimals, false = integers only
+// safeRange: {low, high} used for soft validation hint
 const VITALS_ALL = [
-  { key: 'bp_systolic',      label: 'Systolic BP',        unit: 'mmHg',   placeholder: '120',  defaultOn: true  },
-  { key: 'bp_diastolic',     label: 'Diastolic BP',       unit: 'mmHg',   placeholder: '80',   defaultOn: true  },
-  { key: 'pulse',            label: 'Pulse',              unit: 'bpm',    placeholder: '72',   defaultOn: true  },
-  { key: 'temp',             label: 'Temperature',        unit: '°C',     placeholder: '37.2', defaultOn: true  },
-  { key: 'spo2',             label: 'SpO₂',               unit: '%',      placeholder: '98',   defaultOn: true  },
-  { key: 'respiratory_rate', label: 'Respiratory Rate',   unit: '/min',   placeholder: '16',   defaultOn: true  },
-  { key: 'height',           label: 'Height',             unit: 'cm',     placeholder: '170',  defaultOn: true  },
-  { key: 'weight',           label: 'Weight',             unit: 'kg',     placeholder: '70',   defaultOn: true  },
-  { key: 'blood_glucose',    label: 'Blood Glucose',      unit: 'mg/dL',  placeholder: '100',  defaultOn: false },
-  { key: 'hba1c',            label: 'HbA1c',              unit: '%',      placeholder: '5.7',  defaultOn: false },
-  { key: 'cholesterol',      label: 'Cholesterol',        unit: 'mg/dL',  placeholder: '180',  defaultOn: false },
-  { key: 'uric_acid',        label: 'Uric Acid',          unit: 'mg/dL',  placeholder: '6.0',  defaultOn: false },
-  { key: 'creatinine',       label: 'Creatinine',         unit: 'mg/dL',  placeholder: '1.0',  defaultOn: false },
-  { key: 'hemoglobin',       label: 'Hemoglobin',         unit: 'g/dL',   placeholder: '13.5', defaultOn: false },
-  { key: 'waist',            label: 'Waist Circumference',unit: 'cm',     placeholder: '80',   defaultOn: false },
-  { key: 'head_circ',        label: 'Head Circumference', unit: 'cm',     placeholder: '35',   defaultOn: false },
-  { key: 'muac',             label: 'MUAC',               unit: 'cm',     placeholder: '14',   defaultOn: false },
-  { key: 'inr',              label: 'INR',                unit: '',       placeholder: '1.0',  defaultOn: false },
-  { key: 'platelets',        label: 'Platelets',          unit: 'lakhs',  placeholder: '2.5',  defaultOn: false },
-  { key: 'pain_score',       label: 'Pain Score (0-10)',  unit: '/10',    placeholder: '0',    defaultOn: false },
+  // ── Core vitals (on by default) ──────────────────────────────────────────
+  { key: 'bp_systolic',      label: 'Systolic BP',                    unit: 'mmHg',    placeholder: '120',  defaultOn: true,  decimal: true,  safeRange: { low: '100', high: '140' } },
+  { key: 'bp_diastolic',     label: 'Diastolic BP',                   unit: 'mmHg',    placeholder: '80',   defaultOn: true,  decimal: false, safeRange: { low: '70',  high: '90'  } },
+  { key: 'pulse',            label: 'Pulse Rate',                     unit: '/min',    placeholder: '72',   defaultOn: true,  decimal: true,  safeRange: { low: '60',  high: '100' } },
+  { key: 'spo2',             label: 'SpO₂',                           unit: '%',       placeholder: '98',   defaultOn: true,  decimal: true,  safeRange: { low: '95',  high: '100' } },
+  { key: 'temp',             label: 'Temperature',                    unit: '°C',      placeholder: '37.0', defaultOn: true,  decimal: true,  safeRange: { low: '36.6','high': '37.0' } },
+  { key: 'respiratory_rate', label: 'Respiratory Rate',               unit: '/min',    placeholder: '16',   defaultOn: true,  decimal: false, safeRange: { low: '12',  high: '16'  } },
+  { key: 'height',           label: 'Height',                         unit: 'cm',      placeholder: '170',  defaultOn: true,  decimal: true,  safeRange: { low: '0',   high: '250' } },
+  { key: 'weight',           label: 'Weight',                         unit: 'kg',      placeholder: '70',   defaultOn: true,  decimal: true,  safeRange: { low: '0',   high: '300' } },
+  { key: 'temp_f',           label: 'Temperature (°F)',               unit: '°F',      placeholder: '98.6', defaultOn: false, decimal: true,  safeRange: { low: '97',  high: '99'  } },
+  { key: 'height_feet',      label: 'Height (Feet)',                  unit: 'ft',      placeholder: '5.7',  defaultOn: false, decimal: true,  safeRange: { low: '0',   high: '10'  } },
+  { key: 'weight_lbs',       label: 'Weight (lbs)',                   unit: 'lbs',     placeholder: '154',  defaultOn: false, decimal: true,  safeRange: { low: '0',   high: '500' } },
+  // ── Body measurements ───────────────────────────────────────────────────
+  { key: 'birth_weight',     label: 'Birth Weight',                   unit: 'kg',      placeholder: '3.0',  defaultOn: false, decimal: true,  safeRange: { low: '0',   high: '10'  } },
+  { key: 'ofc',              label: 'Occipital Frontal Circumference', unit: 'cm',      placeholder: '35',   defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'head_circ',        label: 'Head Circumference (HC)',        unit: 'cm',      placeholder: '35',   defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'chest_circ',       label: 'Chest Circumference (CC)',       unit: 'cm',      placeholder: '33',   defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'muac',             label: 'Mid Arm Circumference (MUAC)',   unit: 'cm',      placeholder: '14',   defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'waist',            label: 'Waist Circumference (WC)',       unit: 'cm',      placeholder: '80',   defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'abdominal_girth',  label: 'Abdominal Girth',               unit: 'cm',      placeholder: '80',   defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'neck_circ',        label: 'Neck Circumference',             unit: 'cm',      placeholder: '37',   defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'muscle_mass',      label: 'Muscle Mass',                    unit: 'kg',      placeholder: '36',   defaultOn: false, decimal: true,  safeRange: { low: '32.4','high': '40.4' } },
+  { key: 'bone_mass',        label: 'Bone Mass',                      unit: 'kg',      placeholder: '2.6',  defaultOn: false, decimal: true,  safeRange: { low: '2.3', high: '2.9'  } },
+  { key: 'fat_mass',         label: 'Body Fat Mass',                  unit: '%',       placeholder: '20',   defaultOn: false, decimal: true,  safeRange: { low: '14.6','high': '25.2' } },
+  { key: 'metabolic_age',    label: 'Metabolic Age',                  unit: 'years',   placeholder: '30',   defaultOn: false, decimal: false, safeRange: { low: '0',   high: '120' } },
+  // ── Blood sugar ─────────────────────────────────────────────────────────
+  { key: 'rbs',              label: 'Random Blood Sugar (RBS)',        unit: 'mg/dL',   placeholder: '100',  defaultOn: false, decimal: true,  safeRange: { low: '60',  high: '140' } },
+  { key: 'fbs',              label: 'Fasting Blood Sugar (FBS)',       unit: 'mg/dL',   placeholder: '90',   defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'ppbs',             label: 'Post-Prandial Blood Sugar (PPBS)',unit: 'mg/dL',   placeholder: '140',  defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'hba1c',            label: 'HbA1c',                          unit: '%',       placeholder: '5.7',  defaultOn: false, decimal: true,  safeRange: { low: '3.9', high: '5.7'  } },
+  { key: 'fasting_insulin',  label: 'Fasting Insulin',                unit: 'μIU/mL',  placeholder: '10',   defaultOn: false, decimal: true,  safeRange: {} },
+  // ── Renal / kidney ──────────────────────────────────────────────────────
+  { key: 'creatinine',       label: 'Creatinine, Serum',              unit: 'mg/dL',   placeholder: '1.0',  defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'microalbumin',     label: 'Microalbuminuria',               unit: 'mg/dL',   placeholder: '',     defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'acr',              label: 'Albumin Creatinine Ratio (ACR)', unit: 'mg/g Cr', placeholder: '',     defaultOn: false, decimal: true,  safeRange: {} },
+  // ── Inflammatory ────────────────────────────────────────────────────────
+  { key: 'crp',              label: 'CRP (C-Reactive Protein)',        unit: 'mg/L',    placeholder: '',     defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'hscrp',            label: 'HsCRP (High Sensitivity CRP)',    unit: 'mg/L',    placeholder: '',     defaultOn: false, decimal: true,  safeRange: {} },
+  // ── Haematology ─────────────────────────────────────────────────────────
+  { key: 'hemoglobin',       label: 'Hemoglobin (Hb)',                unit: 'g/dL',    placeholder: '13.5', defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'platelets',        label: 'Platelets',                      unit: 'lakhs',   placeholder: '2.5',  defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'inr',              label: 'INR',                            unit: '',        placeholder: '1.0',  defaultOn: false, decimal: true,  safeRange: {} },
+  // ── Hormones / thyroid ──────────────────────────────────────────────────
+  { key: 'tsh',              label: 'TSH (Thyroid Stimulating Hormone)', unit: 'μIU/mL',placeholder: '',    defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'c_peptide',        label: 'C-Peptide, Fasting',             unit: 'ng/mL',   placeholder: '',     defaultOn: false, decimal: true,  safeRange: {} },
+  // ── Vitamins ────────────────────────────────────────────────────────────
+  { key: 'vitamin_b12',      label: 'Vitamin B12',                    unit: 'pg/mL',   placeholder: '',     defaultOn: false, decimal: true,  safeRange: {} },
+  { key: 'vitamin_d',        label: 'Vitamin D (25-OH)',              unit: 'ng/mL',   placeholder: '',     defaultOn: false, decimal: true,  safeRange: {} },
+  // ── Pain scales ─────────────────────────────────────────────────────────
+  { key: 'pain_score',       label: 'Pain Score (0-10)',              unit: '/10',     placeholder: '0',    defaultOn: false, decimal: false, safeRange: { low: '0',   high: '10'  } },
+  { key: 'nips_score',       label: 'NIPS Pain Scale',                unit: '/7',      placeholder: '0',    defaultOn: false, decimal: false, safeRange: { low: '0',   high: '7'   } },
+  { key: 'wong_baker',       label: 'Wong-Baker Pain Scale',          unit: '/10',     placeholder: '0',    defaultOn: false, decimal: false, safeRange: { low: '0',   high: '10'  } },
+  { key: 'flacc_score',      label: 'FLACC Pain Severity',            unit: '/10',     placeholder: '0',    defaultOn: false, decimal: false, safeRange: { low: '0',   high: '10'  } },
+  // ── Reproductive ────────────────────────────────────────────────────────
+  { key: 'lmp',              label: 'Last Menstrual Period (LMP)',     unit: 'date',    placeholder: '',     defaultOn: false, decimal: false, safeRange: {} },
 ];
 
 const VITALS_CONFIG = VITALS_ALL; // kept for backward compat
@@ -359,13 +396,34 @@ export default function InferPad({ form, set, setVital, appt, pastNotes = [], cl
         }
       >
         <div className={styles.vitalsGrid}>
-          {visibleVitals.map(({ key, label, unit, placeholder }) => (
-            <div key={key} className={styles.vCell}>
-              <label>{label} <span className={styles.unit}>{unit}</span></label>
-              <input type="number" value={form.vitals[key] || ''}
-                onChange={e => setVital(key, e.target.value)} placeholder={placeholder} />
-            </div>
-          ))}
+          {visibleVitals.map(({ key, label, unit, placeholder, decimal, safeRange }) => {
+            const val = form.vitals[key] || '';
+            const low  = parseFloat(safeRange?.low);
+            const high = parseFloat(safeRange?.high);
+            const num  = parseFloat(val);
+            const outOfRange = val && !isNaN(num) && !isNaN(low) && !isNaN(high) && (num < low || num > high);
+            // LMP uses date input
+            if (key === 'lmp') return (
+              <div key={key} className={styles.vCell}>
+                <label>{label}</label>
+                <input type="date" value={val} onChange={e => setVital(key, e.target.value)} />
+              </div>
+            );
+            return (
+              <div key={key} className={styles.vCell}>
+                <label>{label} <span className={styles.unit}>{unit}</span></label>
+                <input
+                  type="number"
+                  step={decimal === false ? '1' : 'any'}
+                  value={val}
+                  onChange={e => setVital(key, e.target.value)}
+                  placeholder={placeholder}
+                  style={outOfRange ? { borderColor: '#f59e0b', background: '#fffbeb' } : {}}
+                  title={outOfRange ? `Normal range: ${safeRange.low}–${safeRange.high} ${unit}` : ''}
+                />
+              </div>
+            );
+          })}
           <div className={styles.vCell}>
             <label>BMI <span className={styles.unit}>kg/m²</span>
               {form.vitals.bmi && <span className={styles.autoTag}>auto</span>}
