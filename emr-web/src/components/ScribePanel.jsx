@@ -61,6 +61,8 @@ export default function ScribePanel({
   appt, pastNotes, user, form: rxForm,
   standalone = false,
   fullscreen  = false,
+  minimized   = false,
+  onMinimize  = () => {},
 }) {
   const [status,         setStatus]         = useState('idle');
   const [transcript,     setTranscript]     = useState('');
@@ -256,7 +258,6 @@ export default function ScribePanel({
 
   const fmt = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
   const isTranscribing = pending > 0;
-  const [minimized, setMinimized] = useState(false);
 
   const panelClass = [
     styles.panel,
@@ -279,7 +280,7 @@ export default function ScribePanel({
       {/* Header */}
       {/* Minimized tab strip */}
       {minimized && (
-        <button className={styles.minTab} onClick={() => setMinimized(false)}>
+        <button className={styles.minTab} onClick={() => onMinimize(false)}>
           <ChevronLeft size={14} />
           <Mic size={14} strokeWidth={1.8} />
           <span className={styles.minTabLabel}>Scribe</span>
@@ -294,7 +295,7 @@ export default function ScribePanel({
           {status === 'recording' && <span className={styles.timer}>{fmt(elapsed)}</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <button className={styles.minimizeBtn} onClick={() => setMinimized(true)} title="Minimize">
+          <button className={styles.minimizeBtn} onClick={() => onMinimize(true)} title="Minimize">
             <Minimize2 size={14} />
           </button>
           {onClose && (

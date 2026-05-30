@@ -350,8 +350,15 @@ export default function WriteRx() {
   const [showPreview,     setShowPreview]     = useState(false);
   const [showConfigure,   setShowConfigure]   = useState(false);
   const [showScribe,      setShowScribe]      = useState(false);
+  const [scribeMinimized, setScribeMinimized] = useState(false);
   const [showAssessment,  setShowAssessment]  = useState(false);
   const [showPatientCtx,  setShowPatientCtx]  = useState(false);
+  const [patientMinimized,setPatientMinimized]= useState(false);
+
+  // Right offset for PatientContextPanel based on Scribe state
+  const patientRightOffset = showScribe
+    ? (scribeMinimized ? 36 : window.innerWidth * 0.4)
+    : 0;
   const [showPostVisit,   setShowPostVisit]   = useState(false);
   const [showReceipt,     setShowReceipt]     = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
@@ -845,13 +852,13 @@ export default function WriteRx() {
             </button>
             <button
               className={`${styles.linkBtn} ${showPatientCtx ? styles.linkBtnActive : ''}`}
-              onClick={() => setShowPatientCtx(p => !p)}
+              onClick={() => { setShowPatientCtx(p => !p); setPatientMinimized(false); }}
             >
               <User size={13} strokeWidth={1.8} /> Past Visits
             </button>
             <button
               className={`${styles.linkBtn} ${showScribe ? styles.linkBtnActive : ''}`}
-              onClick={() => { setShowScribe(s => !s); setShowAssessment(false); }}
+              onClick={() => { setShowScribe(s => !s); setScribeMinimized(false); setShowAssessment(false); }}
             >
               <Mic size={13} strokeWidth={1.8} /> Scribe
             </button>
@@ -1013,8 +1020,9 @@ export default function WriteRx() {
 
       {showScribe && (
         <ScribePanel
-          set={set} setVital={setVital} onClose={() => setShowScribe(false)}
+          set={set} setVital={setVital} onClose={() => { setShowScribe(false); setScribeMinimized(false); }}
           appt={appt} pastNotes={pastNotes} user={user} form={form}
+          minimized={scribeMinimized} onMinimize={setScribeMinimized}
         />
       )}
 
@@ -1027,8 +1035,10 @@ export default function WriteRx() {
       {showPatientCtx && appt && (
         <PatientContextPanel
           appt={appt}
-          onClose={() => setShowPatientCtx(false)}
-          shifted={showScribe}
+          onClose={() => { setShowPatientCtx(false); setPatientMinimized(false); }}
+          rightOffset={patientRightOffset}
+          minimized={patientMinimized}
+          onMinimize={setPatientMinimized}
         />
       )}
 

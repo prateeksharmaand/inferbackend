@@ -225,11 +225,10 @@ function VaccinationsTab({ history, loading }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function PatientContextPanel({ appt, onClose, shifted = false }) {
+export default function PatientContextPanel({ appt, onClose, rightOffset = 0, minimized = false, onMinimize = () => {} }) {
   const [activeTab,  setActiveTab]  = useState('history');
   const [history,    setHistory]    = useState([]);
   const [loading,    setLoading]    = useState(true);
-  const [minimized,  setMinimized]  = useState(false);
 
   const activeTabCfg = TABS.find(t => t.id === activeTab);
 
@@ -250,11 +249,14 @@ export default function PatientContextPanel({ appt, onClose, shifted = false }) 
   const initials = (appt?.patient_name || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
-    <div className={[s.panel, shifted ? s.panelShifted : '', minimized ? s.panelMinimized : ''].filter(Boolean).join(' ')}>
+    <div
+      className={[s.panel, minimized ? s.panelMinimized : ''].filter(Boolean).join(' ')}
+      style={{ right: rightOffset }}
+    >
 
       {/* Minimized tab strip — click to restore */}
       {minimized && (
-        <button className={s.minTab} onClick={() => setMinimized(false)}>
+        <button className={s.minTab} onClick={() => onMinimize(false)}>
           <ChevronLeft size={14} />
           {activeTabCfg && <activeTabCfg.icon size={14} strokeWidth={1.8} />}
           <span className={s.minTabLabel}>Past Visits</span>
@@ -274,7 +276,7 @@ export default function PatientContextPanel({ appt, onClose, shifted = false }) 
             ].filter(Boolean).join('  ·  ')}
           </div>
         </div>
-        <button className={s.headerBtn} onClick={() => setMinimized(true)} title="Minimize"><Minimize2 size={13} /></button>
+        <button className={s.headerBtn} onClick={() => onMinimize(true)} title="Minimize"><Minimize2 size={13} /></button>
         <button className={s.closeBtn} onClick={onClose}><X size={15} /></button>
       </div>}
 
