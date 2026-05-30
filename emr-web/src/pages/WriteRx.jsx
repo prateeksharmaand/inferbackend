@@ -144,7 +144,17 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
   const VLABEL = { bp_systolic:'SYSTOLIC BLOOD PRESSURE', bp_diastolic:'DIASTOLIC BLOOD PRESSURE', pulse:'PULSE', spo2:'SPO2', temp:'TEMPERATURE', respiratory_rate:'RESPIRATORY RATE', weight:'WEIGHT', height:'HEIGHT', bmi:'BMI' };
   const VUNIT  = { bp_systolic:'mmHg', bp_diastolic:'mmHg', pulse:'bpm', spo2:'%', temp:'°C', respiratory_rate:'/min', weight:'kg', height:'cm', bmi:'kg/m²' };
 
-  const vitalsStr     = Object.entries(form.vitals).filter(([k,v]) => v && VLABEL[k]).map(([k,v]) => `${VLABEL[k]}-${v}${VUNIT[k]||''}`).join(' | ');
+  const calcStr = Object.entries(form.calc_results || {})
+    .filter(([, r]) => r?.value)
+    .map(([id, r]) => {
+      const calc = CALCULATORS.find(c => c.id === id);
+      const label = (calc?.name || id).toUpperCase();
+      return `${label}: ${r.value}${r.unit ? ' ' + r.unit : ''}${r.label ? ` (${r.label})` : ''}`;
+    }).join(' | ');
+  const vitalsStr = [
+    Object.entries(form.vitals).filter(([k, v]) => v && VLABEL[k]).map(([k, v]) => `${VLABEL[k]}-${v}${VUNIT[k] || ''}`).join(' | '),
+    calcStr,
+  ].filter(Boolean).join(' | ');
   const histStr       = (form.medical_history||[]).map(h => { const {label,meta}=medHistoryLabel(h); const p=['Status: Active']; if(h.since) p.push(`Since: ${h.since}`); else if(meta) p.push(meta); return `${label} (${p.join(', ')})`; }).join(', ');
   const symptomsStr   = form.symptoms.map(s => { const name=typeof s==='string'?s:s.name; const code=typeof s==='object'&&s.code?` | ${s.code}`:''; const mp=[s.since&&`Since: ${s.since}`,s.severity&&`Severity: ${s.severity}`].filter(Boolean); return `${name}${code}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
   const diagStr       = form.diagnosis.map(d => { const mp=[d.since&&`Since: ${d.since}`,d.severity&&`Severity: ${d.severity}`].filter(Boolean); return `${d.display}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
