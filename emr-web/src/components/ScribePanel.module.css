@@ -21,6 +21,20 @@
   min-width: 0;
 }
 
+/* Dropdown variant — opens below the trigger button */
+.panelDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 420px;
+  height: auto;
+  max-height: 72vh;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 40px rgba(0,0,0,.15);
+  overflow: hidden;
+}
+
 /* Header */
 .header {
   display: flex; align-items: center; justify-content: space-between;
