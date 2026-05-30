@@ -94,25 +94,25 @@ function CalcModal({ calc, vitals, onClose }) {
             ))}
           </div>
 
-          <button className={s.mCalcBtn} onClick={handleCalc}>
-            <Calculator size={14} /> Calculate
-          </button>
-
-          {/* Result */}
-          {result && (
-            <div className={s.mResult} style={{ borderColor: result.color + '44', background: result.color + '10' }}>
-              <div className={s.mResultValue} style={{ color: result.color }}>
-                {result.value}
-                {result.unit && <span className={s.mResultUnit}> {result.unit}</span>}
-              </div>
-              {result.label && (
-                <div className={s.mResultLabel} style={{ color: result.color }}>{result.label}</div>
+          {/* Result box + Calculate button row */}
+          <div className={s.mCalcRow}>
+            <div className={s.mResultWrap}>
+              <label className={s.mResultLbl}>Result</label>
+              <input
+                readOnly
+                className={s.mResultBox}
+                style={result ? { borderColor: result.color, color: result.color } : {}}
+                value={result ? `${result.value}${result.unit ? ' ' + result.unit : ''}` : ''}
+                placeholder="—"
+              />
+              {result?.label && (
+                <span className={s.mResultInterp} style={{ color: result.color }}>{result.label}</span>
               )}
             </div>
-          )}
-          {result === null && (
-            <div className={s.mResultEmpty}>Fill all required fields to calculate</div>
-          )}
+            <button className={s.mCalcBtn} onClick={handleCalc}>
+              <Calculator size={14} /> Calculate
+            </button>
+          </div>
         </div>
       </div>
     </div>

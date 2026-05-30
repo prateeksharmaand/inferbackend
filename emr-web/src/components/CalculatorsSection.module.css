@@ -115,30 +115,37 @@
   width: 15px; height: 15px; accent-color: #7c3aed; cursor: pointer; flex-shrink: 0;
 }
 
+/* Calculate row */
+.mCalcRow {
+  display: flex; align-items: flex-end; gap: 10px;
+}
+.mResultWrap {
+  flex: 1; display: flex; flex-direction: column; gap: 4px;
+}
+.mResultLbl {
+  font-size: 11px; font-weight: 700; color: #64748b;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.mResultBox {
+  width: 100%; padding: 10px 14px;
+  border: 2px solid #e2e8f0; border-radius: 9px;
+  font-size: 18px; font-weight: 800; color: #1e293b;
+  background: #f8fafc; outline: none; cursor: default;
+  transition: border-color .15s, color .15s;
+  box-sizing: border-box;
+}
+.mResultInterp {
+  font-size: 12px; font-weight: 600; margin-top: 2px;
+}
 /* Calculate button */
 .mCalcBtn {
   display: flex; align-items: center; justify-content: center; gap: 7px;
-  width: 100%; padding: 10px; border-radius: 9px;
+  padding: 10px 20px; border-radius: 9px; flex-shrink: 0;
   background: #7c3aed; color: #fff; border: none; cursor: pointer;
-  font-size: 14px; font-weight: 600; transition: background .12s;
+  font-size: 13px; font-weight: 600; transition: background .12s;
+  height: 44px;
 }
 .mCalcBtn:hover { background: #6d28d9; }
-
-/* Result */
-.mResult {
-  padding: 14px 16px; border-radius: 10px;
-  border: 2px solid; text-align: center;
-}
-.mResultValue {
-  font-size: 28px; font-weight: 800; line-height: 1;
-}
-.mResultUnit { font-size: 14px; font-weight: 500; }
-.mResultLabel {
-  font-size: 13px; font-weight: 600; margin-top: 4px;
-}
-.mResultEmpty {
-  font-size: 12px; color: #94a3b8; text-align: center; padding: 8px 0;
-}
 
 /* Description + formula section */
 .mInfo {
