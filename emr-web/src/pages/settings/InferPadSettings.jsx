@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
-import { Upload, Trash2, Check } from 'lucide-react';
+import { Upload, Trash2, Check, PenLine } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import SignaturePad from '../../components/SignaturePad';
 import styles from './InferPadSettings.module.css';
 
 function ImageUploadSection({ title, hint, value, onChange }) {
@@ -45,21 +46,65 @@ function ImageUploadSection({ title, hint, value, onChange }) {
 export default function InferPadSettings() {
   const { user } = useAuth();
   const cid = user?.clinic_id || 'default';
-  const key = (t) => `rx_${t}_${cid}`;
+  const uid = user?.id        || 'default';
 
-  const [headerImg, setHeaderImg] = useState(() => localStorage.getItem(key('header')) || '');
-  const [footerImg, setFooterImg] = useState(() => localStorage.getItem(key('footer')) || '');
-  const [saved,     setSaved]     = useState(false);
+  const clKey  = (t) => `rx_${t}_${cid}`;          // clinic-wide keys
+  const sigKey = () => `rx_sig_${uid}_${cid}`;      // per-doctor signature
+
+  const [headerImg,  setHeaderImg]  = useState(() => localStorage.getItem(clKey('header'))  || '');
+  const [footerImg,  setFooterImg]  = useState(() => localStorage.getItem(clKey('footer'))  || '');
+  const [signatureImg, setSignatureImg] = useState(() => localStorage.getItem(sigKey()) || '');
+  const [saved,  setSaved]  = useState(false);
+  const [sigMsg, setSigMsg] = useState('');
 
   const handleSave = () => {
-    headerImg ? localStorage.setItem(key('header'), headerImg) : localStorage.removeItem(key('header'));
-    footerImg ? localStorage.setItem(key('footer'), footerImg) : localStorage.removeItem(key('footer'));
+    headerImg ? localStorage.setItem(clKey('header'), headerImg) : localStorage.removeItem(clKey('header'));
+    footerImg ? localStorage.setItem(clKey('footer'), footerImg) : localStorage.removeItem(clKey('footer'));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleSaveSignature = (dataUrl) => {
+    localStorage.setItem(sigKey(), dataUrl);
+    setSignatureImg(dataUrl);
+    setSigMsg('Signature saved!');
+    setTimeout(() => setSigMsg(''), 2500);
+  };
+
+  const handleClearSignature = () => {
+    localStorage.removeItem(sigKey());
+    setSignatureImg('');
+  };
+
   return (
     <div className={styles.wrap}>
+
+      {/* ── Signature ── */}
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>
+          <PenLine size={16} strokeWidth={1.8} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+          Doctor Signature
+        </h3>
+        <p className={styles.cardSub}>
+          Your signature appears at the bottom-right of every prescription you generate.
+          Draw it, upload an image, or type your name in a signature style.
+        </p>
+
+        <SignaturePad
+          current={signatureImg}
+          doctorName={user?.name || ''}
+          onSave={handleSaveSignature}
+          onClear={handleClearSignature}
+        />
+
+        {sigMsg && (
+          <span className={styles.savedMsg} style={{ marginTop: 8 }}>
+            <Check size={13} /> {sigMsg}
+          </span>
+        )}
+      </div>
+
+      {/* ── Header / Footer ── */}
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>Prescription Header &amp; Footer</h3>
         <p className={styles.cardSub}>
@@ -75,21 +120,20 @@ export default function InferPadSettings() {
           />
           <ImageUploadSection
             title="Footer Image"
-            hint="Signature, stamp or contact info — recommended 680 × 100 px"
+            hint="Stamp or contact info — recommended 680 × 100 px"
             value={footerImg}
             onChange={setFooterImg}
           />
         </div>
 
         <div className={styles.actions}>
-          {saved && (
-            <span className={styles.savedMsg}><Check size={13} /> Saved</span>
-          )}
+          {saved && <span className={styles.savedMsg}><Check size={13} /> Saved</span>}
           <button className={styles.btnSave} onClick={handleSave}>
             <Check size={14} /> Save Changes
           </button>
         </div>
       </div>
+
     </div>
   );
 }

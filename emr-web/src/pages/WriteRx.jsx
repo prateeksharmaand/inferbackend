@@ -155,6 +155,17 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
         {form.canvasImage && <div style={{marginTop:8}}><img src={form.canvasImage} alt="Clinical drawing" style={{width:'100%',borderRadius:4,border:'1px solid #e2e8f0'}} /></div>}
       </div>
 
+      {rxImages.signatureImg && (
+        <div className={styles.rxSignatureBlock}>
+          <img src={rxImages.signatureImg} alt="Doctor signature" className={styles.rxSignatureImg} />
+          <div className={styles.rxSignatureName}>
+            {user?.name && <span>{user.name}</span>}
+            {user?.specialization && <span className={styles.rxSignatureSub}>{user.specialization}</span>}
+            {user?.qualification  && <span className={styles.rxSignatureSub}>{user.qualification}</span>}
+          </div>
+        </div>
+      )}
+
       <hr className={styles.rxHr} />
       {rxImages.footerImg ? (
         <div className={styles.rxPaperImgBlock}><img src={rxImages.footerImg} alt="Footer" className={styles.rxPaperImg} /></div>
@@ -265,21 +276,24 @@ export default function WriteRx() {
 
   const loadRxImages = useCallback(() => {
     const cid = user?.clinic_id || 'default';
+    const uid = user?.id        || 'default';
     return {
       headerImg:         localStorage.getItem(`rx_header_${cid}`)         || '',
       footerImg:         localStorage.getItem(`rx_footer_${cid}`)         || '',
       googleReviewLink:  localStorage.getItem(`rx_google_review_${cid}`)  || '',
+      signatureImg:      localStorage.getItem(`rx_sig_${uid}_${cid}`)     || '',
     };
-  }, [user?.clinic_id]);
+  }, [user?.clinic_id, user?.id]);
 
   const [rxImages, setRxImages] = useState(() => {
-    const cid = typeof window !== 'undefined'
-      ? (JSON.parse(localStorage.getItem('emr_user') || '{}')?.clinic_id || 'default')
-      : 'default';
+    const stored = JSON.parse(localStorage.getItem('emr_user') || '{}');
+    const cid = stored?.clinic_id || 'default';
+    const uid = stored?.id        || 'default';
     return {
       headerImg:        localStorage.getItem(`rx_header_${cid}`)        || '',
       footerImg:        localStorage.getItem(`rx_footer_${cid}`)        || '',
       googleReviewLink: localStorage.getItem(`rx_google_review_${cid}`) || '',
+      signatureImg:     localStorage.getItem(`rx_sig_${uid}_${cid}`)    || '',
     };
   });
 
