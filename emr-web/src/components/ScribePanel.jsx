@@ -306,7 +306,8 @@ export default function ScribePanel({
       </div>}
 
       {/* Controls + body — hidden when minimized */}
-      {!minimized && <div className={styles.controls}>
+      {!minimized && <>
+      <div className={styles.controls}>
         <div className={styles.controlsRow2}>
           <select
             className={styles.langSelect}
@@ -521,7 +522,8 @@ export default function ScribePanel({
             </div>
           </div>
         )}
-      </div>}
+      </div>
+      </>}
     </div>
   );
 }
