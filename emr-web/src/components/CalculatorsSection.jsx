@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { X, Calculator, ChevronRight } from 'lucide-react';
+import { X, Calculator } from 'lucide-react';
 import { CALCULATORS } from '../data/calculators';
 import s from './CalculatorsSection.module.css';
 
-// ── Calculator modal ──────────────────────────────────────────────────────────
-function CalcModal({ calc, vitals, onClose }) {
+// ── Calculator modal (opens when user clicks Calculate) ───────────────────────
+function CalcModal({ calc, vitals, onDone, onClose }) {
   const defaults = {};
   calc.inputs.forEach(inp => {
     if (inp.vitalKey && vitals?.[inp.vitalKey]) defaults[inp.key] = String(vitals[inp.vitalKey]);
@@ -15,19 +15,15 @@ function CalcModal({ calc, vitals, onClose }) {
 
   const [vals, setVals] = useState(defaults);
   const [result, setResult] = useState(null);
-
   const set = (k, v) => setVals(p => ({ ...p, [k]: v }));
 
   const handleCalc = () => {
-    try { setResult(calc.calculate(vals)); }
-    catch { setResult(null); }
+    try {
+      const r = calc.calculate(vals);
+      setResult(r);
+      if (r) onDone(r); // push result back to the inline row immediately
+    } catch { setResult(null); }
   };
-
-  const hasValue = () => calc.inputs.some(i => {
-    if (i.type === 'checkbox') return vals[i.key];
-    if (i.type === 'select') return true;
-    return vals[i.key] !== '';
-  });
 
   return (
     <div className={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
@@ -64,12 +60,8 @@ function CalcModal({ calc, vitals, onClose }) {
               <div key={inp.key} className={`${s.mField} ${inp.type === 'checkbox' ? s.mFieldCheck : ''}`}>
                 {inp.type === 'checkbox' ? (
                   <label className={s.mCheckLabel}>
-                    <input
-                      type="checkbox"
-                      className={s.mCheckbox}
-                      checked={!!vals[inp.key]}
-                      onChange={e => set(inp.key, e.target.checked)}
-                    />
+                    <input type="checkbox" className={s.mCheckbox}
+                      checked={!!vals[inp.key]} onChange={e => set(inp.key, e.target.checked)} />
                     <span>{inp.label}</span>
                   </label>
                 ) : (
@@ -94,20 +86,15 @@ function CalcModal({ calc, vitals, onClose }) {
             ))}
           </div>
 
-          {/* Result box + Calculate button row */}
+          {/* Result + Calculate */}
           <div className={s.mCalcRow}>
             <div className={s.mResultWrap}>
               <label className={s.mResultLbl}>Result</label>
-              <input
-                readOnly
-                className={s.mResultBox}
+              <input readOnly className={s.mResultBox}
                 style={result ? { borderColor: result.color, color: result.color } : {}}
                 value={result ? `${result.value}${result.unit ? ' ' + result.unit : ''}` : ''}
-                placeholder="—"
-              />
-              {result?.label && (
-                <span className={s.mResultInterp} style={{ color: result.color }}>{result.label}</span>
-              )}
+                placeholder="—" />
+              {result?.label && <span className={s.mResultInterp} style={{ color: result.color }}>{result.label}</span>}
             </div>
             <button className={s.mCalcBtn} onClick={handleCalc}>
               <Calculator size={14} /> Calculate
@@ -122,12 +109,13 @@ function CalcModal({ calc, vitals, onClose }) {
 // ── Calculators section ───────────────────────────────────────────────────────
 export default function CalculatorsSection({ enabledIds, vitals }) {
   const [activeCalc, setActiveCalc] = useState(null);
+  // store result per calculator id
+  const [results, setResults] = useState({});
 
-  const enabled = enabledIds
-    .map(id => CALCULATORS.find(c => c.id === id))
-    .filter(Boolean);
-
+  const enabled = enabledIds.map(id => CALCULATORS.find(c => c.id === id)).filter(Boolean);
   if (!enabled.length) return null;
+
+  const setResult = (id, r) => setResults(prev => ({ ...prev, [id]: r }));
 
   return (
     <div className={s.section}>
@@ -135,20 +123,40 @@ export default function CalculatorsSection({ enabledIds, vitals }) {
         <Calculator size={14} className={s.sectionIcon} />
         <span className={s.sectionTitle}>Calculators</span>
       </div>
-      <div className={s.grid}>
-        {enabled.map(calc => (
-          <button key={calc.id} className={s.calcCard} onClick={() => setActiveCalc(calc)}>
-            <div className={s.calcName}>{calc.name}</div>
-            <div className={s.calcDesc}>{calc.desc}</div>
-            <span className={s.calcOpen}><ChevronRight size={13} /></span>
-          </button>
-        ))}
+
+      <div className={s.rows}>
+        {enabled.map(calc => {
+          const r = results[calc.id];
+          return (
+            <div key={calc.id} className={s.calcRow}>
+              {/* Label */}
+              <span className={s.rowLabel} title={calc.desc}>{calc.name}</span>
+
+              {/* Result text box */}
+              <input
+                readOnly
+                className={s.rowInput}
+                style={r ? { borderColor: r.color, color: r.color, fontWeight: 700 } : {}}
+                value={r ? `${r.value}${r.unit ? ' ' + r.unit : ''}` : ''}
+                placeholder="—"
+                title={r?.label || ''}
+              />
+              {r?.label && <span className={s.rowInterp} style={{ color: r.color }}>{r.label}</span>}
+
+              {/* Calculate button */}
+              <button className={s.rowBtn} onClick={() => setActiveCalc(calc)}>
+                Calculate
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {activeCalc && (
         <CalcModal
           calc={activeCalc}
           vitals={vitals}
+          onDone={r => setResult(activeCalc.id, r)}
           onClose={() => setActiveCalc(null)}
         />
       )}
