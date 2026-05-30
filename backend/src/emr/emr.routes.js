@@ -14,6 +14,7 @@ const scribe      = require('./emr.scribe.controller');
 const tpl         = require('./emr.templates.controller');
 const assessment  = require('../controllers/assessment.controller');
 const inbound     = require('./inbound/inbound.routes');
+const analytics   = require('./emr.analytics.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -150,6 +151,10 @@ router.get ('/consents',                        emr.listConsentRequests);
 router.get ('/consents/health-records',         emr.getConsentHealthRecords);
 router.post('/consents/:requestId/respond',     emr.respondConsent);
 router.post('/consents/:requestId/pull-data',   emr.pullConsentData);
+
+// Analytics — Form 25 (Income Tax Rule 6F daily case register)
+router.get('/analytics/form25',         analytics.getForm25);
+router.get('/analytics/form25/summary', analytics.getForm25Summary);
 
 // Inbound automated appointment booking (Telnyx + Gemini)
 router.use('/inbound', inbound);

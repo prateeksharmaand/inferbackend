@@ -8,7 +8,7 @@ const NAV = [
   { to: '/voice',    Icon: Mic2,          label: 'Infer Voice AI' },
   { to: '/inbound',  Icon: PhoneIncoming, label: 'Inbound Booking' },
   { to: '/payments', Icon: CreditCard,    label: 'Payments' },
-  { to: '/analytics',Icon: BarChart2,     label: 'Dr Analytics' },
+  { to: '/analytics',Icon: BarChart2,     label: 'Analytics' },
   { to: '/abha',     Icon: ShieldPlus,    label: 'ABHA' },
   { to: '/settings', Icon: Settings,      label: 'Settings' },
 ];

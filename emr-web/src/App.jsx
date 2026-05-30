@@ -11,6 +11,7 @@ import Settings from './pages/Settings';
 import VoiceAI    from './pages/VoiceAI';
 import Assessment from './pages/Assessment';
 import Inbound    from './pages/Inbound';
+import Analytics  from './pages/Analytics';
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="assessment"         element={<Assessment />} />
             <Route path="settings"           element={<Settings />} />
             <Route path="inbound"            element={<Inbound />} />
+            <Route path="analytics"          element={<Analytics />} />
           </Route>
         </Routes>
       </BrowserRouter>
