@@ -480,13 +480,17 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         />
       )}
 
-      {/* Calculators section — shown below vitals */}
-      <CalculatorsSection
-        enabledIds={calcOrder}
-        vitals={form.vitals}
-        calcResults={form.calc_results || {}}
-        onResult={(id, r) => setCalcResult?.(id, r)}
-      />
+      {/* Calculators — inside same card style as vitals */}
+      {calcOrder.length > 0 && (
+        <ICard title="Calculators" icon="🧮" color="#7c3aed">
+          <CalculatorsSection
+            enabledIds={calcOrder}
+            vitals={form.vitals}
+            calcResults={form.calc_results || {}}
+            onResult={(id, r) => setCalcResult?.(id, r)}
+          />
+        </ICard>
+      )}
 
       {/* 2 — Patient Medical History (same grid as Check-In) */}
       <ICard title="Patient Medical History" icon="📋" color="#64748b">

@@ -175,29 +175,33 @@ export default function CalculatorsSection({ enabledIds, vitals, calcResults = {
   const enabled = enabledIds.map(id => CALCULATORS.find(c => c.id === id)).filter(Boolean);
   if (!enabled.length) return null;
 
-  return (
-    <div className={s.section}>
-      <div className={s.sectionHead}>
-        <Calculator size={14} className={s.sectionIcon} />
-        <span className={s.sectionTitle}>Calculators</span>
-      </div>
+  // When doctor types directly into the result box, store as a manual override
+  const handleManualEntry = (calc, raw) => {
+    if (!raw.trim()) { onResult?.(calc.id, null); return; }
+    onResult?.(calc.id, { value: raw, unit: '', label: '', color: '#64748b' });
+  };
 
-      <div className={s.rows}>
-        {enabled.map(calc => {
-          const r = calcResults[calc.id];
-          return (
-            <div key={calc.id} className={s.calcRow}>
-              <span className={s.rowLabel} title={calc.desc}>{calc.name}</span>
-              <input readOnly className={s.rowInput}
-                style={r ? { borderColor: r.color, color: r.color, fontWeight: 700 } : {}}
-                value={r ? `${r.value}${r.unit ? ' ' + r.unit : ''}` : ''}
-                placeholder="—" title={r?.label || ''} />
-              {r?.label && <span className={s.rowInterp} style={{ color: r.color }}>{r.label}</span>}
-              <button className={s.rowBtn} onClick={() => setActiveCalc(calc)}>Calculate</button>
-            </div>
-          );
-        })}
-      </div>
+  return (
+    <div className={s.rows}>
+      {enabled.map(calc => {
+        const r = calcResults[calc.id];
+        const displayVal = r ? `${r.value}${r.unit ? ' ' + r.unit : ''}` : '';
+        return (
+          <div key={calc.id} className={s.calcRow}>
+            <span className={s.rowLabel} title={calc.desc}>{calc.name}</span>
+            <input
+              className={s.rowInput}
+              style={r?.color ? { borderColor: r.color, color: r.color, fontWeight: 700 } : {}}
+              value={displayVal}
+              placeholder="—"
+              title={r?.label || 'Enter value or click Calculate'}
+              onChange={e => handleManualEntry(calc, e.target.value)}
+            />
+            {r?.label && <span className={s.rowInterp} style={{ color: r.color }}>{r.label}</span>}
+            <button className={s.rowBtn} onClick={() => setActiveCalc(calc)}>Calculate</button>
+          </div>
+        );
+      })}
 
       {activeCalc && (
         <CalcModal calc={activeCalc} vitals={vitals}
