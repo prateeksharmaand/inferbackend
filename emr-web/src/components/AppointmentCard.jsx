@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip, FileText } from 'lucide-react';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
@@ -260,34 +260,22 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           {/* ── Booked actions ── */}
           {appt.status === 'booked' && (
             <div className={styles.actions} onClick={e => e.stopPropagation()}>
-              <button className={styles.actionBtn} onClick={() => handleAction('Check In')}>
-                Check In
-              </button>
+              <button className={styles.actionBtn} onClick={() => handleAction('Check In')}>Check In</button>
               <button className={`${styles.actionBtn} ${styles.actionBtnReminder}`}
                 onClick={handleSendReminder} disabled={reminding}>
-                <Bell size={11} strokeWidth={2} />
-                {reminding ? 'Sending…' : 'Remind'}
+                <Bell size={11} strokeWidth={2} />{reminding ? 'Sending…' : 'Remind'}
               </button>
-              <button className={`${styles.actionBtn} ${styles.actionBtnReschedule}`}
-                onClick={openReschedule}>
-                <CalendarClock size={11} strokeWidth={2} />
-                Reschedule
-              </button>
-              <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
-                onClick={e => { e.stopPropagation(); setShowMedDoc(true); }}>
-                <FileText size={12} strokeWidth={2} /> Med Doc
+              <button className={`${styles.actionBtn} ${styles.actionBtnReschedule}`} onClick={openReschedule}>
+                <CalendarClock size={11} strokeWidth={2} />Reschedule
               </button>
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
-                  onClick={e => { e.stopPropagation(); setShowMore(v => !v); }}
-                  title="More options">
+                  onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">
                   <MoreVertical size={14} strokeWidth={2} />
                 </button>
                 {showMore && (
                   <ul className={styles.moreMenu}>
-                    {MORE_ACTIONS.map(a => (
-                      <li key={a} onClick={() => handleAction(a)}>{a}</li>
-                    ))}
+                    {MORE_ACTIONS.map(a => <li key={a} onClick={() => handleAction(a)}>{a}</li>)}
                   </ul>
                 )}
               </div>
@@ -305,13 +293,21 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 <Printer size={12} strokeWidth={2} /> Slip
               </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
-                onClick={e => { e.stopPropagation(); setShowMedDoc(true); }}>
-                <FileText size={12} strokeWidth={2} /> Med Doc
-              </button>
-              <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
+              <div className={styles.moreWrap} ref={moreRef}>
+                <button className={styles.moreBtn}
+                  onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">
+                  <MoreVertical size={14} strokeWidth={2} />
+                </button>
+                {showMore && (
+                  <ul className={styles.moreMenu}>
+                    <li onClick={() => { setShowMore(false); setShowMedDoc(true); }}>Medical Document</li>
+                    <li onClick={() => { setShowMore(false); setShowSlip(true); }}>Print Appointment Slip</li>
+                  </ul>
+                )}
+              </div>
             </div>
           )}
 
@@ -331,13 +327,20 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 <Printer size={12} strokeWidth={2} /> Slip
               </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
-                onClick={e => { e.stopPropagation(); setShowMedDoc(true); }}>
-                <FileText size={12} strokeWidth={2} /> Med Doc
-              </button>
-              <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
+              <div className={styles.moreWrap} ref={moreRef}>
+                <button className={styles.moreBtn}
+                  onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">
+                  <MoreVertical size={14} strokeWidth={2} />
+                </button>
+                {showMore && (
+                  <ul className={styles.moreMenu}>
+                    <li onClick={() => { setShowMore(false); setShowMedDoc(true); }}>Medical Document</li>
+                  </ul>
+                )}
+              </div>
             </div>
           )}
         </div>
