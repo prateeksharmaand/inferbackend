@@ -5,11 +5,15 @@ import styles from './ConfigureInferPadModal.module.css';
 export default function ConfigureInferPadModal({ clinicId, onClose }) {
   const key = (t) => `rx_${t}_${clinicId}`;
   const [googleReviewLink, setGoogleReviewLink] = useState(() => localStorage.getItem(key('google_review')) || '');
+  const [vaccChart, setVaccChart] = useState(() => localStorage.getItem(key('vaccination_chart')) === 'true');
 
   const handleSave = () => {
     googleReviewLink
       ? localStorage.setItem(key('google_review'), googleReviewLink)
       : localStorage.removeItem(key('google_review'));
+    vaccChart
+      ? localStorage.setItem(key('vaccination_chart'), 'true')
+      : localStorage.removeItem(key('vaccination_chart'));
     onClose(true);
   };
 
@@ -22,6 +26,19 @@ export default function ConfigureInferPadModal({ clinicId, onClose }) {
         </div>
 
         <div className={styles.body}>
+          <div className={styles.section}>
+            <div className={styles.toggleRow}>
+              <div>
+                <div className={styles.sectionTitle}>Vaccination Chart</div>
+                <div className={styles.sectionHint}>Show a Vaccines tab in Write Rx with IAP schedule and other vaccines.</div>
+              </div>
+              <label className={styles.toggle}>
+                <input type="checkbox" checked={vaccChart} onChange={e => setVaccChart(e.target.checked)} />
+                <span className={styles.toggleSlider} />
+              </label>
+            </div>
+          </div>
+
           <div className={styles.section}>
             <div className={styles.sectionTitle}>Google Review Link</div>
             <div className={styles.sectionHint}>

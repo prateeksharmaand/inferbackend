@@ -135,7 +135,7 @@ const getAppointment = async (req, res) => {
        e.chief_complaint, e.symptoms, e.diagnosis, e.medications, e.instructions,
        e.next_visit_date, e.next_visit_notes, e.vitals,
        e.lab_investigations, e.lab_results, e.examination_findings,
-       e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image, e.custom_sections
+       e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image, e.custom_sections, e.vaccinations
      FROM emr_appointments a
      LEFT JOIN emr_doctors d ON d.id = a.doctor_id
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
@@ -173,7 +173,7 @@ const saveEncounter = async (req, res) => {
     chief_complaint, symptoms, diagnosis, medications,
     instructions, next_visit_date, next_visit_notes, vitals,
     lab_investigations, lab_results, examination_findings,
-    notes, refer_to, advices, procedures, canvas_image, custom_sections,
+    notes, refer_to, advices, procedures, canvas_image, custom_sections, vaccinations,
   } = req.body;
 
   const appt = await pool.query(
@@ -226,8 +226,8 @@ const saveEncounter = async (req, res) => {
         chief_complaint, symptoms, diagnosis, medications,
         instructions, next_visit_date, next_visit_notes, vitals, fhir_bundle,
         lab_investigations, lab_results, examination_findings,
-        notes, refer_to, advices, procedures, canvas_image, custom_sections)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+        notes, refer_to, advices, procedures, canvas_image, custom_sections, vaccinations)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
      ON CONFLICT (appointment_id) DO UPDATE SET
        chief_complaint      = EXCLUDED.chief_complaint,
        symptoms             = EXCLUDED.symptoms,
@@ -247,6 +247,7 @@ const saveEncounter = async (req, res) => {
        procedures           = EXCLUDED.procedures,
        canvas_image         = EXCLUDED.canvas_image,
        custom_sections      = EXCLUDED.custom_sections,
+       vaccinations         = EXCLUDED.vaccinations,
        updated_at           = NOW()
      RETURNING *`,
     [
@@ -267,6 +268,7 @@ const saveEncounter = async (req, res) => {
       JSON.stringify(procedures || []),
       canvas_image || null,
       JSON.stringify(custom_sections || []),
+      JSON.stringify(vaccinations || {}),
     ]
   );
 

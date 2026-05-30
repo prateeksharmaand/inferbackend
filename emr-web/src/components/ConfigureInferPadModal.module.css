@@ -63,6 +63,25 @@
 .textInput:focus { border-color: var(--color-primary); }
 .textInput::placeholder { color: var(--color-text-3); }
 
+.toggleRow {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.toggle { position: relative; display: inline-flex; cursor: pointer; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggleSlider {
+  width: 40px; height: 22px; border-radius: 11px;
+  background: #cbd5e1; transition: background .2s;
+  display: flex; align-items: center;
+}
+.toggleSlider::after {
+  content: ''; position: absolute; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff;
+  left: 3px; top: 3px; transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.toggle input:checked + .toggleSlider { background: var(--color-primary, #7c3aed); }
+.toggle input:checked + .toggleSlider::after { transform: translateX(18px); }
+
 .footer {
   display: flex; justify-content: flex-end; gap: 10px;
   padding: 14px 20px; border-top: 1px solid var(--color-border);

@@ -1,0 +1,210 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+  background: var(--color-bg, #f8fafc);
+}
+
+/* ── Top bar ── */
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--color-surface, #fff);
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  flex-shrink: 0;
+}
+
+.modeGroup { display: flex; gap: 4px; }
+
+.modeBtn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-bg, #f8fafc); color: var(--color-text-2, #64748b);
+  cursor: pointer; transition: all .15s;
+}
+.modeBtn:hover { border-color: #7c3aed; color: #7c3aed; }
+.modeBtnActive {
+  background: #7c3aed; color: #fff; border-color: #7c3aed;
+}
+.modeBtnActive:hover { background: #6d28d9; color: #fff; border-color: #6d28d9; }
+
+.ageTag {
+  font-size: 12px; color: var(--color-text-2, #64748b);
+  padding: 4px 10px; background: #f1f5f9; border-radius: 6px;
+}
+.ageTag strong { color: var(--color-text, #1e293b); }
+
+.summaryTag {
+  font-size: 11px; color: #16a34a; background: #f0fdf4;
+  border: 1px solid #86efac; padding: 3px 8px; border-radius: 6px;
+}
+
+.bulkActions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.bulkLabel { font-size: 11px; color: var(--color-text-2, #64748b); }
+
+.bulkBtn {
+  padding: 5px 12px; border-radius: 7px; font-size: 11px; font-weight: 500;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #fff); color: var(--color-text, #1e293b);
+  cursor: pointer; transition: all .15s;
+}
+.bulkBtn:hover { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
+
+/* ── IAP Grid ── */
+.gridScroll {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+.grid {
+  display: grid;
+  min-width: max-content;
+}
+
+/* Column header row */
+.colHead {
+  position: relative;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px;
+  padding: 10px 12px;
+  border-right: 1px solid var(--color-border, #e2e8f0);
+  border-bottom: 2px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #fff);
+  font-size: 12px; font-weight: 700; color: var(--color-text, #1e293b);
+  position: sticky; top: 0; z-index: 2;
+}
+.colHead:last-child { border-right: none; }
+.colHeadCurrent {
+  background: #eff6ff;
+  border-bottom-color: #2563eb;
+}
+
+.colLabel { flex: 1; white-space: nowrap; }
+
+.colCheck {
+  width: 15px; height: 15px; cursor: pointer; flex-shrink: 0;
+  accent-color: #7c3aed;
+}
+
+.curBadge {
+  position: absolute;
+  top: -1px; right: 0;
+  background: #2563eb; color: #fff;
+  font-size: 9px; font-weight: 600;
+  padding: 2px 5px; border-radius: 0 0 0 5px;
+  white-space: nowrap; letter-spacing: .2px;
+}
+
+/* Column body */
+.colBody {
+  border-right: 1px solid var(--color-border, #e2e8f0);
+  padding: 6px 8px;
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--color-bg, #f8fafc);
+  min-height: 60px;
+}
+.colBody:last-child { border-right: none; }
+
+.vaccCell {
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--color-surface, #fff);
+  display: flex; flex-direction: column; gap: 3px;
+  transition: border-left-color .15s;
+}
+
+.vaccName {
+  font-size: 12px; font-weight: 600; color: var(--color-text, #1e293b);
+  line-height: 1.3;
+}
+.vaccDate {
+  font-size: 11px; color: #2563eb; font-weight: 500;
+}
+
+/* ── Status cell ── */
+.statusWrap { position: relative; }
+
+.statusBtn {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 7px; border-radius: 5px; font-size: 10px; font-weight: 500;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-bg, #f8fafc); color: var(--color-text-3, #94a3b8);
+  cursor: pointer; transition: all .12s; white-space: nowrap;
+}
+.statusBtn:hover { border-color: #7c3aed; color: #7c3aed; }
+.statusPlaceholder { color: #94a3b8; }
+
+.statusPopover {
+  position: absolute;
+  top: calc(100% + 4px); left: 0; z-index: 50;
+  min-width: 140px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  overflow: hidden;
+  animation: popIn .12s ease;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.statusOption {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 12px; font-size: 12px; font-weight: 500;
+  border: none; background: none; cursor: pointer; text-align: left;
+  transition: background .1s;
+}
+.statusOption:hover { background: #f1f5f9; }
+
+.statusDot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* ── Other Vaccines ── */
+.otherGrid {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.otherCard {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.otherCatHead {
+  padding: 8px 12px;
+  font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+  color: #7c3aed; background: #faf5ff;
+  border-bottom: 1px solid #e9d5ff;
+}
+
+.otherDoses { display: flex; flex-direction: column; }
+
+.otherRow {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  border-left: 3px solid transparent;
+  transition: border-left-color .15s;
+}
+.otherRow:last-child { border-bottom: none; }
+
+.otherName {
+  font-size: 12px; font-weight: 500; color: var(--color-text, #1e293b);
+  flex: 1;
+}

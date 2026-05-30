@@ -12,11 +12,12 @@ import MedicalRecordsTab from '../components/MedicalRecordsTab';
 import CreateReceiptModal from '../components/CreateReceiptModal';
 import DrawingCanvas from '../components/DrawingCanvas';
 import InferPad from '../components/InferPad';
+import VaccinationChart from '../components/VaccinationChart';
 import ScribePanel from '../components/ScribePanel';
 import AssessmentPanel from '../components/AssessmentPanel';
 import styles from './WriteRx.module.css';
 
-const TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
+const BASE_TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
 
 const MED_HISTORY_LABELS = {
   diabetes: 'Diabetes', hypertension: 'Hypertension', hypothyroidism: 'Hypothyroidism',
@@ -48,6 +49,7 @@ const EMPTY_FORM = {
   procedures: [],       procInput: '',
   custom_sections: [],
   canvasImage: '',
+  vaccinations: {},
 };
 
 // ── Prescription data formatting ─────────────────────────────────────────────
@@ -152,6 +154,23 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
         {(followupStr||form.next_visit_notes) && <RxInlineRow label="FOLLOWUP" value={[followupStr,form.next_visit_notes].filter(Boolean).join(' · ')} />}
         {proceduresStr && <RxInlineRow label="PROCEDURES" value={proceduresStr} />}
         {(form.custom_sections||[]).filter(s=>s.content).map(s=><RxInlineRow key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}
+        {form.vaccinations && Object.keys(form.vaccinations).length > 0 && (() => {
+          const groups = { given: [], due: [], missed: [], refused: [] };
+          Object.entries(form.vaccinations).filter(([,v]) => v?.status).forEach(([k, v]) => {
+            const name = k.replace(/^(iap_|other_)/, '').replace(/_/g, ' ');
+            const label = `${name}${v.date ? ` (${v.date})` : ''}`;
+            (groups[v.status] || groups.given).push(label);
+          });
+          const parts = [
+            groups.given.length   && `Given: ${groups.given.join(', ')}`,
+            groups.due.length     && `Due: ${groups.due.join(', ')}`,
+            groups.missed.length  && `Missed: ${groups.missed.join(', ')}`,
+            groups.refused.length && `Patient Refused: ${groups.refused.join(', ')}`,
+          ].filter(Boolean);
+          return parts.length > 0
+            ? <RxInlineRow label="VACCINATIONS" value={parts.join(' | ')} />
+            : null;
+        })()}
         {form.canvasImage && <div style={{marginTop:8}}><img src={form.canvasImage} alt="Clinical drawing" style={{width:'100%',borderRadius:4,border:'1px solid #e2e8f0'}} /></div>}
       </div>
 
@@ -285,6 +304,11 @@ export default function WriteRx() {
     };
   }, [user?.clinic_id, user?.id]);
 
+  const vaccChartEnabled = user?.clinic_id
+    ? localStorage.getItem(`rx_vaccination_chart_${user.clinic_id}`) === 'true'
+    : false;
+  const TABS = vaccChartEnabled ? [...BASE_TABS, 'Vaccines'] : BASE_TABS;
+
   const [rxImages, setRxImages] = useState(() => {
     const stored = JSON.parse(localStorage.getItem('emr_user') || '{}');
     const cid = stored?.clinic_id || 'default';
@@ -326,6 +350,7 @@ export default function WriteRx() {
           procedures:           data.procedures || [],
           custom_sections:      data.custom_sections || [],
           canvasImage:          data.canvas_image || '',
+          vaccinations:         data.vaccinations || {},
         }));
         if (searchParams.get('print') === '1') {
           setTimeout(() => { setShowPreview(true); window.print(); }, 400);
@@ -408,6 +433,7 @@ export default function WriteRx() {
         procedures:           form.procedures,
         custom_sections:      form.custom_sections || [],
         canvas_image:         form.canvasImage || null,
+        vaccinations:         form.vaccinations || {},
       });
       setShowPostVisit(true);
     } catch (err) {
@@ -868,6 +894,15 @@ export default function WriteRx() {
             <div className={styles.tabBody}>
               <MedicalRecordsTab apptId={appointmentId} patientMobile={appt?.patient_mobile} />
             </div>
+          )}
+
+          {tab === 'Vaccines' && (
+            <VaccinationChart
+              dob={appt?.patient_dob}
+              age={appt?.patient_age}
+              vaccinations={form.vaccinations || {}}
+              onChange={v => set('vaccinations', v)}
+            />
           )}
         </div>
 
