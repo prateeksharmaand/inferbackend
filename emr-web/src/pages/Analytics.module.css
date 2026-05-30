@@ -67,7 +67,24 @@
   font-size: 11px; color: #1e40af; line-height: 1.5; flex-shrink: 0;
 }
 .infoIcon { flex-shrink: 0; margin-top: 1px; }
-.infoIconWrap { display: flex; align-items: center; cursor: default; color: var(--color-text-3); }
+.infoIconWrap {
+  position: relative; display: flex; align-items: center;
+  cursor: default; color: var(--color-text-3);
+}
+.infoIconWrap:hover .infoTooltip { opacity: 1; visibility: visible; transform: translateY(0); }
+.infoTooltip {
+  position: absolute; bottom: calc(100% + 8px); right: 0;
+  width: 280px; padding: 10px 12px; border-radius: 8px;
+  background: #1e293b; color: #f1f5f9; font-size: 12px; line-height: 1.6;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  opacity: 0; visibility: hidden; transform: translateY(4px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+  pointer-events: none; z-index: 100;
+}
+.infoTooltip::after {
+  content: ''; position: absolute; top: 100%; right: 12px;
+  border: 6px solid transparent; border-top-color: #1e293b;
+}
 
 /* ── Filter bar ── */
 .filterBar {
