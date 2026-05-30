@@ -12,7 +12,7 @@
 }
 
 /* ── Inline calculator rows ── */
-.rows { display: flex; flex-direction: column; gap: 6px; }
+.rows { display: flex; flex-direction: column; gap: 6px; max-width: 300px; }
 
 .calcRow {
   display: flex; align-items: center; gap: 8px;
