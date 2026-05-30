@@ -275,7 +275,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 </button>
                 {showMore && (
                   <ul className={styles.moreMenu}>
-                    {MORE_ACTIONS.map(a => <li key={a} onClick={() => handleAction(a)}>{a}</li>)}
+                    {MORE_ACTIONS.map(a => <li key={a} onClick={e => { e.stopPropagation(); handleAction(a); }}>{a}</li>)}
                   </ul>
                 )}
               </div>
@@ -303,8 +303,8 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 </button>
                 {showMore && (
                   <ul className={styles.moreMenu}>
-                    <li onClick={() => { setShowMore(false); setShowMedDoc(true); }}>Medical Document</li>
-                    <li onClick={() => { setShowMore(false); setShowSlip(true); }}>Print Appointment Slip</li>
+                    <li onClick={e => { e.stopPropagation(); setShowMore(false); setShowMedDoc(true); }}>Medical Document</li>
+                    <li onClick={e => { e.stopPropagation(); setShowMore(false); setShowSlip(true); }}>Print Appointment Slip</li>
                   </ul>
                 )}
               </div>
@@ -313,7 +313,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
           {/* ── Completed actions ── */}
           {appt.status === 'completed' && (
-            <div className={styles.actions}>
+            <div className={styles.actions} onClick={e => e.stopPropagation()}>
               <button className={`${styles.actionBtn} ${styles.actionBtnVitals}`}
                 onClick={e => { e.stopPropagation(); onOpen('vitals'); }}>
                 <Activity size={12} strokeWidth={2} /> Add Vitals
@@ -337,7 +337,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 </button>
                 {showMore && (
                   <ul className={styles.moreMenu}>
-                    <li onClick={() => { setShowMore(false); setShowMedDoc(true); }}>Medical Document</li>
+                    <li onClick={e => { e.stopPropagation(); setShowMore(false); setShowMedDoc(true); }}>Medical Document</li>
                   </ul>
                 )}
               </div>
