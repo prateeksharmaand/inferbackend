@@ -351,6 +351,12 @@ function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint
 export default function WriteRx() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
+
+  // Hide the global sidebar while on the Write Rx screen
+  useEffect(() => {
+    document.body.classList.add('hide-sidebar');
+    return () => document.body.classList.remove('hide-sidebar');
+  }, []);
   const [searchParams] = useSearchParams();
   const { user }  = useAuth();
 
@@ -850,7 +856,7 @@ export default function WriteRx() {
         {/* ── Top bar ── */}
         <div className={styles.topbar}>
           <button className={styles.back} onClick={() => navigate('/queue')}>
-            <ChevronLeft size={15} strokeWidth={2.5} /> Queue
+            <ChevronLeft size={16} strokeWidth={2.5} /> Back
           </button>
           <div className={styles.patientInfo}>
             <span className={styles.patientName}>{appt ? appt.patient_name : 'Write Rx'}</span>
