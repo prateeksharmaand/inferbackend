@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, Settings2, Globe,
@@ -17,6 +17,57 @@ import VaccinationChart from '../components/VaccinationChart';
 import ScribePanel from '../components/ScribePanel';
 import AssessmentPanel from '../components/AssessmentPanel';
 import styles from './WriteRx.module.css';
+
+// ── Language picker (bottom bar) ─────────────────────────────────────────────
+function LangPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const selected = RX_LANGUAGES.find(l => (l.code === 'en' ? '' : l.code) === value) || RX_LANGUAGES[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  return (
+    <div ref={ref} className={styles.langPickerWrap}>
+      <button
+        className={`${styles.langPickerBtn} ${value ? styles.langPickerBtnActive : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        <Globe size={13} strokeWidth={2} />
+        <span className={styles.langPickerText}>Change Language</span>
+        <span className={styles.langPickerLabel}>{selected.native}</span>
+        <ChevronDown size={11} className={`${styles.langPickerChev} ${open ? styles.langPickerChevOpen : ''}`} />
+      </button>
+
+      {open && (
+        <div className={styles.langPickerDrop}>
+          <div className={styles.langPickerDropHead}>Prescription Language</div>
+          <div className={styles.langPickerGrid}>
+            {RX_LANGUAGES.map(l => {
+              const val = l.code === 'en' ? '' : l.code;
+              const active = value === val;
+              return (
+                <button
+                  key={l.code}
+                  className={`${styles.langPickerOpt} ${active ? styles.langPickerOptActive : ''}`}
+                  onClick={() => { onChange(val); setOpen(false); }}
+                >
+                  <span className={styles.langPickerNative}>{l.native}</span>
+                  <span className={styles.langPickerEng}>{l.label}</span>
+                  {active && <span className={styles.langPickerCheck}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const BASE_TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
 
@@ -926,20 +977,7 @@ export default function WriteRx() {
             <button className={styles.btnPrintSettings}>
               <SlidersHorizontal size={13} strokeWidth={2} /> Print Settings
             </button>
-            <div className={styles.langDropWrap}>
-              <Globe size={13} strokeWidth={2} className={styles.langDropIcon} />
-              <select
-                className={styles.langDropSelect}
-                value={form.rx_language || ''}
-                onChange={e => set('rx_language', e.target.value)}
-              >
-                {RX_LANGUAGES.map(l => (
-                  <option key={l.code} value={l.code === 'en' ? '' : l.code}>
-                    {l.native}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <LangPicker value={form.rx_language || ''} onChange={v => set('rx_language', v)} />
           </div>
           <div className={styles.bottomRight}>
             <button className={styles.btnPreview} onClick={() => setShowPreview(true)}>
