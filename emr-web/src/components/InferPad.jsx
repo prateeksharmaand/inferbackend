@@ -843,8 +843,6 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         <Plus size={14} /> Add Custom Section
       </button>
 
-      {/* ── InferPad Settings ── */}
-      <InferPadSettings clinicId={clinicId} />
 
     </div>
   );
