@@ -345,16 +345,21 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
     .filter(Boolean);
 
   // ── Symptom helpers ──────────────────────────────────────────────────────
+  const selectSymptomSuggestion = (item) => {
+    set('symptomInput', item.name);
+    set('symptomCode', item.code || '');
+  };
   const addSymptom = (nameOrItem) => {
     const name = typeof nameOrItem === 'object' ? nameOrItem.name : nameOrItem;
     if (!name?.trim()) return;
     set('symptoms', [...form.symptoms, {
       name: name.trim(),
-      code: typeof nameOrItem === 'object' ? (nameOrItem.code || '') : '',
+      code: typeof nameOrItem === 'object' ? (nameOrItem.code || '') : (form.symptomCode || ''),
       since:    form.symptomSince    || '',
       severity: form.symptomSeverity || '',
     }]);
     set('symptomInput', '');
+    set('symptomCode', '');
     set('symptomSince', '');
     set('symptomSeverity', '');
   };
@@ -520,8 +525,8 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         </div>
         <AutocompleteInput
           value={form.symptomInput || ''}
-          onChange={v => set('symptomInput', v)}
-          onSelect={addSymptom}
+          onChange={v => { set('symptomInput', v); set('symptomCode', ''); }}
+          onSelect={selectSymptomSuggestion}
           onAddChip={addSymptom}
           fetchSuggestions={fetchICD10}
           placeholder="Search ICD-10 or type symptom, press Enter…"
