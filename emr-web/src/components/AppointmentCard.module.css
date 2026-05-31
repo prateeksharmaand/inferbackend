@@ -1,11 +1,11 @@
 .card {
   display: flex; background: var(--color-surface);
   border-radius: 10px; box-shadow: var(--shadow);
-  overflow: hidden; transition: box-shadow .15s;
+  overflow: visible; transition: box-shadow .15s;
   flex-shrink: 0;
 }
 
-.stripe { width: 4px; flex-shrink: 0; }
+.stripe { width: 4px; flex-shrink: 0; border-radius: 10px 0 0 10px; }
 .body   { flex: 1; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 
 /* ── Row 1: token · name · status · edit ── */
