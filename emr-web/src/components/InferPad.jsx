@@ -366,18 +366,23 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const removeSymptom = (i) => set('symptoms', form.symptoms.filter((_, j) => j !== i));
 
   // ── Diagnosis helpers ────────────────────────────────────────────────────
+  const selectDiagSuggestion = (item) => {
+    set('diagInput', item.name);
+    set('diagCode', item.code || '');
+  };
   const addDiag = (nameOrItem) => {
     const name = typeof nameOrItem === 'object' ? nameOrItem.name : nameOrItem;
     if (!name?.trim()) return;
     set('diagnosis', [...form.diagnosis, {
       display:  name.trim(),
-      code:     typeof nameOrItem === 'object' ? (nameOrItem.code || '') : '',
+      code:     typeof nameOrItem === 'object' ? (nameOrItem.code || '') : (form.diagCode || ''),
       system:   'http://snomed.info/sct',
       status:   'active',
       since:    form.diagSince    || '',
       severity: form.diagSeverity || '',
     }]);
     set('diagInput', '');
+    set('diagCode', '');
     set('diagSince', '');
     set('diagSeverity', '');
   };
@@ -567,8 +572,8 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         </div>
         <AutocompleteInput
           value={form.diagInput || ''}
-          onChange={v => set('diagInput', v)}
-          onSelect={addDiag}
+          onChange={v => { set('diagInput', v); set('diagCode', ''); }}
+          onSelect={selectDiagSuggestion}
           onAddChip={addDiag}
           fetchSuggestions={fetchICD10}
           placeholder="Search ICD-10 or type diagnosis, press Enter…"
