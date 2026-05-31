@@ -17,6 +17,15 @@ async function fetchICD10(query) {
   } catch { return []; }
 }
 
+async function fetchLOINC(query) {
+  try {
+    const r = await fetch(`${NLM}/loinc_items/v3/search?terms=${encodeURIComponent(query)}&df=LONG_COMMON_NAME,LOINC_NUM&maxList=12`);
+    const data = await r.json();
+    const rows = data[3] || [];
+    return rows.map(([name, code]) => ({ name, code, label: name }));
+  } catch { return []; }
+}
+
 async function fetchRxTerms(query) {
   try {
     const r = await fetch(`${NLM}/rxterms/v3/search?terms=${encodeURIComponent(query)}&ef=STRENGTHS_AND_FORMS&maxList=12`);
@@ -680,12 +689,16 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
                 <div className={styles.labInvRow}>
                   <div className={styles.labInvName}>
                     <label>Test</label>
-                    <input className={styles.cellInput}
-                      placeholder="e.g. CBC, HbA1c, Lipid Profile"
+                    <AutocompleteInput
                       value={isStr ? l : (l.test || '')}
-                      onChange={e => isStr
-                        ? set('lab_investigations', form.lab_investigations.map((x,j)=>j===i?e.target.value:x))
-                        : updateLabInv(i, 'test', e.target.value)} />
+                      onChange={v => isStr
+                        ? set('lab_investigations', form.lab_investigations.map((x,j)=>j===i?v:x))
+                        : updateLabInv(i, 'test', v)}
+                      onSelect={item => updateLabInv(i, 'test', item.name)}
+                      fetchSuggestions={fetchLOINC}
+                      placeholder="e.g. CBC, HbA1c, Lipid Profile"
+                      inputClassName={styles.cellInput}
+                    />
                   </div>
                   <div className={styles.labInvSmall}>
                     <label>Repeat On</label>
