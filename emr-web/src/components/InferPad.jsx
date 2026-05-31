@@ -6,21 +6,24 @@ import MedicalHistorySection from './MedicalHistorySection';
 import CalculatorsSection from './CalculatorsSection';
 import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
 
-// ── Backend proxy helpers (avoids CSP restrictions) ──────────────────────────
+const NLM = 'https://clinicaltables.nlm.nih.gov/api';
 
 async function fetchICD10(query) {
   try {
-    const r = await fetch(`/api/emr/autocomplete/icd10?q=${encodeURIComponent(query)}`);
-    const rows = await r.json();
-    return rows.map(({ code, name }) => ({ code, name, label: `${code} — ${name}` }));
+    const r = await fetch(`${NLM}/icd10cm/v3/search?terms=${encodeURIComponent(query)}&sf=code,name&maxList=12`);
+    const data = await r.json();
+    const rows = data[3] || [];
+    return rows.map(([code, name]) => ({ code, name, label: `${code} — ${name}` }));
   } catch { return []; }
 }
 
 async function fetchRxTerms(query) {
   try {
-    const r = await fetch(`/api/emr/autocomplete/rxterms?q=${encodeURIComponent(query)}`);
-    const rows = await r.json();
-    return rows.map(({ name, strength }) => ({ name, strength, label: name }));
+    const r = await fetch(`${NLM}/rxterms/v3/search?terms=${encodeURIComponent(query)}&ef=STRENGTHS_AND_FORMS&maxList=12`);
+    const data = await r.json();
+    const rows = data[3] || [];
+    const strengths = (data[2] && data[2].STRENGTHS_AND_FORMS) || [];
+    return rows.map((row, i) => ({ name: row[0], strength: (strengths[i] || []).join(', '), label: row[0] }));
   } catch { return []; }
 }
 

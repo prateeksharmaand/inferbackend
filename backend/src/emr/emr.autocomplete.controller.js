@@ -14,7 +14,7 @@ const searchICD10 = async (req, res) => {
     const rows = data[3] || [];
     res.json(rows.map(([code, name]) => ({ code, name })));
   } catch (err) {
-    console.error('[autocomplete/icd10] NLM fetch error:', err.message);
+    console.error('[autocomplete/icd10] NLM fetch error:', err.code, err.message);
     res.json([]);
   }
 };
@@ -35,7 +35,7 @@ const searchRxTerms = async (req, res) => {
       strength: (strengths[i] || []).join(', '),
     })));
   } catch (err) {
-    console.error('[autocomplete/rxterms] NLM fetch error:', err.message);
+    console.error('[autocomplete/rxterms] NLM fetch error:', err.code, err.message);
     res.json([]);
   }
 };
