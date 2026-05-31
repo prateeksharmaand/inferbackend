@@ -736,7 +736,14 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
               </div>
               {form.lab_results.map((r, i) => (
                 <div key={i} className={`${styles.tRow} ${styles.tRow4}`}>
-                  <input placeholder="e.g. Hb"    value={r.test}   className={styles.cellInput} onChange={e => updateLabResult(i, 'test',   e.target.value)} />
+                  <AutocompleteInput
+                    value={r.test}
+                    onChange={v => updateLabResult(i, 'test', v)}
+                    onSelect={item => updateLabResult(i, 'test', item.name)}
+                    fetchSuggestions={fetchLOINC}
+                    placeholder="e.g. Hb"
+                    inputClassName={styles.cellInput}
+                  />
                   <input placeholder="e.g. 12.5"  value={r.result} className={styles.cellInput} onChange={e => updateLabResult(i, 'result', e.target.value)} />
                   <input placeholder="e.g. g/dL"  value={r.unit}   className={styles.cellInput} onChange={e => updateLabResult(i, 'unit',   e.target.value)} />
                   <input placeholder="e.g. 11-16" value={r.range}  className={styles.cellInput} onChange={e => updateLabResult(i, 'range',  e.target.value)} />
