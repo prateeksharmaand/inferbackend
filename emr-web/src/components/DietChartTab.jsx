@@ -18,6 +18,29 @@ const STANDARD_GROUPS = [
 
 const DEFAULT_MEALS = ['Breakfast','Mid-Morning','Lunch','Evening Snack','Dinner'];
 
+const SERVING_SIZES = [
+  // Weight
+  '100 g','50 g','25 g','200 g','250 g','500 g','1 kg',
+  // Volume
+  '100 ml','150 ml','200 ml','250 ml','500 ml','1 L',
+  // Cups & spoons
+  '1 cup','½ cup','¼ cup','2 cups',
+  '1 tbsp','2 tbsp','3 tbsp','1 tsp','2 tsp',
+  // Indian measures
+  '1 katori','2 katori','½ katori',
+  '1 bowl','1 small bowl','1 large bowl',
+  '1 plate','1 thali',
+  '1 glass','1 small glass','1 large glass',
+  // Pieces / units
+  '1 piece','2 pieces','3 pieces','4 pieces','5 pieces',
+  '1 slice','2 slices','1 medium','1 large','1 small',
+  '1 whole','½ whole','¼ whole',
+  // Handfuls
+  '1 handful','2 handfuls','1 small handful',
+  // Servings
+  '1 serving','2 servings',
+];
+
 const MACRO_FIELDS = [
   { key: 'energy',          label: 'Energy',         unit: 'kcal' },
   { key: 'protein',         label: 'Protein',         unit: 'g' },
@@ -223,8 +246,11 @@ function AddFoodItemModal({ allGroups, editItem, onSave, onClose }) {
     name: '', group_name: '', serving_size: '', nutrition: {}
   });
   const [showExtra, setShowExtra] = useState(false);
+  const [customServing, setCustomServing] = useState(
+    editItem?.serving_size && !SERVING_SIZES.includes(editItem.serving_size)
+  );
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const setN  = (k, v) => setForm(f => ({ ...f, nutrition: { ...f.nutrition, [k]: v } }));
+  const setN = (k, v) => setForm(f => ({ ...f, nutrition: { ...f.nutrition, [k]: v } }));
 
   return (
     <Modal title={editItem ? 'Edit Food Item' : 'Add Food Item'} onClose={onClose} width={700}>
@@ -244,8 +270,25 @@ function AddFoodItemModal({ allGroups, editItem, onSave, onClose }) {
           </div>
           <div className={s.formField}>
             <label>Serving size</label>
-            <input placeholder="e.g., 1 katori, 100 g" value={form.serving_size}
-              onChange={e => set('serving_size', e.target.value)} className={s.textInput} />
+            {customServing ? (
+              <div className={s.servingCustomRow}>
+                <input placeholder="e.g., 2 rotis" value={form.serving_size}
+                  onChange={e => set('serving_size', e.target.value)} className={s.textInput} />
+                <button className={s.btnGhost} onClick={() => { setCustomServing(false); set('serving_size', ''); }}>
+                  ← Pick from list
+                </button>
+              </div>
+            ) : (
+              <div className={s.servingCustomRow}>
+                <select value={form.serving_size} onChange={e => set('serving_size', e.target.value)} className={s.textInput}>
+                  <option value="">Select serving size</option>
+                  {SERVING_SIZES.map(sz => <option key={sz} value={sz}>{sz}</option>)}
+                </select>
+                <button className={s.btnGhost} onClick={() => setCustomServing(true)}>
+                  Custom
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -260,8 +303,8 @@ function AddFoodItemModal({ allGroups, editItem, onSave, onClose }) {
           ))}
         </div>
 
-        <button className={s.btnLink} onClick={() => setShowExtra(x => !x)}>
-          {showExtra ? 'Hide extra nutrients' : 'Show extra nutrients'}
+        <button className={s.btnExtraNutrients} onClick={() => setShowExtra(x => !x)}>
+          {showExtra ? '▲ Hide extra nutrients' : '▼ Show extra nutrients'}
         </button>
 
         {showExtra && (

@@ -29,6 +29,15 @@
   border: none; background: none; color: var(--color-primary); font-size: 13px; cursor: pointer;
   padding: 4px 0; text-decoration: underline;
 }
+.btnExtraNutrients {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 12px 0; padding: 7px 14px; border-radius: 7px;
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  background: var(--color-bg, #f8fafc); color: var(--color-text, #374151);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.btnExtraNutrients:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.servingCustomRow { display: flex; align-items: center; gap: 8px; }
 .btnClear {
   padding: 6px 14px; border-radius: 7px; border: 1.5px solid #fca5a5;
   color: #dc2626; background: #fff; font-size: 13px; cursor: pointer;
