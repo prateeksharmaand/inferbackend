@@ -274,9 +274,22 @@
   display: flex; align-items: center; gap: 8px;
   padding: 5px 8px; background: #f8fafc; border-radius: 6px; font-size: 13px;
 }
-.foodItemName { flex: 1; font-weight: 500; }
+.foodItemName { flex: 1; font-weight: 500; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .foodItemServing { color: #94a3b8; font-size: 12px; }
-.foodItemKcal { color: var(--color-primary); font-size: 12px; min-width: 60px; text-align: right; }
+.foodItemServingWrap { display: flex; align-items: center; gap: 2px; }
+.foodItemServingSelect {
+  font-size: 12px; padding: 2px 4px; border: 1px solid #e2e8f0; border-radius: 5px;
+  background: #f8fafc; color: #374151; cursor: pointer; max-width: 130px;
+}
+.foodItemServingSelect:focus { outline: none; border-color: var(--color-primary); }
+.foodItemServingInput {
+  font-size: 12px; padding: 2px 6px; border: 1px solid var(--color-primary); border-radius: 5px;
+  width: 100px; outline: none;
+}
+.foodItemServingToggle {
+  border: none; background: none; color: #94a3b8; cursor: pointer; font-size: 13px; padding: 2px;
+}
+.foodItemKcal { color: var(--color-primary); font-size: 12px; min-width: 56px; text-align: right; }
 .foodItemDel { border: none; background: none; color: #fca5a5; cursor: pointer; padding: 2px; }
 .foodItemDel:hover { color: #ef4444; }
 

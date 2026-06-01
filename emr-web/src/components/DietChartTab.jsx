@@ -663,6 +663,52 @@ function FoodSearch({ activeGroups, onAdd }) {
   );
 }
 
+// ── Food Item Row (with inline serving selector) ──────────────────────────────
+
+function FoodItemRow({ item, onServingChange, onRemove }) {
+  const [custom, setCustom] = useState(
+    item.serving_size && !SERVING_SIZES.includes(item.serving_size)
+  );
+
+  return (
+    <div className={s.foodItemRow}>
+      <span className={s.foodItemName}>{item.name}</span>
+      <div className={s.foodItemServingWrap}>
+        {custom ? (
+          <>
+            <input
+              className={s.foodItemServingInput}
+              value={item.serving_size || ''}
+              onChange={e => onServingChange(e.target.value)}
+              placeholder="e.g., 2 rotis"
+            />
+            <button className={s.foodItemServingToggle} onClick={() => { setCustom(false); onServingChange(''); }}>↩</button>
+          </>
+        ) : (
+          <>
+            <select
+              className={s.foodItemServingSelect}
+              value={item.serving_size || ''}
+              onChange={e => {
+                if (e.target.value === '__custom__') { setCustom(true); }
+                else onServingChange(e.target.value);
+              }}
+            >
+              {item.serving_size && !SERVING_SIZES.includes(item.serving_size) && (
+                <option value={item.serving_size}>{item.serving_size}</option>
+              )}
+              {SERVING_SIZES.map(sz => <option key={sz} value={sz}>{sz}</option>)}
+              <option value="__custom__">Custom…</option>
+            </select>
+          </>
+        )}
+      </div>
+      <span className={s.foodItemKcal}>{item.nutrition?.energy ? `${item.nutrition.energy} kcal` : ''}</span>
+      <button className={s.foodItemDel} onClick={onRemove}><X size={11} /></button>
+    </div>
+  );
+}
+
 // ── Diet Chart Editor ─────────────────────────────────────────────────────────
 
 function makeDefaultDayPlan(n = 1) {
@@ -728,6 +774,20 @@ function DietChartEditor({ chart: initialChart, patientMobile, doctorId, onSave,
         const meals = dp.meals.map((meal, mi) => {
           if (mi !== mIdx) return meal;
           return { ...meal, food_items: [...meal.food_items, { ...item, _key: uid() }] };
+        });
+        return { ...dp, meals };
+      });
+      return { ...c, day_plans: dps };
+    });
+  }
+
+  function updateFoodItemServing(dpIdx, mIdx, key, serving) {
+    setChart(c => {
+      const dps = c.day_plans.map((dp, di) => {
+        if (di !== dpIdx) return dp;
+        const meals = dp.meals.map((meal, mi) => {
+          if (mi !== mIdx) return meal;
+          return { ...meal, food_items: meal.food_items.map(f => f._key === key ? { ...f, serving_size: serving } : f) };
         });
         return { ...dp, meals };
       });
@@ -861,14 +921,12 @@ function DietChartEditor({ chart: initialChart, patientMobile, doctorId, onSave,
                   {meal.food_items.length > 0 && (
                     <div className={s.foodItemsList}>
                       {meal.food_items.map(fi => (
-                        <div key={fi._key} className={s.foodItemRow}>
-                          <span className={s.foodItemName}>{fi.name}</span>
-                          <span className={s.foodItemServing}>{fi.serving_size}</span>
-                          <span className={s.foodItemKcal}>{fi.nutrition?.energy ? `${fi.nutrition.energy} kcal` : ''}</span>
-                          <button className={s.foodItemDel} onClick={() => removeFoodItem(activeDay, mIdx, fi._key)}>
-                            <X size={11} />
-                          </button>
-                        </div>
+                        <FoodItemRow
+                          key={fi._key}
+                          item={fi}
+                          onServingChange={serving => updateFoodItemServing(activeDay, mIdx, fi._key, serving)}
+                          onRemove={() => removeFoodItem(activeDay, mIdx, fi._key)}
+                        />
                       ))}
                     </div>
                   )}
