@@ -250,7 +250,8 @@ const generateAIMealPlan = async (req, res) => {
   const prompt = `You are a clinical dietitian. Create 1 Indian ${numDays}-day meal plan.
 Patient: ${patientInfo || 'adult'} | Conditions: ${conditionStr} | Diet: ${dietRule} | Calories: ${calorieNote}
 Rules: Use Indian foods. Max 3-4 food items per meal. Realistic macro numbers. Be concise.
-Return ONLY this JSON structure filled with real data (no markdown, no explanation):
+IMPORTANT: Output raw JSON only. Do NOT use markdown, code blocks, or backticks. Start your response with { directly.
+Return ONLY this JSON structure filled with real data:
 {"plan_name":"...","description":"one sentence","theme":"...","nutrition_targets":{"energy":${calories_target || 0},"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0},"day_plans":[${dayPlansTemplate}]}`;
 
   try {
@@ -264,27 +265,33 @@ Return ONLY this JSON structure filled with real data (no markdown, no explanati
     const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 45_000 });
     const raw = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
 
+    // Strip markdown fences aggressively before any parse attempt
+    const stripped = raw
+      .replace(/^```[a-z]*\s*/i, '')   // opening fence
+      .replace(/\s*```\s*$/i, '')       // closing fence
+      .trim();
+
     let plans;
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(stripped);
       plans = Array.isArray(parsed) ? parsed : [parsed];
     } catch {
-      // Strip markdown fences if present
-      const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      try {
-        const parsed = JSON.parse(cleaned);
-        plans = Array.isArray(parsed) ? parsed : [parsed];
-      } catch {
-        // Extract first JSON object from text
-        const match = cleaned.match(/\{[\s\S]*"day_plans"[\s\S]*\}/);
-        if (match) {
-          try { plans = [JSON.parse(match[0])]; } catch { plans = []; }
-        } else { plans = []; }
+      // Try to extract JSON object directly from the text
+      const objMatch = stripped.match(/\{[\s\S]*"day_plans"[\s\S]*\}/);
+      const arrMatch = stripped.match(/\[[\s\S]*"day_plans"[\s\S]*\]/);
+      const target   = objMatch?.[0] || arrMatch?.[0];
+      if (target) {
+        try {
+          const parsed = JSON.parse(target);
+          plans = Array.isArray(parsed) ? parsed : [parsed];
+        } catch { plans = []; }
+      } else {
+        plans = [];
       }
     }
 
     if (!plans.length || !plans[0]?.day_plans) {
-      console.error('[diet] AI returned unparseable response:', raw.slice(0, 300));
+      console.error('[diet] unparseable response (first 500 chars):', stripped.slice(0, 500));
       return res.status(502).json({ error: 'AI returned no valid plan. Please try again.' });
     }
 
