@@ -242,7 +242,7 @@ const generateAIMealPlan = async (req, res) => {
     : preference === 'eggetarian' ? 'vegetarian + eggs OK — NO meat or fish'
     : 'non-vegetarian — include chicken/fish/eggs, NO beef/pork';
 
-  const numDays = Math.min(parseInt(days) || 1, 2);
+  const numDays = 1; // keep to 1 day to stay within token budget; doctors can duplicate
 
   const prompt = `You are a clinical dietitian creating an Indian diet plan.
 
@@ -280,7 +280,7 @@ Fill ALL meals with appropriate Indian foods for the patient's conditions. Repla
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
       },
     };
     const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 60_000 });
