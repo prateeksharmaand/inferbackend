@@ -158,6 +158,26 @@ export default function Queue() {
     fetchBoard();
   };
 
+  // ── Drag and drop ────────────────────────────────────────────────────────────
+  const [dragOver, setDragOver] = useState(null); // 'left' | 'right' | null
+
+  const DROP_STATUS = {
+    'Booked':     'booked',
+    'Follow Ups': 'follow_up',
+    'Others':     'parked',
+    'MY OPD':     'checked_in',
+  };
+
+  const handleDrop = async (e, targetTab) => {
+    e.preventDefault();
+    setDragOver(null);
+    const apptId = parseInt(e.dataTransfer.getData('apptId'));
+    const newStatus = DROP_STATUS[targetTab];
+    if (!apptId || !newStatus) return;
+    await api.patch(`/appointments/${apptId}/status`, { status: newStatus });
+    fetchBoard();
+  };
+
   const handleTagUpdate = (apptId, tagIds) => {
     const update = list => list.map(a => a.id === apptId ? { ...a, tags: tagIds } : a);
     setBoard(prev => ({
@@ -309,7 +329,17 @@ export default function Queue() {
               </div>
             )}
 
-            <div className={styles.cardList}>
+            <div
+              className={`${styles.cardList} ${dragOver === 'left' ? styles.dropTarget : ''}`}
+              onDragOver={e => { e.preventDefault(); setDragOver('left'); }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={e => handleDrop(e, leftTab)}
+            >
+              {dragOver === 'left' && (
+                <div className={styles.dropIndicator}>
+                  Drop here → <strong>{leftTab}</strong>
+                </div>
+              )}
               {loading && <p className={styles.empty}>Loading…</p>}
               {!loading && leftList.length === 0 && (
                 <div className={styles.emptyState}>
@@ -405,7 +435,17 @@ export default function Queue() {
               </div>
             )}
 
-            <div className={styles.cardList}>
+            <div
+              className={`${styles.cardList} ${dragOver === 'right' ? styles.dropTarget : ''}`}
+              onDragOver={e => { e.preventDefault(); setDragOver('right'); }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={e => handleDrop(e, rightTab === 'MY OPD' ? 'MY OPD' : 'COMPLETED')}
+            >
+              {dragOver === 'right' && rightTab === 'MY OPD' && (
+                <div className={styles.dropIndicator}>
+                  Drop here → <strong>MY OPD</strong>
+                </div>
+              )}
               {!loading && rightList.length === 0 && (
                 <div className={styles.emptyState}>
                   <div className={styles.emptyIcon}>{(rightTab === 'MY OPD' ? rightSearch : rightSearch) ? '🔍' : (rightTab === 'COMPLETED' ? '✓' : '👤')}</div>

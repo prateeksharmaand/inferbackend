@@ -82,7 +82,7 @@ function reminderTime(timeStr) {
   return `${rh12}:${String(rm).padStart(2, '0')} ${ampm}`;
 }
 
-export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen }) {
+export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen, onDragStart }) {
   const { user } = useAuth();
   const [appt,           setAppt]           = useState(initialAppt);
   useEffect(() => { setAppt(initialAppt); }, [initialAppt.status]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -158,7 +158,16 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
   return (
     <>
-      <div className={styles.card}>
+      <div
+        className={styles.card}
+        draggable
+        onDragStart={e => {
+          e.dataTransfer.setData('apptId', String(appt.id));
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart?.(appt);
+        }}
+        style={{ cursor: 'grab' }}
+      >
         <div className={styles.stripe} style={{ background: color }} />
         <div className={styles.body}>
 

@@ -141,3 +141,15 @@
   background: var(--color-primary); color: #fff; border: none;
   padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
 }
+
+.dropTarget {
+  border: 2px dashed var(--color-primary) !important;
+  background: var(--color-primary-bg, #f5f3ff) !important;
+  border-radius: 10px;
+  transition: all .15s;
+}
+.dropIndicator {
+  text-align: center; padding: 10px 16px; margin-bottom: 8px;
+  font-size: 13px; color: var(--color-primary); background: var(--color-primary-bg, #f5f3ff);
+  border-radius: 8px; border: 1.5px dashed var(--color-primary);
+}

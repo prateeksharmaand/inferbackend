@@ -153,3 +153,5 @@
   cursor: pointer; color: var(--color-text); transition: background .1s;
 }
 .moreMenu li:hover { background: var(--color-bg); }
+
+.card[draggable]:active { opacity: .7; transform: scale(.98); }
