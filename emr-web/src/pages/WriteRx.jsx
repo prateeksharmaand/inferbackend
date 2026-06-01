@@ -434,6 +434,10 @@ export default function WriteRx() {
     if (appointmentId === 'new') return;
     api.get(`/appointments/${appointmentId}`).then(data => {
       setAppt(data);
+      // Mark as ongoing as soon as Write Rx is opened
+      if (['checked_in', 'booked'].includes(data.status)) {
+        api.patch(`/appointments/${appointmentId}/status`, { status: 'ongoing' }).catch(() => {});
+      }
       if (data.past_encounter_notes) setPastNotes(data.past_encounter_notes);
       // Always seed medical_history from appointment (check-in data)
       if (data.medical_history?.length) {

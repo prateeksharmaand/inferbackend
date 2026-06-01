@@ -19,7 +19,7 @@ const STATUS_COLOR = {
 
 const ACTIONS = {
   checked_in: ['Start', 'Write Rx', 'Park'],
-  ongoing:    ['Write Rx', 'Complete'],
+  ongoing:    ['Resume', 'Complete'],
   parked:     ['Resume', 'Complete'],
 };
 
@@ -134,7 +134,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
       'Cancel':   'cancelled',
     };
     if (map[action]) onStatusChange(appt.id, map[action]);
-    if (action === 'Write Rx') onOpen('rx');
+    if (action === 'Write Rx' || action === 'Resume') onOpen('rx');
     if (action === 'Print Appointment Slip') setShowSlip(true);
     if (action === 'Medical Document')       setShowMedDoc(true);
   };
