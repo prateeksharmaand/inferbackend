@@ -213,7 +213,7 @@ const deleteFoodGroup = async (req, res) => {
 
 const axios = require('axios');
 
-const GEMINI_AI_MODEL = 'gemini-2.0-flash';
+const GEMINI_AI_MODEL = 'gemini-2.5-flash';
 const GEMINI_BASE  = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_AI_MODEL}:generateContent`;
 
 const generateAIMealPlan = async (req, res) => {
@@ -304,9 +304,10 @@ Return ONLY valid JSON (no markdown):
 
     res.json({ plans });
   } catch (err) {
+    const status = err.response?.status;
     const detail = err.response?.data || err.message;
-    console.error('[diet] AI meal plan failed:', detail);
-    res.status(502).json({ error: 'AI meal plan generation failed', detail });
+    console.error('[diet] AI meal plan failed — status:', status, '| detail:', JSON.stringify(detail));
+    res.status(502).json({ error: 'AI meal plan generation failed', detail, status });
   }
 };
 

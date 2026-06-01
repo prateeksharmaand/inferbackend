@@ -1091,7 +1091,11 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
       const data = await api.post('/diet/ai-meal-plan', payload);
       setPlans(data.plans || []);
       if (data.plans?.length) setExpanded(0);
-    } catch (e) { setError(e.message); }
+    } catch (e) {
+      // Show full detail if available so we can diagnose
+      setError(e.message + (e.detail ? ` — ${JSON.stringify(e.detail)}` : ''));
+      console.error('[AI meal plan]', e);
+    }
     finally { setLoading(false); }
   }
 
