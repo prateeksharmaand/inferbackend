@@ -213,8 +213,8 @@ const deleteFoodGroup = async (req, res) => {
 
 const axios = require('axios');
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
-const GEMINI_BASE  = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_AI_MODEL = 'gemini-1.5-flash-latest';
+const GEMINI_BASE  = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_AI_MODEL}:generateContent`;
 
 const generateAIMealPlan = async (req, res) => {
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
@@ -244,8 +244,8 @@ const generateAIMealPlan = async (req, res) => {
     : preference === 'eggetarian' ? 'vegetarian + eggs allowed, no meat/fish'
     : 'non-vegetarian, include chicken/fish/eggs, no beef/pork';
 
-  // Keep prompt tight — 2 plans with 3-4 items per meal to stay within token limit
-  const prompt = `You are a clinical dietitian. Generate exactly 2 distinct Indian one-day meal plans as a JSON array.
+  // Generate 1 plan — fastest possible response
+  const prompt = `You are a clinical dietitian. Generate exactly 1 Indian one-day meal plan as a JSON array.
 
 Patient: ${patientInfo || 'not specified'} | Conditions: ${conditionStr} | Diet: ${dietRule} | Calories: ${calorieNote}
 
@@ -265,11 +265,11 @@ Return ONLY this JSON (no markdown, no extra text):
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.6,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 4096,
         responseMimeType: 'application/json',
       },
     };
-    const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 90_000 });
+    const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 45_000 });
     const raw = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
 
     let plans;

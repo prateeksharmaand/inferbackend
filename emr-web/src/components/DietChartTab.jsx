@@ -1133,7 +1133,7 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
         {/* Generated Plans */}
         {plans.length > 0 && (
           <div className={s.aiSection}>
-            <div className={s.aiLabel}>{plans.length} Plans Generated — tap to preview</div>
+            <div className={s.aiLabel}>Generated Plan — review and apply or generate another</div>
             {plans.map((plan, idx) => (
               <div key={idx} className={`${s.aiPlanCard} ${expanded === idx ? s.aiPlanCardOpen : ''}`}>
                 <div className={s.aiPlanHeader} onClick={() => setExpanded(expanded === idx ? null : idx)}>
@@ -1190,8 +1190,11 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
 
       <div className={s.modalFooter}>
         <button className={s.btnGhost} onClick={onClose}>Cancel</button>
-        <button className={s.btnPrimary} onClick={handleGenerate} disabled={loading}>
-          {loading ? '✨ Generating…' : '✨ Generate Plans'}
+        <button className={s.btnOutline} onClick={handleGenerate} disabled={loading} style={{ display: plans.length ? 'flex' : 'none' }}>
+          {loading ? '✨ Generating…' : '🔄 Generate Another'}
+        </button>
+        <button className={s.btnPrimary} onClick={handleGenerate} disabled={loading} style={{ display: plans.length ? 'none' : 'flex' }}>
+          {loading ? '✨ Generating…' : '✨ Generate Plan'}
         </button>
       </div>
     </Modal>
