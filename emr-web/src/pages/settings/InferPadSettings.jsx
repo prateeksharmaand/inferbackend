@@ -205,18 +205,26 @@ export default function InferPadSettings() {
         </div>
       </div>
 
-      {/* ── Section Order ── */}
+      {/* ── Section Order + Mandatory Fields (combined) ── */}
       <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Section Order</h3>
-        <p className={styles.cardSub}>Drag to reorder sections. The order is saved and applied every time you open the Rx Pad.</p>
-        <div className={styles.orderList}>
+        <h3 className={styles.cardTitle}>Pad Sections</h3>
+        <p className={styles.cardSub}>Drag to reorder sections. Toggle mandatory to require a field before finishing the prescription.</p>
+
+        <div className={styles.sectionTable}>
+          {/* Header */}
+          <div className={styles.sectionTableHeader}>
+            <span style={{ flex: 1 }}>SECTION</span>
+            <span className={styles.sectionTableCol}>MANDATORY</span>
+          </div>
+
+          {/* Rows */}
           {sectionOrder.map((key, idx) => {
             const sec = INFERPAD_SECTIONS.find(s => s.key === key);
             if (!sec) return null;
+            const isMandatory = mandatoryFields.includes(key);
             return (
-              <div key={key}
-                draggable
-                className={`${styles.orderRow} ${dragOverIdx === idx ? styles.orderRowOver : ''}`}
+              <div key={key} draggable
+                className={`${styles.sectionRow} ${dragOverIdx === idx ? styles.sectionRowOver : ''}`}
                 onDragStart={() => handleSectionDragStart(idx)}
                 onDragEnter={() => handleSectionDragEnter(idx)}
                 onDragLeave={handleSectionDragLeave}
@@ -224,41 +232,19 @@ export default function InferPadSettings() {
                 onDrop={() => handleSectionDrop(idx)}
                 onDragEnd={() => { dragCounter.current = 0; setDragOverIdx(null); }}
               >
-                <span className={styles.orderHandle}><GripVertical size={15} /></span>
-                <span className={styles.orderIcon}>{sec.icon}</span>
-                <span className={styles.orderLabel}>{sec.label}</span>
-                <span className={styles.orderNum}>{idx + 1}</span>
+                <span className={styles.sectionHandle}><GripVertical size={15} /></span>
+                <span className={styles.sectionIcon}>{sec.icon}</span>
+                <span className={styles.sectionLabel}>{sec.label}</span>
+                <span className={styles.sectionPos}>{idx + 1}</span>
+                <div className={styles.sectionTableCol}>
+                  <label className={styles.toggle}>
+                    <input type="checkbox" checked={isMandatory} onChange={() => toggleMandatory(key)} />
+                    <span className={styles.toggleSlider} />
+                  </label>
+                </div>
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* ── Mandatory Fields ── */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Mandatory Fields</h3>
-        <p className={styles.cardSub}>
-          Fields marked as mandatory must be filled before finishing a prescription. If skipped, the doctor will be prompted with a warning.
-        </p>
-        <div className={styles.mandatoryTable}>
-          <div className={styles.mandatoryHeader}>
-            <span>Field</span>
-            <span>Mandatory</span>
-          </div>
-          {MANDATORY_FIELDS.map(f => (
-            <div key={f.key} className={styles.mandatoryRow}>
-              <div>
-                <div className={styles.toggleLabel}>{f.label}</div>
-                <div className={styles.toggleHint}>{f.hint}</div>
-              </div>
-              <label className={styles.toggle}>
-                <input type="checkbox"
-                  checked={mandatoryFields.includes(f.key)}
-                  onChange={() => toggleMandatory(f.key)} />
-                <span className={styles.toggleSlider} />
-              </label>
-            </div>
-          ))}
         </div>
       </div>
 
