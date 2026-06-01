@@ -917,6 +917,9 @@ export default function WriteRx() {
               </span>
             )}
           </div>
+          <button className={styles.btnConfigurePad} onClick={() => setShowConfigure(true)} title="Configure your Pad">
+            <Settings2 size={15} strokeWidth={1.8} /> Configure your Pad
+          </button>
         </div>
 
         {/* ── Sub-bar: tabs + link buttons ── */}
@@ -1167,6 +1170,10 @@ export default function WriteRx() {
             </div>
           </div>
         </div>
+      )}
+
+      {showConfigure && (
+        <ConfigureInferPadModal clinicId={user?.clinic_id || 'default'} onClose={() => setShowConfigure(false)} />
       )}
 
       {showPreview && (
