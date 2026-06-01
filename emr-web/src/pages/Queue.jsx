@@ -158,8 +158,11 @@ export default function Queue() {
     fetchBoard();
   };
 
-  // ── Drag and drop ────────────────────────────────────────────────────────────
+  // ── Drag and drop ─────────────────────────────────────────────────────────────
+  // Use counters to avoid flickering: dragLeave fires on every child element,
+  // so we only clear the highlight when the counter returns to 0 (truly left).
   const [dragOver, setDragOver] = useState(null); // 'left' | 'right' | null
+  const dragCounter = useRef({ left: 0, right: 0 });
 
   const DROP_STATUS = {
     'Booked':     'booked',
@@ -168,15 +171,20 @@ export default function Queue() {
     'MY OPD':     'checked_in',
   };
 
-  const handleDrop = async (e, targetTab) => {
-    e.preventDefault();
-    setDragOver(null);
-    const apptId = parseInt(e.dataTransfer.getData('apptId'));
-    const newStatus = DROP_STATUS[targetTab];
-    if (!apptId || !newStatus) return;
-    await api.patch(`/appointments/${apptId}/status`, { status: newStatus });
-    fetchBoard();
-  };
+  const makeDragHandlers = (side) => ({
+    onDragOver:  (e) => e.preventDefault(),
+    onDragEnter: (e) => { e.preventDefault(); dragCounter.current[side]++; setDragOver(side); },
+    onDragLeave: ()  => { dragCounter.current[side]--; if (dragCounter.current[side] <= 0) { dragCounter.current[side] = 0; setDragOver(null); } },
+    onDrop:      (e, tab) => {
+      dragCounter.current[side] = 0;
+      setDragOver(null);
+      e.preventDefault();
+      const apptId = parseInt(e.dataTransfer.getData('apptId'));
+      const newStatus = DROP_STATUS[tab];
+      if (!apptId || !newStatus) return;
+      api.patch(`/appointments/${apptId}/status`, { status: newStatus }).then(fetchBoard);
+    },
+  });
 
   const handleTagUpdate = (apptId, tagIds) => {
     const update = list => list.map(a => a.id === apptId ? { ...a, tags: tagIds } : a);
@@ -331,9 +339,7 @@ export default function Queue() {
 
             <div
               className={`${styles.cardList} ${dragOver === 'left' ? styles.dropTarget : ''}`}
-              onDragOver={e => { e.preventDefault(); setDragOver('left'); }}
-              onDragLeave={() => setDragOver(null)}
-              onDrop={e => handleDrop(e, leftTab)}
+              {...(() => { const h = makeDragHandlers('left'); return { onDragOver: h.onDragOver, onDragEnter: h.onDragEnter, onDragLeave: h.onDragLeave, onDrop: e => h.onDrop(e, leftTab) }; })()}
             >
               {dragOver === 'left' && (
                 <div className={styles.dropIndicator}>
@@ -437,9 +443,7 @@ export default function Queue() {
 
             <div
               className={`${styles.cardList} ${dragOver === 'right' ? styles.dropTarget : ''}`}
-              onDragOver={e => { e.preventDefault(); setDragOver('right'); }}
-              onDragLeave={() => setDragOver(null)}
-              onDrop={e => handleDrop(e, rightTab === 'MY OPD' ? 'MY OPD' : 'COMPLETED')}
+              {...(() => { const h = makeDragHandlers('right'); return { onDragOver: h.onDragOver, onDragEnter: h.onDragEnter, onDragLeave: h.onDragLeave, onDrop: e => h.onDrop(e, rightTab === 'MY OPD' ? 'MY OPD' : 'COMPLETED') }; })()}
             >
               {dragOver === 'right' && rightTab === 'MY OPD' && (
                 <div className={styles.dropIndicator}>
