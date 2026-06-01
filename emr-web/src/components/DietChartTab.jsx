@@ -4,7 +4,7 @@ import {
   BookOpen, LayoutTemplate, Clock, Search, Utensils,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { searchFoods } from '../data/indianFoods';
+import { INDIAN_FOODS, searchFoods } from '../data/indianFoods';
 import s from './DietChartTab.module.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -440,6 +440,7 @@ function CustomFoodLibraryModal({ onClose }) {
         const created = await api.post('/diet/food-items', form);
         setItems(prev => [...prev, created]);
       }
+      invalidateCustomCache();
       setShowAddItem(false);
       setEditItem(null);
     } catch (e) { setError(e.message); }
@@ -584,25 +585,52 @@ function CustomFoodLibraryModal({ onClose }) {
 
 // ── Food Search within meal ───────────────────────────────────────────────────
 
+// Cache custom items at module level so all meal searches share one fetch
+let _customFoodsCache = null;
+function getCustomFoods() {
+  if (_customFoodsCache) return Promise.resolve(_customFoodsCache);
+  return api.get('/diet/food-items').then(items => { _customFoodsCache = items; return items; }).catch(() => []);
+}
+function invalidateCustomCache() { _customFoodsCache = null; }
+
 function FoodSearch({ activeGroups, onAdd }) {
-  const [q, setQ]           = useState('');
+  const [q, setQ]       = useState('');
   const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen]     = useState(false);
+  const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
     if (!q.trim()) { setResults([]); return; }
-    setLoading(true);
-    api.get('/diet/food-items').then(items => {
-      const filtered = items.filter(i => {
-        const matchQ = i.name.toLowerCase().includes(q.toLowerCase());
+    const lower = q.toLowerCase();
+
+    // Static Indian foods (instant, no network)
+    const staticHits = INDIAN_FOODS
+      .filter(f => {
+        const matchQ = f.name.toLowerCase().includes(lower);
+        const matchG = !activeGroups?.length || activeGroups.includes(f.group);
+        return matchQ && matchG;
+      })
+      .map(f => ({ _key: `s_${f.name}`, name: f.name, serving_size: f.serving, group_name: f.group, nutrition: f.nutrition }));
+
+    // Custom DB foods (cached after first fetch)
+    getCustomFoods().then(custom => {
+      const customHits = custom.filter(i => {
+        const matchQ = i.name.toLowerCase().includes(lower);
         const matchG = !activeGroups?.length || activeGroups.includes(i.group_name);
         return matchQ && matchG;
-      });
-      setResults(filtered);
-      setOpen(true);
-    }).finally(() => setLoading(false));
+      }).map(i => ({ ...i, _key: `c_${i.id}` }));
+
+      // Custom items first (clinic-specific), then static, dedupe by name
+      const seen = new Set();
+      const merged = [...customHits, ...staticHits].filter(item => {
+        if (seen.has(item.name.toLowerCase())) return false;
+        seen.add(item.name.toLowerCase());
+        return true;
+      }).slice(0, 15);
+
+      setResults(merged);
+      setOpen(merged.length > 0);
+    });
   }, [q, activeGroups]);
 
   useEffect(() => {
@@ -618,12 +646,11 @@ function FoodSearch({ activeGroups, onAdd }) {
         <input placeholder="Search to add food item…" value={q}
           onChange={e => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => q && setOpen(true)} />
-        {loading && <span className={s.spinner} />}
       </div>
       {open && results.length > 0 && (
         <div className={s.foodDropdown}>
           {results.map(item => (
-            <div key={item.id} className={s.foodOption}
+            <div key={item._key} className={s.foodOption}
               onClick={() => { onAdd(item); setQ(''); setOpen(false); }}>
               <span className={s.foodOptionName}>{item.name}</span>
               <span className={s.foodOptionMeta}>{item.serving_size} · {item.group_name}</span>
