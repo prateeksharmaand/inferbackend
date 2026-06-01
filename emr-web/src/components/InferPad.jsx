@@ -885,12 +885,16 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
 function InferPadSettings({ clinicId }) {
   const key = (t) => `rx_${t}_${clinicId}`;
   const [vaccChart, setVaccChart] = useState(() => localStorage.getItem(key('vaccination_chart')) === 'true');
+  const [dietChart, setDietChart] = useState(() => localStorage.getItem(key('diet_chart')) === 'true');
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     vaccChart
       ? localStorage.setItem(key('vaccination_chart'), 'true')
       : localStorage.removeItem(key('vaccination_chart'));
+    dietChart
+      ? localStorage.setItem(key('diet_chart'), 'true')
+      : localStorage.removeItem(key('diet_chart'));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     window.dispatchEvent(new Event('storage'));
@@ -908,6 +912,18 @@ function InferPadSettings({ clinicId }) {
           </div>
           <label className={styles.toggle}>
             <input type="checkbox" checked={vaccChart} onChange={e => setVaccChart(e.target.checked)} />
+            <span className={styles.toggleSlider} />
+          </label>
+        </div>
+
+        {/* Diet Chart toggle */}
+        <div className={styles.settingRow}>
+          <div className={styles.settingInfo}>
+            <span className={styles.settingLabel}>Diet Chart</span>
+            <span className={styles.settingHint}>Show a Diet Chart tab in Write Rx to create and assign diet plans to patients.</span>
+          </div>
+          <label className={styles.toggle}>
+            <input type="checkbox" checked={dietChart} onChange={e => setDietChart(e.target.checked)} />
             <span className={styles.toggleSlider} />
           </label>
         </div>

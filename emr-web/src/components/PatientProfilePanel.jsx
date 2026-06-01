@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import {
   X, User, Clock, Stethoscope, ClipboardList, FileText,
   Activity, Search, PlusCircle, IndianRupee, Paperclip,
-  ChevronRight, CalendarCheck, Syringe,
+  ChevronRight, CalendarCheck, Syringe, Utensils,
 } from 'lucide-react';
 import { api } from '../api/client';
 import MedicalHistorySection from './MedicalHistorySection';
 import MedicalRecordsTab from './MedicalRecordsTab';
+import DietChartTab from './DietChartTab';
 import styles from './PatientProfilePanel.module.css';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ const TABS = [
   { key: 'Vitals & Lab Results', icon: Activity },
   { key: 'Assessments',          icon: Search },
   { key: 'Vaccinations',         icon: Syringe },
+  { key: 'Diet Charts',          icon: Utensils },
   { key: 'Create New Visit',     icon: PlusCircle },
   { key: 'Receipts',             icon: IndianRupee },
   { key: 'Medical Documents',    icon: Paperclip },
@@ -553,6 +555,9 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
             )}
             {tab === 'Vaccinations' && (
               <VaccinationsTab history={history} appt={appt} />
+            )}
+            {tab === 'Diet Charts' && (
+              <DietChartTab patientMobile={appt?.patient_mobile} />
             )}
             {tab === 'Create New Visit' && (
               <CreateNewVisit appt={appt} onNewVisit={onNewVisit} />

@@ -14,6 +14,7 @@ import CreateReceiptModal from '../components/CreateReceiptModal';
 import DrawingCanvas from '../components/DrawingCanvas';
 import InferPad from '../components/InferPad';
 import VaccinationChart from '../components/VaccinationChart';
+import DietChartTab from '../components/DietChartTab';
 import { VITALS_ALL, getVitalsPrefs } from '../components/InferPad';
 import { CALCULATORS } from '../data/calculators';
 import ScribePanel from '../components/ScribePanel';
@@ -396,7 +397,14 @@ export default function WriteRx() {
   const vaccChartEnabled = user?.clinic_id
     ? localStorage.getItem(`rx_vaccination_chart_${user.clinic_id}`) === 'true'
     : false;
-  const TABS = vaccChartEnabled ? [...BASE_TABS, 'Vaccines'] : BASE_TABS;
+  const dietChartEnabled = user?.clinic_id
+    ? localStorage.getItem(`rx_diet_chart_${user.clinic_id}`) === 'true'
+    : false;
+  const TABS = [
+    ...BASE_TABS,
+    ...(vaccChartEnabled ? ['Vaccines'] : []),
+    ...(dietChartEnabled ? ['Diet Chart'] : []),
+  ];
 
   const [rxImages, setRxImages] = useState(() => {
     const stored = JSON.parse(localStorage.getItem('emr_user') || '{}');
@@ -1026,6 +1034,13 @@ export default function WriteRx() {
               age={appt?.patient_age}
               vaccinations={form.vaccinations || {}}
               onChange={v => set('vaccinations', v)}
+            />
+          )}
+
+          {tab === 'Diet Chart' && (
+            <DietChartTab
+              patientMobile={appt?.patient_mobile}
+              doctorId={user?.id}
             />
           )}
         </div>

@@ -1,0 +1,338 @@
+/* ── Root & top bar ── */
+.root { display: flex; flex-direction: column; height: 100%; background: #f8fafc; }
+
+.topBar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid #e2e8f0; background: #fff;
+}
+.pageTitle { font-size: 15px; font-weight: 700; color: #1e293b; }
+
+/* ── Buttons ── */
+.btnPrimary {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer;
+  background: #6d28d9; color: #fff; font-size: 13px; font-weight: 600;
+}
+.btnPrimary:disabled { opacity: .55; cursor: not-allowed; }
+.btnOutline {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 7px; border: 1.5px solid #d1d5db;
+  background: #fff; color: #374151; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.btnOutline:hover { border-color: #9ca3af; }
+.btnGhost {
+  padding: 6px 12px; border-radius: 7px; border: none; background: transparent;
+  color: #6b7280; font-size: 13px; cursor: pointer;
+}
+.btnGhost:hover { background: #f1f5f9; }
+.btnLink {
+  border: none; background: none; color: #6d28d9; font-size: 13px; cursor: pointer;
+  padding: 4px 0; text-decoration: underline;
+}
+.btnClear {
+  padding: 6px 14px; border-radius: 7px; border: 1.5px solid #fca5a5;
+  color: #dc2626; background: #fff; font-size: 13px; cursor: pointer;
+}
+.delBtn {
+  border: none; background: none; color: #ef4444; cursor: pointer;
+  display: flex; align-items: center; padding: 4px;
+}
+
+/* ── Empty state ── */
+.emptyState {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px; color: #94a3b8;
+}
+.emptyIcon { font-size: 40px; opacity: .4; }
+.emptyMsg  { font-size: 14px; color: #94a3b8; }
+.newChartBtn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 14px; border-radius: 7px; border: none;
+  background: none; color: #6d28d9; font-size: 13px; cursor: pointer;
+  text-decoration: underline;
+}
+.hint { font-size: 13px; color: #94a3b8; }
+
+/* ── Chart list ── */
+.chartList { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+.newChartBtnInline {
+  display: flex; align-items: center; gap: 5px;
+  width: fit-content; padding: 6px 14px; border-radius: 7px;
+  border: 1.5px dashed #6d28d9; background: #f5f3ff;
+  color: #6d28d9; font-size: 13px; cursor: pointer;
+}
+.chartCard {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; background: #fff; border-radius: 10px;
+  border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.chartCardLeft { display: flex; flex-direction: column; gap: 3px; }
+.chartCardTitle { font-size: 14px; font-weight: 600; color: #1e293b; }
+.chartCardMeta  { font-size: 12px; color: #94a3b8; }
+.chartCardActions { display: flex; align-items: center; gap: 8px; }
+
+/* ── Overlay / Modal ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center; z-index: 1200;
+}
+.modal {
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18); overflow: hidden;
+  max-height: 90vh; display: flex; flex-direction: column;
+}
+.modalHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid #e2e8f0;
+}
+.modalTitle { font-size: 15px; font-weight: 700; color: #1e293b; }
+.modalClose {
+  border: none; background: none; cursor: pointer;
+  color: #94a3b8; display: flex; align-items: center;
+}
+.modalClose:hover { color: #1e293b; }
+.modalBody  { padding: 20px; overflow-y: auto; }
+.modalFooter {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-top: 1px solid #e2e8f0; gap: 8px;
+}
+
+/* ── Info bar ── */
+.infoBar {
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+  padding: 10px 14px; font-size: 12.5px; color: #92400e; margin-bottom: 16px;
+}
+
+/* ── Nutrition grid ── */
+.nutriGrid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+}
+.nutriField { display: flex; flex-direction: column; gap: 4px; }
+.nutriField label { font-size: 12px; color: #64748b; font-weight: 500; }
+.nutriInput {
+  display: flex; align-items: center; border: 1.5px solid #e2e8f0;
+  border-radius: 7px; overflow: hidden;
+}
+.nutriInput input {
+  flex: 1; padding: 7px 10px; border: none; outline: none;
+  font-size: 13px; min-width: 0;
+}
+.nutriInput span {
+  padding: 0 10px; background: #f8fafc; font-size: 12px;
+  color: #94a3b8; border-left: 1px solid #e2e8f0; white-space: nowrap;
+}
+
+/* ── Form helpers ── */
+.formRow {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+}
+.formRow label { font-size: 13px; color: #374151; font-weight: 500; min-width: 80px; }
+.formCol { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.formField { display: flex; flex-direction: column; gap: 4px; }
+.formField label { font-size: 12px; color: #64748b; font-weight: 500; }
+.textInput {
+  padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 7px;
+  font-size: 13px; outline: none; width: 100%; box-sizing: border-box;
+}
+.textInput:focus { border-color: #6d28d9; }
+.dateInput {
+  padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px;
+  font-size: 13px; outline: none;
+}
+.endLabel { font-size: 13px; color: #374151; }
+.endVal   { font-size: 13px; font-weight: 600; color: #1e293b; }
+
+/* ── Chips (food groups) ── */
+.chipWrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip {
+  padding: 5px 12px; border-radius: 20px; font-size: 13px; cursor: pointer;
+  border: 1.5px solid #e2e8f0; background: #fff; color: #374151;
+}
+.chipActive { border-color: #6d28d9; background: #f5f3ff; color: #6d28d9; font-weight: 600; }
+
+/* ── Section label ── */
+.sectionLabel { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; }
+
+/* ── Food library ── */
+.libToolbar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+}
+.searchWrap {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; border: 1.5px solid #e2e8f0; border-radius: 7px; background: #f8fafc;
+}
+.searchWrap input { flex: 1; border: none; outline: none; background: transparent; font-size: 13px; }
+.emptyLib { text-align: center; color: #94a3b8; font-size: 13px; padding: 24px 0; }
+.libGroup { margin-bottom: 16px; }
+.libGroupLabel { font-size: 12px; font-weight: 700; color: #6d28d9; padding: 4px 0; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+.libItem {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid #f1f5f9;
+}
+.libItemName { font-size: 13px; font-weight: 500; flex: 1; }
+.libItemMeta { font-size: 12px; color: #94a3b8; }
+.libItemNutri { font-size: 12px; color: #6d28d9; min-width: 70px; text-align: right; }
+.libItemActions { display: flex; align-items: center; gap: 6px; }
+.libItemActions button {
+  font-size: 12px; color: #6d28d9; border: none; background: none; cursor: pointer; padding: 2px 6px;
+}
+
+/* ── Template ── */
+.templateRow {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid #f1f5f9;
+}
+.templateName { font-size: 13px; font-weight: 500; }
+
+/* ── Editor layout ── */
+.editor { display: flex; flex-direction: column; height: 100%; background: #f8fafc; }
+
+.editorHeader {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 20px; background: #fff; border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+.backBtn {
+  border: none; background: none; color: #6d28d9; font-size: 14px;
+  cursor: pointer; font-weight: 600; white-space: nowrap;
+}
+.editorTitle { font-size: 14px; font-weight: 700; color: #1e293b; flex: 1; }
+.editorActions { display: flex; gap: 8px; flex-wrap: wrap; }
+.editorBtn {
+  padding: 6px 12px; border-radius: 7px; border: 1.5px solid #e2e8f0;
+  background: #fff; color: #374151; font-size: 12px; cursor: pointer;
+  white-space: nowrap;
+}
+.editorBtn:hover { border-color: #6d28d9; color: #6d28d9; }
+
+.editorBody { flex: 1; display: flex; overflow: hidden; }
+
+.editorLeft { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Day plan tabs ── */
+.dayTabs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.dayTab {
+  padding: 6px 14px; border-radius: 7px 7px 0 0; border: 1.5px solid #e2e8f0;
+  border-bottom: none; background: #f8fafc; color: #64748b; font-size: 13px;
+  cursor: pointer; font-weight: 500;
+}
+.dayTabActive { background: #fff; color: #6d28d9; border-color: #c4b5fd; font-weight: 700; }
+.addDayBtn {
+  padding: 5px 10px; border-radius: 7px; border: 1.5px dashed #c4b5fd;
+  background: #f5f3ff; color: #6d28d9; cursor: pointer; display: flex; align-items: center;
+}
+
+/* ── Meal list ── */
+.mealList { display: flex; flex-direction: column; gap: 12px; }
+.mealCard {
+  background: #fff; border-radius: 10px; border: 1px solid #e2e8f0;
+  padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.mealHeader { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.mealIcon { color: #94a3b8; }
+.mealName { font-size: 14px; font-weight: 700; color: #1e293b; flex: 1; }
+.mealTimeBtn {
+  display: flex; align-items: center; gap: 4px;
+  border: none; background: none; color: #94a3b8; font-size: 12px; cursor: pointer;
+}
+.mealTimeBtn:hover { color: #6d28d9; }
+.mealDelBtn {
+  border: none; background: none; color: #fca5a5; cursor: pointer;
+  display: flex; align-items: center;
+}
+.mealDelBtn:hover { color: #ef4444; }
+
+/* ── Food items in meal ── */
+.foodItemsList { margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
+.foodItemRow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; background: #f8fafc; border-radius: 6px; font-size: 13px;
+}
+.foodItemName { flex: 1; font-weight: 500; }
+.foodItemServing { color: #94a3b8; font-size: 12px; }
+.foodItemKcal { color: #6d28d9; font-size: 12px; min-width: 60px; text-align: right; }
+.foodItemDel { border: none; background: none; color: #fca5a5; cursor: pointer; padding: 2px; }
+.foodItemDel:hover { color: #ef4444; }
+
+/* ── Meal totals ── */
+.mealTotals {
+  display: flex; align-items: center; gap: 12px; margin-top: 8px;
+  font-size: 12px; color: #64748b; flex-wrap: wrap;
+}
+.instrBtn {
+  border: none; background: none; color: #6d28d9; font-size: 12px;
+  cursor: pointer; margin-left: auto; text-decoration: underline;
+}
+.instrText {
+  font-size: 12px; color: #64748b; font-style: italic;
+  padding: 6px 8px; background: #fffbeb; border-radius: 6px; margin-top: 6px;
+}
+.addMealBtn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 8px 14px; border-radius: 8px; border: 1.5px dashed #c4b5fd;
+  background: #f5f3ff; color: #6d28d9; font-size: 13px; cursor: pointer; width: fit-content;
+}
+
+/* ── Food search ── */
+.foodSearchWrap { position: relative; margin-bottom: 4px; }
+.foodSearchInput {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+  background: #fafafa; color: #94a3b8;
+}
+.foodSearchInput input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-size: 13px; color: #374151;
+}
+.foodDropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
+  background: #fff; border: 1.5px solid #e2e8f0; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.1); max-height: 220px; overflow-y: auto;
+}
+.foodOption {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; cursor: pointer; font-size: 13px;
+}
+.foodOption:hover { background: #f5f3ff; }
+.foodOptionName { flex: 1; font-weight: 500; }
+.foodOptionMeta { font-size: 12px; color: #94a3b8; }
+.foodOptionKcal { font-size: 12px; color: #6d28d9; font-weight: 600; }
+.spinner {
+  width: 14px; height: 14px; border: 2px solid #e2e8f0;
+  border-top-color: #6d28d9; border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Nutrition Tracker sidebar ── */
+.tracker {
+  width: 240px; min-width: 240px; background: #fff;
+  border-left: 1px solid #e2e8f0; padding: 20px 16px;
+  display: flex; flex-direction: column; align-items: center; overflow-y: auto;
+}
+.trackerHeader {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 16px;
+}
+.trackerKcal      { font-size: 40px; font-weight: 800; color: #1e293b; line-height: 1; }
+.trackerKcalLabel { font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
+.trackerStatus    { font-size: 12px; color: #6b7280; margin-bottom: 16px; text-align: center; }
+.trackerMacros    { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.trackerMacro     { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.trackerDot       { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.trackerMacroLabel { font-size: 13px; color: #374151; flex: 1; }
+.trackerMacroVal   { font-size: 13px; font-weight: 600; color: #1e293b; }
+.trackerBar {
+  width: 100%; height: 4px; background: #f1f5f9;
+  border-radius: 99px; overflow: hidden; margin-top: 2px;
+}
+.trackerBarFill { height: 100%; border-radius: 99px; transition: width .3s; }
+
+/* ── Editor footer ── */
+.editorFooter {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; background: #1e3a5f; gap: 8px;
+}
+.editorFooter .btnClear {
+  color: #93c5fd; border-color: #3b82f6; background: transparent;
+}
