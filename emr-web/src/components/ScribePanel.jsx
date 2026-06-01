@@ -151,7 +151,7 @@ export default function ScribePanel({
           setPending(n => n + 1);
           sendChunk(blob, language, spec, drugs)
             .then(text => { if (text) setTranscript(t => t ? t + ' ' + text : text); })
-            .catch(() => {})
+            .catch(err => console.warn('[scribe] chunk failed:', err.message))
             .finally(() => setPending(n => n - 1));
         }
       })();
@@ -175,7 +175,8 @@ export default function ScribePanel({
     try {
       const context     = buildContext();
       const focusPrompt = selectedTemplate?.focus_prompt || '';
-      const data = await api.post('/scribe/soap', { transcript: tx, context, focusPrompt });
+      const specialization = user?.specialization || '';
+      const data = await api.post('/scribe/soap', { transcript: tx, context: { ...context, specialization }, focusPrompt });
       setCleaned(data.cleaned || '');
       setSoap(data.soap || data);
       setStatus('done');

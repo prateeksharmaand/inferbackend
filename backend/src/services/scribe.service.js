@@ -75,7 +75,7 @@ const HALLUCINATION_PHRASES = [
 ];
 
 function isHallucination(text) {
-  if (!text || text.length < 8) return true;
+  if (!text || text.length < 4) return true;
   const lower = text.toLowerCase();
   if (HALLUCINATION_PHRASES.some(p => lower.includes(p))) return true;
   const words = lower.split(/\s+/);
@@ -161,6 +161,12 @@ function buildPatientContext(ctx) {
         parts.push('Rx: ' + note.medications.map(m => m.name).filter(Boolean).join(', '));
       if (parts.length) lines.push(`  [${date}] ${parts.join(' | ')}`);
     });
+  }
+
+  // Inject specialization vocabulary so Gemini recognises domain-specific terms
+  const specVocab = SPECIALIZATION_VOCAB[ctx.specialization?.toLowerCase()];
+  if (specVocab) {
+    lines.push(`SPECIALIZATION: ${ctx.specialization} — key terms: ${specVocab}`);
   }
 
   if (ctx.drugFormulary) {
