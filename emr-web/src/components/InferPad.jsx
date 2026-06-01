@@ -460,19 +460,6 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   return (
     <div className={styles.wrap}>
 
-      {/* ── Growth Chart Strip ── */}
-      {showGrowthStrip && (
-        <div className={s2.strip}>
-          <span className={s2.stripLabel}>GROWTH CHART [WHO/IAP]</span>
-          {!(form.vitals?.weight || form.vitals?.height || form.vitals?.bmi) ? (
-            <span className={s2.stripWarn}>⚠️ Add height, weight, BMI or OFC for latest growth chart.</span>
-          ) : <span style={{ flex: 1 }} />}
-          <button className={s2.stripBtn} onClick={() => setShowGrowth(true)}>
-            View growth chart →
-          </button>
-        </div>
-      )}
-
       {/* ── All sections rendered in saved order ── */}
       {sectionOrder.map(key => {
         if (key === 'vitals') return (
@@ -512,6 +499,20 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
             </div>
           </ICard>
         );
+        if (key === 'growth_chart') {
+          if (!growthEnabled || (patientAge !== null && patientAge >= 15)) return null;
+          return (
+            <div key="growth_chart" className={s2.strip}>
+              <span className={s2.stripLabel}>GROWTH CHART [WHO/IAP]</span>
+              {!(form.vitals?.weight || form.vitals?.height || form.vitals?.bmi)
+                ? <span className={s2.stripWarn}>⚠️ Add height, weight, BMI or OFC for latest growth chart.</span>
+                : <span style={{ flex: 1 }} />}
+              <button className={s2.stripBtn} onClick={() => setShowGrowth(true)}>
+                View growth chart →
+              </button>
+            </div>
+          );
+        }
         if (key === 'medical_history') return (
           <ICard key="medical_history" title="Patient Medical History" icon="📋" color="#64748b">
             <MedicalHistorySection value={form.medical_history || []} onChange={v => set('medical_history', v)} />

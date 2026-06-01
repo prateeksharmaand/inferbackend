@@ -46,6 +46,7 @@ function ImageUploadSection({ title, hint, value, onChange }) {
 // All orderable sections in the InferPad
 export const INFERPAD_SECTIONS = [
   { key: 'vitals',               label: 'Vitals',                icon: '🩺' },
+  { key: 'growth_chart',         label: 'Growth Chart [WHO/IAP]',icon: '📈' },
   { key: 'medical_history',      label: 'Patient Medical History',icon: '📋' },
   { key: 'symptoms',             label: 'Symptoms / Chief Complaints', icon: '🤒' },
   { key: 'diagnosis',            label: 'Diagnosis',             icon: '🔬' },
@@ -78,6 +79,7 @@ export function saveSectionOrder(clinicId, order) {
 
 // All fields that can be made mandatory
 export const MANDATORY_FIELDS = [
+  { key: 'growth_chart',         label: 'Growth Chart [WHO/IAP]',hint: 'Growth chart must be viewed before finishing (for patients under 15).' },
   { key: 'symptoms',             label: 'Chief Complaints',      hint: 'At least one symptom must be added.' },
   { key: 'diagnosis',            label: 'Diagnosis',             hint: 'At least one diagnosis must be added.' },
   { key: 'medications',          label: 'Medications',           hint: 'At least one medication must be added.' },
