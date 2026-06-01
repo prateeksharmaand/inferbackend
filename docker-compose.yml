@@ -42,9 +42,10 @@ services:
     image: onerahmet/openai-whisper-asr-webservice:latest
     container_name: phr_whisper
     environment:
-      ASR_MODEL: medium
+      ASR_MODEL: small
       ASR_ENGINE: faster_whisper
       ASR_QUANTIZATION: int8
+      ASR_BEAM_SIZE: 1
     restart: unless-stopped
 
   fhir:
