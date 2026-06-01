@@ -277,7 +277,7 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
 }
 
 // ── Prescription preview modal (Preview button) ───────────────────────────────
-function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint }) {
+function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint, onConfirmFinish }) {
   return (
     <div className={styles.previewOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.previewModal}>
@@ -285,6 +285,11 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
           <span className={styles.previewTitle}>Prescription Preview</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className={styles.previewPrintBtn} onClick={onPrint}><Printer size={13} strokeWidth={2} /> Print</button>
+            {onConfirmFinish && (
+              <button className={styles.btnFinish} style={{ fontSize: 12, padding: '6px 14px' }} onClick={onConfirmFinish}>
+                <CheckCircle size={12} strokeWidth={2} /> Confirm & Finish
+              </button>
+            )}
             <button className={styles.previewCloseBtn} onClick={onClose}><X size={15} /></button>
           </div>
         </div>
@@ -545,6 +550,9 @@ export default function WriteRx() {
   const handleFinish = async () => {
     const missing = checkMandatory();
     if (missing) { setMissingFields(missing); return; }
+    // If "Finish with Preview" is on, show preview and let doctor confirm
+    const finishPreviewOn = localStorage.getItem(`rx_finish_preview_${user?.clinic_id || 'default'}`) === 'true';
+    if (finishPreviewOn && !showPreview) { setShowPreview(true); return; }
     setSaving(true); setError('');
     try {
       // Persist any medical_history edits back to the appointment
@@ -1166,6 +1174,11 @@ export default function WriteRx() {
           form={form} appt={appt} user={user} rxImages={rxImages}
           onClose={() => setShowPreview(false)}
           onPrint={handlePrint}
+          onConfirmFinish={
+            localStorage.getItem(`rx_finish_preview_${user?.clinic_id || 'default'}`) === 'true'
+              ? () => { setShowPreview(false); handleFinish(); }
+              : undefined
+          }
         />
       )}
 

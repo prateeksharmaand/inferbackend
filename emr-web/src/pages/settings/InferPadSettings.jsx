@@ -119,8 +119,9 @@ export default function InferPadSettings() {
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(clKey('vaccination_chart')) === 'true');
   const [dietChart,    setDietChart]    = useState(() => localStorage.getItem(clKey('diet_chart')) === 'true');
   const [growthChart,  setGrowthChart]  = useState(() => localStorage.getItem(clKey('growth_chart'))      === 'true');
-  const [icd10Display, setIcd10Display] = useState(() => localStorage.getItem(clKey('icd10_display'))     === 'true');
-  const [icd10Print,   setIcd10Print]   = useState(() => localStorage.getItem(clKey('icd10_print'))       === 'true');
+  const [icd10Display,  setIcd10Display]  = useState(() => localStorage.getItem(clKey('icd10_display'))      === 'true');
+  const [icd10Print,    setIcd10Print]    = useState(() => localStorage.getItem(clKey('icd10_print'))        === 'true');
+  const [finishPreview, setFinishPreview] = useState(() => localStorage.getItem(clKey('finish_preview'))     === 'true');
   const [mandatoryFields, setMandatoryFields] = useState(() => getMandatoryFields(cid));
   const [sectionOrder,    setSectionOrder]    = useState(() => getSectionOrder(cid));
   const [saved,           setSaved]           = useState(false);
@@ -242,6 +243,20 @@ export default function InferPadSettings() {
                 handleFeatureToggle('icd10_print', e.target.checked);
               }} />
             <span className={styles.toggleSlider} style={!icd10Display ? { opacity: .4 } : {}} />
+          </label>
+        </div>
+
+        <div className={styles.toggleRow}>
+          <div>
+            <div className={styles.toggleLabel}>Finish with Preview</div>
+            <div className={styles.toggleHint}>Show a prescription preview before finishing, so the doctor can review before saving to avoid blank or duplicate prescriptions.</div>
+          </div>
+          <label className={styles.toggle}>
+            <input type="checkbox" checked={finishPreview} onChange={e => {
+              setFinishPreview(e.target.checked);
+              handleFeatureToggle('finish_preview', e.target.checked);
+            }} />
+            <span className={styles.toggleSlider} />
           </label>
         </div>
 
