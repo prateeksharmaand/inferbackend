@@ -394,12 +394,24 @@ export default function WriteRx() {
     };
   }, [user?.clinic_id, user?.id]);
 
-  const vaccChartEnabled = user?.clinic_id
-    ? localStorage.getItem(`rx_vaccination_chart_${user.clinic_id}`) === 'true'
-    : false;
-  const dietChartEnabled = user?.clinic_id
-    ? localStorage.getItem(`rx_diet_chart_${user.clinic_id}`) === 'true'
-    : false;
+  const [vaccChartEnabled, setVaccChartEnabled] = useState(
+    () => user?.clinic_id ? localStorage.getItem(`rx_vaccination_chart_${user.clinic_id}`) === 'true' : false
+  );
+  const [dietChartEnabled, setDietChartEnabled] = useState(
+    () => user?.clinic_id ? localStorage.getItem(`rx_diet_chart_${user.clinic_id}`) === 'true' : false
+  );
+
+  useEffect(() => {
+    const cid = user?.clinic_id;
+    if (!cid) return;
+    const handler = () => {
+      setVaccChartEnabled(localStorage.getItem(`rx_vaccination_chart_${cid}`) === 'true');
+      setDietChartEnabled(localStorage.getItem(`rx_diet_chart_${cid}`) === 'true');
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [user?.clinic_id]);
+
   const TABS = [
     ...BASE_TABS,
     ...(vaccChartEnabled ? ['Vaccines'] : []),
