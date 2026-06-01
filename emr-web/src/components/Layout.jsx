@@ -6,8 +6,9 @@ import styles  from './Layout.module.css';
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const hideTopBar  = pathname.startsWith('/rx/');
-  const hideBanner  = pathname.startsWith('/rx/') || pathname.includes('/settings');
+  const onSettings  = pathname.includes('/settings');
+  const hideTopBar  = pathname.startsWith('/rx/') || onSettings;
+  const hideBanner  = pathname.startsWith('/rx/') || onSettings;
 
   return (
     <div className={styles.shell}>
