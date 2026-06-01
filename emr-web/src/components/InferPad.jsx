@@ -6,6 +6,8 @@ import MedicalHistorySection from './MedicalHistorySection';
 import CalculatorsSection from './CalculatorsSection';
 import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
 import { getSectionOrder } from '../pages/settings/InferPadSettings';
+import GrowthChart from './GrowthChart';
+import s2 from './GrowthChart.module.css';
 
 const NLM = 'https://clinicaltables.nlm.nih.gov/api';
 
@@ -350,6 +352,11 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const [vitalsOrder,   setVitalsOrder]   = useState(() => getVitalsPrefs(clinicId));
   const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
   const [sectionOrder,  setSectionOrder]  = useState(() => getSectionOrder(clinicId));
+  const [showGrowth,    setShowGrowth]    = useState(false);
+
+  const growthEnabled = localStorage.getItem(`rx_growth_chart_${clinicId}`) === 'true';
+  const patientAge    = appt?.patient_age ? parseFloat(appt.patient_age) : null;
+  const showGrowthStrip = growthEnabled && patientAge !== null && patientAge < 15;
 
   // Re-read section order when settings change
   useEffect(() => {
@@ -446,6 +453,19 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
 
   return (
     <div className={styles.wrap}>
+
+      {/* ── Growth Chart Strip ── */}
+      {showGrowthStrip && (
+        <div className={s2.strip}>
+          <span className={s2.stripLabel}>GROWTH CHART [WHO/IAP]</span>
+          {!(form.vitals?.weight || form.vitals?.height || form.vitals?.bmi) ? (
+            <span className={s2.stripWarn}>⚠️ Add height, weight, BMI or OFC for latest growth chart.</span>
+          ) : <span style={{ flex: 1 }} />}
+          <button className={s2.stripBtn} onClick={() => setShowGrowth(true)}>
+            View growth chart →
+          </button>
+        </div>
+      )}
 
       {/* ── All sections rendered in saved order ── */}
       {sectionOrder.map(key => {
@@ -692,7 +712,9 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         <Plus size={14} /> Add Custom Section
       </button>
 
-
+      {showGrowth && (
+        <GrowthChart appt={appt} vitals={form.vitals} onClose={() => setShowGrowth(false)} />
+      )}
     </div>
   );
 }

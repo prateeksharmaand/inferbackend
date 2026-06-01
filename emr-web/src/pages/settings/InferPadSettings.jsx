@@ -109,6 +109,7 @@ export default function InferPadSettings() {
   const [signatureImg, setSignatureImg] = useState(() => localStorage.getItem(sigKey())                   || '');
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(clKey('vaccination_chart')) === 'true');
   const [dietChart,    setDietChart]    = useState(() => localStorage.getItem(clKey('diet_chart')) === 'true');
+  const [growthChart,  setGrowthChart]  = useState(() => localStorage.getItem(clKey('growth_chart'))      === 'true');
   const [mandatoryFields, setMandatoryFields] = useState(() => getMandatoryFields(cid));
   const [sectionOrder,    setSectionOrder]    = useState(() => getSectionOrder(cid));
   const [saved,           setSaved]           = useState(false);
@@ -199,6 +200,20 @@ export default function InferPadSettings() {
             <input type="checkbox" checked={dietChart} onChange={e => {
               setDietChart(e.target.checked);
               handleFeatureToggle('diet_chart', e.target.checked);
+            }} />
+            <span className={styles.toggleSlider} />
+          </label>
+        </div>
+
+        <div className={styles.toggleRow}>
+          <div>
+            <div className={styles.toggleLabel}>Growth Chart [WHO/IAP]</div>
+            <div className={styles.toggleHint}>Show a growth chart strip in the InferPad for patients under 15 years with weight/height/BMI percentile curves.</div>
+          </div>
+          <label className={styles.toggle}>
+            <input type="checkbox" checked={growthChart} onChange={e => {
+              setGrowthChart(e.target.checked);
+              handleFeatureToggle('growth_chart', e.target.checked);
             }} />
             <span className={styles.toggleSlider} />
           </label>
