@@ -720,7 +720,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
       </button>
 
       {showGrowth && (
-        <GrowthChart appt={appt} vitals={form.vitals} onClose={() => setShowGrowth(false)} />
+        <GrowthChart appt={appt} vitals={form.vitals} onVitalsChange={setVital} onClose={() => setShowGrowth(false)} />
       )}
     </div>
   );

@@ -136,12 +136,19 @@ function GrowthChartSVG({ type, gender, ageMonths, patientValue }) {
       {/* Y axis label */}
       <text transform={`translate(12,${PAD.top + cH / 2}) rotate(-90)`} textAnchor="middle" fontSize="9" fill="#94a3b8">{typeLabel}</text>
 
-      {/* Patient dot */}
+      {/* Patient dot with hover tooltip */}
       {dot && (
         <g>
-          <circle cx={dot.x} cy={dot.y} r={10} fill="#f59e0b" opacity={0.25} />
-          <circle cx={dot.x} cy={dot.y} r={6}  fill="#f59e0b" />
-          <circle cx={dot.x} cy={dot.y} r={2.5} fill="#fff" />
+          <circle cx={dot.x} cy={dot.y} r={14} fill="#f59e0b" opacity={0.15} />
+          <circle cx={dot.x} cy={dot.y} r={8}  fill="#f59e0b" />
+          <circle cx={dot.x} cy={dot.y} r={3}  fill="#fff" />
+          {/* Tooltip */}
+          <g>
+            <rect x={dot.x + 10} y={dot.y - 28} width={90} height={22} rx="4" fill="#1e293b" opacity={0.85} />
+            <text x={dot.x + 55} y={dot.y - 13} textAnchor="middle" fontSize="10" fill="#fff" fontWeight="600">
+              {type === 'weight' ? `${patientValue} kg` : type === 'height' ? `${patientValue} cm` : `BMI ${patientValue}`} · {Math.round(ageMonths / 12 * 10) / 10}y
+            </text>
+          </g>
         </g>
       )}
     </svg>
@@ -149,35 +156,48 @@ function GrowthChartSVG({ type, gender, ageMonths, patientValue }) {
 }
 
 // ── Main GrowthChart Modal ────────────────────────────────────────────────────
-export default function GrowthChart({ appt, vitals, onClose }) {
+export default function GrowthChart({ appt, vitals, onVitalsChange, onClose }) {
   const [tab, setTab]       = useState('weight');
   const [showTell, setShowTell] = useState(false);
 
-  const name   = appt?.patient_name || 'Patient';
-  const gender = appt?.patient_gender || 'M';
-  const age    = appt?.patient_age || 0;
-  const ageMonths = Math.round(age * 12);
+  const name        = appt?.patient_name || 'Patient';
+  const gender      = appt?.patient_gender || 'M';
+  const age         = appt?.patient_age || 0;
+  const ageMonths   = Math.round(age * 12);
   const genderLabel = gender === 'F' ? 'F' : 'M';
 
-  const weight = parseFloat(vitals?.weight) || null;
-  const height = parseFloat(vitals?.height) || null;
-  const bmi    = parseFloat(vitals?.bmi || calcBMI(weight, height)) || null;
+  // Local editable state — initialised from vitals prop
+  const [localWeight, setLocalWeight] = useState(vitals?.weight || '');
+  const [localHeight, setLocalHeight] = useState(vitals?.height || '');
+  const [gaWks,       setGaWks]       = useState('');
+  const [gaDays,      setGaDays]      = useState('');
 
+  // Auto-calculate BMI from local values
+  const localBMI = calcBMI(localWeight, localHeight) || '';
+
+  // Chart values driven by local state
   const TABS = [
-    { key: 'weight', label: 'Weight For Age', value: weight, unit: 'kg' },
-    { key: 'height', label: 'Height For Age', value: height, unit: 'cm' },
-    { key: 'bmi',    label: 'BMI For Age',    value: bmi,    unit: 'kg/m²' },
+    { key: 'weight', label: 'Weight For Age', value: parseFloat(localWeight) || null,  unit: 'Kgs' },
+    { key: 'height', label: 'Height For Age', value: parseFloat(localHeight) || null,  unit: 'Cms' },
+    { key: 'bmi',    label: 'BMI For Age',    value: parseFloat(localBMI)    || null,  unit: 'kg/m²' },
   ];
-
   const activeTab = TABS.find(t => t.key === tab);
 
-  const hasData = weight || height || bmi;
+  function handleDone() {
+    // Save changes back to InferPad vitals
+    if (onVitalsChange) {
+      if (localWeight) onVitalsChange('weight', localWeight);
+      if (localHeight) onVitalsChange('height', localHeight);
+      if (localBMI)    onVitalsChange('bmi',    localBMI);
+    }
+    onClose();
+  }
 
   return (
     <div className={s.fullscreen}>
       {/* Header */}
       <div className={s.header}>
-        <button className={s.backBtn} onClick={onClose}><ArrowLeft size={16} /> </button>
+        <button className={s.backBtn} onClick={onClose}><ArrowLeft size={16} /></button>
         <span className={s.headerTitle}>Growth Chart</span>
         <span className={s.patientMeta}>{name} | {genderLabel} | {age}y</span>
       </div>
@@ -195,7 +215,7 @@ export default function GrowthChart({ appt, vitals, onClose }) {
       <div className={s.body}>
         {/* Chart area */}
         <div className={s.chartArea}>
-          <h3 className={s.chartTitle}>{activeTab?.label.replace('For', 'For ')}</h3>
+          <h3 className={s.chartTitle}>{activeTab?.label}</h3>
           <GrowthChartSVG type={tab} gender={gender} ageMonths={ageMonths} patientValue={activeTab?.value} />
         </div>
 
@@ -221,30 +241,37 @@ export default function GrowthChart({ appt, vitals, onClose }) {
             </label>
           </div>
 
-          {/* Input fields */}
+          {/* Editable input fields */}
           <div className={s.inputList}>
             <div className={s.inputRow}>
               <span className={s.inputIcon}>⊕</span>
               <span className={s.inputLabel}>Gestational Age at birth</span>
-              <input className={s.inputBox} type="number" placeholder="" /> <span className={s.inputUnit}>wks</span>
-              <input className={s.inputBox} type="number" placeholder="" /> <span className={s.inputUnit}>days</span>
+              <input className={s.inputBox} type="number" placeholder="—" value={gaWks}  onChange={e => setGaWks(e.target.value)}  />
+              <span className={s.inputUnit}>wks</span>
+              <input className={s.inputBox} type="number" placeholder="—" value={gaDays} onChange={e => setGaDays(e.target.value)} />
+              <span className={s.inputUnit}>days</span>
             </div>
             <div className={s.inputRow}>
               <span className={s.inputIcon}>⊠</span>
               <span className={s.inputLabel}>Weight</span>
-              <input className={s.inputBoxFull} type="number" value={weight || ''} readOnly placeholder="" />
+              <input className={s.inputBoxFull} type="number" placeholder="—"
+                value={localWeight}
+                onChange={e => setLocalWeight(e.target.value)} />
               <span className={s.inputUnit}>Kgs</span>
             </div>
             <div className={s.inputRow}>
               <span className={s.inputIcon}>↕</span>
               <span className={s.inputLabel}>Height</span>
-              <input className={s.inputBoxFull} type="number" value={height || ''} readOnly placeholder="" />
+              <input className={s.inputBoxFull} type="number" placeholder="—"
+                value={localHeight}
+                onChange={e => setLocalHeight(e.target.value)} />
               <span className={s.inputUnit}>Cms</span>
             </div>
             <div className={s.inputRow}>
               <span className={s.inputIcon}>÷</span>
               <span className={s.inputLabel}>BMI</span>
-              <input className={s.inputBoxFull} type="number" value={bmi || ''} readOnly placeholder="" />
+              <input className={`${s.inputBoxFull} ${s.inputAuto}`} type="number" placeholder="auto"
+                value={localBMI} readOnly />
               <span className={s.inputUnit}>kg/m2</span>
             </div>
           </div>
@@ -258,7 +285,7 @@ export default function GrowthChart({ appt, vitals, onClose }) {
           <button className={s.btnPrint} onClick={() => window.print()}>
             <Printer size={13} /> Print
           </button>
-          <button className={s.btnDone} onClick={onClose}>Done</button>
+          <button className={s.btnDone} onClick={handleDone}>Done</button>
         </div>
       </div>
 

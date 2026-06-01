@@ -181,3 +181,5 @@
   font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 5px;
 }
 .stripBtn:disabled { opacity: .45; cursor: not-allowed; }
+
+.inputAuto { background: #f0fdf4; color: #065f46; font-weight: 700; }
