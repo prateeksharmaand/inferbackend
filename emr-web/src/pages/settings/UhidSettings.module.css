@@ -1,4 +1,4 @@
-.wrap { display: flex; flex-direction: column; gap: 16px; padding-top: 20px; max-width: 800px; }
+.wrap { display: flex; flex-direction: column; gap: 16px; padding-top: 20px; }
 
 .statusBanner {
   display: flex; align-items: center; gap: 12px;
