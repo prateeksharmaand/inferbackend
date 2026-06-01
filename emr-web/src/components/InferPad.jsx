@@ -353,14 +353,20 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
   const [sectionOrder,  setSectionOrder]  = useState(() => getSectionOrder(clinicId));
   const [showGrowth,    setShowGrowth]    = useState(false);
+  const [growthEnabled, setGrowthEnabled] = useState(
+    () => localStorage.getItem(`rx_growth_chart_${clinicId}`) === 'true'
+  );
 
-  const growthEnabled = localStorage.getItem(`rx_growth_chart_${clinicId}`) === 'true';
-  const patientAge    = appt?.patient_age ? parseFloat(appt.patient_age) : null;
-  const showGrowthStrip = growthEnabled && patientAge !== null && patientAge < 15;
+  const patientAge      = appt?.patient_age ? parseFloat(appt.patient_age) : null;
+  // Show strip when: feature enabled AND (age unknown OR age < 15)
+  const showGrowthStrip = growthEnabled && (patientAge === null || patientAge < 15);
 
-  // Re-read section order when settings change
+  // Re-read settings when they change
   useEffect(() => {
-    const handler = () => setSectionOrder(getSectionOrder(clinicId));
+    const handler = () => {
+      setSectionOrder(getSectionOrder(clinicId));
+      setGrowthEnabled(localStorage.getItem(`rx_growth_chart_${clinicId}`) === 'true');
+    };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
   }, [clinicId]);
