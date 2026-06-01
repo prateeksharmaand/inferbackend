@@ -213,7 +213,7 @@ const deleteFoodGroup = async (req, res) => {
 
 const axios = require('axios');
 
-const GEMINI_AI_MODEL = 'gemini-1.5-flash-latest';
+const GEMINI_AI_MODEL = 'gemini-2.0-flash';
 const GEMINI_BASE  = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_AI_MODEL}:generateContent`;
 
 const generateAIMealPlan = async (req, res) => {
@@ -244,21 +244,11 @@ const generateAIMealPlan = async (req, res) => {
     : preference === 'eggetarian' ? 'vegetarian + eggs allowed, no meat/fish'
     : 'non-vegetarian, include chicken/fish/eggs, no beef/pork';
 
-  // Generate 1 plan — fastest possible response
-  const prompt = `You are a clinical dietitian. Generate exactly 1 Indian one-day meal plan as a JSON array.
-
-Patient: ${patientInfo || 'not specified'} | Conditions: ${conditionStr} | Diet: ${dietRule} | Calories: ${calorieNote}
-
-Rules:
-- Use common Indian foods, practical serving sizes (e.g. "1 katori", "2 rotis")
-- Plans must differ in theme (e.g. South Indian vs North Indian, or High Protein vs Low Carb)
-- Each plan: 5 meals (Breakfast, Mid-Morning, Lunch, Evening Snack, Dinner)
-- Max 4 food items per meal
-- Macros must be realistic numbers (no zeros for main items)
-- Be concise: short plan_name, one-sentence description
-
-Return ONLY this JSON (no markdown, no extra text):
-[{"plan_name":"","description":"","theme":"","nutrition_targets":{"energy":0,"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0},"day_plans":[{"name":"Day Plan 1","meals":[{"name":"Breakfast","time":"8:00 AM","instructions":null,"food_items":[{"name":"","serving_size":"","group_name":"","nutrition":{"energy":0,"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0}}]}]}]}]`;
+  const prompt = `You are a clinical dietitian. Create 1 Indian one-day meal plan.
+Patient: ${patientInfo || 'adult'} | Conditions: ${conditionStr} | Diet: ${dietRule} | Target: ${calorieNote}
+Include 5 meals: Breakfast, Mid-Morning, Lunch, Evening Snack, Dinner. Max 4 food items per meal.
+Return ONLY valid JSON (no markdown):
+{"plan_name":"...","description":"...","theme":"...","nutrition_targets":{"energy":0,"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0},"day_plans":[{"name":"Day Plan 1","meals":[{"name":"Breakfast","time":"8:00 AM","instructions":null,"food_items":[{"name":"...","serving_size":"...","group_name":"...","nutrition":{"energy":0,"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0}}]}]}]}`;
 
   try {
     const body = {
@@ -266,7 +256,6 @@ Return ONLY this JSON (no markdown, no extra text):
       generationConfig: {
         temperature: 0.6,
         maxOutputTokens: 4096,
-        responseMimeType: 'application/json',
       },
     };
     const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 45_000 });
@@ -274,20 +263,26 @@ Return ONLY this JSON (no markdown, no extra text):
 
     let plans;
     try {
-      plans = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      plans = Array.isArray(parsed) ? parsed : [parsed];
     } catch {
-      // Try to salvage truncated JSON — extract complete plan objects one by one
-      const planMatches = [...raw.matchAll(/\{[\s\S]*?"day_plans"[\s\S]*?\}\s*(?=[,\]])/g)];
-      if (planMatches.length) {
-        try { plans = JSON.parse(`[${planMatches.map(m => m[0]).join(',')}]`); }
-        catch { plans = []; }
-      } else {
-        plans = [];
+      // Strip markdown fences if present
+      const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      try {
+        const parsed = JSON.parse(cleaned);
+        plans = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        // Extract first JSON object from text
+        const match = cleaned.match(/\{[\s\S]*"day_plans"[\s\S]*\}/);
+        if (match) {
+          try { plans = [JSON.parse(match[0])]; } catch { plans = []; }
+        } else { plans = []; }
       }
     }
 
-    if (!Array.isArray(plans) || plans.length === 0) {
-      return res.status(502).json({ error: 'AI returned no valid plans. Please try again.' });
+    if (!plans.length || !plans[0]?.day_plans) {
+      console.error('[diet] AI returned unparseable response:', raw.slice(0, 300));
+      return res.status(502).json({ error: 'AI returned no valid plan. Please try again.' });
     }
 
     // Stamp each food item with a _key for frontend rendering
