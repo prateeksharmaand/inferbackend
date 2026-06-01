@@ -234,6 +234,21 @@ export default function ScribePanel({
       if (v.respiratory_rate) setVital('respiratory_rate', String(v.respiratory_rate));
       if (v.height)           setVital('height',           String(v.height));
       if (v.weight)           setVital('weight',           String(v.weight));
+      if (v.abdominal_grade)  setVital('abdominal_girth',  String(v.abdominal_grade));
+      if (v.bsa)              setVital('bsa',              String(v.bsa));
+      if (v.waist)            setVital('waist',            String(v.waist));
+      if (v.temp_f)           setVital('temp_f',           String(v.temp_f));
+      if (v.hemoglobin)       setVital('hemoglobin',       String(v.hemoglobin));
+      if (v.platelets)        setVital('platelets',        String(v.platelets));
+      if (v.inr)              setVital('inr',              String(v.inr));
+      if (v.rbs)              setVital('rbs',              String(v.rbs));
+      if (v.fbs)              setVital('fbs',              String(v.fbs));
+      if (v.ppbs)             setVital('ppbs',             String(v.ppbs));
+      if (v.hba1c)            setVital('hba1c',            String(v.hba1c));
+      if (v.creatinine)       setVital('creatinine',       String(v.creatinine));
+      if (v.tsh)              setVital('tsh',              String(v.tsh));
+      if (v.pain_score)       setVital('pain_score',       String(v.pain_score));
+      if (v.lmp)              setVital('lmp',              String(v.lmp));
     }
     onClose?.();
   }, [soap, set, setVital, onClose]);

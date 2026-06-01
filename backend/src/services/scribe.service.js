@@ -194,7 +194,7 @@ const MERGED_PROMPT =
   '  "lab_investigations": [{"test": "string", "remarks": "string or null"}],\n' +
   '  "lab_results": [{"test": "string", "result": "string or null", "unit": "string or null", "range": "string or null"}],\n' +
   '  "procedures": ["string"],\n' +
-  '  "vitals": {"bp_systolic": null, "bp_diastolic": null, "pulse": null, "temp": null, "spo2": null, "respiratory_rate": null, "height": null, "weight": null},\n' +
+  '  "vitals": {"bp_systolic": null, "bp_diastolic": null, "pulse": null, "temp": null, "temp_f": null, "spo2": null, "respiratory_rate": null, "height": null, "weight": null, "abdominal_grade": null, "bsa": null, "waist": null, "hemoglobin": null, "platelets": null, "inr": null, "rbs": null, "fbs": null, "ppbs": null, "hba1c": null, "creatinine": null, "tsh": null, "pain_score": null, "lmp": null},\n' +
   '  "examination_findings": "string or null",\n' +
   '  "notes": "string or null",\n' +
   '  "refer_to": "string or null",\n' +

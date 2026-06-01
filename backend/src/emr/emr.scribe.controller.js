@@ -31,6 +31,7 @@ const extractSOAP = async (req, res) => {
     res.json({ cleaned, soap });
   } catch (err) {
     const detail = err.response?.data || err.message;
+    console.error('[scribe] SOAP extraction failed:', detail);
     res.status(502).json({ error: 'SOAP extraction failed', detail });
   }
 };
