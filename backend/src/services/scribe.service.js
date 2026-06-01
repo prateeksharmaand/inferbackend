@@ -7,14 +7,8 @@ const GEMINI_KEY    = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL  = 'gemini-2.5-flash';
 const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-// Base vocabulary — specialization vocab + drug formulary appended dynamically per request
-const WHISPER_PROMPT_BASE =
-  'chief complaint, fever, cough, shortness of breath, chest pain, dizziness, fatigue, ' +
-  'hypertension, diabetes, asthma, thyroid, anemia, infection, fracture, ' +
-  'blood pressure, systolic, diastolic, pulse rate, SpO2, temperature, respiratory rate, ' +
-  'height, weight, BMI, hemoglobin, CBC, LFT, RFT, ECG, X-ray, ultrasound, MRI, CT scan, ' +
-  '500mg, 250mg, 10mg, 5mg, OD, BD, TDS, QID, SOS, after meals, before meals, ' +
-  'refer, follow-up, review, discharge, admitted, prescription, diagnosis';
+// Short clinical hint for Whisper — keeps initial_prompt small for speed
+const WHISPER_PROMPT_BASE = 'Medical consultation. Doctor speaking with patient. Clinical terms, drug names, dosages.';
 
 const SPECIALIZATION_VOCAB = {
   cardiology:       'troponin, stent, angiography, pacemaker, atrial fibrillation, coronary artery disease, ejection fraction, echocardiogram, stress test, beta blocker, ACE inhibitor, warfarin, catheterization, cardiac enzymes',
@@ -105,11 +99,7 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en',
     console.warn('[scribe] ffmpeg preprocessing failed, sending raw audio:', err.message);
   }
 
-  // Build dynamic Whisper vocabulary: base + specialization keywords + drug formulary
-  const specVocab = SPECIALIZATION_VOCAB[specialization?.toLowerCase()] || '';
-  const drugs = (drugFormulary || DEFAULT_DRUG_FORMULARY).trim();
-  const promptParts = [WHISPER_PROMPT_BASE, specVocab, drugs].filter(Boolean);
-  const promptText = promptParts.join(', ');
+  const promptText = WHISPER_PROMPT_BASE;
 
   const form = new FormData();
   form.append('audio_file', audioBuffer, { filename, contentType: audioMime });
