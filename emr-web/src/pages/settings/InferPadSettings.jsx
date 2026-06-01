@@ -43,23 +43,53 @@ function ImageUploadSection({ title, hint, value, onChange }) {
   );
 }
 
+// All fields that can be made mandatory
+export const MANDATORY_FIELDS = [
+  { key: 'symptoms',             label: 'Chief Complaints',      hint: 'At least one symptom must be added.' },
+  { key: 'diagnosis',            label: 'Diagnosis',             hint: 'At least one diagnosis must be added.' },
+  { key: 'medications',          label: 'Medications',           hint: 'At least one medication must be added.' },
+  { key: 'vitals',               label: 'Vitals',                hint: 'At least one vital sign must be filled.' },
+  { key: 'lab_investigations',   label: 'Lab Investigations',    hint: 'At least one lab test must be added.' },
+  { key: 'examination_findings', label: 'Examination Findings',  hint: 'Examination findings must be filled.' },
+  { key: 'medical_history',      label: 'Medical History',       hint: 'At least one medical history entry must be added.' },
+  { key: 'notes',                label: 'Notes',                 hint: 'Notes/instructions must be filled.' },
+  { key: 'advices',              label: 'Advices',               hint: 'Advice to patient must be filled.' },
+];
+
+export function getMandatoryFields(clinicId) {
+  try {
+    const stored = localStorage.getItem(`rx_mandatory_fields_${clinicId}`);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
 export default function InferPadSettings() {
   const { user } = useAuth();
   const cid = user?.clinic_id || 'default';
   const uid = user?.id        || 'default';
 
-  const clKey  = (t) => `rx_${t}_${cid}`;          // clinic-wide keys
-  const sigKey = () => `rx_sig_${uid}_${cid}`;      // per-doctor signature
+  const clKey  = (t) => `rx_${t}_${cid}`;
+  const sigKey = () => `rx_sig_${uid}_${cid}`;
 
   const [headerImg,    setHeaderImg]    = useState(() => localStorage.getItem(clKey('header'))            || '');
   const [footerImg,    setFooterImg]    = useState(() => localStorage.getItem(clKey('footer'))            || '');
   const [signatureImg, setSignatureImg] = useState(() => localStorage.getItem(sigKey())                   || '');
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(clKey('vaccination_chart')) === 'true');
   const [dietChart,    setDietChart]    = useState(() => localStorage.getItem(clKey('diet_chart')) === 'true');
+  const [mandatoryFields, setMandatoryFields] = useState(() => getMandatoryFields(cid));
   const [saved,  setSaved]  = useState(false);
 
   const handleFeatureToggle = (setting, value) => {
     value ? localStorage.setItem(clKey(setting), 'true') : localStorage.removeItem(clKey(setting));
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const toggleMandatory = (key) => {
+    const next = mandatoryFields.includes(key)
+      ? mandatoryFields.filter(k => k !== key)
+      : [...mandatoryFields, key];
+    setMandatoryFields(next);
+    localStorage.setItem(`rx_mandatory_fields_${cid}`, JSON.stringify(next));
     window.dispatchEvent(new Event('storage'));
   };
   const [sigMsg, setSigMsg] = useState('');
@@ -118,6 +148,34 @@ export default function InferPadSettings() {
             }} />
             <span className={styles.toggleSlider} />
           </label>
+        </div>
+      </div>
+
+      {/* ── Mandatory Fields ── */}
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Mandatory Fields</h3>
+        <p className={styles.cardSub}>
+          Fields marked as mandatory must be filled before finishing a prescription. If skipped, the doctor will be prompted with a warning.
+        </p>
+        <div className={styles.mandatoryTable}>
+          <div className={styles.mandatoryHeader}>
+            <span>Field</span>
+            <span>Mandatory</span>
+          </div>
+          {MANDATORY_FIELDS.map(f => (
+            <div key={f.key} className={styles.mandatoryRow}>
+              <div>
+                <div className={styles.toggleLabel}>{f.label}</div>
+                <div className={styles.toggleHint}>{f.hint}</div>
+              </div>
+              <label className={styles.toggle}>
+                <input type="checkbox"
+                  checked={mandatoryFields.includes(f.key)}
+                  onChange={() => toggleMandatory(f.key)} />
+                <span className={styles.toggleSlider} />
+              </label>
+            </div>
+          ))}
         </div>
       </div>
 

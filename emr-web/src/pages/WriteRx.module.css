@@ -610,3 +610,40 @@
     overflow: visible !important;
   }
 }
+
+
+/* ── Mandatory fields modal ── */
+.mandatoryOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center; z-index: 2000;
+}
+.mandatoryModal {
+  background: #fff; border-radius: 14px; padding: 28px 32px;
+  width: 480px; max-width: 95vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.mandatoryHeader { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.mandatoryIcon   { font-size: 22px; }
+.mandatoryTitle  { font-size: 17px; font-weight: 700; color: #1e293b; }
+.mandatoryDesc   { font-size: 13px; color: #64748b; margin-bottom: 16px; line-height: 1.5; }
+.mandatoryList   {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 14px 16px; margin-bottom: 20px;
+}
+.mandatoryCount  { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: .08em; margin-bottom: 10px; }
+.mandatoryChips  { display: flex; flex-wrap: wrap; gap: 8px; }
+.mandatoryChip   {
+  padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 500;
+  background: #fff; border: 1.5px solid #e2e8f0; color: #374151;
+}
+.mandatoryActions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.btnEndWithoutRx  {
+  padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer;
+  background: #ef4444; color: #fff; font-size: 13px; font-weight: 600;
+}
+.btnEndWithoutRx:hover { background: #dc2626; }
+.btnGoBack {
+  padding: 9px 18px; border-radius: 8px; border: 1.5px solid #e2e8f0;
+  background: #fff; color: #374151; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.btnGoBack:hover { border-color: var(--color-primary); color: var(--color-primary); }

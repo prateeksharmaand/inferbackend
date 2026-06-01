@@ -80,3 +80,8 @@
 }
 .toggle input:checked + .toggleSlider { background: var(--color-primary, #2563eb); }
 .toggle input:checked + .toggleSlider::before { transform: translateX(18px); }
+
+.mandatoryTable { display: flex; flex-direction: column; gap: 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 12px; }
+.mandatoryHeader { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #f8fafc; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+.mandatoryRow { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid #f1f5f9; }
+.mandatoryRow:hover { background: #fafafa; }

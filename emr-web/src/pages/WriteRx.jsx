@@ -20,6 +20,7 @@ import { CALCULATORS } from '../data/calculators';
 import ScribePanel from '../components/ScribePanel';
 import PatientContextPanel from '../components/PatientContextPanel';
 import AssessmentPanel from '../components/AssessmentPanel';
+import { getMandatoryFields, MANDATORY_FIELDS } from './settings/InferPadSettings';
 import styles from './WriteRx.module.css';
 
 // ── Language picker (bottom bar) ─────────────────────────────────────────────
@@ -380,6 +381,7 @@ export default function WriteRx() {
     ? (scribeMinimized ? 36 : window.innerWidth * 0.4)
     : 0;
   const [showPostVisit,   setShowPostVisit]   = useState(false);
+  const [missingFields,   setMissingFields]   = useState(null); // null = no modal, array = show modal
   const [showReceipt,     setShowReceipt]     = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
 
@@ -525,7 +527,24 @@ export default function WriteRx() {
     setTimeout(() => window.print(), 300);
   };
 
+  function checkMandatory() {
+    const required = getMandatoryFields(user?.clinic_id || 'default');
+    if (!required.length) return null;
+    const missing = [];
+    const fieldMap = Object.fromEntries(MANDATORY_FIELDS.map(f => [f.key, f.label]));
+    for (const key of required) {
+      const val = form[key];
+      const empty = !val || (Array.isArray(val) ? val.length === 0
+        : typeof val === 'object' ? Object.values(val).every(v => !v)
+        : String(val).trim() === '');
+      if (empty) missing.push(fieldMap[key] || key);
+    }
+    return missing.length ? missing : null;
+  }
+
   const handleFinish = async () => {
+    const missing = checkMandatory();
+    if (missing) { setMissingFields(missing); return; }
     setSaving(true); setError('');
     try {
       // Persist any medical_history edits back to the appointment
@@ -1095,6 +1114,52 @@ export default function WriteRx() {
         </div>
 
       </div>
+
+      {/* ── Mandatory fields missing modal ── */}
+      {missingFields && (
+        <div className={styles.mandatoryOverlay}>
+          <div className={styles.mandatoryModal}>
+            <div className={styles.mandatoryHeader}>
+              <span className={styles.mandatoryIcon}>⚠️</span>
+              <span className={styles.mandatoryTitle}>Mandatory Sections Missing</span>
+            </div>
+            <p className={styles.mandatoryDesc}>
+              The following sections need to be completed before finishing the prescription.
+            </p>
+            <div className={styles.mandatoryList}>
+              <div className={styles.mandatoryCount}>{missingFields.length} SECTION{missingFields.length > 1 ? 'S' : ''} REMAINING</div>
+              <div className={styles.mandatoryChips}>
+                {missingFields.map(f => <span key={f} className={styles.mandatoryChip}>{f}</span>)}
+              </div>
+            </div>
+            <div className={styles.mandatoryActions}>
+              <button className={styles.btnEndWithoutRx} onClick={async () => {
+                setMissingFields(null);
+                setSaving(true);
+                try {
+                  await api.patch(`/appointments/${appointmentId}/status`, { medical_history: form.medical_history });
+                  await api.post(`/appointments/${appointmentId}/encounter`, {
+                    symptoms: form.symptoms, diagnosis: form.diagnosis, medications: form.medications,
+                    instructions: form.advices, advices: form.advices, next_visit_date: form.next_visit_date || null,
+                    next_visit_notes: form.next_visit_notes, vitals: form.vitals,
+                    lab_investigations: form.lab_investigations, lab_results: form.lab_results,
+                    examination_findings: form.examination_findings, notes: form.notes,
+                    refer_to: form.refer_to, procedures: form.procedures, custom_sections: form.custom_sections || [],
+                    canvas_image: form.canvasImage || null, vaccinations: form.vaccinations || {},
+                    calc_results: form.calc_results || {}, rx_language: form.rx_language || '',
+                  });
+                  setShowPostVisit(true);
+                } catch (err) { setError(err.message); setSaving(false); }
+              }}>
+                ➜ End w/o Rx
+              </button>
+              <button className={styles.btnGoBack} onClick={() => setMissingFields(null)}>
+                ← Go back to Rx
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPreview && (
         <PrescriptionPreview
