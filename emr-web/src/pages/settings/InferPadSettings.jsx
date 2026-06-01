@@ -57,13 +57,16 @@ export default function InferPadSettings() {
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(clKey('vaccination_chart')) === 'true');
   const [dietChart,    setDietChart]    = useState(() => localStorage.getItem(clKey('diet_chart')) === 'true');
   const [saved,  setSaved]  = useState(false);
+
+  const handleFeatureToggle = (setting, value) => {
+    value ? localStorage.setItem(clKey(setting), 'true') : localStorage.removeItem(clKey(setting));
+    window.dispatchEvent(new Event('storage'));
+  };
   const [sigMsg, setSigMsg] = useState('');
 
   const handleSave = () => {
     headerImg   ? localStorage.setItem(clKey('header'),             headerImg)   : localStorage.removeItem(clKey('header'));
     footerImg   ? localStorage.setItem(clKey('footer'),             footerImg)   : localStorage.removeItem(clKey('footer'));
-    vaccChart   ? localStorage.setItem(clKey('vaccination_chart'), 'true')       : localStorage.removeItem(clKey('vaccination_chart'));
-    dietChart   ? localStorage.setItem(clKey('diet_chart'),        'true')       : localStorage.removeItem(clKey('diet_chart'));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     window.dispatchEvent(new Event('storage')); // so Write Rx re-evaluates tabs
@@ -95,7 +98,10 @@ export default function InferPadSettings() {
             <div className={styles.toggleHint}>Show a Vaccines tab in Write Rx with IAP schedule and other vaccines.</div>
           </div>
           <label className={styles.toggle}>
-            <input type="checkbox" checked={vaccChart} onChange={e => setVaccChart(e.target.checked)} />
+            <input type="checkbox" checked={vaccChart} onChange={e => {
+              setVaccChart(e.target.checked);
+              handleFeatureToggle('vaccination_chart', e.target.checked);
+            }} />
             <span className={styles.toggleSlider} />
           </label>
         </div>
@@ -106,16 +112,12 @@ export default function InferPadSettings() {
             <div className={styles.toggleHint}>Show a Diet Chart tab in Write Rx to create and assign diet plans to patients.</div>
           </div>
           <label className={styles.toggle}>
-            <input type="checkbox" checked={dietChart} onChange={e => setDietChart(e.target.checked)} />
+            <input type="checkbox" checked={dietChart} onChange={e => {
+              setDietChart(e.target.checked);
+              handleFeatureToggle('diet_chart', e.target.checked);
+            }} />
             <span className={styles.toggleSlider} />
           </label>
-        </div>
-
-        <div className={styles.actions}>
-          {saved && <span className={styles.savedMsg}><Check size={13} /> Saved</span>}
-          <button className={styles.btnSave} onClick={handleSave}>
-            <Check size={14} /> Save Changes
-          </button>
         </div>
       </div>
 
