@@ -5,6 +5,7 @@ import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
 import CalculatorsSection from './CalculatorsSection';
 import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
+import { getSectionOrder } from '../pages/settings/InferPadSettings';
 
 const NLM = 'https://clinicaltables.nlm.nih.gov/api';
 
@@ -348,6 +349,14 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const [showVitalsCfg, setShowVitalsCfg] = useState(false);
   const [vitalsOrder,   setVitalsOrder]   = useState(() => getVitalsPrefs(clinicId));
   const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
+  const [sectionOrder,  setSectionOrder]  = useState(() => getSectionOrder(clinicId));
+
+  // Re-read section order when settings change
+  useEffect(() => {
+    const handler = () => setSectionOrder(getSectionOrder(clinicId));
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [clinicId]);
 
   const visibleVitals = vitalsOrder
     .map(k => VITALS_ALL.find(v => v.key === k))
@@ -438,59 +447,214 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   return (
     <div className={styles.wrap}>
 
-      {/* 1 — Vitals */}
-      <ICard title="Vitals" icon="🩺" color="#3b82f6"
-        action={
-          <button className={styles.vitalsConfigBtn} onClick={e => { e.stopPropagation(); setShowVitalsCfg(true); }} title="Configure vitals">
-            <Settings2 size={13} strokeWidth={2} />
-          </button>
-        }
-      >
-        <div className={styles.vitalsGrid}>
-          {visibleVitals.map(({ key, label, unit, placeholder, decimal, safeRange }) => {
-            const val = form.vitals[key] || '';
-            const low  = parseFloat(safeRange?.low);
-            const high = parseFloat(safeRange?.high);
-            const num  = parseFloat(val);
-            const outOfRange = val && !isNaN(num) && !isNaN(low) && !isNaN(high) && (num < low || num > high);
-            // LMP uses date input
-            if (key === 'lmp') return (
-              <div key={key} className={styles.vCell}>
-                <label>{label}</label>
-                <input type="date" value={val} onChange={e => setVital(key, e.target.value)} />
+      {/* ── All sections rendered in saved order ── */}
+      {sectionOrder.map(key => {
+        if (key === 'vitals') return (
+          <ICard key="vitals" title="Vitals" icon="🩺" color="#3b82f6"
+            action={
+              <button className={styles.vitalsConfigBtn} onClick={e => { e.stopPropagation(); setShowVitalsCfg(true); }} title="Configure vitals">
+                <Settings2 size={13} strokeWidth={2} />
+              </button>
+            }
+          >
+            <div className={styles.vitalsGrid}>
+              {visibleVitals.map(({ key: k, label, unit, placeholder, decimal, safeRange }) => {
+                const val = form.vitals[k] || '';
+                const low = parseFloat(safeRange?.low), high = parseFloat(safeRange?.high), num = parseFloat(val);
+                const outOfRange = val && !isNaN(num) && !isNaN(low) && !isNaN(high) && (num < low || num > high);
+                if (k === 'lmp') return (
+                  <div key={k} className={styles.vCell}><label>{label}</label>
+                    <input type="date" value={val} onChange={e => setVital(k, e.target.value)} /></div>
+                );
+                return (
+                  <div key={k} className={styles.vCell}>
+                    <label title={`${label}${unit ? ` (${unit})` : ''}`}>
+                      <span className={styles.vLabelText}>{label}</span>
+                      {unit && <span className={styles.unit}>{unit}</span>}
+                    </label>
+                    <input type="number" step={decimal === false ? '1' : 'any'} value={val}
+                      onChange={e => setVital(k, e.target.value)} placeholder={placeholder}
+                      style={outOfRange ? { borderColor: '#f59e0b', background: '#fffbeb' } : {}}
+                      title={outOfRange ? `Normal range: ${safeRange.low}–${safeRange.high} ${unit}` : ''} />
+                  </div>
+                );
+              })}
+              <div className={styles.vCell}>
+                <label title="BMI (kg/m²)"><span className={styles.vLabelText}>BMI</span><span className={styles.unit}>kg/m²</span>{form.vitals.bmi && <span className={styles.autoTag}>auto</span>}</label>
+                <input type="number" className={form.vitals.bmi ? styles.vInputAuto : ''} value={form.vitals.bmi || ''} onChange={e => setVital('bmi', e.target.value)} placeholder="auto" />
               </div>
-            );
-            return (
-              <div key={key} className={styles.vCell}>
-                <label title={`${label}${unit ? ` (${unit})` : ''}`}>
-                  <span className={styles.vLabelText}>{label}</span>
-                  {unit && <span className={styles.unit}>{unit}</span>}
-                </label>
-                <input
-                  type="number"
-                  step={decimal === false ? '1' : 'any'}
-                  value={val}
-                  onChange={e => setVital(key, e.target.value)}
-                  placeholder={placeholder}
-                  style={outOfRange ? { borderColor: '#f59e0b', background: '#fffbeb' } : {}}
-                  title={outOfRange ? `Normal range: ${safeRange.low}–${safeRange.high} ${unit}` : ''}
-                />
-              </div>
-            );
-          })}
-          <div className={styles.vCell}>
-            <label title="BMI (kg/m²)">
-              <span className={styles.vLabelText}>BMI</span>
-              <span className={styles.unit}>kg/m²</span>
-              {form.vitals.bmi && <span className={styles.autoTag}>auto</span>}
-            </label>
-            <input type="number"
-              className={form.vitals.bmi ? styles.vInputAuto : ''}
-              value={form.vitals.bmi || ''}
-              onChange={e => setVital('bmi', e.target.value)} placeholder="auto" />
-          </div>
-        </div>
-      </ICard>
+            </div>
+          </ICard>
+        );
+        if (key === 'medical_history') return (
+          <ICard key="medical_history" title="Patient Medical History" icon="📋" color="#64748b">
+            <MedicalHistorySection value={form.medical_history || []} onChange={v => set('medical_history', v)} />
+          </ICard>
+        );
+        if (key === 'symptoms') return (
+          <ICard key="symptoms" title="Symptoms" icon="🤒" color="#f59e0b">
+            <div className={styles.chips}>
+              {form.symptoms.map((s, i) => {
+                const name = typeof s === 'string' ? s : s.name;
+                return (
+                  <span key={i} className={`${styles.chip} ${styles.chipSymptom}`}>
+                    {name}{s.since && <span className={styles.chipMeta}> · {s.since}</span>}{s.severity && <span className={styles.chipMeta}> · {s.severity}</span>}
+                    <button onClick={() => removeSymptom(i)}>✕</button>
+                  </span>
+                );
+              })}
+            </div>
+            <AutocompleteInput value={form.symptomInput || ''} onChange={v => { set('symptomInput', v); set('symptomCode', ''); }} onSelect={selectSymptomSuggestion} onAddChip={addSymptom} fetchSuggestions={fetchICD10} placeholder="Search ICD-10 or type symptom, press Enter…" renderItem={item => <div className={styles.acItem}><span className={styles.acCode}>{item.code}</span><span className={styles.acName}>{item.name}</span></div>} />
+            <div className={styles.metaRow}>
+              <div className={styles.metaField}><label>Since</label><NumberUnitInput placeholder="e.g. 2 days, 1 week" className={styles.metaInput} value={form.symptomSince || ''} onChange={v => set('symptomSince', v)} /></div>
+              <div className={styles.metaField}><label>Severity</label><SeverityPills value={form.symptomSeverity || ''} onChange={v => set('symptomSeverity', v)} /></div>
+            </div>
+          </ICard>
+        );
+        if (key === 'diagnosis') return (
+          <ICard key="diagnosis" title="Diagnosis" icon="🔬" color="#eab308">
+            <div className={styles.chips}>
+              {form.diagnosis.map((d, i) => (
+                <span key={i} className={`${styles.chip} ${styles.chipDiag}`}>
+                  {d.display}{d.code && <span className={styles.chipCode}> [{d.code}]</span>}{d.since && <span className={styles.chipMeta}> · {d.since}</span>}{d.severity && <span className={styles.chipMeta}> · {d.severity}</span>}
+                  <button onClick={() => removeDiag(i)}>✕</button>
+                </span>
+              ))}
+            </div>
+            <AutocompleteInput value={form.diagInput || ''} onChange={v => { set('diagInput', v); set('diagCode', ''); }} onSelect={selectDiagSuggestion} onAddChip={addDiag} fetchSuggestions={fetchICD10} placeholder="Search ICD-10 or type diagnosis, press Enter…" renderItem={item => <div className={styles.acItem}><span className={styles.acCode}>{item.code}</span><span className={styles.acName}>{item.name}</span></div>} />
+            <div className={styles.metaRow}>
+              <div className={styles.metaField}><label>Since</label><NumberUnitInput placeholder="e.g. 3 years" className={styles.metaInput} value={form.diagSince || ''} onChange={v => set('diagSince', v)} /></div>
+              <div className={styles.metaField}><label>Severity</label><SeverityPills value={form.diagSeverity || ''} onChange={v => set('diagSeverity', v)} /></div>
+            </div>
+          </ICard>
+        );
+        if (key === 'medications') return (
+          <ICard key="medications" title="℞  Medications" icon="💊" color="#8b5cf6">
+            <div className={styles.medList}>
+              {form.medications.map((m, i) => (
+                <div key={i} className={styles.medCard}>
+                  <div className={styles.medCardRow}>
+                    <div className={styles.medNameCell}><label>Medicine</label>
+                      <AutocompleteInput value={m.name} onChange={v => updateMed(i, 'name', v)} onSelect={item => updateMed(i, 'name', item.name)} fetchSuggestions={fetchRxTerms} placeholder="Search or type medicine…" inputClassName={styles.cellInput} renderItem={item => <div className={styles.acItem}><span className={styles.acName}>{item.name}</span>{item.strength && <span className={styles.acSub}>{item.strength}</span>}</div>} />
+                    </div>
+                    <div className={styles.medSmallCell}><label>Dose</label><input className={styles.cellInput} placeholder="e.g. 1 tablet" value={m.dose || m.dosage || ''} onChange={e => updateMed(i, 'dose', e.target.value)} /></div>
+                    <div className={styles.medSmallCell}><label>Frequency</label><input className={styles.cellInput} placeholder="e.g. 1-0-1, TDS" value={m.frequency || ''} onChange={e => updateMed(i, 'frequency', e.target.value)} /></div>
+                    <button className={`${styles.del} ${styles.delTop}`} onClick={() => set('medications', form.medications.filter((_, j) => j !== i))}>✕</button>
+                  </div>
+                  <div className={styles.medCardRow2}>
+                    <div className={styles.medSmallCell}><label>Timing</label><input className={styles.cellInput} placeholder="e.g. After meal" value={m.timing || ''} onChange={e => updateMed(i, 'timing', e.target.value)} /></div>
+                    <div className={styles.medSmallCell}><label>Duration</label><NumberUnitInput className={styles.cellInput} placeholder="e.g. 5 days" value={m.duration || ''} onChange={v => updateMed(i, 'duration', v)} /></div>
+                    <div className={styles.medSmallCell}><label>Start From</label><NumberUnitInput className={styles.cellInput} placeholder="e.g. Today, Day 3" value={m.start_from || ''} onChange={v => updateMed(i, 'start_from', v)} /></div>
+                  </div>
+                  <div className={styles.medCardRow3}><label>Instructions</label><input className={styles.cellInput} placeholder="Special instructions for this medicine…" value={m.instructions || ''} onChange={e => updateMed(i, 'instructions', e.target.value)} /></div>
+                </div>
+              ))}
+              <button className={styles.addLine} onClick={addMed}><Plus size={13} /> Add Medicine</button>
+            </div>
+          </ICard>
+        );
+        if (key === 'lab_investigations') return (
+          <ICard key="lab_investigations" title="Lab Investigations" icon="🧪" color="#0891b2">
+            <div className={styles.labInvList}>
+              {form.lab_investigations.map((l, i) => {
+                const isStr = typeof l === 'string';
+                return (
+                  <div key={i} className={styles.labInvCard}>
+                    <div className={styles.labInvRow}>
+                      <div className={styles.labInvName}><label>Test</label>
+                        <AutocompleteInput value={isStr ? l : (l.test || '')} onChange={v => isStr ? set('lab_investigations', form.lab_investigations.map((x,j)=>j===i?v:x)) : updateLabInv(i, 'test', v)} onSelect={item => updateLabInv(i, 'test', item.name)} fetchSuggestions={fetchLOINC} placeholder="e.g. CBC, HbA1c, Lipid Profile" inputClassName={styles.cellInput} />
+                      </div>
+                      <div className={styles.labInvSmall}><label>Repeat On</label><input className={styles.cellInput} placeholder="e.g. 2 weeks" value={isStr ? '' : (l.repeat_on || '')} onChange={e => updateLabInv(i, 'repeat_on', e.target.value)} disabled={isStr} /></div>
+                      <button className={styles.del} onClick={() => set('lab_investigations', form.lab_investigations.filter((_,j)=>j!==i))}>✕</button>
+                    </div>
+                    <div className={styles.labInvRemarks}><label>Remarks</label><input className={styles.cellInput} placeholder="Special instructions or remarks…" value={isStr ? '' : (l.remarks || '')} onChange={e => updateLabInv(i, 'remarks', e.target.value)} disabled={isStr} /></div>
+                  </div>
+                );
+              })}
+              <button className={styles.addLine} onClick={addLabInv}><Plus size={13} /> Add Investigation</button>
+            </div>
+          </ICard>
+        );
+        if (key === 'lab_results') return (
+          <ICard key="lab_results" title="Lab Results" icon="📊" color="#06b6d4">
+            <div className={styles.tableWrap}>
+              {form.lab_results.length > 0 && (
+                <div className={styles.table}>
+                  <div className={`${styles.tHead} ${styles.tHead4}`}><span>Test Name</span><span>Result</span><span>Unit</span><span>Normal Range</span><span /></div>
+                  {form.lab_results.map((r, i) => (
+                    <div key={i} className={`${styles.tRow} ${styles.tRow4}`}>
+                      <AutocompleteInput value={r.test} onChange={v => updateLabResult(i, 'test', v)} onSelect={item => updateLabResult(i, 'test', item.name)} fetchSuggestions={fetchLOINC} placeholder="e.g. Hb" inputClassName={styles.cellInput} />
+                      <input placeholder="e.g. 12.5" value={r.result} className={styles.cellInput} onChange={e => updateLabResult(i, 'result', e.target.value)} />
+                      <input placeholder="e.g. g/dL" value={r.unit}   className={styles.cellInput} onChange={e => updateLabResult(i, 'unit',   e.target.value)} />
+                      <input placeholder="e.g. 11-16" value={r.range}  className={styles.cellInput} onChange={e => updateLabResult(i, 'range',  e.target.value)} />
+                      <button className={styles.del} onClick={() => set('lab_results', form.lab_results.filter((_, j) => j !== i))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button className={styles.addLine} onClick={addLabResult}><Plus size={13} /> Add Result</button>
+            </div>
+          </ICard>
+        );
+        if (key === 'examination_findings') return (
+          <ICard key="examination_findings" title="Examination Findings" icon="🩻" color="#6366f1">
+            <textarea rows={3} placeholder="Clinical findings on examination…" value={form.examination_findings || ''} onChange={e => set('examination_findings', e.target.value)} />
+          </ICard>
+        );
+        if (key === 'notes') return (
+          <ICard key="notes" title="Notes" icon="🔒" color="#d97706" badge="Private">
+            <div className={styles.notesSection}>
+              <div className={styles.notesSectionHead}><span className={styles.notesSectionTitle}>Current Visit Notes</span><span className={styles.notesPrintTag}>Prints on prescription</span></div>
+              <div className={styles.privateBox}>Private notes for this visit — treatment, surgical, or other observations.</div>
+              <textarea rows={4} placeholder="Type your private notes for this visit…" value={form.notes || ''} onChange={e => set('notes', e.target.value)} />
+            </div>
+            <div className={styles.notesDivider} />
+            <div className={styles.notesSection}>
+              <div className={styles.notesSectionHead}><span className={styles.notesSectionTitle}>Past Visit Notes</span><span className={styles.notesROTag}>Read only · Not printed</span></div>
+              {pastNotes.length === 0 ? <p className={styles.hint}>No past visit notes found for this patient.</p> : (
+                <div className={styles.pastNotesList}>
+                  {pastNotes.map((n, i) => (
+                    <div key={i} className={styles.pastNote}>
+                      <div className={styles.pastNoteMeta}>{n.appointment_date && <span>{new Date(n.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}{n.doctor_name && <span>· Dr. {n.doctor_name}</span>}</div>
+                      <p className={styles.pastNoteText}>{n.notes}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ICard>
+        );
+        if (key === 'refer_to') return (
+          <ICard key="refer_to" title="Refer to a Doctor" icon="🏥" color="#ef4444">
+            <input placeholder="e.g. Cardiologist — Dr. Mehta, Apollo Hospital" value={form.refer_to || ''} onChange={e => set('refer_to', e.target.value)} />
+          </ICard>
+        );
+        if (key === 'follow_up') return (
+          <ICard key="follow_up" title="Follow Up" icon="📅" color="#16a34a">
+            <div className={styles.twoCol}>
+              <div className={styles.fg}><label>Date</label><input type="date" value={form.next_visit_date || ''} onChange={e => set('next_visit_date', e.target.value)} /></div>
+              <div className={`${styles.fg} ${styles.fg2}`}><label>Instructions</label><input placeholder="e.g. Review reports, fasting" value={form.next_visit_notes || ''} onChange={e => set('next_visit_notes', e.target.value)} /></div>
+            </div>
+          </ICard>
+        );
+        if (key === 'advices') return (
+          <ICard key="advices" title="Advices" icon="💡" color="#10b981">
+            <textarea rows={3} placeholder="Diet, lifestyle, patient instructions…" value={form.advices || ''} onChange={e => set('advices', e.target.value)} />
+          </ICard>
+        );
+        if (key === 'procedures') return (
+          <ICard key="procedures" title="Procedures" icon="⚕️" color="#7c3aed">
+            <div className={styles.chips}>
+              {form.procedures.map((p, i) => <span key={i} className={`${styles.chip} ${styles.chipProc}`}>{p}<button onClick={() => removeChip('procedures', i)}>✕</button></span>)}
+            </div>
+            <div className={styles.addRow}>
+              <input placeholder="e.g. ECG, Dressing, Nebulisation…" value={form.procInput || ''} onChange={e => set('procInput', e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChip('procedures', 'procInput'))} />
+              <button onClick={() => addChip('procedures', 'procInput')}>Add</button>
+            </div>
+          </ICard>
+        );
+        return null;
+      })}
 
       {showVitalsCfg && (
         <VitalsConfigModal
@@ -502,362 +666,14 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         />
       )}
 
-      {/* Calculators — inside same card style as vitals */}
+      {/* Calculators — not orderable, always after vitals */}
       {calcOrder.length > 0 && (
         <ICard title="Calculators" icon="🧮" color="#2563eb">
-          <CalculatorsSection
-            enabledIds={calcOrder}
-            vitals={form.vitals}
-            calcResults={form.calc_results || {}}
-            onResult={(id, r) => setCalcResult?.(id, r)}
-          />
+          <CalculatorsSection enabledIds={calcOrder} vitals={form.vitals} calcResults={form.calc_results || {}} onResult={(id, r) => setCalcResult?.(id, r)} />
         </ICard>
       )}
 
-      {/* 2 — Patient Medical History (same grid as Check-In) */}
-      <ICard title="Patient Medical History" icon="📋" color="#64748b">
-        <MedicalHistorySection
-          value={form.medical_history || []}
-          onChange={v => set('medical_history', v)}
-        />
-      </ICard>
-
-      {/* 3 — Symptoms (ICD-10 + since + severity) */}
-      <ICard title="Symptoms" icon="🤒" color="#f59e0b">
-        <div className={styles.chips}>
-          {form.symptoms.map((s, i) => {
-            const name = typeof s === 'string' ? s : s.name;
-            return (
-              <span key={i} className={`${styles.chip} ${styles.chipSymptom}`}>
-                {name}
-                {s.since    && <span className={styles.chipMeta}> · {s.since}</span>}
-                {s.severity && <span className={styles.chipMeta}> · {s.severity}</span>}
-                <button onClick={() => removeSymptom(i)}>✕</button>
-              </span>
-            );
-          })}
-        </div>
-        <AutocompleteInput
-          value={form.symptomInput || ''}
-          onChange={v => { set('symptomInput', v); set('symptomCode', ''); }}
-          onSelect={selectSymptomSuggestion}
-          onAddChip={addSymptom}
-          fetchSuggestions={fetchICD10}
-          placeholder="Search ICD-10 or type symptom, press Enter…"
-          renderItem={item => (
-            <div className={styles.acItem}>
-              <span className={styles.acCode}>{item.code}</span>
-              <span className={styles.acName}>{item.name}</span>
-            </div>
-          )}
-        />
-        <div className={styles.metaRow}>
-          <div className={styles.metaField}>
-            <label>Since</label>
-            <NumberUnitInput placeholder="e.g. 2 days, 1 week"
-              className={styles.metaInput}
-              value={form.symptomSince || ''}
-              onChange={v => set('symptomSince', v)} />
-          </div>
-          <div className={styles.metaField}>
-            <label>Severity</label>
-            <SeverityPills value={form.symptomSeverity || ''} onChange={v => set('symptomSeverity', v)} />
-          </div>
-        </div>
-      </ICard>
-
-      {/* 4 — Diagnosis (ICD-10 + since + severity) */}
-      <ICard title="Diagnosis" icon="🔬" color="#eab308">
-        <div className={styles.chips}>
-          {form.diagnosis.map((d, i) => (
-            <span key={i} className={`${styles.chip} ${styles.chipDiag}`}>
-              {d.display}
-              {d.code     && <span className={styles.chipCode}> [{d.code}]</span>}
-              {d.since    && <span className={styles.chipMeta}> · {d.since}</span>}
-              {d.severity && <span className={styles.chipMeta}> · {d.severity}</span>}
-              <button onClick={() => removeDiag(i)}>✕</button>
-            </span>
-          ))}
-        </div>
-        <AutocompleteInput
-          value={form.diagInput || ''}
-          onChange={v => { set('diagInput', v); set('diagCode', ''); }}
-          onSelect={selectDiagSuggestion}
-          onAddChip={addDiag}
-          fetchSuggestions={fetchICD10}
-          placeholder="Search ICD-10 or type diagnosis, press Enter…"
-          renderItem={item => (
-            <div className={styles.acItem}>
-              <span className={styles.acCode}>{item.code}</span>
-              <span className={styles.acName}>{item.name}</span>
-            </div>
-          )}
-        />
-        <div className={styles.metaRow}>
-          <div className={styles.metaField}>
-            <label>Since</label>
-            <NumberUnitInput placeholder="e.g. 3 years"
-              className={styles.metaInput}
-              value={form.diagSince || ''}
-              onChange={v => set('diagSince', v)} />
-          </div>
-          <div className={styles.metaField}>
-            <label>Severity</label>
-            <SeverityPills value={form.diagSeverity || ''} onChange={v => set('diagSeverity', v)} />
-          </div>
-        </div>
-      </ICard>
-
-      {/* 5 — Medications (expanded fields) */}
-      <ICard title="℞  Medications" icon="💊" color="#8b5cf6">
-        <div className={styles.medList}>
-          {form.medications.map((m, i) => (
-            <div key={i} className={styles.medCard}>
-              <div className={styles.medCardRow}>
-                {/* Medicine name — RxTerms autocomplete */}
-                <div className={styles.medNameCell}>
-                  <label>Medicine</label>
-                  <AutocompleteInput
-                    value={m.name}
-                    onChange={v => updateMed(i, 'name', v)}
-                    onSelect={item => updateMed(i, 'name', item.name)}
-                    fetchSuggestions={fetchRxTerms}
-                    placeholder="Search or type medicine…"
-                    inputClassName={styles.cellInput}
-                    renderItem={item => (
-                      <div className={styles.acItem}>
-                        <span className={styles.acName}>{item.name}</span>
-                        {item.strength && <span className={styles.acSub}>{item.strength}</span>}
-                      </div>
-                    )}
-                  />
-                </div>
-                <div className={styles.medSmallCell}>
-                  <label>Dose</label>
-                  <input className={styles.cellInput} placeholder="e.g. 1 tablet"
-                    value={m.dose || m.dosage || ''}
-                    onChange={e => updateMed(i, 'dose', e.target.value)} />
-                </div>
-                <div className={styles.medSmallCell}>
-                  <label>Frequency</label>
-                  <input className={styles.cellInput} placeholder="e.g. 1-0-1, TDS"
-                    value={m.frequency || ''}
-                    onChange={e => updateMed(i, 'frequency', e.target.value)} />
-                </div>
-                <button className={`${styles.del} ${styles.delTop}`}
-                  onClick={() => set('medications', form.medications.filter((_, j) => j !== i))}>✕</button>
-              </div>
-              <div className={styles.medCardRow2}>
-                <div className={styles.medSmallCell}>
-                  <label>Timing</label>
-                  <input className={styles.cellInput} placeholder="e.g. After meal"
-                    value={m.timing || ''}
-                    onChange={e => updateMed(i, 'timing', e.target.value)} />
-                </div>
-                <div className={styles.medSmallCell}>
-                  <label>Duration</label>
-                  <NumberUnitInput className={styles.cellInput} placeholder="e.g. 5 days"
-                    value={m.duration || ''}
-                    onChange={v => updateMed(i, 'duration', v)} />
-                </div>
-                <div className={styles.medSmallCell}>
-                  <label>Start From</label>
-                  <NumberUnitInput className={styles.cellInput} placeholder="e.g. Today, Day 3"
-                    value={m.start_from || ''}
-                    onChange={v => updateMed(i, 'start_from', v)} />
-                </div>
-              </div>
-              <div className={styles.medCardRow3}>
-                <label>Instructions</label>
-                <input className={styles.cellInput} placeholder="Special instructions for this medicine…"
-                  value={m.instructions || ''}
-                  onChange={e => updateMed(i, 'instructions', e.target.value)} />
-              </div>
-            </div>
-          ))}
-          <button className={styles.addLine} onClick={addMed}><Plus size={13} /> Add Medicine</button>
-        </div>
-      </ICard>
-
-      {/* 6 — Lab Investigations */}
-      <ICard title="Lab Investigations" icon="🧪" color="#0891b2">
-        <div className={styles.labInvList}>
-          {form.lab_investigations.map((l, i) => {
-            const isStr = typeof l === 'string';
-            return (
-              <div key={i} className={styles.labInvCard}>
-                <div className={styles.labInvRow}>
-                  <div className={styles.labInvName}>
-                    <label>Test</label>
-                    <AutocompleteInput
-                      value={isStr ? l : (l.test || '')}
-                      onChange={v => isStr
-                        ? set('lab_investigations', form.lab_investigations.map((x,j)=>j===i?v:x))
-                        : updateLabInv(i, 'test', v)}
-                      onSelect={item => updateLabInv(i, 'test', item.name)}
-                      fetchSuggestions={fetchLOINC}
-                      placeholder="e.g. CBC, HbA1c, Lipid Profile"
-                      inputClassName={styles.cellInput}
-                    />
-                  </div>
-                  <div className={styles.labInvSmall}>
-                    <label>Repeat On</label>
-                    <input className={styles.cellInput}
-                      placeholder="e.g. 2 weeks"
-                      value={isStr ? '' : (l.repeat_on || '')}
-                      onChange={e => updateLabInv(i, 'repeat_on', e.target.value)}
-                      disabled={isStr} />
-                  </div>
-                  <button className={styles.del}
-                    onClick={() => set('lab_investigations', form.lab_investigations.filter((_,j)=>j!==i))}>✕</button>
-                </div>
-                <div className={styles.labInvRemarks}>
-                  <label>Remarks</label>
-                  <input className={styles.cellInput}
-                    placeholder="Special instructions or remarks…"
-                    value={isStr ? '' : (l.remarks || '')}
-                    onChange={e => updateLabInv(i, 'remarks', e.target.value)}
-                    disabled={isStr} />
-                </div>
-              </div>
-            );
-          })}
-          <button className={styles.addLine} onClick={addLabInv}><Plus size={13} /> Add Investigation</button>
-        </div>
-      </ICard>
-
-      {/* 7 — Lab Results */}
-      <ICard title="Lab Results" icon="📊" color="#06b6d4">
-        <div className={styles.tableWrap}>
-          {form.lab_results.length > 0 && (
-            <div className={styles.table}>
-              <div className={`${styles.tHead} ${styles.tHead4}`}>
-                <span>Test Name</span><span>Result</span><span>Unit</span><span>Normal Range</span><span />
-              </div>
-              {form.lab_results.map((r, i) => (
-                <div key={i} className={`${styles.tRow} ${styles.tRow4}`}>
-                  <AutocompleteInput
-                    value={r.test}
-                    onChange={v => updateLabResult(i, 'test', v)}
-                    onSelect={item => updateLabResult(i, 'test', item.name)}
-                    fetchSuggestions={fetchLOINC}
-                    placeholder="e.g. Hb"
-                    inputClassName={styles.cellInput}
-                  />
-                  <input placeholder="e.g. 12.5"  value={r.result} className={styles.cellInput} onChange={e => updateLabResult(i, 'result', e.target.value)} />
-                  <input placeholder="e.g. g/dL"  value={r.unit}   className={styles.cellInput} onChange={e => updateLabResult(i, 'unit',   e.target.value)} />
-                  <input placeholder="e.g. 11-16" value={r.range}  className={styles.cellInput} onChange={e => updateLabResult(i, 'range',  e.target.value)} />
-                  <button className={styles.del}
-                    onClick={() => set('lab_results', form.lab_results.filter((_, j) => j !== i))}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <button className={styles.addLine} onClick={addLabResult}><Plus size={13} /> Add Result</button>
-        </div>
-      </ICard>
-
-      {/* 8 — Examination Findings */}
-      <ICard title="Examination Findings" icon="🩻" color="#6366f1">
-        <textarea rows={3} placeholder="Clinical findings on examination…"
-          value={form.examination_findings || ''}
-          onChange={e => set('examination_findings', e.target.value)} />
-      </ICard>
-
-      {/* 9 — Notes (current + past) */}
-      <ICard title="Notes" icon="🔒" color="#d97706" badge="Private">
-        <div className={styles.notesSection}>
-          <div className={styles.notesSectionHead}>
-            <span className={styles.notesSectionTitle}>Current Visit Notes</span>
-            <span className={styles.notesPrintTag}>Prints on prescription</span>
-          </div>
-          <div className={styles.privateBox}>
-            Private notes for this visit — treatment, surgical, or other observations.
-          </div>
-          <textarea rows={4} placeholder="Type your private notes for this visit…"
-            value={form.notes || ''}
-            onChange={e => set('notes', e.target.value)} />
-        </div>
-
-        <div className={styles.notesDivider} />
-
-        <div className={styles.notesSection}>
-          <div className={styles.notesSectionHead}>
-            <span className={styles.notesSectionTitle}>Past Visit Notes</span>
-            <span className={styles.notesROTag}>Read only · Not printed</span>
-          </div>
-          {pastNotes.length === 0 ? (
-            <p className={styles.hint}>No past visit notes found for this patient.</p>
-          ) : (
-            <div className={styles.pastNotesList}>
-              {pastNotes.map((n, i) => (
-                <div key={i} className={styles.pastNote}>
-                  <div className={styles.pastNoteMeta}>
-                    {n.appointment_date && (
-                      <span>{new Date(n.appointment_date).toLocaleDateString('en-IN', {
-                        day: 'numeric', month: 'short', year: 'numeric',
-                      })}</span>
-                    )}
-                    {n.doctor_name && <span>· Dr. {n.doctor_name}</span>}
-                  </div>
-                  <p className={styles.pastNoteText}>{n.notes}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </ICard>
-
-      {/* 10 — Refer to a Doctor */}
-      <ICard title="Refer to a Doctor" icon="🏥" color="#ef4444">
-        <input placeholder="e.g. Cardiologist — Dr. Mehta, Apollo Hospital"
-          value={form.refer_to || ''}
-          onChange={e => set('refer_to', e.target.value)} />
-      </ICard>
-
-      {/* 11 — Follow Up */}
-      <ICard title="Follow Up" icon="📅" color="#16a34a">
-        <div className={styles.twoCol}>
-          <div className={styles.fg}>
-            <label>Date</label>
-            <input type="date" value={form.next_visit_date || ''}
-              onChange={e => set('next_visit_date', e.target.value)} />
-          </div>
-          <div className={`${styles.fg} ${styles.fg2}`}>
-            <label>Instructions</label>
-            <input placeholder="e.g. Review reports, fasting"
-              value={form.next_visit_notes || ''}
-              onChange={e => set('next_visit_notes', e.target.value)} />
-          </div>
-        </div>
-      </ICard>
-
-      {/* 12 — Advices */}
-      <ICard title="Advices" icon="💡" color="#10b981">
-        <textarea rows={3} placeholder="Diet, lifestyle, patient instructions…"
-          value={form.advices || ''}
-          onChange={e => set('advices', e.target.value)} />
-      </ICard>
-
-      {/* 13 — Procedures */}
-      <ICard title="Procedures" icon="⚕️" color="#7c3aed">
-        <div className={styles.chips}>
-          {form.procedures.map((p, i) => (
-            <span key={i} className={`${styles.chip} ${styles.chipProc}`}>
-              {p}<button onClick={() => removeChip('procedures', i)}>✕</button>
-            </span>
-          ))}
-        </div>
-        <div className={styles.addRow}>
-          <input placeholder="e.g. ECG, Dressing, Nebulisation…"
-            value={form.procInput || ''}
-            onChange={e => set('procInput', e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChip('procedures', 'procInput'))} />
-          <button onClick={() => addChip('procedures', 'procInput')}>Add</button>
-        </div>
-      </ICard>
-
-      {/* 14 — Custom Sections */}
+      {/* Custom Sections */}
       {customSections.map(section => (
         <ICard key={section.id} title={section.title || 'Custom Section'} icon="✏️" color="#94a3b8">
           <div className={styles.customHead}>

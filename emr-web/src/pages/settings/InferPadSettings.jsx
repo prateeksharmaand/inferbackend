@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Trash2, Check, PenLine } from 'lucide-react';
+import { Upload, Trash2, Check, PenLine, GripVertical } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import SignaturePad from '../../components/SignaturePad';
 import styles from './InferPadSettings.module.css';
@@ -43,6 +43,39 @@ function ImageUploadSection({ title, hint, value, onChange }) {
   );
 }
 
+// All orderable sections in the InferPad
+export const INFERPAD_SECTIONS = [
+  { key: 'vitals',               label: 'Vitals',                icon: '🩺' },
+  { key: 'medical_history',      label: 'Patient Medical History',icon: '📋' },
+  { key: 'symptoms',             label: 'Symptoms / Chief Complaints', icon: '🤒' },
+  { key: 'diagnosis',            label: 'Diagnosis',             icon: '🔬' },
+  { key: 'medications',          label: 'Medications',           icon: '💊' },
+  { key: 'lab_investigations',   label: 'Lab Investigations',    icon: '🧪' },
+  { key: 'lab_results',          label: 'Lab Results',           icon: '📊' },
+  { key: 'examination_findings', label: 'Examination Findings',  icon: '🩻' },
+  { key: 'notes',                label: 'Notes',                 icon: '🔒' },
+  { key: 'refer_to',             label: 'Refer to a Doctor',     icon: '🏥' },
+  { key: 'follow_up',            label: 'Follow Up',             icon: '📅' },
+  { key: 'advices',              label: 'Advices',               icon: '💡' },
+  { key: 'procedures',           label: 'Procedures',            icon: '⚕️' },
+];
+
+export function getSectionOrder(clinicId) {
+  try {
+    const stored = localStorage.getItem(`rx_section_order_${clinicId}`);
+    if (!stored) return INFERPAD_SECTIONS.map(s => s.key);
+    const saved = JSON.parse(stored);
+    // Merge: keep saved order, append any new keys not yet in saved
+    const all = INFERPAD_SECTIONS.map(s => s.key);
+    return [...saved.filter(k => all.includes(k)), ...all.filter(k => !saved.includes(k))];
+  } catch { return INFERPAD_SECTIONS.map(s => s.key); }
+}
+
+export function saveSectionOrder(clinicId, order) {
+  localStorage.setItem(`rx_section_order_${clinicId}`, JSON.stringify(order));
+  window.dispatchEvent(new Event('storage'));
+}
+
 // All fields that can be made mandatory
 export const MANDATORY_FIELDS = [
   { key: 'symptoms',             label: 'Chief Complaints',      hint: 'At least one symptom must be added.' },
@@ -77,7 +110,28 @@ export default function InferPadSettings() {
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(clKey('vaccination_chart')) === 'true');
   const [dietChart,    setDietChart]    = useState(() => localStorage.getItem(clKey('diet_chart')) === 'true');
   const [mandatoryFields, setMandatoryFields] = useState(() => getMandatoryFields(cid));
-  const [saved,  setSaved]  = useState(false);
+  const [sectionOrder,    setSectionOrder]    = useState(() => getSectionOrder(cid));
+  const [saved,           setSaved]           = useState(false);
+
+  // Drag-and-drop state for section reorder
+  const dragIndexRef = useRef(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+  const dragCounter  = useRef(0);
+
+  const handleSectionDragStart = (idx) => { dragIndexRef.current = idx; };
+  const handleSectionDragEnter = (idx) => { dragCounter.current++; setDragOverIdx(idx); };
+  const handleSectionDragLeave = ()    => { dragCounter.current--; if (dragCounter.current <= 0) { dragCounter.current = 0; setDragOverIdx(null); } };
+  const handleSectionDrop      = (idx) => {
+    dragCounter.current = 0; setDragOverIdx(null);
+    const from = dragIndexRef.current;
+    if (from === null || from === idx) return;
+    const next = [...sectionOrder];
+    const [moved] = next.splice(from, 1);
+    next.splice(idx, 0, moved);
+    setSectionOrder(next);
+    saveSectionOrder(cid, next);
+    dragIndexRef.current = null;
+  };
 
   const handleFeatureToggle = (setting, value) => {
     value ? localStorage.setItem(clKey(setting), 'true') : localStorage.removeItem(clKey(setting));
@@ -148,6 +202,35 @@ export default function InferPadSettings() {
             }} />
             <span className={styles.toggleSlider} />
           </label>
+        </div>
+      </div>
+
+      {/* ── Section Order ── */}
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Section Order</h3>
+        <p className={styles.cardSub}>Drag to reorder sections. The order is saved and applied every time you open the Rx Pad.</p>
+        <div className={styles.orderList}>
+          {sectionOrder.map((key, idx) => {
+            const sec = INFERPAD_SECTIONS.find(s => s.key === key);
+            if (!sec) return null;
+            return (
+              <div key={key}
+                draggable
+                className={`${styles.orderRow} ${dragOverIdx === idx ? styles.orderRowOver : ''}`}
+                onDragStart={() => handleSectionDragStart(idx)}
+                onDragEnter={() => handleSectionDragEnter(idx)}
+                onDragLeave={handleSectionDragLeave}
+                onDragOver={e => e.preventDefault()}
+                onDrop={() => handleSectionDrop(idx)}
+                onDragEnd={() => { dragCounter.current = 0; setDragOverIdx(null); }}
+              >
+                <span className={styles.orderHandle}><GripVertical size={15} /></span>
+                <span className={styles.orderIcon}>{sec.icon}</span>
+                <span className={styles.orderLabel}>{sec.label}</span>
+                <span className={styles.orderNum}>{idx + 1}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
