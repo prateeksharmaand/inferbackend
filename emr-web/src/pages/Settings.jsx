@@ -18,7 +18,7 @@ const TABS = [
 ];
 
 export default function Settings() {
-  const [tab, setTab] = useState('uhid');
+  const [tab, setTab] = useState('queues');
 
   return (
     <div className={styles.page}>
