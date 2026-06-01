@@ -32,7 +32,7 @@ function getFlag(r) {
 }
 
 // ── Prescription document ─────────────────────────────────────────────────────
-function RxDoc({ data, user }) {
+function RxDoc({ data, user, dietCharts = [] }) {
   const cid = user?.clinic_id || 'default';
   const headerImg = localStorage.getItem(`rx_header_${cid}`) || '';
   const footerImg = localStorage.getItem(`rx_footer_${cid}`) || '';
@@ -122,6 +122,31 @@ function RxDoc({ data, user }) {
         {procsStr && <Row label="PROCEDURES" value={procsStr} />}
         {(data.custom_sections||[]).filter(s=>s.content).map(s=><Row key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}
         {data.canvas_image && <div style={{marginTop:8}}><img src={data.canvas_image} alt="Clinical drawing" style={{width:'100%',borderRadius:4,border:'1px solid #e2e8f0'}} /></div>}
+
+        {dietCharts.length > 0 && (
+          <div className={styles.dietSection}>
+            <div className={styles.prescHeading}>
+              <span className={styles.prescLine} />DIET PLAN<span className={styles.prescLine} />
+            </div>
+            {dietCharts.slice(0, 2).map((chart, ci) => (
+              <div key={ci} className={styles.dietChart}>
+                <div className={styles.dietChartTitle}>
+                  {chart.title}
+                  {chart.nutrition_targets?.energy ? ` — ${chart.nutrition_targets.energy} kcal/day` : ''}
+                  {chart.duration ? ` · ${chart.duration}` : ''}
+                </div>
+                {(chart.day_plans?.[0]?.meals || []).map((meal, mi) => (
+                  <div key={mi} className={styles.dietMealRow}>
+                    <span className={styles.dietMealName}>{meal.name}{meal.time ? ` (${meal.time})` : ''}:</span>
+                    <span className={styles.dietMealItems}>
+                      {(meal.food_items || []).map(f => `${f.name} ${f.serving_size ? `(${f.serving_size})` : ''}`).join(', ') || '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <hr className={styles.hr} />
@@ -141,14 +166,19 @@ function RxDoc({ data, user }) {
 // ── Modal shell ───────────────────────────────────────────────────────────────
 export default function RxPrintModal({ appt, onClose }) {
   const { user } = useAuth();
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data,       setData]       = useState(null);
+  const [dietCharts, setDietCharts] = useState([]);
+  const [loading,    setLoading]    = useState(true);
 
   useEffect(() => {
     api.get(`/appointments/${appt.id}`)
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [appt.id]);
+    if (appt.patient_mobile) {
+      api.get(`/diet/charts?patient_mobile=${appt.patient_mobile}`)
+        .then(setDietCharts).catch(() => {});
+    }
+  }, [appt.id, appt.patient_mobile]);
 
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
@@ -165,7 +195,7 @@ export default function RxPrintModal({ appt, onClose }) {
         <div className={styles.body}>
           {loading && <div className={styles.empty}>Loading prescription…</div>}
           {!loading && !data?.encounter_id && <div className={styles.empty}>No prescription found for this appointment.</div>}
-          {!loading && data?.encounter_id && <RxDoc data={data} user={user} />}
+          {!loading && data?.encounter_id && <RxDoc data={data} user={user} dietCharts={dietCharts} />}
         </div>
       </div>
     </div>

@@ -1069,15 +1069,16 @@ const PREFERENCES = [
 ];
 
 function AIMealPlanModal({ patientContext, onApply, onClose }) {
-  const [pref, setPref]       = useState('vegetarian');
-  const [plans, setPlans]     = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [pref, setPref]         = useState('vegetarian');
+  const [calories, setCalories] = useState('1800');
+  const [days, setDays]         = useState('1');
+  const [plans, setPlans]       = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
   const [expanded, setExpanded] = useState(null);
 
-  const conditions = [
-    ...(patientContext?.patient?.medical_history || []).map(h => h.condition || h.label || h.key).filter(Boolean),
-  ];
+  const conditions = (patientContext?.patient?.medical_history || [])
+    .map(h => h.condition || h.label || h.key).filter(Boolean);
 
   async function handleGenerate() {
     setLoading(true); setError(''); setPlans([]); setExpanded(null);
@@ -1085,18 +1086,18 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
       const payload = {
         preference: pref,
         conditions,
-        age:    patientContext?.patient?.age,
-        gender: patientContext?.patient?.gender,
+        age:             patientContext?.patient?.age,
+        gender:          patientContext?.patient?.gender,
+        calories_target: calories ? parseInt(calories) : undefined,
+        days:            parseInt(days) || 1,
       };
       const data = await api.post('/diet/ai-meal-plan', payload);
       setPlans(data.plans || []);
       if (data.plans?.length) setExpanded(0);
     } catch (e) {
-      // Show full detail if available so we can diagnose
       setError(e.message + (e.detail ? ` — ${JSON.stringify(e.detail)}` : ''));
       console.error('[AI meal plan]', e);
-    }
-    finally { setLoading(false); }
+    } finally { setLoading(false); }
   }
 
   function getMealTotalKcal(meal) {
@@ -1107,7 +1108,7 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
     <Modal title="✨ AI Powered Meal Plan" onClose={onClose} width={740}>
       <div className={s.modalBody} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
 
-        {/* Preferences */}
+        {/* Food preference */}
         <div className={s.aiSection}>
           <div className={s.aiLabel}>Food Preference</div>
           <div className={s.aiPrefGrid}>
@@ -1119,6 +1120,24 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
                 <span className={s.aiPrefDesc}>{p.desc}</span>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Calories + Days */}
+        <div className={s.aiSection}>
+          <div className={s.aiInputRow}>
+            <div className={s.aiInputField}>
+              <label>Target Calories (kcal/day)</label>
+              <input type="number" value={calories} min="800" max="4000" step="50"
+                onChange={e => setCalories(e.target.value)} className={s.textInput}
+                placeholder="e.g. 1800" />
+            </div>
+            <div className={s.aiInputField}>
+              <label>Number of Days</label>
+              <select value={days} onChange={e => setDays(e.target.value)} className={s.textInput}>
+                {[1,2,3,4,5,6,7].map(d => <option key={d} value={d}>{d} day{d > 1 ? 's' : ''}</option>)}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1134,7 +1153,7 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
 
         {error && <div className={s.errorBar}>{error}</div>}
 
-        {/* Generated Plans */}
+        {/* Generated plan */}
         {plans.length > 0 && (
           <div className={s.aiSection}>
             <div className={s.aiLabel}>Generated Plan — review and apply or generate another</div>
@@ -1146,7 +1165,7 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
                     <span className={s.aiPlanTheme}>{plan.theme}</span>
                   </div>
                   <div className={s.aiPlanRight}>
-                    <span className={s.aiPlanKcal}>{plan.nutrition_targets?.energy} kcal</span>
+                    <span className={s.aiPlanKcalBig}>{plan.nutrition_targets?.energy || '—'} kcal/day</span>
                     <span className={s.aiPlanChevron}>{expanded === idx ? '▲' : '▼'}</span>
                   </div>
                 </div>
@@ -1155,34 +1174,46 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
                   <div className={s.aiPlanBody}>
                     <p className={s.aiPlanDesc}>{plan.description}</p>
 
-                    <div className={s.aiMacroRow}>
-                      {['protein','total_fat','carbohydrates','dietary_fibre'].map(k => (
-                        <span key={k} className={s.aiMacro}>
-                          <b>{plan.nutrition_targets?.[k]}g</b> {k.replace('_',' ')}
-                        </span>
+                    {/* Macro summary bar */}
+                    <div className={s.aiMacroBar}>
+                      <div className={s.aiMacroBarItem} style={{ background: '#eff6ff' }}>
+                        <span className={s.aiMacroBarVal}>{plan.nutrition_targets?.energy || '—'}</span>
+                        <span className={s.aiMacroBarLabel}>kcal</span>
+                      </div>
+                      {[{k:'protein',c:'#dcfce7'},{k:'total_fat',c:'#fef9c3'},{k:'carbohydrates',c:'#fce7f3'},{k:'dietary_fibre',c:'#f3e8ff'}].map(({k,c}) => (
+                        <div key={k} className={s.aiMacroBarItem} style={{ background: c }}>
+                          <span className={s.aiMacroBarVal}>{plan.nutrition_targets?.[k] || '—'}g</span>
+                          <span className={s.aiMacroBarLabel}>{k === 'total_fat' ? 'Fat' : k === 'dietary_fibre' ? 'Fibre' : k.charAt(0).toUpperCase() + k.slice(1)}</span>
+                        </div>
                       ))}
                     </div>
 
-                    {plan.day_plans?.[0]?.meals?.map(meal => (
-                      <div key={meal.name} className={s.aiMealBlock}>
-                        <div className={s.aiMealName}>
-                          {meal.name} {meal.time && <span className={s.aiMealTime}>{meal.time}</span>}
-                          <span className={s.aiMealKcal}>{getMealTotalKcal(meal)} kcal</span>
-                        </div>
-                        {meal.food_items.map((fi, i) => (
-                          <div key={i} className={s.aiMealItem}>
-                            <span className={s.aiMealItemName}>{fi.name}</span>
-                            <span className={s.aiMealItemServing}>{fi.serving_size}</span>
-                            <span className={s.aiMealItemKcal}>{fi.nutrition?.energy} kcal</span>
+                    {plan.day_plans?.map((dp, di) => (
+                      <div key={di}>
+                        {plan.day_plans.length > 1 && <div className={s.aiDayLabel}>{dp.name}</div>}
+                        {dp.meals?.map(meal => (
+                          <div key={meal.name} className={s.aiMealBlock}>
+                            <div className={s.aiMealName}>
+                              {meal.name}
+                              {meal.time && <span className={s.aiMealTime}>{meal.time}</span>}
+                              <span className={s.aiMealKcal}>{getMealTotalKcal(meal)} kcal</span>
+                            </div>
+                            {meal.food_items.map((fi, i) => (
+                              <div key={i} className={s.aiMealItem}>
+                                <span className={s.aiMealItemName}>{fi.name}</span>
+                                <span className={s.aiMealItemServing}>{fi.serving_size}</span>
+                                <span className={s.aiMealItemKcal}>{fi.nutrition?.energy} kcal</span>
+                              </div>
+                            ))}
+                            {meal.instructions && <div className={s.aiMealInstr}>{meal.instructions}</div>}
                           </div>
                         ))}
-                        {meal.instructions && <div className={s.aiMealInstr}>{meal.instructions}</div>}
                       </div>
                     ))}
 
                     <button className={s.btnPrimary} style={{ marginTop: 12, width: '100%' }}
                       onClick={() => onApply(plan)}>
-                      Apply This Plan
+                      Apply This Plan to Patient
                     </button>
                   </div>
                 )}
@@ -1194,10 +1225,12 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
 
       <div className={s.modalFooter}>
         <button className={s.btnGhost} onClick={onClose}>Cancel</button>
-        <button className={s.btnOutline} onClick={handleGenerate} disabled={loading} style={{ display: plans.length ? 'flex' : 'none' }}>
-          {loading ? '✨ Generating…' : '🔄 Generate Another'}
-        </button>
-        <button className={s.btnPrimary} onClick={handleGenerate} disabled={loading} style={{ display: plans.length ? 'none' : 'flex' }}>
+        {plans.length > 0 && (
+          <button className={s.btnOutline} onClick={handleGenerate} disabled={loading}>
+            {loading ? '✨ Generating…' : '🔄 Generate Another'}
+          </button>
+        )}
+        <button className={s.btnPrimary} onClick={handleGenerate} disabled={loading}>
           {loading ? '✨ Generating…' : '✨ Generate Plan'}
         </button>
       </div>
@@ -1304,17 +1337,17 @@ export default function DietChartTab({ patientMobile, doctorId, patientContext }
             <Plus size={13} /> New Chart
           </button>
           {charts.map(c => (
-            <div key={c.id} className={s.chartCard}>
+            <div key={c.id} className={s.chartCard} onClick={() => setEditChart(c)} style={{ cursor: 'pointer' }}>
               <div className={s.chartCardLeft}>
                 <span className={s.chartCardTitle}>{c.title}</span>
                 <span className={s.chartCardMeta}>
                   {c.start_date ? fmtDate(c.start_date) : 'No start date'}
                   {c.duration ? ` · ${c.duration}` : ''}
                   {c.end_date ? ` → ${fmtDate(c.end_date)}` : ''}
+                  {c.nutrition_targets?.energy ? ` · ${c.nutrition_targets.energy} kcal/day` : ''}
                 </span>
               </div>
-              <div className={s.chartCardActions}>
-                <button className={s.btnOutline} onClick={() => setEditChart(c)}>Edit</button>
+              <div className={s.chartCardActions} onClick={e => e.stopPropagation()}>
                 <button className={s.delBtn} onClick={() => handleDeleteChart(c.id)}><Trash2 size={13} /></button>
               </div>
             </div>
@@ -1331,12 +1364,26 @@ export default function DietChartTab({ patientMobile, doctorId, patientContext }
         <AIMealPlanModal
           patientContext={patientContext}
           onApply={plan => {
+            // Normalize AI food items — stamp _key and _base_serving so tracker works
+            const normalizedDayPlans = (plan.day_plans || [makeDefaultDayPlan(1)]).map(dp => ({
+              ...dp,
+              id: dp.id || uid(),
+              meals: (dp.meals || []).map(meal => ({
+                ...meal,
+                id: meal.id || uid(),
+                food_items: (meal.food_items || []).map(fi => ({
+                  ...fi,
+                  _key: fi._key || uid(),
+                  _base_serving: fi.serving_size,
+                })),
+              })),
+            }));
             setEditChart({
               id: null,
               title: `${plan.plan_name} - ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`,
               start_date: todayStr(), duration: '', end_date: null,
               nutrition_targets: plan.nutrition_targets || {},
-              day_plans: plan.day_plans || [makeDefaultDayPlan(1)],
+              day_plans: normalizedDayPlans,
               food_groups: [],
             });
             setShowAI(false);

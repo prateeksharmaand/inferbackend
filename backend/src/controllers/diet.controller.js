@@ -225,6 +225,7 @@ const generateAIMealPlan = async (req, res) => {
     conditions = [],
     age, gender, weight, height,
     calories_target,
+    days = 1,
   } = req.body;
 
   const patientInfo = [
@@ -234,21 +235,23 @@ const generateAIMealPlan = async (req, res) => {
     height ? `Height: ${height}cm` : null,
   ].filter(Boolean).join(', ');
 
-  const conditionStr = conditions.length
-    ? conditions.join(', ')
-    : 'general wellness';
+  const conditionStr = conditions.length ? conditions.join(', ') : 'general wellness';
+  const calorieNote  = calories_target   ? `exactly ${calories_target} kcal/day` : 'appropriate calories';
+  const dietRule     = (preference === 'vegetarian' || preference === 'vegan')
+    ? 'strictly vegetarian — NO meat, fish, eggs'
+    : preference === 'eggetarian' ? 'vegetarian + eggs OK — NO meat or fish'
+    : 'non-vegetarian — include chicken/fish/eggs, NO beef/pork';
 
-  const calorieNote = calories_target ? `~${calories_target} kcal/day` : 'appropriate calories';
-  const dietRule    = (preference === 'vegetarian' || preference === 'vegan')
-    ? 'strictly vegetarian, no meat/fish/eggs'
-    : preference === 'eggetarian' ? 'vegetarian + eggs allowed, no meat/fish'
-    : 'non-vegetarian, include chicken/fish/eggs, no beef/pork';
+  const numDays  = Math.min(parseInt(days) || 1, 3); // cap at 3 to stay in token budget
+  const dayPlansTemplate = Array.from({ length: numDays }, (_, i) =>
+    `{"name":"Day ${i + 1}","meals":[{"name":"Breakfast","time":"8:00 AM","instructions":null,"food_items":[]},{"name":"Mid-Morning","time":"10:30 AM","instructions":null,"food_items":[]},{"name":"Lunch","time":"1:00 PM","instructions":null,"food_items":[]},{"name":"Evening Snack","time":"4:30 PM","instructions":null,"food_items":[]},{"name":"Dinner","time":"8:00 PM","instructions":null,"food_items":[]}]}`
+  ).join(',');
 
-  const prompt = `You are a clinical dietitian. Create 1 Indian one-day meal plan.
-Patient: ${patientInfo || 'adult'} | Conditions: ${conditionStr} | Diet: ${dietRule} | Target: ${calorieNote}
-Include 5 meals: Breakfast, Mid-Morning, Lunch, Evening Snack, Dinner. Max 4 food items per meal.
-Return ONLY valid JSON (no markdown):
-{"plan_name":"...","description":"...","theme":"...","nutrition_targets":{"energy":0,"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0},"day_plans":[{"name":"Day Plan 1","meals":[{"name":"Breakfast","time":"8:00 AM","instructions":null,"food_items":[{"name":"...","serving_size":"...","group_name":"...","nutrition":{"energy":0,"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0}}]}]}]}`;
+  const prompt = `You are a clinical dietitian. Create 1 Indian ${numDays}-day meal plan.
+Patient: ${patientInfo || 'adult'} | Conditions: ${conditionStr} | Diet: ${dietRule} | Calories: ${calorieNote}
+Rules: Use Indian foods. Max 3-4 food items per meal. Realistic macro numbers. Be concise.
+Return ONLY this JSON structure filled with real data (no markdown, no explanation):
+{"plan_name":"...","description":"one sentence","theme":"...","nutrition_targets":{"energy":${calories_target || 0},"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0},"day_plans":[${dayPlansTemplate}]}`;
 
   try {
     const body = {
