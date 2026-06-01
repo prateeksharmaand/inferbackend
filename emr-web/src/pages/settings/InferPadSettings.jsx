@@ -106,6 +106,20 @@ export function getMandatoryFields(clinicId) {
 }
 
 export default function InferPadSettings() {
+  // All InferPad settings have moved into the "Configure your Pad" modal
+  // accessible from the Write Rx topbar. This page now shows a redirect notice.
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', gap: 16, textAlign: 'center' }}>
+      <div style={{ fontSize: 40 }}>⚙️</div>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: 0 }}>InferPad settings have moved</h2>
+      <p style={{ fontSize: 14, color: '#64748b', maxWidth: 360, margin: 0 }}>
+        All InferPad configuration — pad order, features, signature, header &amp; footer — is now available directly from the <strong>⚙ Configure your Pad</strong> button in the top-right of the Write Rx screen.
+      </p>
+    </div>
+  );
+}
+
+function _UnusedInferPadSettings() {
   const { user } = useAuth();
   const cid = user?.clinic_id || 'default';
   const uid = user?.id        || 'default';

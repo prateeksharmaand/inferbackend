@@ -97,3 +97,24 @@
   cursor: pointer; transition: background .1s;
 }
 .btnSave:hover { background: var(--color-primary-dk); }
+
+/* ── Tabs ── */
+.modalTabs { display: flex; border-bottom: 1px solid var(--color-border); padding: 0 20px; }
+.modalTab  { padding: 10px 16px; border: none; background: none; cursor: pointer; font-size: 13px; color: var(--color-text-2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.modalTab:hover { color: var(--color-text); }
+.modalTabActive { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+
+/* ── Pad order table (same as settings) ── */
+.sectionTable       { border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; margin-top: 8px; }
+.sectionTableHeader { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f8fafc; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: .06em; border-bottom: 1px solid var(--color-border); }
+.sectionTableCol    { width: 80px; display: flex; justify-content: center; flex-shrink: 0; }
+.sectionRow         { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #f1f5f9; background: #fff; cursor: grab; user-select: none; }
+.sectionRow:last-child { border-bottom: none; }
+.sectionRow:hover   { background: #fafafa; }
+.sectionRowOver     { background: var(--color-primary-bg, #f5f3ff) !important; border-top: 2px solid var(--color-primary); }
+.sectionHandle      { color: #c4b5fd; display: flex; align-items: center; flex-shrink: 0; }
+.sectionIcon        { font-size: 14px; flex-shrink: 0; }
+.sectionLabel       { flex: 1; font-size: 13px; font-weight: 500; color: #374151; }
+.sectionPos         { font-size: 11px; color: #cbd5e1; font-weight: 600; min-width: 18px; text-align: right; }
+
+.savedMsg { font-size: 12px; color: #16a34a; display: flex; align-items: center; gap: 4px; }
