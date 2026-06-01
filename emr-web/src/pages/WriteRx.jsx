@@ -1058,7 +1058,7 @@ export default function WriteRx() {
         </div>
 
         {/* ── Fixed bottom action bar ── */}
-        <div className={styles.bottomBar}>
+        <div className={styles.bottomBar} style={tab === 'Diet Chart' ? { display: 'none' } : {}}>
           <div className={styles.bottomLeft}>
             <button className={styles.btnClear} onClick={handleClear}>
               <Trash2 size={13} strokeWidth={2} /> Clear

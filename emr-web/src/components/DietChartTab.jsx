@@ -4,6 +4,7 @@ import {
   BookOpen, LayoutTemplate, Clock, Search, Utensils,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { searchFoods } from '../data/indianFoods';
 import s from './DietChartTab.module.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -249,17 +250,55 @@ function AddFoodItemModal({ allGroups, editItem, onSave, onClose }) {
   const [customServing, setCustomServing] = useState(
     editItem?.serving_size && !SERVING_SIZES.includes(editItem.serving_size)
   );
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSugg, setShowSugg] = useState(false);
+  const nameRef = useRef(null);
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setN = (k, v) => setForm(f => ({ ...f, nutrition: { ...f.nutrition, [k]: v } }));
+
+  function handleNameChange(val) {
+    set('name', val);
+    const results = searchFoods(val);
+    setSuggestions(results);
+    setShowSugg(results.length > 0);
+  }
+
+  function applySuggestion(food) {
+    setForm(f => ({
+      ...f,
+      name: food.name,
+      group_name: food.group || f.group_name,
+      serving_size: food.serving || f.serving_size,
+      nutrition: { ...food.nutrition },
+    }));
+    setCustomServing(!SERVING_SIZES.includes(food.serving));
+    setSuggestions([]);
+    setShowSugg(false);
+  }
 
   return (
     <Modal title={editItem ? 'Edit Food Item' : 'Add Food Item'} onClose={onClose} width={700}>
       <div className={s.modalBody} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
         <div className={s.formCol}>
-          <div className={s.formField}>
+          <div className={s.formField} style={{ position: 'relative' }} ref={nameRef}>
             <label>Name</label>
-            <input placeholder="e.g., Brown Rice" value={form.name}
-              onChange={e => set('name', e.target.value)} className={s.textInput} />
+            <input placeholder="e.g., Brown Rice, Idli, Dal Tadka…" value={form.name}
+              onChange={e => handleNameChange(e.target.value)}
+              onFocus={() => suggestions.length && setShowSugg(true)}
+              onBlur={() => setTimeout(() => setShowSugg(false), 150)}
+              className={s.textInput} autoComplete="off" />
+            {showSugg && (
+              <div className={s.foodDropdown} style={{ top: '100%' }}>
+                {suggestions.map(food => (
+                  <div key={food.name} className={s.foodOption} onMouseDown={() => applySuggestion(food)}>
+                    <span className={s.foodOptionName}>{food.name}</span>
+                    <span className={s.foodOptionMeta}>{food.serving} · {food.group}</span>
+                    <span className={s.foodOptionKcal}>{food.nutrition.energy} kcal</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className={s.formField}>
             <label>Food Group</label>
