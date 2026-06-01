@@ -6,13 +6,14 @@ import styles  from './Layout.module.css';
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const hideTopBar = pathname.startsWith('/rx/');
+  const hideTopBar  = pathname.startsWith('/rx/');
+  const hideBanner  = pathname.startsWith('/rx/') || pathname.includes('/settings');
 
   return (
     <div className={styles.shell}>
       <Sidebar />
       <div className={styles.main}>
-        {!hideTopBar && <Banner />}
+        {!hideBanner && <Banner />}
         {!hideTopBar && <TopBar />}
         <div className={styles.content}>
           <Outlet />
