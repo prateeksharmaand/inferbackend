@@ -221,93 +221,50 @@ const generateAIMealPlan = async (req, res) => {
   if (!GEMINI_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
 
   const {
-    preference = 'vegetarian', // vegetarian | non-vegetarian | vegan | eggetarian
-    conditions = [],           // ['Diabetes', 'Hypertension', ...]
+    preference = 'vegetarian',
+    conditions = [],
     age, gender, weight, height,
     calories_target,
-    num_plans = 3,
   } = req.body;
 
   const patientInfo = [
-    age    ? `Age: ${age}`       : null,
-    gender ? `Gender: ${gender}` : null,
+    age    ? `Age: ${age}`         : null,
+    gender ? `Gender: ${gender}`   : null,
     weight ? `Weight: ${weight}kg` : null,
     height ? `Height: ${height}cm` : null,
   ].filter(Boolean).join(', ');
 
   const conditionStr = conditions.length
     ? conditions.join(', ')
-    : 'No known conditions (general wellness)';
+    : 'general wellness';
 
-  const calorieNote = calories_target
-    ? `Target calories: ~${calories_target} kcal/day.`
-    : 'Calculate appropriate calorie target based on patient profile.';
+  const calorieNote = calories_target ? `~${calories_target} kcal/day` : 'appropriate calories';
+  const dietRule    = (preference === 'vegetarian' || preference === 'vegan')
+    ? 'strictly vegetarian, no meat/fish/eggs'
+    : preference === 'eggetarian' ? 'vegetarian + eggs allowed, no meat/fish'
+    : 'non-vegetarian, include chicken/fish/eggs, no beef/pork';
 
-  const prompt = `You are a clinical dietitian specializing in Indian diets. Create ${num_plans} distinct one-day Indian meal plans for a patient with the following profile:
+  // Keep prompt tight — 2 plans with 3-4 items per meal to stay within token limit
+  const prompt = `You are a clinical dietitian. Generate exactly 2 distinct Indian one-day meal plans as a JSON array.
 
-Patient: ${patientInfo || 'Not specified'}
-Medical Conditions: ${conditionStr}
-Food Preference: ${preference}
-${calorieNote}
+Patient: ${patientInfo || 'not specified'} | Conditions: ${conditionStr} | Diet: ${dietRule} | Calories: ${calorieNote}
 
-Requirements:
-- All meals must use common Indian foods appropriate for the medical conditions
-- ${preference === 'vegetarian' || preference === 'vegan' ? 'NO meat, chicken, fish, or eggs.' : preference === 'eggetarian' ? 'No meat or fish. Eggs are allowed.' : 'Can include chicken, fish, eggs. No beef/pork.'}
-- Each plan should have a different theme (e.g., North Indian, South Indian, High Protein, Low Carb)
-- Include practical serving sizes (e.g., "1 katori", "2 rotis", "1 glass")
-- Provide accurate macro estimates per food item
-- Include brief meal-level instructions where helpful
-- Plans must be medically appropriate for the conditions listed
+Rules:
+- Use common Indian foods, practical serving sizes (e.g. "1 katori", "2 rotis")
+- Plans must differ in theme (e.g. South Indian vs North Indian, or High Protein vs Low Carb)
+- Each plan: 5 meals (Breakfast, Mid-Morning, Lunch, Evening Snack, Dinner)
+- Max 4 food items per meal
+- Macros must be realistic numbers (no zeros for main items)
+- Be concise: short plan_name, one-sentence description
 
-Return ONLY a valid JSON array with exactly ${num_plans} plans:
-[
-  {
-    "plan_name": "string (e.g., 'South Indian Diabetic Plan')",
-    "description": "2-3 sentence summary of the plan and why it suits the conditions",
-    "theme": "string (e.g., 'South Indian', 'North Indian', 'High Protein')",
-    "nutrition_targets": {
-      "energy": number,
-      "protein": number,
-      "total_fat": number,
-      "carbohydrates": number,
-      "dietary_fibre": number
-    },
-    "day_plans": [
-      {
-        "name": "Day Plan 1",
-        "meals": [
-          {
-            "name": "Breakfast",
-            "time": "8:00 AM",
-            "instructions": "string or null",
-            "food_items": [
-              {
-                "name": "food name",
-                "serving_size": "serving size",
-                "group_name": "food group",
-                "nutrition": {
-                  "energy": number,
-                  "protein": number,
-                  "total_fat": number,
-                  "carbohydrates": number,
-                  "dietary_fibre": number
-                }
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }
-]
-
-Meals should include: Breakfast, Mid-Morning Snack, Lunch, Evening Snack, Dinner.`;
+Return ONLY this JSON (no markdown, no extra text):
+[{"plan_name":"","description":"","theme":"","nutrition_targets":{"energy":0,"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0},"day_plans":[{"name":"Day Plan 1","meals":[{"name":"Breakfast","time":"8:00 AM","instructions":null,"food_items":[{"name":"","serving_size":"","group_name":"","nutrition":{"energy":0,"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0}}]}]}]}]`;
 
   try {
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.6,
         maxOutputTokens: 8192,
         responseMimeType: 'application/json',
       },
@@ -319,8 +276,18 @@ Meals should include: Breakfast, Mid-Morning Snack, Lunch, Evening Snack, Dinner
     try {
       plans = JSON.parse(raw);
     } catch {
-      const match = raw.match(/\[[\s\S]*\]/);
-      plans = match ? JSON.parse(match[0]) : [];
+      // Try to salvage truncated JSON — extract complete plan objects one by one
+      const planMatches = [...raw.matchAll(/\{[\s\S]*?"day_plans"[\s\S]*?\}\s*(?=[,\]])/g)];
+      if (planMatches.length) {
+        try { plans = JSON.parse(`[${planMatches.map(m => m[0]).join(',')}]`); }
+        catch { plans = []; }
+      } else {
+        plans = [];
+      }
+    }
+
+    if (!Array.isArray(plans) || plans.length === 0) {
+      return res.status(502).json({ error: 'AI returned no valid plans. Please try again.' });
     }
 
     // Stamp each food item with a _key for frontend rendering

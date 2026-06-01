@@ -1087,7 +1087,6 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
         conditions,
         age:    patientContext?.patient?.age,
         gender: patientContext?.patient?.gender,
-        num_plans: 3,
       };
       const data = await api.post('/diet/ai-meal-plan', payload);
       setPlans(data.plans || []);
