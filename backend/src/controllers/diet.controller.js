@@ -279,41 +279,44 @@ Fill ALL meals with appropriate Indian foods for the patient's conditions. Repla
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.6,
+        temperature: 0.1,
         maxOutputTokens: 4096,
       },
     };
-    const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 45_000 });
+    const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 60_000 });
     const raw = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
 
-    // Strip markdown fences aggressively before any parse attempt
-    const stripped = raw
-      .replace(/^```[a-z]*\s*/i, '')   // opening fence
-      .replace(/\s*```\s*$/i, '')       // closing fence
-      .trim();
+    console.log('[diet] raw gemini response (first 800):', raw.slice(0, 800));
 
-    let plans;
-    try {
-      const parsed = JSON.parse(stripped);
-      plans = Array.isArray(parsed) ? parsed : [parsed];
-    } catch {
-      // Try to extract JSON object directly from the text
-      const objMatch = stripped.match(/\{[\s\S]*"day_plans"[\s\S]*\}/);
-      const arrMatch = stripped.match(/\[[\s\S]*"day_plans"[\s\S]*\]/);
-      const target   = objMatch?.[0] || arrMatch?.[0];
-      if (target) {
-        try {
-          const parsed = JSON.parse(target);
-          plans = Array.isArray(parsed) ? parsed : [parsed];
-        } catch { plans = []; }
-      } else {
-        plans = [];
+    // Extract JSON regardless of preamble/fences
+    function extractJSON(text) {
+      // 1. Try content inside ```json ... ``` or ``` ... ``` blocks
+      const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (fenceMatch) {
+        try { return JSON.parse(fenceMatch[1].trim()); } catch {}
       }
+      // 2. Try raw parse
+      try { return JSON.parse(text.trim()); } catch {}
+      // 3. Extract first { ... } block containing day_plans
+      const objStart = text.indexOf('{');
+      const objEnd   = text.lastIndexOf('}');
+      if (objStart !== -1 && objEnd > objStart) {
+        try { return JSON.parse(text.slice(objStart, objEnd + 1)); } catch {}
+      }
+      return null;
     }
 
+    const parsed = extractJSON(raw);
+    let plans = parsed
+      ? (Array.isArray(parsed) ? parsed : [parsed])
+      : [];
+
     if (!plans.length || !plans[0]?.day_plans) {
-      console.error('[diet] unparseable response (first 500 chars):', stripped.slice(0, 500));
-      return res.status(502).json({ error: 'AI returned no valid plan. Please try again.' });
+      console.error('[diet] FULL raw response:', raw);
+      return res.status(502).json({
+        error: 'AI returned no valid plan. Please try again.',
+        detail: raw.slice(0, 400),
+      });
     }
 
     // Stamp each food item with a _key for frontend rendering
