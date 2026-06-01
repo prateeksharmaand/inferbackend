@@ -116,7 +116,7 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en',
 
   const langParam = language === 'auto' ? '' : `&language=${language}`;
   const res = await axios.post(
-    `${WHISPER_BASE}/asr?task=transcribe${langParam}&output=json&vad_filter=true&initial_prompt=${encodeURIComponent(promptText)}`,
+    `${WHISPER_BASE}/asr?task=transcribe${langParam}&output=json&vad_filter=false&initial_prompt=${encodeURIComponent(promptText)}`,
     form,
     { headers: form.getHeaders(), timeout: 60_000 }
   );
