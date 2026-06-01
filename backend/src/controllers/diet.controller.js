@@ -37,7 +37,7 @@ async function ensureTables() {
     );
   `);
 }
-ensureTables().catch(console.error);
+// exported so routes can call it explicitly after mount
 
 // ── Diet Charts ───────────────────────────────────────────────────────────────
 
@@ -210,6 +210,7 @@ const deleteFoodGroup = async (req, res) => {
 };
 
 module.exports = {
+  ensureTables,
   listCharts, createChart, updateChart, deleteChart,
   listTemplates, saveTemplate,
   listFoodItems, createFoodItem, updateFoodItem, deleteFoodItem,

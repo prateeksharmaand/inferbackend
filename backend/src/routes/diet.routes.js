@@ -2,6 +2,9 @@ const express = require('express');
 const c = require('../controllers/diet.controller');
 const router = express.Router();
 
+// ensure DB tables exist on first use
+c.ensureTables().catch(console.error);
+
 router.get('/charts',           c.listCharts);
 router.post('/charts',          c.createChart);
 router.put('/charts/:id',       c.updateChart);

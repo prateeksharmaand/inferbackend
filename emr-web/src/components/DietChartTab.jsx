@@ -370,36 +370,46 @@ function CustomFoodLibraryModal({ onClose }) {
   const [editItem, setEditItem] = useState(null);
   const [showAddItem, setShowAddItem]   = useState(false);
   const [search, setSearch]     = useState('');
+  const [error, setError]       = useState('');
 
-  useEffect(() => {
-    api.get('/diet/food-items').then(setItems).catch(() => {});
+  const reload = () => {
+    api.get('/diet/food-items').then(setItems).catch(e => setError(e.message));
     api.get('/diet/food-groups').then(r => setGroups(r.map(g => g.name))).catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => { reload(); }, []);
 
   const allGroups = [...new Set([...STANDARD_GROUPS, ...groups])];
 
   async function handleAddGroup(name) {
-    await api.post('/diet/food-groups', { name });
-    const r = await api.get('/diet/food-groups');
-    setGroups(r.map(g => g.name));
-    setShowAddGroup(false);
+    try {
+      await api.post('/diet/food-groups', { name });
+      const r = await api.get('/diet/food-groups');
+      setGroups(r.map(g => g.name));
+      setShowAddGroup(false);
+    } catch (e) { setError(e.message); }
   }
 
   async function handleSaveItem(form) {
-    if (editItem?.id) {
-      const updated = await api.put(`/diet/food-items/${editItem.id}`, form);
-      setItems(items.map(i => i.id === updated.id ? updated : i));
-    } else {
-      const created = await api.post('/diet/food-items', form);
-      setItems([...items, created]);
-    }
-    setShowAddItem(false);
-    setEditItem(null);
+    setError('');
+    try {
+      if (editItem?.id) {
+        const updated = await api.put(`/diet/food-items/${editItem.id}`, form);
+        setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+      } else {
+        const created = await api.post('/diet/food-items', form);
+        setItems(prev => [...prev, created]);
+      }
+      setShowAddItem(false);
+      setEditItem(null);
+    } catch (e) { setError(e.message); }
   }
 
   async function handleDeleteItem(id) {
-    await api.delete(`/diet/food-items/${id}`);
-    setItems(items.filter(i => i.id !== id));
+    try {
+      await api.delete(`/diet/food-items/${id}`);
+      setItems(prev => prev.filter(i => i.id !== id));
+    } catch (e) { setError(e.message); }
   }
 
   const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -427,6 +437,8 @@ function CustomFoodLibraryModal({ onClose }) {
               <Plus size={13} /> Add Food Item
             </button>
           </div>
+
+          {error && <div className={s.errorBar}>{error}</div>}
 
           {filtered.length === 0 && (
             <div className={s.emptyLib}>No custom food items yet. Add one above.</div>

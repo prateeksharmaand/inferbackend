@@ -172,6 +172,10 @@
 }
 .searchWrap input { flex: 1; border: none; outline: none; background: transparent; font-size: 13px; }
 .emptyLib { text-align: center; color: #94a3b8; font-size: 13px; padding: 24px 0; }
+.errorBar {
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px;
+  padding: 8px 12px; font-size: 13px; color: #dc2626; margin-bottom: 12px;
+}
 .libGroup { margin-bottom: 16px; }
 .libGroupLabel { font-size: 12px; font-weight: 700; color: var(--color-primary); padding: 4px 0; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
 .libItem {
