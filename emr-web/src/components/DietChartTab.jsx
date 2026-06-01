@@ -91,13 +91,27 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// Extract leading numeric from serving string, e.g. "2 cups" → 2, "½ cup" → 0.5
+function parseServingQty(serving) {
+  if (!serving) return 1;
+  const s = serving.trim();
+  if (s.startsWith('½') || s.startsWith('1/2')) return 0.5;
+  if (s.startsWith('¼') || s.startsWith('1/4')) return 0.25;
+  const m = s.match(/^(\d+(\.\d+)?)/);
+  return m ? parseFloat(m[1]) : 1;
+}
+
 function calcNutrition(dayPlans) {
   const totals = { energy: 0, protein: 0, total_fat: 0, carbohydrates: 0, dietary_fibre: 0 };
   dayPlans.forEach(dp => {
     dp.meals.forEach(meal => {
       meal.food_items.forEach(item => {
+        // Scale by ratio of current serving qty vs base serving qty
+        const baseQty    = parseServingQty(item._base_serving || item.serving_size);
+        const currentQty = parseServingQty(item.serving_size);
+        const scale = baseQty > 0 ? currentQty / baseQty : 1;
         MACRO_FIELDS.forEach(f => {
-          totals[f.key] = (totals[f.key] || 0) + parseFloat(item.nutrition?.[f.key] || 0);
+          totals[f.key] = (totals[f.key] || 0) + parseFloat(item.nutrition?.[f.key] || 0) * scale;
         });
       });
     });
@@ -773,7 +787,7 @@ function DietChartEditor({ chart: initialChart, patientMobile, doctorId, onSave,
         if (di !== dpIdx) return dp;
         const meals = dp.meals.map((meal, mi) => {
           if (mi !== mIdx) return meal;
-          return { ...meal, food_items: [...meal.food_items, { ...item, _key: uid() }] };
+          return { ...meal, food_items: [...meal.food_items, { ...item, _key: uid(), _base_serving: item.serving_size }] };
         });
         return { ...dp, meals };
       });
@@ -896,11 +910,17 @@ function DietChartEditor({ chart: initialChart, patientMobile, doctorId, onSave,
           {/* Meals */}
           <div className={s.mealList}>
             {dp.meals.map((meal, mIdx) => {
-              const mealKcal = meal.food_items.reduce((sum, fi) => sum + parseFloat(fi.nutrition?.energy || 0), 0);
-              const mealP    = meal.food_items.reduce((sum, fi) => sum + parseFloat(fi.nutrition?.protein || 0), 0);
-              const mealF    = meal.food_items.reduce((sum, fi) => sum + parseFloat(fi.nutrition?.total_fat || 0), 0);
-              const mealC    = meal.food_items.reduce((sum, fi) => sum + parseFloat(fi.nutrition?.carbohydrates || 0), 0);
-              const mealFb   = meal.food_items.reduce((sum, fi) => sum + parseFloat(fi.nutrition?.dietary_fibre || 0), 0);
+              const scaledVal = (fi, key) => {
+                const bq = parseServingQty(fi._base_serving || fi.serving_size);
+                const cq = parseServingQty(fi.serving_size);
+                const sc = bq > 0 ? cq / bq : 1;
+                return parseFloat(fi.nutrition?.[key] || 0) * sc;
+              };
+              const mealKcal = meal.food_items.reduce((sum, fi) => sum + scaledVal(fi, 'energy'), 0);
+              const mealP    = meal.food_items.reduce((sum, fi) => sum + scaledVal(fi, 'protein'), 0);
+              const mealF    = meal.food_items.reduce((sum, fi) => sum + scaledVal(fi, 'total_fat'), 0);
+              const mealC    = meal.food_items.reduce((sum, fi) => sum + scaledVal(fi, 'carbohydrates'), 0);
+              const mealFb   = meal.food_items.reduce((sum, fi) => sum + scaledVal(fi, 'dietary_fibre'), 0);
 
               return (
                 <div key={meal.id} className={s.mealCard}>
@@ -1039,14 +1059,155 @@ function ApplyTemplateModal({ onApply, onClose }) {
   );
 }
 
+// ── AI Meal Plan Modal ────────────────────────────────────────────────────────
+
+const PREFERENCES = [
+  { key: 'vegetarian',     label: '🥦 Vegetarian',   desc: 'No meat, chicken, fish or eggs' },
+  { key: 'non-vegetarian', label: '🍗 Non-Vegetarian',desc: 'Includes chicken & fish' },
+  { key: 'eggetarian',     label: '🥚 Eggetarian',    desc: 'Vegetarian + eggs' },
+  { key: 'vegan',          label: '🌱 Vegan',          desc: 'No animal products' },
+];
+
+function AIMealPlanModal({ patientContext, onApply, onClose }) {
+  const [pref, setPref]       = useState('vegetarian');
+  const [plans, setPlans]     = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
+  const [expanded, setExpanded] = useState(null);
+
+  const conditions = [
+    ...(patientContext?.patient?.medical_history || []).map(h => h.condition || h.label || h.key).filter(Boolean),
+  ];
+
+  async function handleGenerate() {
+    setLoading(true); setError(''); setPlans([]); setExpanded(null);
+    try {
+      const payload = {
+        preference: pref,
+        conditions,
+        age:    patientContext?.patient?.age,
+        gender: patientContext?.patient?.gender,
+        num_plans: 3,
+      };
+      const data = await api.post('/diet/ai-meal-plan', payload);
+      setPlans(data.plans || []);
+      if (data.plans?.length) setExpanded(0);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  function getMealTotalKcal(meal) {
+    return meal.food_items.reduce((s, f) => s + parseFloat(f.nutrition?.energy || 0), 0).toFixed(0);
+  }
+
+  return (
+    <Modal title="✨ AI Powered Meal Plan" onClose={onClose} width={740}>
+      <div className={s.modalBody} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+
+        {/* Preferences */}
+        <div className={s.aiSection}>
+          <div className={s.aiLabel}>Food Preference</div>
+          <div className={s.aiPrefGrid}>
+            {PREFERENCES.map(p => (
+              <button key={p.key}
+                className={`${s.aiPrefBtn} ${pref === p.key ? s.aiPrefActive : ''}`}
+                onClick={() => setPref(p.key)}>
+                <span className={s.aiPrefLabel}>{p.label}</span>
+                <span className={s.aiPrefDesc}>{p.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Patient conditions */}
+        {conditions.length > 0 && (
+          <div className={s.aiSection}>
+            <div className={s.aiLabel}>Patient Conditions (auto-detected)</div>
+            <div className={s.aiChips}>
+              {conditions.map(c => <span key={c} className={s.aiConditionChip}>{c}</span>)}
+            </div>
+          </div>
+        )}
+
+        {error && <div className={s.errorBar}>{error}</div>}
+
+        {/* Generated Plans */}
+        {plans.length > 0 && (
+          <div className={s.aiSection}>
+            <div className={s.aiLabel}>{plans.length} Plans Generated — tap to preview</div>
+            {plans.map((plan, idx) => (
+              <div key={idx} className={`${s.aiPlanCard} ${expanded === idx ? s.aiPlanCardOpen : ''}`}>
+                <div className={s.aiPlanHeader} onClick={() => setExpanded(expanded === idx ? null : idx)}>
+                  <div className={s.aiPlanLeft}>
+                    <span className={s.aiPlanName}>{plan.plan_name}</span>
+                    <span className={s.aiPlanTheme}>{plan.theme}</span>
+                  </div>
+                  <div className={s.aiPlanRight}>
+                    <span className={s.aiPlanKcal}>{plan.nutrition_targets?.energy} kcal</span>
+                    <span className={s.aiPlanChevron}>{expanded === idx ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+
+                {expanded === idx && (
+                  <div className={s.aiPlanBody}>
+                    <p className={s.aiPlanDesc}>{plan.description}</p>
+
+                    <div className={s.aiMacroRow}>
+                      {['protein','total_fat','carbohydrates','dietary_fibre'].map(k => (
+                        <span key={k} className={s.aiMacro}>
+                          <b>{plan.nutrition_targets?.[k]}g</b> {k.replace('_',' ')}
+                        </span>
+                      ))}
+                    </div>
+
+                    {plan.day_plans?.[0]?.meals?.map(meal => (
+                      <div key={meal.name} className={s.aiMealBlock}>
+                        <div className={s.aiMealName}>
+                          {meal.name} {meal.time && <span className={s.aiMealTime}>{meal.time}</span>}
+                          <span className={s.aiMealKcal}>{getMealTotalKcal(meal)} kcal</span>
+                        </div>
+                        {meal.food_items.map((fi, i) => (
+                          <div key={i} className={s.aiMealItem}>
+                            <span className={s.aiMealItemName}>{fi.name}</span>
+                            <span className={s.aiMealItemServing}>{fi.serving_size}</span>
+                            <span className={s.aiMealItemKcal}>{fi.nutrition?.energy} kcal</span>
+                          </div>
+                        ))}
+                        {meal.instructions && <div className={s.aiMealInstr}>{meal.instructions}</div>}
+                      </div>
+                    ))}
+
+                    <button className={s.btnPrimary} style={{ marginTop: 12, width: '100%' }}
+                      onClick={() => onApply(plan)}>
+                      Apply This Plan
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className={s.modalFooter}>
+        <button className={s.btnGhost} onClick={onClose}>Cancel</button>
+        <button className={s.btnPrimary} onClick={handleGenerate} disabled={loading}>
+          {loading ? '✨ Generating…' : '✨ Generate Plans'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Main DietChartTab ─────────────────────────────────────────────────────────
 
-export default function DietChartTab({ patientMobile, doctorId }) {
+export default function DietChartTab({ patientMobile, doctorId, patientContext }) {
   const [charts, setCharts]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [editChart, setEditChart] = useState(null); // null = list, object = editor
-  const [showLib, setShowLib]   = useState(false);
+  const [showLib, setShowLib]       = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
+  const [showAI, setShowAI]         = useState(false);
   const [showNutrTargets, setShowNutrTargets] = useState(false);
   const [newChartTargets, setNewChartTargets] = useState(null);
 
@@ -1115,6 +1276,9 @@ export default function DietChartTab({ patientMobile, doctorId }) {
           <button className={s.btnOutline} onClick={() => setShowTemplate(true)}>
             <LayoutTemplate size={13} /> Apply Template
           </button>
+          <button className={s.btnAI} onClick={() => setShowAI(true)}>
+            ✨ AI Meal Plan
+          </button>
         </div>
       </div>
 
@@ -1157,6 +1321,23 @@ export default function DietChartTab({ patientMobile, doctorId }) {
       )}
       {showLib      && <CustomFoodLibraryModal onClose={() => setShowLib(false)} />}
       {showTemplate && <ApplyTemplateModal onApply={handleApplyTemplate} onClose={() => setShowTemplate(false)} />}
+      {showAI && (
+        <AIMealPlanModal
+          patientContext={patientContext}
+          onApply={plan => {
+            setEditChart({
+              id: null,
+              title: `${plan.plan_name} - ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+              start_date: todayStr(), duration: '', end_date: null,
+              nutrition_targets: plan.nutrition_targets || {},
+              day_plans: plan.day_plans || [makeDefaultDayPlan(1)],
+              food_groups: [],
+            });
+            setShowAI(false);
+          }}
+          onClose={() => setShowAI(false)}
+        />
+      )}
     </div>
   );
 }

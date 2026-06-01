@@ -1053,6 +1053,14 @@ export default function WriteRx() {
             <DietChartTab
               patientMobile={appt?.patient_mobile}
               doctorId={user?.id}
+              patientContext={{
+                patient: {
+                  name: appt?.patient_name,
+                  age: appt?.patient_age,
+                  gender: appt?.patient_gender === 'M' ? 'Male' : appt?.patient_gender === 'F' ? 'Female' : null,
+                  medical_history: form?.medical_history || [],
+                }
+              }}
             />
           )}
         </div>

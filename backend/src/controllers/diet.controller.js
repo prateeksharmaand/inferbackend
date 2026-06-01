@@ -209,10 +209,150 @@ const deleteFoodGroup = async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
+// ── AI Meal Plan Generator ────────────────────────────────────────────────────
+
+const axios = require('axios');
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_BASE  = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+const generateAIMealPlan = async (req, res) => {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
+
+  const {
+    preference = 'vegetarian', // vegetarian | non-vegetarian | vegan | eggetarian
+    conditions = [],           // ['Diabetes', 'Hypertension', ...]
+    age, gender, weight, height,
+    calories_target,
+    num_plans = 3,
+  } = req.body;
+
+  const patientInfo = [
+    age    ? `Age: ${age}`       : null,
+    gender ? `Gender: ${gender}` : null,
+    weight ? `Weight: ${weight}kg` : null,
+    height ? `Height: ${height}cm` : null,
+  ].filter(Boolean).join(', ');
+
+  const conditionStr = conditions.length
+    ? conditions.join(', ')
+    : 'No known conditions (general wellness)';
+
+  const calorieNote = calories_target
+    ? `Target calories: ~${calories_target} kcal/day.`
+    : 'Calculate appropriate calorie target based on patient profile.';
+
+  const prompt = `You are a clinical dietitian specializing in Indian diets. Create ${num_plans} distinct one-day Indian meal plans for a patient with the following profile:
+
+Patient: ${patientInfo || 'Not specified'}
+Medical Conditions: ${conditionStr}
+Food Preference: ${preference}
+${calorieNote}
+
+Requirements:
+- All meals must use common Indian foods appropriate for the medical conditions
+- ${preference === 'vegetarian' || preference === 'vegan' ? 'NO meat, chicken, fish, or eggs.' : preference === 'eggetarian' ? 'No meat or fish. Eggs are allowed.' : 'Can include chicken, fish, eggs. No beef/pork.'}
+- Each plan should have a different theme (e.g., North Indian, South Indian, High Protein, Low Carb)
+- Include practical serving sizes (e.g., "1 katori", "2 rotis", "1 glass")
+- Provide accurate macro estimates per food item
+- Include brief meal-level instructions where helpful
+- Plans must be medically appropriate for the conditions listed
+
+Return ONLY a valid JSON array with exactly ${num_plans} plans:
+[
+  {
+    "plan_name": "string (e.g., 'South Indian Diabetic Plan')",
+    "description": "2-3 sentence summary of the plan and why it suits the conditions",
+    "theme": "string (e.g., 'South Indian', 'North Indian', 'High Protein')",
+    "nutrition_targets": {
+      "energy": number,
+      "protein": number,
+      "total_fat": number,
+      "carbohydrates": number,
+      "dietary_fibre": number
+    },
+    "day_plans": [
+      {
+        "name": "Day Plan 1",
+        "meals": [
+          {
+            "name": "Breakfast",
+            "time": "8:00 AM",
+            "instructions": "string or null",
+            "food_items": [
+              {
+                "name": "food name",
+                "serving_size": "serving size",
+                "group_name": "food group",
+                "nutrition": {
+                  "energy": number,
+                  "protein": number,
+                  "total_fat": number,
+                  "carbohydrates": number,
+                  "dietary_fibre": number
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
+
+Meals should include: Breakfast, Mid-Morning Snack, Lunch, Evening Snack, Dinner.`;
+
+  try {
+    const body = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        responseMimeType: 'application/json',
+      },
+    };
+    const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 90_000 });
+    const raw = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+
+    let plans;
+    try {
+      plans = JSON.parse(raw);
+    } catch {
+      const match = raw.match(/\[[\s\S]*\]/);
+      plans = match ? JSON.parse(match[0]) : [];
+    }
+
+    // Stamp each food item with a _key for frontend rendering
+    plans = plans.map(plan => ({
+      ...plan,
+      day_plans: (plan.day_plans || []).map(dp => ({
+        ...dp,
+        id: Math.random().toString(36).slice(2),
+        meals: (dp.meals || []).map(meal => ({
+          ...meal,
+          id: Math.random().toString(36).slice(2),
+          food_items: (meal.food_items || []).map(fi => ({
+            ...fi,
+            _key: Math.random().toString(36).slice(2),
+          })),
+        })),
+      })),
+    }));
+
+    res.json({ plans });
+  } catch (err) {
+    const detail = err.response?.data || err.message;
+    console.error('[diet] AI meal plan failed:', detail);
+    res.status(502).json({ error: 'AI meal plan generation failed', detail });
+  }
+};
+
 module.exports = {
   ensureTables,
   listCharts, createChart, updateChart, deleteChart,
   listTemplates, saveTemplate,
   listFoodItems, createFoodItem, updateFoodItem, deleteFoodItem,
   listFoodGroups, createFoodGroup, deleteFoodGroup,
+  generateAIMealPlan,
 };

@@ -18,8 +18,10 @@ router.post('/food-items',      c.createFoodItem);
 router.put('/food-items/:id',   c.updateFoodItem);
 router.delete('/food-items/:id',c.deleteFoodItem);
 
-router.get('/food-groups',      c.listFoodGroups);
-router.post('/food-groups',     c.createFoodGroup);
+router.get('/food-groups',        c.listFoodGroups);
+router.post('/food-groups',       c.createFoodGroup);
 router.delete('/food-groups/:id', c.deleteFoodGroup);
+
+router.post('/ai-meal-plan',      c.generateAIMealPlan);
 
 module.exports = router;
