@@ -12,7 +12,7 @@ export default function Layout() {
     <div className={styles.shell}>
       <Sidebar />
       <div className={styles.main}>
-        <Banner />
+        {!hideTopBar && <Banner />}
         {!hideTopBar && <TopBar />}
         <div className={styles.content}>
           <Outlet />
