@@ -242,17 +242,38 @@ const generateAIMealPlan = async (req, res) => {
     : preference === 'eggetarian' ? 'vegetarian + eggs OK — NO meat or fish'
     : 'non-vegetarian — include chicken/fish/eggs, NO beef/pork';
 
-  const numDays  = Math.min(parseInt(days) || 1, 3); // cap at 3 to stay in token budget
-  const dayPlansTemplate = Array.from({ length: numDays }, (_, i) =>
-    `{"name":"Day ${i + 1}","meals":[{"name":"Breakfast","time":"8:00 AM","instructions":null,"food_items":[]},{"name":"Mid-Morning","time":"10:30 AM","instructions":null,"food_items":[]},{"name":"Lunch","time":"1:00 PM","instructions":null,"food_items":[]},{"name":"Evening Snack","time":"4:30 PM","instructions":null,"food_items":[]},{"name":"Dinner","time":"8:00 PM","instructions":null,"food_items":[]}]}`
-  ).join(',');
+  const numDays = Math.min(parseInt(days) || 1, 2);
 
-  const prompt = `You are a clinical dietitian. Create 1 Indian ${numDays}-day meal plan.
-Patient: ${patientInfo || 'adult'} | Conditions: ${conditionStr} | Diet: ${dietRule} | Calories: ${calorieNote}
-Rules: Use Indian foods. Max 3-4 food items per meal. Realistic macro numbers. Be concise.
-IMPORTANT: Output raw JSON only. Do NOT use markdown, code blocks, or backticks. Start your response with { directly.
-Return ONLY this JSON structure filled with real data:
-{"plan_name":"...","description":"one sentence","theme":"...","nutrition_targets":{"energy":${calories_target || 0},"protein":0,"total_fat":0,"carbohydrates":0,"dietary_fibre":0},"day_plans":[${dayPlansTemplate}]}`;
+  const prompt = `You are a clinical dietitian creating an Indian diet plan.
+
+PATIENT: ${patientInfo || 'adult'} | CONDITIONS: ${conditionStr} | DIET TYPE: ${dietRule} | TARGET: ${calorieNote}
+
+Create a ${numDays}-day Indian meal plan. Each day must have 5 meals: Breakfast, Mid-Morning Snack, Lunch, Evening Snack, Dinner. Use 3-4 food items per meal. Use realistic calorie values.
+
+Respond with ONLY a JSON object. No markdown. No explanation. No code blocks. Just the JSON:
+
+{
+  "plan_name": "short descriptive name",
+  "description": "one sentence about this plan",
+  "theme": "e.g. South Indian or North Indian or High Protein",
+  "nutrition_targets": { "energy": ${calories_target || 1800}, "protein": 60, "total_fat": 50, "carbohydrates": 220, "dietary_fibre": 25 },
+  "day_plans": [
+    {
+      "name": "Day 1",
+      "meals": [
+        { "name": "Breakfast", "time": "8:00 AM", "instructions": null, "food_items": [
+          { "name": "Idli", "serving_size": "2 pieces", "group_name": "Cereals & Millets", "nutrition": { "energy": 130, "protein": 4, "total_fat": 0.5, "carbohydrates": 27, "dietary_fibre": 1.5 } }
+        ]},
+        { "name": "Mid-Morning Snack", "time": "10:30 AM", "instructions": null, "food_items": [] },
+        { "name": "Lunch", "time": "1:00 PM", "instructions": null, "food_items": [] },
+        { "name": "Evening Snack", "time": "4:30 PM", "instructions": null, "food_items": [] },
+        { "name": "Dinner", "time": "8:00 PM", "instructions": null, "food_items": [] }
+      ]
+    }
+  ]
+}
+
+Fill ALL meals with appropriate Indian foods for the patient's conditions. Replace the example Breakfast item with real food. Add ${numDays > 1 ? numDays + ' day_plans entries' : '1 day_plan entry'} total.`;
 
   try {
     const body = {

@@ -218,6 +218,60 @@
 }
 .templateName { font-size: 13px; font-weight: 500; }
 
+/* ── AI Loading Animation ── */
+.aiLoadingWrap {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 20px; gap: 16px;
+}
+.aiLoadingOrb {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #2563eb, #06b6d4);
+  background-size: 200% 200%;
+  animation: orbPulse 2s ease-in-out infinite, orbSpin 3s linear infinite;
+  box-shadow: 0 0 30px rgba(124,58,237,.4);
+}
+@keyframes orbPulse {
+  0%,100% { transform: scale(1);   box-shadow: 0 0 30px rgba(124,58,237,.4); }
+  50%      { transform: scale(1.12); box-shadow: 0 0 50px rgba(124,58,237,.7); }
+}
+@keyframes orbSpin {
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
+}
+.aiLoadingTitle {
+  font-size: 15px; font-weight: 700; color: #1e293b;
+}
+.aiLoadingSteps {
+  display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 320px;
+}
+.aiLoadingStep {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-radius: 8px;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  animation: stepFadeIn .5s ease forwards;
+  opacity: 0;
+}
+@keyframes stepFadeIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.aiLoadingStepIcon  { font-size: 18px; }
+.aiLoadingStepLabel { font-size: 13px; color: #475569; }
+.aiLoadingDots {
+  display: flex; gap: 6px; margin-top: 4px;
+}
+.aiLoadingDots span {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--color-primary);
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+.aiLoadingDots span:nth-child(2) { animation-delay: .2s; }
+.aiLoadingDots span:nth-child(3) { animation-delay: .4s; }
+@keyframes dotBounce {
+  0%,80%,100% { transform: scale(0.6); opacity: .4; }
+  40%          { transform: scale(1);   opacity: 1;  }
+}
+
 /* ── AI Meal Plan ── */
 .aiSection { margin-bottom: 18px; }
 .aiInputRow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

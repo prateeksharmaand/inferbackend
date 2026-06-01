@@ -1104,9 +1104,35 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
     return meal.food_items.reduce((s, f) => s + parseFloat(f.nutrition?.energy || 0), 0).toFixed(0);
   }
 
+  const AI_STEPS = [
+    { icon: '🔍', label: 'Analysing patient conditions…' },
+    { icon: '🥗', label: 'Selecting suitable Indian foods…' },
+    { icon: '⚖️', label: 'Balancing macros & calories…' },
+    { icon: '✨', label: 'Finalising your meal plan…' },
+  ];
+
   return (
     <Modal title="✨ AI Powered Meal Plan" onClose={onClose} width={740}>
       <div className={s.modalBody} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+
+        {/* Loading animation overlay */}
+        {loading && (
+          <div className={s.aiLoadingWrap}>
+            <div className={s.aiLoadingOrb} />
+            <div className={s.aiLoadingTitle}>Generating your meal plan…</div>
+            <div className={s.aiLoadingSteps}>
+              {AI_STEPS.map((step, i) => (
+                <div key={i} className={s.aiLoadingStep} style={{ animationDelay: `${i * 0.6}s` }}>
+                  <span className={s.aiLoadingStepIcon}>{step.icon}</span>
+                  <span className={s.aiLoadingStepLabel}>{step.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className={s.aiLoadingDots}>
+              <span /><span /><span />
+            </div>
+          </div>
+        )}
 
         {/* Food preference */}
         <div className={s.aiSection}>
