@@ -163,4 +163,7 @@ router.get('/analytics/form25/summary', analytics.getForm25Summary);
 // Inbound automated appointment booking (Telnyx + Gemini)
 router.use('/inbound', inbound);
 
+// Diet charts + food library
+router.use('/diet', require('../routes/diet.routes'));
+
 module.exports = router;
