@@ -55,6 +55,7 @@ export default function InferPadSettings() {
   const [footerImg,    setFooterImg]    = useState(() => localStorage.getItem(clKey('footer'))            || '');
   const [signatureImg, setSignatureImg] = useState(() => localStorage.getItem(sigKey())                   || '');
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(clKey('vaccination_chart')) === 'true');
+  const [dietChart,    setDietChart]    = useState(() => localStorage.getItem(clKey('diet_chart')) === 'true');
   const [saved,  setSaved]  = useState(false);
   const [sigMsg, setSigMsg] = useState('');
 
@@ -62,6 +63,7 @@ export default function InferPadSettings() {
     headerImg   ? localStorage.setItem(clKey('header'),             headerImg)   : localStorage.removeItem(clKey('header'));
     footerImg   ? localStorage.setItem(clKey('footer'),             footerImg)   : localStorage.removeItem(clKey('footer'));
     vaccChart   ? localStorage.setItem(clKey('vaccination_chart'), 'true')       : localStorage.removeItem(clKey('vaccination_chart'));
+    dietChart   ? localStorage.setItem(clKey('diet_chart'),        'true')       : localStorage.removeItem(clKey('diet_chart'));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     window.dispatchEvent(new Event('storage')); // so Write Rx re-evaluates tabs
@@ -94,6 +96,17 @@ export default function InferPadSettings() {
           </div>
           <label className={styles.toggle}>
             <input type="checkbox" checked={vaccChart} onChange={e => setVaccChart(e.target.checked)} />
+            <span className={styles.toggleSlider} />
+          </label>
+        </div>
+
+        <div className={styles.toggleRow}>
+          <div>
+            <div className={styles.toggleLabel}>Diet Chart</div>
+            <div className={styles.toggleHint}>Show a Diet Chart tab in Write Rx to create and assign diet plans to patients.</div>
+          </div>
+          <label className={styles.toggle}>
+            <input type="checkbox" checked={dietChart} onChange={e => setDietChart(e.target.checked)} />
             <span className={styles.toggleSlider} />
           </label>
         </div>
