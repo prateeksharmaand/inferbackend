@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Printer } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { getICD10Settings } from '../pages/settings/InferPadSettings';
 import styles from './RxPrintModal.module.css';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -33,7 +34,8 @@ function getFlag(r) {
 
 // ── Prescription document ─────────────────────────────────────────────────────
 function RxDoc({ data, user, dietCharts = [] }) {
-  const cid = user?.clinic_id || 'default';
+  const cid      = user?.clinic_id || 'default';
+  const icd10    = getICD10Settings(cid);
   const headerImg = localStorage.getItem(`rx_header_${cid}`) || '';
   const footerImg = localStorage.getItem(`rx_footer_${cid}`) || '';
 
@@ -47,8 +49,8 @@ function RxDoc({ data, user, dietCharts = [] }) {
 
   const vitalsStr   = Object.entries(data.vitals || {}).filter(([k,v]) => v && VLABEL[k]).map(([k,v]) => `${VLABEL[k]}-${v}${VUNIT[k]||''}`).join(' | ');
   const histStr     = (data.medical_history||[]).map(h => { const {label,meta}=medLabel(h); const p=['Status: Active']; if(h.since) p.push(`Since: ${h.since}`); else if(meta) p.push(meta); return `${label} (${p.join(', ')})`;}).join(', ');
-  const sympStr     = (data.symptoms||[]).map(s => { const name=typeof s==='string'?s:s.name; const code=typeof s==='object'&&s.code?` | ${s.code}`:''; const mp=[s.since&&`Since: ${s.since}`,s.severity&&`Severity: ${s.severity}`].filter(Boolean); return `${name}${code}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
-  const diagStr     = (data.diagnosis||[]).map(d => { const mp=[d.since&&`Since: ${d.since}`,d.severity&&`Severity: ${d.severity}`].filter(Boolean); return `${d.display}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
+  const sympStr     = (data.symptoms||[]).map(s => { const name=typeof s==='string'?s:s.name; const code=icd10.print&&typeof s==='object'&&s.code?` [${s.code}]`:''; const mp=[s.since&&`Since: ${s.since}`,s.severity&&`Severity: ${s.severity}`].filter(Boolean); return `${name}${code}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
+  const diagStr     = (data.diagnosis||[]).map(d => { const code=icd10.print&&d.code?` [${d.code}]`:''; const mp=[d.since&&`Since: ${d.since}`,d.severity&&`Severity: ${d.severity}`].filter(Boolean); return `${d.display}${code}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
   const labInvLines = (data.lab_investigations||[]).map(l => typeof l==='string'?l:`${l.test} (On: ${todayFmt}${l.repeat_on?` | Repeat: ${l.repeat_on}`:''}${l.remarks?` Remark: ${l.remarks}`:''})` );
   const labResLines = (data.lab_results||[]).map(r => { const f=getFlag(r); return `${r.test}: ${r.result}${r.unit?' '+r.unit:''}${f?` [${f}]`:''} - ${todayFmt}`;});
   const followupStr = data.next_visit_date ? `Visit on ${new Date(data.next_visit_date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}` : '';

@@ -91,6 +91,13 @@ export const MANDATORY_FIELDS = [
   { key: 'advices',              label: 'Advices',               hint: 'Advice to patient must be filled.' },
 ];
 
+export function getICD10Settings(clinicId) {
+  return {
+    display: localStorage.getItem(`rx_icd10_display_${clinicId}`) === 'true',
+    print:   localStorage.getItem(`rx_icd10_print_${clinicId}`)   === 'true',
+  };
+}
+
 export function getMandatoryFields(clinicId) {
   try {
     const stored = localStorage.getItem(`rx_mandatory_fields_${clinicId}`);
@@ -112,6 +119,8 @@ export default function InferPadSettings() {
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(clKey('vaccination_chart')) === 'true');
   const [dietChart,    setDietChart]    = useState(() => localStorage.getItem(clKey('diet_chart')) === 'true');
   const [growthChart,  setGrowthChart]  = useState(() => localStorage.getItem(clKey('growth_chart'))      === 'true');
+  const [icd10Display, setIcd10Display] = useState(() => localStorage.getItem(clKey('icd10_display'))     === 'true');
+  const [icd10Print,   setIcd10Print]   = useState(() => localStorage.getItem(clKey('icd10_print'))       === 'true');
   const [mandatoryFields, setMandatoryFields] = useState(() => getMandatoryFields(cid));
   const [sectionOrder,    setSectionOrder]    = useState(() => getSectionOrder(cid));
   const [saved,           setSaved]           = useState(false);
@@ -204,6 +213,35 @@ export default function InferPadSettings() {
               handleFeatureToggle('diet_chart', e.target.checked);
             }} />
             <span className={styles.toggleSlider} />
+          </label>
+        </div>
+
+        <div className={styles.toggleRow}>
+          <div>
+            <div className={styles.toggleLabel}>ICD-10 Codes</div>
+            <div className={styles.toggleHint}>Display ICD-10 codes on symptoms and diagnosis chips in the InferPad.</div>
+          </div>
+          <label className={styles.toggle}>
+            <input type="checkbox" checked={icd10Display} onChange={e => {
+              setIcd10Display(e.target.checked);
+              handleFeatureToggle('icd10_display', e.target.checked);
+            }} />
+            <span className={styles.toggleSlider} />
+          </label>
+        </div>
+
+        <div className={styles.toggleRow} style={{ paddingLeft: 24, borderLeft: '2px solid #e2e8f0' }}>
+          <div>
+            <div className={styles.toggleLabel}>Print ICD-10 codes on Rx</div>
+            <div className={styles.toggleHint}>Include ICD-10 codes alongside symptoms and diagnosis when printing the prescription.</div>
+          </div>
+          <label className={styles.toggle}>
+            <input type="checkbox" checked={icd10Print} disabled={!icd10Display}
+              onChange={e => {
+                setIcd10Print(e.target.checked);
+                handleFeatureToggle('icd10_print', e.target.checked);
+              }} />
+            <span className={styles.toggleSlider} style={!icd10Display ? { opacity: .4 } : {}} />
           </label>
         </div>
 

@@ -5,7 +5,7 @@ import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
 import CalculatorsSection from './CalculatorsSection';
 import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
-import { getSectionOrder } from '../pages/settings/InferPadSettings';
+import { getSectionOrder, getICD10Settings } from '../pages/settings/InferPadSettings';
 import GrowthChart from './GrowthChart';
 import s2 from './GrowthChart.module.css';
 
@@ -353,6 +353,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
   const [sectionOrder,  setSectionOrder]  = useState(() => getSectionOrder(clinicId));
   const [showGrowth,    setShowGrowth]    = useState(false);
+  const [icd10,         setIcd10]         = useState(() => getICD10Settings(clinicId));
   const [growthEnabled, setGrowthEnabled] = useState(
     () => localStorage.getItem(`rx_growth_chart_${clinicId}`) === 'true'
   );
@@ -366,6 +367,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
     const handler = () => {
       setSectionOrder(getSectionOrder(clinicId));
       setGrowthEnabled(localStorage.getItem(`rx_growth_chart_${clinicId}`) === 'true');
+      setIcd10(getICD10Settings(clinicId));
     };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
@@ -525,7 +527,10 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
                 const name = typeof s === 'string' ? s : s.name;
                 return (
                   <span key={i} className={`${styles.chip} ${styles.chipSymptom}`}>
-                    {name}{s.since && <span className={styles.chipMeta}> · {s.since}</span>}{s.severity && <span className={styles.chipMeta}> · {s.severity}</span>}
+                    {name}
+                    {icd10.display && s.code && <span className={styles.chipCode}> [{s.code}]</span>}
+                    {s.since    && <span className={styles.chipMeta}> · {s.since}</span>}
+                    {s.severity && <span className={styles.chipMeta}> · {s.severity}</span>}
                     <button onClick={() => removeSymptom(i)}>✕</button>
                   </span>
                 );
@@ -543,7 +548,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
             <div className={styles.chips}>
               {form.diagnosis.map((d, i) => (
                 <span key={i} className={`${styles.chip} ${styles.chipDiag}`}>
-                  {d.display}{d.code && <span className={styles.chipCode}> [{d.code}]</span>}{d.since && <span className={styles.chipMeta}> · {d.since}</span>}{d.severity && <span className={styles.chipMeta}> · {d.severity}</span>}
+                  {d.display}{icd10.display && d.code && <span className={styles.chipCode}> [{d.code}]</span>}{d.since && <span className={styles.chipMeta}> · {d.since}</span>}{d.severity && <span className={styles.chipMeta}> · {d.severity}</span>}
                   <button onClick={() => removeDiag(i)}>✕</button>
                 </span>
               ))}
