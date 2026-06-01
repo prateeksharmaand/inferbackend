@@ -163,6 +163,19 @@
 .sectionLabel { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; }
 
 /* ── Food library ── */
+.libTabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid #e2e8f0; }
+.libTabBtn {
+  padding: 8px 16px; border: none; background: none; font-size: 13px;
+  color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+.libTabBtn:hover { color: var(--color-primary); }
+.libTabActive { color: var(--color-primary) !important; border-bottom-color: var(--color-primary) !important; font-weight: 600; }
+.libCount {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #f1f5f9; color: #64748b; border-radius: 10px;
+  font-size: 11px; padding: 1px 6px; margin-left: 4px;
+}
+.libItemMacros { font-size: 11px; color: #94a3b8; min-width: 160px; }
 .libToolbar {
   display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
 }

@@ -403,6 +403,7 @@ function AddGroupModal({ onSave, onClose }) {
 }
 
 function CustomFoodLibraryModal({ onClose }) {
+  const [libTab, setLibTab]     = useState('standard'); // 'standard' | 'custom'
   const [items, setItems]       = useState([]);
   const [groups, setGroups]     = useState([]);
   const [showAddGroup, setShowAddGroup] = useState(false);
@@ -451,8 +452,19 @@ function CustomFoodLibraryModal({ onClose }) {
     } catch (e) { setError(e.message); }
   }
 
-  const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
-  const byGroup  = allGroups.reduce((acc, g) => {
+  // Standard library filtered from static Indian foods
+  const stdFiltered = INDIAN_FOODS.filter(f =>
+    f.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const stdByGroup = STANDARD_GROUPS.reduce((acc, g) => {
+    const list = stdFiltered.filter(f => f.group === g);
+    if (list.length) acc[g] = list;
+    return acc;
+  }, {});
+
+  // Custom items from DB
+  const filtered  = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+  const byGroup   = allGroups.reduce((acc, g) => {
     const list = filtered.filter(i => i.group_name === g);
     if (list.length) acc[g] = list;
     return acc;
@@ -461,61 +473,99 @@ function CustomFoodLibraryModal({ onClose }) {
 
   return (
     <>
-      <Modal title="Custom Food Library" onClose={onClose} width={700}>
-        <div className={s.modalBody} style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+      <Modal title="Food Library" onClose={onClose} width={720}>
+        <div className={s.modalBody} style={{ maxHeight: '68vh', overflowY: 'auto' }}>
+
+          {/* Tab switcher */}
+          <div className={s.libTabs}>
+            <button className={`${s.libTabBtn} ${libTab === 'standard' ? s.libTabActive : ''}`}
+              onClick={() => setLibTab('standard')}>
+              Standard Library <span className={s.libCount}>{INDIAN_FOODS.length}</span>
+            </button>
+            <button className={`${s.libTabBtn} ${libTab === 'custom' ? s.libTabActive : ''}`}
+              onClick={() => setLibTab('custom')}>
+              My Custom Items <span className={s.libCount}>{items.length}</span>
+            </button>
+          </div>
+
           <div className={s.libToolbar}>
             <div className={s.searchWrap}>
               <Search size={14} />
-              <input placeholder="Search food items…" value={search}
+              <input placeholder="Search…" value={search}
                 onChange={e => setSearch(e.target.value)} />
             </div>
-            <button className={s.btnOutline} onClick={() => setShowAddGroup(true)}>
-              <Plus size={13} /> Add Group
-            </button>
-            <button className={s.btnPrimary} onClick={() => { setEditItem(null); setShowAddItem(true); }}>
-              <Plus size={13} /> Add Food Item
-            </button>
+            {libTab === 'custom' && (
+              <>
+                <button className={s.btnOutline} onClick={() => setShowAddGroup(true)}>
+                  <Plus size={13} /> Add Group
+                </button>
+                <button className={s.btnPrimary} onClick={() => { setEditItem(null); setShowAddItem(true); }}>
+                  <Plus size={13} /> Add Food Item
+                </button>
+              </>
+            )}
           </div>
 
           {error && <div className={s.errorBar}>{error}</div>}
 
-          {filtered.length === 0 && (
-            <div className={s.emptyLib}>No custom food items yet. Add one above.</div>
+          {/* Standard Library */}
+          {libTab === 'standard' && (
+            stdFiltered.length === 0
+              ? <div className={s.emptyLib}>No results for "{search}"</div>
+              : Object.entries(stdByGroup).map(([group, list]) => (
+                <div key={group} className={s.libGroup}>
+                  <div className={s.libGroupLabel}>{group}</div>
+                  {list.map(food => (
+                    <div key={food.name} className={s.libItem}>
+                      <div className={s.libItemName}>{food.name}</div>
+                      <div className={s.libItemMeta}>{food.serving}</div>
+                      <div className={s.libItemNutri}>{food.nutrition.energy} kcal</div>
+                      <div className={s.libItemMacros}>
+                        P: {food.nutrition.protein}g · F: {food.nutrition.total_fat}g · C: {food.nutrition.carbohydrates}g
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
           )}
 
-          {Object.entries(byGroup).map(([group, list]) => (
-            <div key={group} className={s.libGroup}>
-              <div className={s.libGroupLabel}>{group}</div>
-              {list.map(item => (
-                <div key={item.id} className={s.libItem}>
-                  <div className={s.libItemName}>{item.name}</div>
-                  <div className={s.libItemMeta}>{item.serving_size}</div>
-                  <div className={s.libItemNutri}>
-                    {item.nutrition?.energy ? `${item.nutrition.energy} kcal` : ''}
+          {/* Custom Items */}
+          {libTab === 'custom' && (
+            filtered.length === 0
+              ? <div className={s.emptyLib}>No custom food items yet. Click "Add Food Item" above.</div>
+              : <>
+                {Object.entries(byGroup).map(([group, list]) => (
+                  <div key={group} className={s.libGroup}>
+                    <div className={s.libGroupLabel}>{group}</div>
+                    {list.map(item => (
+                      <div key={item.id} className={s.libItem}>
+                        <div className={s.libItemName}>{item.name}</div>
+                        <div className={s.libItemMeta}>{item.serving_size}</div>
+                        <div className={s.libItemNutri}>{item.nutrition?.energy ? `${item.nutrition.energy} kcal` : ''}</div>
+                        <div className={s.libItemActions}>
+                          <button onClick={() => { setEditItem(item); setShowAddItem(true); }}>Edit</button>
+                          <button onClick={() => handleDeleteItem(item.id)} className={s.delBtn}><Trash2 size={12} /></button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className={s.libItemActions}>
-                    <button onClick={() => { setEditItem(item); setShowAddItem(true); }}>Edit</button>
-                    <button onClick={() => handleDeleteItem(item.id)} className={s.delBtn}><Trash2 size={12} /></button>
+                ))}
+                {ungrouped.length > 0 && (
+                  <div className={s.libGroup}>
+                    <div className={s.libGroupLabel}>Uncategorised</div>
+                    {ungrouped.map(item => (
+                      <div key={item.id} className={s.libItem}>
+                        <div className={s.libItemName}>{item.name}</div>
+                        <div className={s.libItemMeta}>{item.serving_size}</div>
+                        <div className={s.libItemActions}>
+                          <button onClick={() => { setEditItem(item); setShowAddItem(true); }}>Edit</button>
+                          <button onClick={() => handleDeleteItem(item.id)} className={s.delBtn}><Trash2 size={12} /></button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          ))}
-
-          {ungrouped.length > 0 && (
-            <div className={s.libGroup}>
-              <div className={s.libGroupLabel}>Uncategorised</div>
-              {ungrouped.map(item => (
-                <div key={item.id} className={s.libItem}>
-                  <div className={s.libItemName}>{item.name}</div>
-                  <div className={s.libItemMeta}>{item.serving_size}</div>
-                  <div className={s.libItemActions}>
-                    <button onClick={() => { setEditItem(item); setShowAddItem(true); }}>Edit</button>
-                    <button onClick={() => handleDeleteItem(item.id)} className={s.delBtn}><Trash2 size={12} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                )}
+              </>
           )}
         </div>
         <div className={s.modalFooter}>
