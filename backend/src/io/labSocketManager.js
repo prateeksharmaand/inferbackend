@@ -230,6 +230,38 @@ class LabSocketManager {
 
     return found;
   }
+
+  /**
+   * Notify order/sample status change (used by workflowService)
+   */
+  notifyOrderStatusChange(patientId, data) {
+    this.io.to(`patient:${patientId}`).emit('order_status_change', {
+      ...data,
+      timestamp: new Date()
+    });
+  }
+
+  /**
+   * Static factory: initialize a singleton LabSocketManager on an HTTP server.
+   * Call from server.js after creating the http server:
+   *   const labSocketManager = LabSocketManager.initialize(server);
+   *   workflowService.setSocketManager(labSocketManager);
+   */
+  static initialize(server) {
+    if (!LabSocketManager._instance) {
+      LabSocketManager._instance = new LabSocketManager(server);
+    }
+    return LabSocketManager._instance;
+  }
+
+  /**
+   * Get the existing singleton instance (if initialized)
+   */
+  static getInstance() {
+    return LabSocketManager._instance || null;
+  }
 }
+
+LabSocketManager._instance = null;
 
 module.exports = LabSocketManager;

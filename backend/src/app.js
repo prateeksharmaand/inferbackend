@@ -49,10 +49,24 @@ app.use('/api/healthbot', require('./routes/healthbot'));
 app.use('/api/timeline', require('./routes/timeline'));
 app.use('/api/notifications', require('./routes/notifications'));
 
+// Lab management v1 API (orders, samples, reports, analytics, catalog, uploads)
+const v1Routes = require('./routes/v1.routes');
+app.use('/api/v1', v1Routes);
+
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 
 // Error handler
 app.use(errorHandler);
+
+// LabSocketManager initialization
+// Call this from server.js after creating the HTTP server:
+//   const LabSocketManager = require('./src/io/labSocketManager');
+//   const labSocketManager = new LabSocketManager(server);
+//   -- or use the static initialize helper:
+//   LabSocketManager.initialize(server);
+// The workflowService can then be wired up:
+//   const workflowService = require('./src/services/laboratory/workflowService');
+//   workflowService.setSocketManager(labSocketManager);
 
 module.exports = app;
