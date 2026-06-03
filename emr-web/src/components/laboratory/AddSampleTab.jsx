@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { Search, Plus, X, RefreshCw } from 'lucide-react';
 import { PatientAutocomplete } from './PatientAutocomplete';
 import { SampleTypeAutocomplete } from './SampleTypeAutocomplete';
@@ -63,10 +64,6 @@ export function AddSampleTab({ labId, styles: s }) {
   const [expandedSections, setExpandedSections] = useState({});
 
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [msgType, setMsgType] = useState('');
-
-  const showMsg = (m, t = 'success') => { setMsg(m); setMsgType(t); setTimeout(() => setMsg(''), 5000); };
 
   // Load catalog and sample types
   const loadCatalog = useCallback(async () => {
@@ -140,9 +137,9 @@ export function AddSampleTab({ labId, styles: s }) {
   };
 
   const handleSave = async () => {
-    if (!foundPatient) { showMsg('Please search and select a patient first', 'error'); return; }
-    if (samples.length === 0) { showMsg('Please add at least one sample', 'error'); return; }
-    if (!accession) { showMsg('Please enter or generate an accession number', 'error'); return; }
+    if (!foundPatient) { toast.error('Please search and select a patient first'); return; }
+    if (samples.length === 0) { toast.error('Please add at least one sample'); return; }
+    if (!selectedTests.length) { toast.error('Please select at least one test'); return; }
 
     try {
       setSaving(true);
@@ -150,13 +147,10 @@ export function AddSampleTab({ labId, styles: s }) {
         method: 'POST',
         body: JSON.stringify({
           lab_id: labId,
-          patient_id: foundPatient.id || foundPatient.patient_id,
-          accession_number: accession,
-          sample_source: sampleSource,
-          received_date: receivedDate,
-          requester_name: requester,
-          test_ids: selectedTests,
-          status: 'PENDING',
+          patient_id: foundPatient.id,
+          tests: selectedTests,
+          priority: 'ROUTINE',
+          clinical_notes: `${sampleSource} | ${requester}`,
         }),
       });
 
@@ -167,22 +161,21 @@ export function AddSampleTab({ labId, styles: s }) {
           body: JSON.stringify({
             order_id: orderId,
             lab_id: labId,
-            patient_id: foundPatient.id || foundPatient.patient_id,
-            sample_type: sample.type,
-            status: 'RECEIVED',
+            patient_id: foundPatient.id,
+            specimen_type: sample.type,
+            collection_site: sampleSource,
+            notes: `Received: ${receivedDate} | Requested by: ${requester}`,
           }),
         });
       }
 
-      showMsg(`Order created successfully. Accession: ${accession}`);
-      // Reset form
+      toast.success('Order created successfully');
       setFoundPatient(null);
       setSamples([]);
       setAccession('');
       setSelectedTests([]);
-      setFoundPatient(null);
     } catch (err) {
-      showMsg(`Failed to save: ${err.message}`, 'error');
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
@@ -196,8 +189,6 @@ export function AddSampleTab({ labId, styles: s }) {
           <div className={s.pageSubtitle}>Register a new lab order with sample collection</div>
         </div>
       </div>
-
-      {msg && <div className={`${s.alert} ${msgType === 'error' ? s.alertError : s.alertSuccess}`}>{msg}</div>}
 
       {/* Section 1 & 2 — Search & Sample (2-column layout) */}
       <div className={s.card} style={{ marginBottom: 16 }}>

@@ -3,13 +3,8 @@
  * Allows selection from EMR doctors or typing custom name
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
-
-function debounce(fn, ms) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-}
 
 export function DoctorAutocomplete({ value, onChange, doctors = [], placeholder = 'Search or type doctor name…', styles: s }) {
   const [query, setQuery] = useState(value || '');
@@ -18,20 +13,18 @@ export function DoctorAutocomplete({ value, onChange, doctors = [], placeholder 
   const wrapRef = useRef(null);
 
   // Filter doctors based on query
-  const doFilter = useCallback(debounce((q) => {
-    if (q.trim().length === 0) {
-      setFiltered([]);
+  useEffect(() => {
+    if (query.trim().length === 0) {
+      setFiltered(doctors);
     } else {
-      const term = q.toLowerCase();
+      const term = query.toLowerCase();
       setFiltered(doctors.filter(d =>
         (d.name && d.name.toLowerCase().includes(term)) ||
         (d.full_name && d.full_name.toLowerCase().includes(term)) ||
         (d.email && d.email.toLowerCase().includes(term))
       ));
     }
-  }, 200), [doctors]);
-
-  useEffect(() => { doFilter(query); }, [query, doFilter]);
+  }, [query, doctors]);
 
   // Close on outside click
   useEffect(() => {
@@ -68,7 +61,7 @@ export function DoctorAutocomplete({ value, onChange, doctors = [], placeholder 
           className={s.searchInput}
           value={query}
           onChange={handleManualEntry}
-          onFocus={() => query.length >= 0 && setOpen(true)}
+          onFocus={() => setOpen(true)}
           placeholder={placeholder}
         />
         {query && <button onClick={clear} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-3)', display: 'flex' }}><X size={13} /></button>}

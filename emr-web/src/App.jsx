@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { QueueDateProvider } from './context/QueueDateContext';
 import Layout from './components/Layout';
@@ -34,6 +35,7 @@ export default function App() {
   return (
     <QueueDateProvider>
     <AuthProvider>
+      <Toaster />
       <BrowserRouter basename="/opd">
         <Routes>
           {/* Clinic Routes */}
