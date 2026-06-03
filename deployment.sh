@@ -138,10 +138,10 @@ info "Nginx restarted: ✓"
 
 # ── Health check: API ──────────────────────────────────────────────────────────
 log "Waiting for backend to respond at https://$DOMAIN/health ..."
-MAX=20; ATTEMPT=0
+MAX=40; ATTEMPT=0
 until curl -sf "https://$DOMAIN/health" > /dev/null 2>&1; do
   ATTEMPT=$((ATTEMPT+1))
-  [ $ATTEMPT -ge $MAX ] && err "Backend did not respond after $((MAX*3))s — check logs below"
+  [ $ATTEMPT -ge $MAX ] && err "Backend did not respond after $((MAX*3))s — check logs with: docker logs phr_backend"
   echo -n "."
   sleep 3
 done

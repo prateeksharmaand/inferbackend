@@ -36,6 +36,12 @@ services:
     volumes:
       - uploads_data:/app/uploads
       - logs_data:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   whisper:
