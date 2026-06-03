@@ -63,20 +63,27 @@ router.get('/autocomplete/lab-tests', require('../middleware/auth').requireAuth,
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /doctors - list all doctors from EMR (accessible to lab staff)
+// GET /doctors - list doctors from EMR (accessible to lab staff)
+// Doctors live in emr_doctors, scoped by clinic. The lab token carries clinic_id.
 router.get('/doctors', require('../middleware/labAuth').verifyLabToken, async (req, res) => {
   try {
     const { query } = require('../config/database');
+    const clinicId = req.user.clinic_id || null;
+    const params = [];
+    let clinicFilter = '';
+    if (clinicId) { params.push(clinicId); clinicFilter = `AND clinic_id = $${params.length}`; }
+
     const { rows } = await query(
-      `SELECT id, first_name, last_name, CONCAT(first_name, ' ', last_name) as name, email, phone
-       FROM users
-       WHERE role = 'doctor' AND is_active = true
-       ORDER BY first_name, last_name`,
-      []
+      `SELECT id, name, email, specialization, qualification
+       FROM emr_doctors
+       WHERE is_active = true ${clinicFilter}
+       ORDER BY name`,
+      params
     );
     res.json({ success: true, doctors: rows });
   } catch (err) {
-    // If query fails, return empty array
+    console.error('Doctors list error:', err);
+    // If query fails, return empty array so the autocomplete still allows manual entry
     res.json({ success: true, doctors: [] });
   }
 });
