@@ -141,7 +141,11 @@ class OrderService {
     const order = orderRes.rows[0];
 
     const itemsRes = await query(
-      `SELECT oi.*, ltr.result_value, ltr.result_unit, ltr.is_abnormal, ltr.is_critical_value
+      `SELECT oi.*, ltr.result_value, ltr.result_unit, ltr.is_critical_value,
+              (ltr.result_value IS NOT NULL AND (
+                (ltr.reference_range_low IS NOT NULL AND ltr.result_value < ltr.reference_range_low) OR
+                (ltr.reference_range_high IS NOT NULL AND ltr.result_value > ltr.reference_range_high)
+              )) AS is_abnormal
        FROM lab_order_items oi
        LEFT JOIN lab_test_results ltr ON ltr.id = oi.result_id
        WHERE oi.order_id = $1`,

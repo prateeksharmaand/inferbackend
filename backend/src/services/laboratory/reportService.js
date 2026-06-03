@@ -94,7 +94,11 @@ class ReportService {
     if (report.order_id) {
       const resultsRes = await query(
         `SELECT oi.test_name, oi.test_code, ltr.result_value, ltr.result_unit,
-                ltr.is_abnormal, ltr.is_critical_value,
+                ltr.is_critical_value,
+                (ltr.result_value IS NOT NULL AND (
+                  (ltr.reference_range_low IS NOT NULL AND ltr.result_value < ltr.reference_range_low) OR
+                  (ltr.reference_range_high IS NOT NULL AND ltr.result_value > ltr.reference_range_high)
+                )) AS is_abnormal,
                 tc.reference_range_low, tc.reference_range_high, tc.reference_range_text,
                 tc.unit
          FROM lab_order_items oi
@@ -354,7 +358,11 @@ class ReportService {
     startDate.setMonth(startDate.getMonth() - months);
 
     const res = await query(
-      `SELECT ltr.result_value, ltr.result_unit, ltr.collected_at, ltr.is_abnormal, ltr.is_critical_value,
+      `SELECT ltr.result_value, ltr.result_unit, ltr.collected_at, ltr.is_critical_value,
+              (ltr.result_value IS NOT NULL AND (
+                (ltr.reference_range_low IS NOT NULL AND ltr.result_value < ltr.reference_range_low) OR
+                (ltr.reference_range_high IS NOT NULL AND ltr.result_value > ltr.reference_range_high)
+              )) AS is_abnormal,
               lo.lab_id, l.facility_name AS lab_name
        FROM lab_test_results ltr
        JOIN lab_order_items loi ON loi.result_id = ltr.id
