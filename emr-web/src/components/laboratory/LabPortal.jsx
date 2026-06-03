@@ -3,7 +3,18 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+});
+
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, { headers: authHeaders(), ...options });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
 
 export function LabPortal() {
   const [activeTab, setActiveTab] = useState('upload');
@@ -37,12 +48,10 @@ export function LabPortal() {
   const fetchLabInfo = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/labs/status', {
-        headers: { Authorization: `Bearer ${apiKey}` }
-      });
-      setLab(response.data.laboratory);
+      const data = await apiFetch('/api/v1/labs/status');
+      setLab(data.laboratory);
     } catch (error) {
-      setMessage(`Error: ${error.response?.data?.error || error.message}`);
+      setMessage(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -51,10 +60,8 @@ export function LabPortal() {
   const fetchStats = async () => {
     try {
       const labId = localStorage.getItem('lab_id');
-      const response = await axios.get(`/api/v1/admin/laboratories/${labId}/dashboard`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
-      });
-      setStats(response.data.statistics);
+      const data = await apiFetch(`/api/v1/admin/laboratories/${labId}/dashboard`);
+      setStats(data.statistics);
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
@@ -79,24 +86,17 @@ export function LabPortal() {
         return;
       }
 
-      const response = await axios.post(
-        '/api/v1/labs/upload-result',
-        {
-          format: uploadFormat,
-          data: jsonData,
-          patient_id: patientId
-        },
-        {
-          headers: { Authorization: `Bearer ${apiKey}` }
-        }
-      );
+      const result = await apiFetch('/api/v1/labs/upload-result', {
+        method: 'POST',
+        body: JSON.stringify({ format: uploadFormat, data: jsonData, patient_id: patientId }),
+      });
 
-      setUploadResult(response.data);
-      setMessage(`✅ ${response.data.message}`);
+      setUploadResult(result);
+      setMessage(`✅ ${result.message}`);
       setUploadData('');
       setPatientId('');
     } catch (error) {
-      setMessage(`❌ Upload failed: ${error.response?.data?.error || error.message}`);
+      setMessage(`❌ Upload failed: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
@@ -118,20 +118,21 @@ export function LabPortal() {
       formData.append('patient_id', pdfPatientId);
       if (pdfTestDate) formData.append('test_date', pdfTestDate);
 
-      const response = await axios.post('/api/v1/labs/upload-pdf', formData, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'multipart/form-data'
-        }
+      const res = await fetch('/api/v1/labs/upload-pdf', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        body: formData,
       });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Upload failed');
 
-      setUploadResult(response.data);
-      setMessage(`✅ PDF processed: ${response.data.message}`);
+      setUploadResult(result);
+      setMessage(`✅ PDF processed: ${result.message}`);
       setPdfFile(null);
       setPdfPatientId('');
       setPdfTestDate('');
     } catch (error) {
-      setMessage(`❌ PDF upload failed: ${error.response?.data?.error || error.message}`);
+      setMessage(`❌ PDF upload failed: ${error.message}`);
     } finally {
       setIsUploading(false);
     }

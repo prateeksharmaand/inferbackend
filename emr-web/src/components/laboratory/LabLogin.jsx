@@ -4,8 +4,17 @@
  */
 
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
 
 export function LabLogin() {
   const navigate = useNavigate();
@@ -31,13 +40,10 @@ export function LabLogin() {
         return;
       }
 
-      // Call login endpoint
-      const response = await axios.post('/api/v1/auth/lab/login', {
-        email,
-        password
+      const { token, user } = await apiFetch('/api/v1/auth/lab/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
       });
-
-      const { token, user } = response.data;
 
       // Store in localStorage
       localStorage.setItem('auth_token', token);
@@ -55,9 +61,7 @@ export function LabLogin() {
         state: { message: `Welcome ${user.lab_role}!` }
       });
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.error || 'Login failed. Please try again.';
-      setError(errorMsg);
+      setError(err.message || 'Login failed. Please try again.');
       console.error('Login error:', err);
     } finally {
       setLoading(false);

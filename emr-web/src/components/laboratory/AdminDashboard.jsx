@@ -4,7 +4,18 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+});
+
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, { headers: authHeaders(), ...options });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('labs');
@@ -35,10 +46,8 @@ export function AdminDashboard() {
   const fetchLabs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/admin/laboratories', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setLabs(response.data.laboratories || []);
+      const response = await apiFetch('/api/v1/admin/laboratories');
+      setLabs(response.laboratories || []);
     } catch (error) {
       setMessage(`Error: ${error.response?.data?.error || error.message}`);
     } finally {
@@ -50,12 +59,13 @@ export function AdminDashboard() {
     e.preventDefault();
 
     try {
-      const response = await axios.post('/api/v1/admin/laboratories', newLab, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await apiFetch('/api/v1/admin/laboratories', {
+        method: 'POST',
+        body: JSON.stringify(newLab),
       });
 
       setMessage('✅ Laboratory created successfully!');
-      setMessage(`API Key: ${response.data.api_key}\nAPI Secret: ${response.data.api_secret}\n⚠️ Save these credentials!`);
+      setMessage(`API Key: ${response.api_key}\nAPI Secret: ${response.api_secret}\n⚠️ Save these credentials!`);
 
       setNewLab({
         facility_name: '',
@@ -603,10 +613,8 @@ function UserManagementForm() {
 
   const fetchLabs = async () => {
     try {
-      const response = await axios.get('/api/v1/admin/laboratories', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setLabs(response.data.laboratories || []);
+      const response = await apiFetch('/api/v1/admin/laboratories');
+      setLabs(response.laboratories || []);
     } catch (error) {
       console.error('Error fetching labs:', error);
     }
@@ -623,9 +631,9 @@ function UserManagementForm() {
     try {
       setLoading(true);
 
-      // Note: This endpoint needs to be created in the backend
-      const response = await axios.post('/api/v1/admin/users', formData, {
-        headers: { Authorization: `Bearer ${token}` }
+      await apiFetch('/api/v1/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(formData),
       });
 
       setMessage('✅ User created successfully!');
@@ -798,10 +806,8 @@ function LabConfiguration() {
 
   const fetchLabs = async () => {
     try {
-      const response = await axios.get('/api/v1/admin/laboratories', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setLabs(response.data.laboratories || []);
+      const response = await apiFetch('/api/v1/admin/laboratories');
+      setLabs(response.laboratories || []);
     } catch (error) {
       console.error('Error fetching labs:', error);
     }
@@ -814,13 +820,10 @@ function LabConfiguration() {
     }
 
     try {
-      await axios.post(
-        `/api/v1/admin/laboratories/${selectedLabId}/critical-values`,
-        { thresholds },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+      await apiFetch(`/api/v1/admin/laboratories/${selectedLabId}/critical-values`, {
+        method: 'POST',
+        body: JSON.stringify({ thresholds }),
+      });
 
       setMessage('✅ Critical value thresholds saved successfully!');
     } catch (error) {

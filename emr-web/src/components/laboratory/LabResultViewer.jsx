@@ -4,9 +4,19 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { io } from 'socket.io-client';
 import { useParams } from 'react-router-dom';
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+});
+
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, { headers: authHeaders(), ...options });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
 
 export function LabResultViewer({ patientId: patientIdProp }) {
   const { patientId: patientIdParam } = useParams();
@@ -14,34 +24,38 @@ export function LabResultViewer({ patientId: patientIdProp }) {
   const [results, setResults] = useState([]);
   const [anomalies, setAnomalies] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [filter, setFilter] = useState('all');
-  const socketRef = useRef(null);
+  const pollRef = useRef(null);
+  const prevCountRef = useRef(0);
 
-  // Load results on mount
   useEffect(() => {
     fetchResults();
-    setupWebSocket();
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
+    fetchAnomalies();
+    // Poll every 15 seconds for new results
+    pollRef.current = setInterval(() => {
+      fetchResults(true);
+      fetchAnomalies();
+    }, 15000);
+    setIsConnected(true);
+    return () => clearInterval(pollRef.current);
   }, [patientId]);
 
-  const fetchResults = async () => {
+  const fetchResults = async (silent = false) => {
     try {
-      setLoading(true);
-      const response = await axios.get(
-        `/api/v1/doctors/patients/${patientId}/lab-results?limit=50&sort=newest`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
-        }
+      if (!silent) setLoading(true);
+      const data = await apiFetch(
+        `/api/v1/doctors/patients/${patientId}/lab-results?limit=50&sort=newest`
       );
-
-      setResults(response.data.results);
+      const newResults = data.results || [];
+      // Notify if new critical results appeared
+      if (silent && newResults.length > prevCountRef.current) {
+        const newCritical = newResults.slice(0, newResults.length - prevCountRef.current)
+          .filter(r => r.is_critical_value);
+        if (newCritical.length > 0) playAlertSound();
+      }
+      prevCountRef.current = newResults.length;
+      setResults(newResults);
     } catch (error) {
       console.error('Error fetching results:', error);
     } finally {
@@ -51,131 +65,38 @@ export function LabResultViewer({ patientId: patientIdProp }) {
 
   const fetchAnomalies = async () => {
     try {
-      const response = await axios.get(
-        `/api/v1/doctors/patients/${patientId}/lab-anomalies?days=7&limit=10`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
-        }
+      const data = await apiFetch(
+        `/api/v1/doctors/patients/${patientId}/lab-anomalies?days=7&limit=10`
       );
-
-      setAnomalies(response.data.anomalies);
+      setAnomalies(data.anomalies || []);
     } catch (error) {
       console.error('Error fetching anomalies:', error);
     }
   };
 
-  const setupWebSocket = () => {
-    const token = localStorage.getItem('auth_token');
-
-    const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:3001', {
-      auth: { token },
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
-    });
-
-    newSocket.on('connect', () => {
-      console.log('✅ Connected to lab updates');
-      setIsConnected(true);
-
-      // Tell server we're watching this patient
-      newSocket.emit('watch_patient_results', patientId);
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('❌ Disconnected from server');
-      setIsConnected(false);
-    });
-
-    // New result available
-    newSocket.on('result_visible', (data) => {
-      console.log('📊 New result:', data);
-      fetchResults(); // Refresh results
-      showNotification(`New result: ${data.test_name}`, data.is_critical ? 'critical' : 'normal');
-    });
-
-    // Critical value alert
-    newSocket.on('critical_value', (data) => {
-      console.log('🚨 CRITICAL:', data);
-      fetchResults();
-      fetchAnomalies();
-      showNotification(`CRITICAL: ${data.message}`, 'critical');
-
-      // Play alert sound
-      playAlertSound();
-    });
-
-    // Anomaly detected
-    newSocket.on('anomaly_detected', (data) => {
-      console.log('⚠️ Anomaly:', data);
-      fetchAnomalies();
-      showNotification(`${data.severity}: ${data.clinical_context}`, 'warning');
-    });
-
-    // Batch results
-    newSocket.on('batch_results', (data) => {
-      console.log('📦 Batch:', data);
-      fetchResults();
-      showNotification(data.message, 'normal');
-    });
-
-    newSocket.on('error', (error) => {
-      console.error('Socket error:', error);
-    });
-
-    socketRef.current = newSocket;
-    setSocket(newSocket);
-  };
-
-  const showNotification = (message, level) => {
-    // You can use browser notifications here
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Lab Results', {
-        body: message,
-        tag: 'lab-update'
-      });
-    }
-  };
-
   const playAlertSound = () => {
-    // Create a simple beep sound
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.value = 800;
-    oscillator.type = 'sine';
-
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.5);
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    } catch {}
   };
 
   const acknowledgeResult = async (resultId) => {
     try {
-      await axios.post(
-        `/api/v1/doctors/lab-results/${resultId}/acknowledge`,
-        { notes: 'Reviewed by doctor' },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
-        }
-      );
-
-      // Update local state
-      setResults(
-        results.map((r) => (r.id === resultId ? { ...r, needs_immediate_attention: false } : r))
-      );
-
-      socketRef.current?.emit('acknowledge_alert', {
-        result_id: resultId,
-        acknowledged_by: localStorage.getItem('user_id')
+      await apiFetch(`/api/v1/doctors/lab-results/${resultId}/acknowledge`, {
+        method: 'POST',
+        body: JSON.stringify({ notes: 'Reviewed by doctor' }),
       });
+      setResults(results.map(r => r.id === resultId ? { ...r, needs_immediate_attention: false } : r));
     } catch (error) {
       console.error('Error acknowledging result:', error);
     }
