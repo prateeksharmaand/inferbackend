@@ -44,7 +44,7 @@ export function EditSampleTab({ labId, styles: s }) {
       setSearchError('');
       setFoundOrder(null);
       setFoundSamples([]);
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?accession=${encodeURIComponent(accessionSearch.trim())}`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}?accession=${encodeURIComponent(accessionSearch.trim())}`);
       const orders = data.orders || data || [];
       const order = Array.isArray(orders) ? orders.find((o) => o.accession_number === accessionSearch.trim()) || orders[0] : orders;
       if (order) {
@@ -78,7 +78,7 @@ export function EditSampleTab({ labId, styles: s }) {
       const data = await apiFetch(`/api/v1/patients/search?q=${encodeURIComponent(q)}`);
       const patient = data.patient || (Array.isArray(data) ? data[0] : null);
       if (patient) {
-        const ordData = await apiFetch(`/api/v1/lab/${labId}/orders?patient_id=${patient.id || patient.patient_id}`);
+        const ordData = await apiFetch(`/api/v1/orders/lab/${labId}?patient_id=${patient.id || patient.patient_id}`);
         const orders = ordData.orders || ordData || [];
         const order = Array.isArray(orders) ? orders[0] : orders;
         if (order) {

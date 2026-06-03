@@ -59,8 +59,8 @@ router.get('/patients/:patient_id/orders', requireAuth, async (req, res) => {
   }
 });
 
-// GET /lab/:lab_id/orders - lab's orders
-router.get('/lab/:lab_id/orders', requireAuth, verifyLabAccess, async (req, res) => {
+// GET /lab/:lab_id - lab's orders
+router.get('/lab/:lab_id', requireAuth, verifyLabAccess, async (req, res) => {
   try {
     const { status, priority, start_date, end_date } = req.query;
     const orders = await orderService.getOrdersByLab(req.params.lab_id, {

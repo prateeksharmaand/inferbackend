@@ -50,7 +50,7 @@ export function NonConformityTab({ labId, styles: s }) {
     if (!labId) return;
     try {
       setEventsLoading(true);
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?status=CANCELLED`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}?status=CANCELLED`);
       setQaEvents(data.orders || data || []);
     } catch {
       setQaEvents([]);
@@ -67,7 +67,7 @@ export function NonConformityTab({ labId, styles: s }) {
       setSearchLoading(true);
       setSearchError('');
       setFoundOrder(null);
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?accession=${encodeURIComponent(accession.trim())}`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}?accession=${encodeURIComponent(accession.trim())}`);
       const orders = data.orders || data || [];
       const order = Array.isArray(orders)
         ? orders.find((o) => o.accession_number === accession.trim()) || orders[0]

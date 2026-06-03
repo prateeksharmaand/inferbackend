@@ -43,7 +43,7 @@ export function QualityControlTab({ labId, styles: s }) {
 
     // Fetch rejected samples via orders
     setRejLoading(true);
-    apiFetch(`/api/v1/lab/${labId}/orders?status=COLLECTED`)
+    apiFetch(`/api/v1/orders/lab/${labId}?status=COLLECTED`)
       .then((d) => {
         // Filter for rejected samples from the data
         setRejectedSamples((d.orders || d || []).slice(0, 10));
@@ -53,7 +53,7 @@ export function QualityControlTab({ labId, styles: s }) {
 
     // Fetch amended reports
     setAmLoading(true);
-    apiFetch(`/api/v1/lab/${labId}/orders?status=RESULTED`)
+    apiFetch(`/api/v1/orders/lab/${labId}?status=RESULTED`)
       .then((d) => setAmendedReports((d.orders || d || []).slice(0, 10)))
       .catch(() => {})
       .finally(() => setAmLoading(false));

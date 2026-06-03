@@ -47,7 +47,7 @@ export function WorkflowTab({ labId, styles: s }) {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true); setError('');
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}`);
       setOrders(data.orders || data || []);
     } catch (err) {
       setError(err.message);

@@ -45,7 +45,7 @@ export function AuditTrailTab({ labId, styles: s }) {
     // Fetch orders as workflow events for audit trail
     try {
       const [pendingData, allData] = await Promise.all([
-        apiFetch(`/api/v1/lab/${labId}/orders`).catch(() => ({ orders: [] })),
+        apiFetch(`/api/v1/orders/lab/${labId}`).catch(() => ({ orders: [] })),
         apiFetch(`/api/v1/analytics/dashboard?lab_id=${labId}&days=30`).catch(() => ({})),
       ]);
 

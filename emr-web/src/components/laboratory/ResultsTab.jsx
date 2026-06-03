@@ -61,7 +61,7 @@ export function ResultsTab({ labId, styles: s }) {
     if (!labId) return;
     try {
       setLoading(true);
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?status=COLLECTED,PROCESSING`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}?status=COLLECTED,PROCESSING`);
       const all = data.orders || data || [];
       setOrders(all);
       // Init results state

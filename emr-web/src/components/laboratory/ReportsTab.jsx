@@ -45,7 +45,7 @@ function TestStatusByPatient({ labId, styles: s }) {
     if (!patientId.trim()) { setError('Enter a Patient ID'); return; }
     try {
       setLoading(true); setError(''); setSearched(true);
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?patient_id=${encodeURIComponent(patientId.trim())}`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}?patient_id=${encodeURIComponent(patientId.trim())}`);
       setOrders(data.orders || data || []);
     } catch (err) { setError(err.message); setOrders([]); } finally { setLoading(false); }
   };
@@ -160,7 +160,7 @@ function NonConformityByDate({ labId, styles: s }) {
   const handleGenerate = async () => {
     try {
       setLoading(true); setError('');
-      const res = await apiFetch(`/api/v1/lab/${labId}/orders?status=CANCELLED`);
+      const res = await apiFetch(`/api/v1/orders/lab/${labId}?status=CANCELLED`);
       const cancelled = res.orders || res || [];
       const grouped = {};
       cancelled.forEach((o) => {
@@ -226,7 +226,7 @@ function NonConformityBySection({ labId, styles: s }) {
   const handleGenerate = async () => {
     try {
       setLoading(true); setError('');
-      const res = await apiFetch(`/api/v1/lab/${labId}/orders?status=CANCELLED`);
+      const res = await apiFetch(`/api/v1/orders/lab/${labId}?status=CANCELLED`);
       const cancelled = res.orders || res || [];
       const grouped = {};
       let total = 0;
@@ -298,7 +298,7 @@ function AuditTrailReport({ labId, styles: s }) {
     if (!accession.trim()) { setError('Enter an accession number'); return; }
     try {
       setLoading(true); setError('');
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?accession=${encodeURIComponent(accession.trim())}`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}?accession=${encodeURIComponent(accession.trim())}`);
       const orders = data.orders || (Array.isArray(data) ? data : []);
       const found = orders.find((o) => o.accession_number === accession.trim()) || orders[0];
       if (!found) { setError('No order found for this accession number'); setLoading(false); return; }

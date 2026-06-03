@@ -27,7 +27,7 @@ export function ApprovalsTab({ labId, styles: s }) {
   const fetchPendingApprovals = useCallback(async () => {
     try {
       setLoading(true); setError('');
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?status=RESULTED`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}?status=RESULTED`);
       setOrders(data.orders || data || []);
     } catch (err) {
       setError(err.message);

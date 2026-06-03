@@ -81,8 +81,8 @@ export function OrdersTab({ labId, styles: s }) {
       setLoadingOrders(true);
       setOrdersError('');
       const url = statusFilter === 'ALL'
-        ? `/api/v1/lab/${labId}/orders`
-        : `/api/v1/lab/${labId}/orders?status=${statusFilter}`;
+        ? `/api/v1/orders/lab/${labId}`
+        : `/api/v1/orders/lab/${labId}?status=${statusFilter}`;
       const data = await apiFetch(url);
       setOrders(data.orders || data || []);
     } catch (err) {
