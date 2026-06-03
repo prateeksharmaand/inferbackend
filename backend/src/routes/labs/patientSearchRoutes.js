@@ -23,6 +23,7 @@ router.get('/search', verifyLabToken, async (req, res) => {
     if (!q || q.trim().length < 1) return res.json([]);
 
     const searchTerm = `%${q.trim()}%`;
+    console.log('Patient search query:', q, 'searchTerm:', searchTerm);
 
     // Search registered patients by name or UHID
     const { rows } = await pool.query(
@@ -47,9 +48,22 @@ router.get('/search', verifyLabToken, async (req, res) => {
       [searchTerm]
     );
 
+    console.log('Patient search results:', rows.length, 'rows');
     res.json(rows);
   } catch (err) {
     console.error('Patient search error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/patients/debug/all - list all patients (debug only)
+ */
+router.get('/debug/all', verifyLabToken, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT id, name, mobile FROM emr_patients ORDER BY name LIMIT 50`);
+    res.json({ total: rows.length, patients: rows });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
