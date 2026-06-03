@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import ManageTemplatesModal from './ManageTemplatesModal';
 import styles from './ScribePanel.module.css';
 
-const SEGMENT_MS = 4000;
+const SEGMENT_MS = 2000;
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -39,14 +39,30 @@ async function sendChunk(blob, language = 'en', specialization = '', drugFormula
   if (specialization) form.append('specialization', specialization);
   if (drugFormulary)  form.append('drugFormulary', drugFormulary);
   const token = localStorage.getItem('emr_token');
-  const res = await fetch('/api/emr/scribe/transcribe', {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
-  });
-  if (!res.ok) return '';
-  const data = await res.json();
-  return data.text || '';
+
+  // Timeout after 8s to prevent lag in live transcript
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 8000);
+
+  try {
+    const res = await fetch('/api/emr/scribe/transcribe', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return '';
+    const data = await res.json();
+    return data.text || '';
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.warn('[scribe] chunk timeout — Whisper too slow, skipping');
+      return '';
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 const DEFAULT_TEMPLATE_ID = 'infercare';
