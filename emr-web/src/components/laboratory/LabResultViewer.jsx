@@ -6,8 +6,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import { useParams } from 'react-router-dom';
 
-export function LabResultViewer({ patientId }) {
+export function LabResultViewer({ patientId: patientIdProp }) {
+  const { patientId: patientIdParam } = useParams();
+  const patientId = patientIdProp || patientIdParam;
   const [results, setResults] = useState([]);
   const [anomalies, setAnomalies] = useState([]);
   const [loading, setLoading] = useState(false);
