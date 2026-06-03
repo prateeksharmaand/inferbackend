@@ -27,11 +27,11 @@ const LAB_SECTIONS = [
 ];
 
 const SUBMENU = [
-  { id: 'test-status', label: 'Test Status by Patient', group: 'Status Reports', icon: <FileText size={13} /> },
-  { id: 'all-tests-summary', label: 'All Tests Summary', group: 'Aggregate Reports', icon: <BarChart2 size={13} /> },
-  { id: 'nonconformity-date', label: 'Non-Conformity by Date', group: 'Non-conformity', icon: <AlertTriangle size={13} /> },
-  { id: 'nonconformity-section', label: 'Non-Conformity by Section', group: 'Non-conformity', icon: <AlertTriangle size={13} /> },
-  { id: 'audit-trail', label: 'Audit Trail', group: 'Audit Trail', icon: <ScrollText size={13} /> },
+  { id: 'test-status',          label: 'Test Status by Patient',  group: 'Status Reports',  icon: <FileText size={13} /> },
+  { id: 'all-tests-summary',    label: 'All Tests Summary',        group: 'Aggregate',       icon: <BarChart2 size={13} /> },
+  { id: 'nonconformity-date',   label: 'By Date',                  group: 'Non-conformity',  icon: <AlertTriangle size={13} /> },
+  { id: 'nonconformity-section',label: 'By Section',               group: 'Non-conformity',  icon: <AlertTriangle size={13} /> },
+  { id: 'audit-trail',          label: 'Audit Trail',              group: 'Audit',           icon: <ScrollText size={13} /> },
 ];
 
 function TestStatusByPatient({ labId, styles: s }) {
