@@ -25,8 +25,7 @@ class AnalyticsService {
            COUNT(*) FILTER (WHERE status = 'RECEIVED') AS "RECEIVED",
            COUNT(*) FILTER (WHERE status = 'PROCESSING') AS "PROCESSING",
            COUNT(*) FILTER (WHERE status = 'RESULTED') AS "RESULTED",
-           COUNT(*) FILTER (WHERE status = 'REPORTED') AS "REPORTED",
-           COUNT(DISTINCT COALESCE(patient_uhid, patient_id::text)) AS total_patients
+           COUNT(*) FILTER (WHERE status = 'REPORTED') AS "REPORTED"
          FROM lab_orders WHERE lab_id = $1 AND created_at >= $2`,
         [lab_id, sinceISO]
       ),
@@ -53,10 +52,21 @@ class AnalyticsService {
       ),
     ]);
 
+    // total_patients in a separate try so a missing column doesn't kill the whole response
+    let total_patients = 0;
+    try {
+      const ptRes = await query(
+        `SELECT COUNT(DISTINCT COALESCE(patient_uhid, patient_id::text)) AS cnt
+         FROM lab_orders WHERE lab_id = $1 AND created_at >= $2`,
+        [lab_id, sinceISO]
+      );
+      total_patients = Number(ptRes.rows[0]?.cnt) || 0;
+    } catch { /* migration not yet run — ignore */ }
+
     return {
       lab_id,
       period_days: days,
-      orders: volume.rows[0],
+      orders: { ...volume.rows[0], total_patients },
       turnaround: tat.rows[0],
       critical_values: critical.rows[0],
       revenue: revenue.rows[0],
