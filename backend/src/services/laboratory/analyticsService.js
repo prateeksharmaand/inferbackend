@@ -18,7 +18,15 @@ class AnalyticsService {
            COUNT(*) FILTER (WHERE status IN ('RESULTED','REPORTED')) AS completed_orders,
            COUNT(*) FILTER (WHERE status = 'CANCELLED') AS cancelled_orders,
            COUNT(*) FILTER (WHERE priority = 'STAT') AS stat_orders,
-           COUNT(*) FILTER (WHERE priority = 'URGENT') AS urgent_orders
+           COUNT(*) FILTER (WHERE priority = 'URGENT') AS urgent_orders,
+           COUNT(*) FILTER (WHERE status = 'PENDING') AS "PENDING",
+           COUNT(*) FILTER (WHERE status = 'SCHEDULED') AS "SCHEDULED",
+           COUNT(*) FILTER (WHERE status = 'COLLECTED') AS "COLLECTED",
+           COUNT(*) FILTER (WHERE status = 'RECEIVED') AS "RECEIVED",
+           COUNT(*) FILTER (WHERE status = 'PROCESSING') AS "PROCESSING",
+           COUNT(*) FILTER (WHERE status = 'RESULTED') AS "RESULTED",
+           COUNT(*) FILTER (WHERE status = 'REPORTED') AS "REPORTED",
+           COUNT(DISTINCT COALESCE(patient_uhid, patient_id::text)) AS total_patients
          FROM lab_orders WHERE lab_id = $1 AND created_at >= $2`,
         [lab_id, sinceISO]
       ),

@@ -124,15 +124,15 @@ export function DashboardTab({ labId, styles: s }) {
     try {
       setStatsLoading(true);
       const data = await apiFetch(`/api/v1/analytics/dashboard?lab_id=${labId}&days=1`);
-      const orders = data.orders || data.summary || {};
+      const orders = (data.dashboard && data.dashboard.orders) || data.orders || {};
       setStats({
-        toCollect: (orders.PENDING || 0) + (orders.SCHEDULED || 0),
-        collected: (orders.COLLECTED || 0) + (orders.RECEIVED || 0),
-        total: data.total_orders || Object.values(orders).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0),
-        awaitingTesting: orders.COLLECTED || 0,
-        awaitingValidation: orders.PROCESSING || 0,
-        completed: orders.REPORTED || orders.COMPLETED || 0,
-        totalPatients: data.total_patients || 0,
+        toCollect: (Number(orders.PENDING) || 0) + (Number(orders.SCHEDULED) || 0),
+        collected: (Number(orders.COLLECTED) || 0) + (Number(orders.RECEIVED) || 0),
+        total: Number(orders.total_orders) || 0,
+        awaitingTesting: Number(orders.COLLECTED) || 0,
+        awaitingValidation: Number(orders.PROCESSING) || 0,
+        completed: (Number(orders.RESULTED) || 0) + (Number(orders.REPORTED) || 0),
+        totalPatients: Number(orders.total_patients) || 0,
       });
     } catch {
       // non-critical

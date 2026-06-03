@@ -191,8 +191,9 @@ class OrderService {
     let idx = 2;
 
     if (filters.status) {
-      where += ` AND o.status = $${idx++}`;
-      params.push(filters.status);
+      const statuses = filters.status.split(',').map((s) => s.trim()).filter(Boolean);
+      where += ` AND o.status = ANY($${idx++}::text[])`;
+      params.push(statuses);
     }
     if (filters.priority) {
       where += ` AND o.priority = $${idx++}`;
@@ -209,8 +210,12 @@ class OrderService {
 
     const res = await query(
       `SELECT o.*,
+              COALESCE(o.patient_uhid, '') AS uhid,
               COALESCE(o.patient_name, u.first_name || ' ' || u.last_name) AS patient_name,
-              d.first_name || ' ' || d.last_name AS doctor_name
+              d.first_name || ' ' || d.last_name AS doctor_name,
+              (SELECT s.specimen_type FROM lab_samples s WHERE s.order_id = o.id ORDER BY s.created_at LIMIT 1) AS sample_type,
+              (SELECT s.collection_site FROM lab_samples s WHERE s.order_id = o.id ORDER BY s.created_at LIMIT 1) AS source,
+              (SELECT COUNT(*) FROM lab_order_items oi WHERE oi.order_id = o.id) AS total_tests
        FROM lab_orders o
        LEFT JOIN users u ON u.id = o.patient_id
        LEFT JOIN users d ON d.id = o.ordering_doctor_id
