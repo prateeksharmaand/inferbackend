@@ -83,7 +83,7 @@ router.get('/lab/:lab_id', verifyLabToken, verifyLabAccess, async (req, res) => 
 });
 
 // PATCH /orders/:order_id/status - update status with workflow validation
-router.patch('/:order_id/status', verifyLabToken, verifyLabAccess, async (req, res) => {
+router.patch('/:order_id/status', verifyLabToken, async (req, res) => {
   try {
     const { status, notes } = req.body;
     if (!status) return res.status(400).json({ error: 'status is required' });
