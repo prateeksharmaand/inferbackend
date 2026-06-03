@@ -68,11 +68,7 @@ class OrderService {
       }
     }
 
-    if (resolvedItems.length === 0) {
-      throw new Error('No valid tests or panels found for this lab');
-    }
-
-    // 2. Insert order
+    // 2. Insert order (allow orders without tests - they can be added later via samples)
     const orderNumber = generateOrderNumber();
     const orderRes = await query(
       `INSERT INTO lab_orders

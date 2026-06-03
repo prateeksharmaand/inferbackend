@@ -139,7 +139,6 @@ export function AddSampleTab({ labId, styles: s }) {
   const handleSave = async () => {
     if (!foundPatient) { toast.error('Please search and select a patient first'); return; }
     if (samples.length === 0) { toast.error('Please add at least one sample'); return; }
-    if (!selectedTests.length) { toast.error('Please select at least one test'); return; }
 
     try {
       setSaving(true);
