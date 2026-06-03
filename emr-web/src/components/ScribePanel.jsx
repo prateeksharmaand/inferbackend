@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import ManageTemplatesModal from './ManageTemplatesModal';
 import styles from './ScribePanel.module.css';
 
-const SEGMENT_MS = 8000;
+const SEGMENT_MS = 4000;
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
