@@ -18,6 +18,7 @@ class LabDataParser {
       case 'HL7':
         return this.parseHL7(rawData);
       case 'FHIR':
+      case 'JSON':
         return this.parseFHIR(rawData);
       case 'PDF':
         return this.parsePDF(rawData);
@@ -89,59 +90,75 @@ class LabDataParser {
    */
   async parseFHIR(fhirJson) {
     try {
-      const report =
-        typeof fhirJson === 'string' ? JSON.parse(fhirJson) : fhirJson;
+      const root = typeof fhirJson === 'string' ? JSON.parse(fhirJson) : fhirJson;
 
-      if (report.resourceType !== 'DiagnosticReport') {
-        throw new Error('Expected resourceType: DiagnosticReport');
+      // Collect all resources — handle both Bundle and standalone resources
+      let resources = [];
+      if (root.resourceType === 'Bundle' && Array.isArray(root.entry)) {
+        resources = root.entry.map((e) => e.resource).filter(Boolean);
+      } else {
+        resources = [root];
       }
 
-      const patientId = report.subject?.reference?.split('/')[1];
-      const reportDate =
-        report.issued || report.effectiveDateTime || new Date().toISOString();
+      // Index observations by id for reference resolution
+      const obsById = {};
+      resources.filter((r) => r.resourceType === 'Observation').forEach((o) => {
+        obsById[o.id] = o;
+      });
 
+      // Determine patient id from Patient resource or subject reference
+      const patientResource = resources.find((r) => r.resourceType === 'Patient');
+      const patientId = patientResource?.id || null;
+
+      const reportDate = new Date().toISOString();
       const results = [];
 
-      // Process result references
-      if (report.result && Array.isArray(report.result)) {
-        for (const resultRef of report.result) {
-          // In real system, would fetch referenced Observation
-          // For now, assume observations included in the payload
-          if (resultRef.observation) {
-            const obs = resultRef.observation;
+      const extractObsResult = (obs) => {
+        const loincCode =
+          obs.code?.coding?.find((c) => c.system?.includes('loinc'))?.code ||
+          obs.code?.coding?.[0]?.code ||
+          'UNKNOWN';
+        const value = obs.valueQuantity?.value ?? obs.value?.value ?? null;
+        return {
+          test_code: loincCode,
+          test_name: obs.code?.text || obs.code?.coding?.[0]?.display || 'Unknown Test',
+          result_value: this.parseNumericValue(value),
+          result_unit: obs.valueQuantity?.unit || obs.value?.unit || 'UNKNOWN',
+          reference_range_low: obs.referenceRange?.[0]?.low?.value ?? null,
+          reference_range_high: obs.referenceRange?.[0]?.high?.value ?? null,
+          result_status: (obs.status || 'final').toUpperCase(),
+          collection_timestamp: obs.effectiveDateTime || obs.issued || reportDate,
+          source_format: 'FHIR',
+        };
+      };
 
-            const loincCode =
-              obs.code?.coding?.find((c) => c.system.includes('loinc'))?.code ||
-              obs.code?.coding?.[0]?.code;
+      if (root.resourceType === 'Bundle') {
+        // Gather observations directly from Bundle entries
+        resources.filter((r) => r.resourceType === 'Observation').forEach((obs) => {
+          results.push(extractObsResult(obs));
+        });
 
-            results.push({
-              test_code: loincCode,
-              test_name: obs.code?.text || obs.code?.coding?.[0]?.display,
-              result_value: this.parseNumericValue(obs.value?.value),
-              result_unit:
-                obs.value?.unit || obs.valueQuantity?.unit || 'UNKNOWN',
-              reference_range:
-                obs.referenceRange?.[0]?.text ||
-                `${obs.referenceRange?.[0]?.low?.value}-${obs.referenceRange?.[0]?.high?.value}`,
-              reference_range_low: obs.referenceRange?.[0]?.low?.value,
-              reference_range_high: obs.referenceRange?.[0]?.high?.value,
-              result_status: obs.status || 'FINAL',
-              collection_timestamp: obs.issued || reportDate,
-              interpretation:
-                obs.interpretation?.[0]?.coding?.[0]?.code || null,
-              source_format: 'FHIR',
-              raw_json: report // Store original
-            });
-          }
-        }
+        // Also resolve DiagnosticReport result references
+        resources.filter((r) => r.resourceType === 'DiagnosticReport').forEach((dr) => {
+          (dr.result || []).forEach((ref) => {
+            const id = ref.reference?.split('/')[1];
+            if (id && obsById[id]) results.push(extractObsResult(obsById[id]));
+          });
+        });
+      } else if (root.resourceType === 'DiagnosticReport') {
+        (root.result || []).forEach((ref) => {
+          if (ref.observation) results.push(extractObsResult(ref.observation));
+        });
+      } else if (root.resourceType === 'Observation') {
+        results.push(extractObsResult(root));
       }
 
       return {
         patient_id: patientId,
-        results: results,
-        report_id: report.id,
+        results,
+        report_id: root.id || null,
         report_date: reportDate,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       throw new Error(`FHIR Parse Error: ${error.message}`);
