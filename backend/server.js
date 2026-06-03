@@ -11,7 +11,10 @@ const { initializeDatabase } = require('./src/config/database');
 const routes = require('./src/routes');
 const errorHandler = require('./src/middleware/errorHandler');
 const logger = require('./src/utils/logger');
+const http = require('http');
 const { startReminderCron, startGmailSyncCron } = require('./src/services/cron.service');
+const LabSocketManager = require('./src/io/labSocketManager');
+const workflowService = require('./src/services/laboratory/workflowService');
 const inboundWebhook = require('./src/emr/inbound/inbound.webhook.controller');
 const waWebhook      = require('./src/emr/inbound/whatsapp.webhook.controller');
 const { sendPendingReminders } = require('./src/emr/inbound/booking.orchestrator');
@@ -125,8 +128,12 @@ async function start() {
   try {
     await initializeDatabase();
     logger.info('Database connected and initialized');
-    app.listen(PORT, '0.0.0.0', () => {
+    const server = http.createServer(app);
+    const labSocket = LabSocketManager.initialize(server);
+    workflowService.setSocketManager(labSocket);
+    server.listen(PORT, '0.0.0.0', () => {
       logger.info(`PHR Backend running on port ${PORT}`);
+      logger.info('Lab WebSocket manager initialized');
       startReminderCron();
       startGmailSyncCron();
       // Inbound appointment reminders — check every 5 minutes
