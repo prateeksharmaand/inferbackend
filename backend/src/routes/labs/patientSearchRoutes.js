@@ -47,8 +47,38 @@ router.get('/search', verifyLabToken, async (req, res) => {
       [term, prefix]
     );
 
-    // Return only registered patients (with valid id)
-    res.json(regRows.slice(0, 10));
+    // Also search appointment records
+    const { rows: apptRows } = await pool.query(
+      `SELECT DISTINCT NULL           AS id,
+              patient_name   AS name,
+              patient_mobile AS mobile,
+              patient_dob    AS dob,
+              patient_gender AS gender,
+              NULL           AS abha_number,
+              MAX(uhid)      AS uhid
+       FROM emr_appointments
+       WHERE (LOWER(patient_name) LIKE $1
+              OR LOWER(uhid)      LIKE $1)
+       GROUP BY patient_name, patient_mobile, patient_dob, patient_gender
+       ORDER BY patient_name
+       LIMIT 10`,
+      [term]
+    );
+
+    // Deduplicate by name + mobile
+    const normalizeMobile = (m) => m ? m.replace(/[\s\-+]/g, '').slice(-10) : '';
+    const seen = new Set();
+    const allResults = [...regRows, ...apptRows];
+    const deduped = allResults.filter(p => {
+      const key = `${(p.name || '').toLowerCase().trim()}_${normalizeMobile(p.mobile)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Only return patients with valid id (registered in emr_patients)
+    const validResults = deduped.filter(p => p.id !== null);
+    res.json(validResults.slice(0, 10));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
