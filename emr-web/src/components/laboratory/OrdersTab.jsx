@@ -3,15 +3,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Plus,
-  RefreshCw,
-  ChevronRight,
-  X,
-  Clock,
-  CheckCircle,
-  FileText,
-} from 'lucide-react';
+import { Plus, RefreshCw, ChevronRight, X, Clock, CheckCircle, FileText } from 'lucide-react';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -25,15 +17,6 @@ async function apiFetch(url, options = {}) {
   return data;
 }
 
-const STATUS_COLORS = {
-  PENDING: '#6c757d',
-  SCHEDULED: '#007bff',
-  COLLECTED: '#fd7e14',
-  PROCESSING: '#ffc107',
-  RESULTED: '#28a745',
-  REPORTED: '#17a2b8',
-};
-
 const STATUS_NEXT = {
   PENDING: ['SCHEDULED', 'COLLECTED'],
   SCHEDULED: ['COLLECTED'],
@@ -45,7 +28,26 @@ const STATUS_NEXT = {
 
 const STATUS_TABS = ['ALL', 'PENDING', 'SCHEDULED', 'COLLECTED', 'PROCESSING', 'RESULTED', 'REPORTED'];
 
-export function OrdersTab({ labId }) {
+function statusBadgeClass(status, s) {
+  const map = {
+    PENDING: s.badgeGray,
+    SCHEDULED: s.badgeBlue,
+    COLLECTED: s.badgeOrange,
+    PROCESSING: s.badgeYellow,
+    RESULTED: s.badgeGreen,
+    REPORTED: s.badgeTeal,
+    CRITICAL: s.badgeRed,
+  };
+  return `${s.badge} ${map[status] || s.badgeGray}`;
+}
+
+function priorityBadgeClass(priority, s) {
+  if (priority === 'STAT') return `${s.badge} ${s.badgeRed}`;
+  if (priority === 'URGENT') return `${s.badge} ${s.badgeOrange}`;
+  return `${s.badge} ${s.badgeGreen}`;
+}
+
+export function OrdersTab({ labId, styles: s }) {
   const [view, setView] = useState('list');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [orders, setOrders] = useState([]);
@@ -53,11 +55,8 @@ export function OrdersTab({ labId }) {
   const [ordersError, setOrdersError] = useState('');
 
   const [form, setForm] = useState({
-    patient_id: '',
-    ordering_doctor_id: '',
-    priority: 'ROUTINE',
-    clinical_notes: '',
-    scheduled_collection_time: '',
+    patient_id: '', ordering_doctor_id: '', priority: 'ROUTINE',
+    clinical_notes: '', scheduled_collection_time: '',
   });
   const [catalog, setCatalog] = useState([]);
   const [panels, setPanels] = useState([]);
@@ -81,10 +80,9 @@ export function OrdersTab({ labId }) {
     try {
       setLoadingOrders(true);
       setOrdersError('');
-      const url =
-        statusFilter === 'ALL'
-          ? `/api/v1/lab/${labId}/orders`
-          : `/api/v1/lab/${labId}/orders?status=${statusFilter}`;
+      const url = statusFilter === 'ALL'
+        ? `/api/v1/lab/${labId}/orders`
+        : `/api/v1/lab/${labId}/orders?status=${statusFilter}`;
       const data = await apiFetch(url);
       setOrders(data.orders || data || []);
     } catch (err) {
@@ -107,49 +105,23 @@ export function OrdersTab({ labId }) {
     }
   }, [labId]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { if (view === 'create') fetchCatalogAndPanels(); }, [view, fetchCatalogAndPanels]);
 
-  useEffect(() => {
-    if (view === 'create') fetchCatalogAndPanels();
-  }, [view, fetchCatalogAndPanels]);
-
-  const handleFormChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const toggleTest = (id) => {
-    setSelectedTests((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
-    );
-  };
-
-  const togglePanel = (id) => {
-    setSelectedPanels((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-  };
+  const handleFormChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const toggleTest = (id) => setSelectedTests((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]);
+  const togglePanel = (id) => setSelectedPanels((prev) => prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]);
 
   const handleCreateOrder = async (e) => {
     e.preventDefault();
-    if (!form.patient_id || !form.ordering_doctor_id) {
-      setFormError('Patient ID and Doctor ID are required');
-      return;
-    }
+    if (!form.patient_id || !form.ordering_doctor_id) { setFormError('Patient ID and Doctor ID are required'); return; }
     try {
-      setSubmitting(true);
-      setFormError('');
-      setFormSuccess('');
+      setSubmitting(true); setFormError(''); setFormSuccess('');
       const payload = { ...form, lab_id: labId, test_ids: selectedTests, panel_ids: selectedPanels };
-      const data = await apiFetch('/api/v1/orders', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const data = await apiFetch('/api/v1/orders', { method: 'POST', body: JSON.stringify(payload) });
       setFormSuccess(`Order ${data.order?.order_number || data.order_id || ''} created successfully!`);
       setForm({ patient_id: '', ordering_doctor_id: '', priority: 'ROUTINE', clinical_notes: '', scheduled_collection_time: '' });
-      setSelectedTests([]);
-      setSelectedPanels([]);
+      setSelectedTests([]); setSelectedPanels([]);
       fetchOrders();
     } catch (err) {
       setFormError(err.message);
@@ -162,15 +134,13 @@ export function OrdersTab({ labId }) {
     setAdvanceOrder(order);
     const nexts = STATUS_NEXT[order.status] || [];
     setNextStatus(nexts[0] || '');
-    setStatusNotes('');
-    setAdvanceError('');
+    setStatusNotes(''); setAdvanceError('');
   };
 
   const handleAdvanceStatus = async () => {
     if (!nextStatus) return;
     try {
-      setAdvanceLoading(true);
-      setAdvanceError('');
+      setAdvanceLoading(true); setAdvanceError('');
       await apiFetch(`/api/v1/orders/${advanceOrder.id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: nextStatus, notes: statusNotes }),
@@ -185,9 +155,7 @@ export function OrdersTab({ labId }) {
   };
 
   const openTimeline = async (order) => {
-    setTimelineOrder(order);
-    setTimeline([]);
-    setTimelineLoading(true);
+    setTimelineOrder(order); setTimeline([]); setTimelineLoading(true);
     try {
       const data = await apiFetch(`/api/v1/orders/${order.id}/timeline`);
       setTimeline(data.timeline || data || []);
@@ -207,250 +175,231 @@ export function OrdersTab({ labId }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 style={{ margin: 0, color: '#333', fontSize: 22 }}>Test Orders</h2>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={fetchOrders} style={s.btnSecondary}>
-            <RefreshCw size={15} style={{ marginRight: 5 }} />Refresh
+      <div className={s.pageHeader}>
+        <div>
+          <div className={s.pageTitle}>Test Orders</div>
+          <div className={s.pageSubtitle}>Create and track laboratory test orders</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className={`${s.btn} ${s.btnSecondary}`} onClick={fetchOrders}>
+            <RefreshCw size={14} /> Refresh
           </button>
-          <button onClick={() => setView(view === 'list' ? 'create' : 'list')} style={s.btnPrimary}>
-            <Plus size={15} style={{ marginRight: 5 }} />
-            {view === 'list' ? 'New Order' : 'Back to List'}
+          <button className={`${s.btn} ${s.btnPrimary}`} onClick={() => setView(view === 'list' ? 'create' : 'list')}>
+            <Plus size={14} /> {view === 'list' ? 'New Order' : 'Back to List'}
           </button>
         </div>
       </div>
 
       {view === 'create' && (
-        <div style={s.card}>
-          <h3 style={{ marginTop: 0, color: '#444' }}>Create New Order</h3>
-          {formError && <div style={s.alertDanger}>{formError}</div>}
-          {formSuccess && <div style={s.alertSuccess}>{formSuccess}</div>}
-          <form onSubmit={handleCreateOrder}>
-            <div style={s.row}>
-              <div style={s.fg}>
-                <label style={s.label}>Patient ID *</label>
-                <input style={s.input} name="patient_id" value={form.patient_id} onChange={handleFormChange} placeholder="patient-123" disabled={submitting} />
-              </div>
-              <div style={s.fg}>
-                <label style={s.label}>Ordering Doctor ID *</label>
-                <input style={s.input} name="ordering_doctor_id" value={form.ordering_doctor_id} onChange={handleFormChange} placeholder="doctor-456" disabled={submitting} />
-              </div>
-              <div style={s.fg}>
-                <label style={s.label}>Priority</label>
-                <select style={s.input} name="priority" value={form.priority} onChange={handleFormChange} disabled={submitting}>
-                  <option>ROUTINE</option>
-                  <option>URGENT</option>
-                  <option>STAT</option>
-                </select>
-              </div>
-            </div>
-            <div style={s.row}>
-              <div style={{ ...s.fg, flex: 2 }}>
-                <label style={s.label}>Clinical Notes</label>
-                <textarea style={{ ...s.input, height: 80, resize: 'vertical' }} name="clinical_notes" value={form.clinical_notes} onChange={handleFormChange} placeholder="Clinical notes..." disabled={submitting} />
-              </div>
-              <div style={s.fg}>
-                <label style={s.label}>Scheduled Collection</label>
-                <input style={s.input} type="datetime-local" name="scheduled_collection_time" value={form.scheduled_collection_time} onChange={handleFormChange} disabled={submitting} />
-              </div>
-            </div>
-
-            {catalog.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={s.label}>Select Tests</label>
-                <div style={s.scrollBox}>
-                  {Object.entries(catalogByCategory).map(([cat, tests]) => (
-                    <div key={cat} style={{ marginBottom: 8 }}>
-                      <div style={{ fontWeight: 700, color: '#555', fontSize: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{cat}</div>
-                      {tests.map((t) => (
-                        <label key={t.id} style={s.checkLabel}>
-                          <input type="checkbox" checked={selectedTests.includes(t.id)} onChange={() => toggleTest(t.id)} disabled={submitting} style={{ marginRight: 6 }} />
-                          {t.test_name} ({t.test_code})
-                        </label>
-                      ))}
-                    </div>
-                  ))}
+        <div className={s.card} style={{ marginBottom: 20 }}>
+          <div className={s.cardHeader}><div className={s.cardTitle}>Create New Order</div></div>
+          <div className={s.cardBody}>
+            {formError && <div className={`${s.alert} ${s.alertError}`}>{formError}</div>}
+            {formSuccess && <div className={`${s.alert} ${s.alertSuccess}`}>{formSuccess}</div>}
+            <form onSubmit={handleCreateOrder}>
+              <div className={s.formGrid3} style={{ marginBottom: 12 }}>
+                <div className={s.field}>
+                  <label className={s.label}>Patient ID *</label>
+                  <input className={s.input} name="patient_id" value={form.patient_id} onChange={handleFormChange} placeholder="patient-123" disabled={submitting} />
+                </div>
+                <div className={s.field}>
+                  <label className={s.label}>Ordering Doctor ID *</label>
+                  <input className={s.input} name="ordering_doctor_id" value={form.ordering_doctor_id} onChange={handleFormChange} placeholder="doctor-456" disabled={submitting} />
+                </div>
+                <div className={s.field}>
+                  <label className={s.label}>Priority</label>
+                  <select className={s.select} name="priority" value={form.priority} onChange={handleFormChange} disabled={submitting}>
+                    <option>ROUTINE</option><option>URGENT</option><option>STAT</option>
+                  </select>
                 </div>
               </div>
-            )}
-
-            {panels.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={s.label}>Select Panels</label>
-                <div style={s.scrollBox}>
-                  {panels.map((p) => (
-                    <label key={p.id} style={s.checkLabel}>
-                      <input type="checkbox" checked={selectedPanels.includes(p.id)} onChange={() => togglePanel(p.id)} disabled={submitting} style={{ marginRight: 6 }} />
-                      {p.panel_name} ({p.panel_code})
-                    </label>
-                  ))}
+              <div className={s.formGrid} style={{ marginBottom: 12 }}>
+                <div className={s.field}>
+                  <label className={s.label}>Clinical Notes</label>
+                  <textarea className={s.textarea} name="clinical_notes" value={form.clinical_notes} onChange={handleFormChange} placeholder="Clinical notes..." disabled={submitting} style={{ minHeight: 80 }} />
+                </div>
+                <div className={s.field}>
+                  <label className={s.label}>Scheduled Collection</label>
+                  <input className={s.input} type="datetime-local" name="scheduled_collection_time" value={form.scheduled_collection_time} onChange={handleFormChange} disabled={submitting} />
                 </div>
               </div>
-            )}
 
-            <button type="submit" style={{ ...s.btnPrimary, width: '100%', padding: '11px', justifyContent: 'center' }} disabled={submitting}>
-              {submitting ? 'Creating...' : 'Create Order'}
-            </button>
-          </form>
+              {catalog.length > 0 && (
+                <div className={s.field} style={{ marginBottom: 12 }}>
+                  <label className={s.label}>Select Tests</label>
+                  <div className={s.scrollBox}>
+                    {Object.entries(catalogByCategory).map(([cat, tests]) => (
+                      <div key={cat} style={{ marginBottom: 8 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--color-text-3)', fontSize: 11, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{cat}</div>
+                        {tests.map((t) => (
+                          <label key={t.id} className={s.checkLabel}>
+                            <input type="checkbox" checked={selectedTests.includes(t.id)} onChange={() => toggleTest(t.id)} disabled={submitting} />
+                            {t.test_name} ({t.test_code})
+                          </label>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {panels.length > 0 && (
+                <div className={s.field} style={{ marginBottom: 14 }}>
+                  <label className={s.label}>Select Panels</label>
+                  <div className={s.scrollBox}>
+                    {panels.map((p) => (
+                      <label key={p.id} className={s.checkLabel}>
+                        <input type="checkbox" checked={selectedPanels.includes(p.id)} onChange={() => togglePanel(p.id)} disabled={submitting} />
+                        {p.panel_name} ({p.panel_code})
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className={s.formActions}>
+                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={() => setView('list')}>Cancel</button>
+                <button type="submit" className={`${s.btn} ${s.btnPrimary}`} disabled={submitting}>
+                  {submitting ? 'Creating...' : 'Create Order'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
       {view === 'list' && (
         <>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div className={s.filtersRow}>
             {STATUS_TABS.map((st) => (
-              <button key={st} onClick={() => setStatusFilter(st)} style={{
-                padding: '5px 14px', borderRadius: 16, border: '1px solid',
-                borderColor: statusFilter === st ? '#007bff' : '#ddd',
-                background: statusFilter === st ? '#007bff' : 'white',
-                color: statusFilter === st ? 'white' : '#555',
-                cursor: 'pointer', fontSize: 13, fontWeight: 500,
-              }}>{st}</button>
+              <button
+                key={st}
+                className={`${s.filterPill} ${statusFilter === st ? s.filterPillActive : ''}`}
+                onClick={() => setStatusFilter(st)}
+              >{st}</button>
             ))}
           </div>
-          {ordersError && <div style={s.alertDanger}>{ordersError}</div>}
-          {loadingOrders ? (
-            <div style={s.empty}>Loading orders...</div>
-          ) : orders.length === 0 ? (
-            <div style={s.empty}>No orders found</div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={s.table}>
-                <thead>
-                  <tr style={{ background: '#f5f6fa' }}>
-                    {['Order #', 'Patient', 'Priority', 'Items', 'Status', 'Created', 'Actions'].map((h) => (
-                      <th key={h} style={s.th}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => (
-                    <tr key={order.id} style={{ borderBottom: '1px solid #eee', cursor: 'pointer' }} onClick={() => openTimeline(order)}>
-                      <td style={s.td}>{order.order_number || order.id}</td>
-                      <td style={s.td}>{order.patient_id}</td>
-                      <td style={s.td}>
-                        <span style={{
-                          padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                          background: order.priority === 'STAT' ? '#ffe0e0' : order.priority === 'URGENT' ? '#fff3cd' : '#e8f5e9',
-                          color: order.priority === 'STAT' ? '#c62828' : order.priority === 'URGENT' ? '#e65100' : '#2e7d32',
-                        }}>{order.priority}</span>
-                      </td>
-                      <td style={s.td}>{((order.tests || []).length + (order.panels || []).length) || '—'}</td>
-                      <td style={s.td}>
-                        <span style={{
-                          padding: '2px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                          background: (STATUS_COLORS[order.status] || '#888') + '22',
-                          color: STATUS_COLORS[order.status] || '#888',
-                          border: `1px solid ${STATUS_COLORS[order.status] || '#888'}`,
-                        }}>{order.status}</span>
-                      </td>
-                      <td style={s.td}>{order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}</td>
-                      <td style={s.td} onClick={(e) => e.stopPropagation()}>
-                        {(STATUS_NEXT[order.status] || []).length > 0 && (
-                          <button style={s.btnSmall} onClick={() => openAdvanceModal(order)}>
-                            <ChevronRight size={13} style={{ marginRight: 3 }} />Advance
-                          </button>
-                        )}
-                      </td>
+          {ordersError && <div className={`${s.alert} ${s.alertError}`}>{ordersError}</div>}
+          <div className={s.card}>
+            {loadingOrders ? (
+              <div className={s.emptyState}><div className={s.emptyText}>Loading orders...</div></div>
+            ) : orders.length === 0 ? (
+              <div className={s.emptyState}>
+                <div className={s.emptyIcon}><ClipboardList size={48} /></div>
+                <div className={s.emptyText}>No orders found</div>
+              </div>
+            ) : (
+              <div className={s.tableWrap}>
+                <table className={s.table}>
+                  <thead>
+                    <tr>
+                      {['Order #', 'Patient', 'Priority', 'Items', 'Status', 'Created', 'Actions'].map((h) => (
+                        <th key={h}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {orders.map((order) => (
+                      <tr key={order.id} style={{ cursor: 'pointer' }} onClick={() => openTimeline(order)}>
+                        <td style={{ fontWeight: 600 }}>{order.order_number || order.id}</td>
+                        <td>{order.patient_id}</td>
+                        <td><span className={priorityBadgeClass(order.priority, s)}>{order.priority}</span></td>
+                        <td>{((order.tests || []).length + (order.panels || []).length) || '—'}</td>
+                        <td><span className={statusBadgeClass(order.status, s)}>{order.status}</span></td>
+                        <td>{order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {(STATUS_NEXT[order.status] || []).length > 0 && (
+                            <button className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => openAdvanceModal(order)}>
+                              <ChevronRight size={13} /> Advance
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </>
       )}
 
       {/* Advance Status Modal */}
       {advanceOrder && (
-        <div style={s.overlay} onClick={() => setAdvanceOrder(null)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ margin: 0 }}>Advance Order Status</h3>
-              <button onClick={() => setAdvanceOrder(null)} style={s.iconBtn}><X size={18} /></button>
+        <div className={s.modalOverlay} onClick={() => setAdvanceOrder(null)}>
+          <div className={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={s.modalHeader}>
+              <div className={s.modalTitle}>Advance Order Status</div>
+              <button className={s.modalClose} onClick={() => setAdvanceOrder(null)}><X size={18} /></button>
             </div>
-            <p style={{ color: '#666', margin: '0 0 14px' }}>
-              Order <strong>{advanceOrder.order_number || advanceOrder.id}</strong> · Current: <strong>{advanceOrder.status}</strong>
-            </p>
-            {advanceError && <div style={s.alertDanger}>{advanceError}</div>}
-            <div style={{ marginBottom: 12 }}>
-              <label style={s.label}>New Status</label>
-              <select style={s.input} value={nextStatus} onChange={(e) => setNextStatus(e.target.value)}>
-                {(STATUS_NEXT[advanceOrder.status] || []).map((st) => <option key={st}>{st}</option>)}
-              </select>
+            <div className={s.modalBody}>
+              <p style={{ color: 'var(--color-text-2)', marginTop: 0, marginBottom: 16, fontSize: 13 }}>
+                Order <strong>{advanceOrder.order_number || advanceOrder.id}</strong> · Current: <span className={statusBadgeClass(advanceOrder.status, s)}>{advanceOrder.status}</span>
+              </p>
+              {advanceError && <div className={`${s.alert} ${s.alertError}`}>{advanceError}</div>}
+              <div className={s.field} style={{ marginBottom: 12 }}>
+                <label className={s.label}>New Status</label>
+                <select className={s.select} value={nextStatus} onChange={(e) => setNextStatus(e.target.value)}>
+                  {(STATUS_NEXT[advanceOrder.status] || []).map((st) => <option key={st}>{st}</option>)}
+                </select>
+              </div>
+              <div className={s.field} style={{ marginBottom: 4 }}>
+                <label className={s.label}>Notes</label>
+                <textarea className={s.textarea} value={statusNotes} onChange={(e) => setStatusNotes(e.target.value)} placeholder="Optional notes..." style={{ minHeight: 70 }} />
+              </div>
             </div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={s.label}>Notes</label>
-              <textarea style={{ ...s.input, height: 70, resize: 'vertical' }} value={statusNotes} onChange={(e) => setStatusNotes(e.target.value)} placeholder="Optional notes..." />
+            <div className={s.modalFooter}>
+              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setAdvanceOrder(null)}>Cancel</button>
+              <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleAdvanceStatus} disabled={advanceLoading}>
+                {advanceLoading ? 'Updating...' : 'Update Status'}
+              </button>
             </div>
-            <button style={{ ...s.btnPrimary, width: '100%', justifyContent: 'center' }} onClick={handleAdvanceStatus} disabled={advanceLoading}>
-              {advanceLoading ? 'Updating...' : 'Update Status'}
-            </button>
           </div>
         </div>
       )}
 
-      {/* Timeline Drawer */}
+      {/* Timeline Modal */}
       {timelineOrder && (
-        <div style={s.overlay} onClick={() => setTimelineOrder(null)}>
-          <div style={{ ...s.modal, maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FileText size={18} color="#007bff" />Order Timeline
-              </h3>
-              <button onClick={() => setTimelineOrder(null)} style={s.iconBtn}><X size={18} /></button>
+        <div className={s.modalOverlay} onClick={() => setTimelineOrder(null)}>
+          <div className={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={s.modalHeader}>
+              <div className={s.modalTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FileText size={16} /> Order Timeline
+              </div>
+              <button className={s.modalClose} onClick={() => setTimelineOrder(null)}><X size={18} /></button>
             </div>
-            <p style={{ color: '#666', margin: '0 0 16px' }}>Order: <strong>{timelineOrder.order_number || timelineOrder.id}</strong></p>
-            {timelineLoading ? (
-              <p style={{ color: '#666' }}>Loading...</p>
-            ) : timeline.length === 0 ? (
-              <p style={{ color: '#999' }}>No timeline events</p>
-            ) : (
-              timeline.map((ev, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: STATUS_COLORS[ev.status] || '#007bff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <CheckCircle size={14} color="white" />
+            <div className={s.modalBody}>
+              <p style={{ color: 'var(--color-text-2)', marginTop: 0, marginBottom: 16, fontSize: 13 }}>
+                Order: <strong>{timelineOrder.order_number || timelineOrder.id}</strong>
+              </p>
+              {timelineLoading ? (
+                <div className={s.emptyState}><div className={s.emptyText}>Loading...</div></div>
+              ) : timeline.length === 0 ? (
+                <div className={s.emptyState}><div className={s.emptyText}>No timeline events</div></div>
+              ) : (
+                <div className={s.timeline}>
+                  {timeline.map((ev, i) => (
+                    <div key={i} className={s.timelineItem}>
+                      <div className={s.timelineDot}><CheckCircle size={14} /></div>
+                      <div className={s.timelineContent}>
+                        <div className={s.timelineTitle}>{ev.status || ev.event}</div>
+                        {ev.notes && <div className={s.timelineSub}>{ev.notes}</div>}
+                        <div className={s.timelineTime} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={11} />
+                          {ev.created_at ? new Date(ev.created_at).toLocaleString() : ''}
+                          {ev.created_by ? ` · ${ev.created_by}` : ''}
+                        </div>
+                      </div>
                     </div>
-                    {i < timeline.length - 1 && <div style={{ width: 2, flex: 1, background: '#e0e0e0', minHeight: 12 }} />}
-                  </div>
-                  <div style={{ paddingTop: 4 }}>
-                    <div style={{ fontWeight: 600, color: '#333' }}>{ev.status || ev.event}</div>
-                    {ev.notes && <div style={{ color: '#666', fontSize: 13, marginTop: 2 }}>{ev.notes}</div>}
-                    <div style={{ color: '#999', fontSize: 12, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Clock size={11} />{ev.created_at ? new Date(ev.created_at).toLocaleString() : ''}{ev.created_by ? ` · ${ev.created_by}` : ''}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-const s = {
-  card: { background: '#f9f9f9', border: '1px solid #ddd', borderRadius: 8, padding: 24, marginBottom: 24 },
-  row: { display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 4 },
-  fg: { flex: 1, minWidth: 180, marginBottom: 12 },
-  label: { display: 'block', marginBottom: 4, fontWeight: 600, color: '#333', fontSize: 14 },
-  input: { width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' },
-  scrollBox: { border: '1px solid #ddd', borderRadius: 6, padding: 10, maxHeight: 200, overflowY: 'auto', background: 'white' },
-  checkLabel: { display: 'block', padding: '3px 0', fontSize: 14, color: '#333', cursor: 'pointer' },
-  btnPrimary: { padding: '8px 16px', background: '#007bff', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 4 },
-  btnSecondary: { padding: '8px 16px', background: 'white', color: '#555', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer', fontWeight: 500, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 4 },
-  btnSmall: { padding: '4px 10px', background: '#e9f0ff', color: '#007bff', border: '1px solid #b3cfff', borderRadius: 4, cursor: 'pointer', fontSize: 13, display: 'inline-flex', alignItems: 'center' },
-  iconBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 4, display: 'flex', alignItems: 'center' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 14 },
-  th: { padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#555', fontSize: 13, borderBottom: '2px solid #eee' },
-  td: { padding: '10px 12px', color: '#333' },
-  empty: { textAlign: 'center', padding: 40, color: '#999', fontSize: 15 },
-  alertDanger: { background: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: 4, padding: '10px 14px', marginBottom: 14, fontSize: 14 },
-  alertSuccess: { background: '#d4edda', color: '#155724', border: '1px solid #c3e6cb', borderRadius: 4, padding: '10px 14px', marginBottom: 14, fontSize: 14 },
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  modal: { background: 'white', borderRadius: 8, padding: 28, width: '90%', maxWidth: 560, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxHeight: '85vh', overflowY: 'auto' },
-};
 
 export default OrdersTab;
