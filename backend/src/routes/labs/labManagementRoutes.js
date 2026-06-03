@@ -7,6 +7,8 @@ const router = express.Router();
 const crypto = require('crypto');
 const { query: dbQuery } = require('../../config/database');
 const { emrAuth } = require('../../emr/emr.middleware');
+const { requireAuth } = require('../../middleware/auth');
+const { verifyLabAccess } = require('../../middleware/labAuth');
 const auditService = require('../../services/laboratory/auditService');
 const criticalValueService = require('../../services/laboratory/criticalValueService');
 
