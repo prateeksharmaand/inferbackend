@@ -127,8 +127,8 @@ class OrderService {
   async getOrder(order_id) {
     const orderRes = await query(
       `SELECT o.*,
-              u.full_name AS patient_name,
-              d.full_name AS doctor_name,
+              COALESCE(o.patient_name, u.first_name || ' ' || u.last_name) AS patient_name,
+              d.first_name || ' ' || d.last_name AS doctor_name,
               l.name AS lab_name
        FROM lab_orders o
        LEFT JOIN users u ON u.id = o.patient_id
@@ -170,7 +170,7 @@ class OrderService {
     }
 
     const res = await query(
-      `SELECT o.*, l.name AS lab_name, d.full_name AS doctor_name
+      `SELECT o.*, l.name AS lab_name, d.first_name || ' ' || d.last_name AS doctor_name
        FROM lab_orders o
        LEFT JOIN laboratories l ON l.id = o.lab_id
        LEFT JOIN users d ON d.id = o.ordering_doctor_id
@@ -204,9 +204,9 @@ class OrderService {
     }
 
     const res = await query(
-      `SELECT o.*, u.full_name AS patient_name, d.full_name AS doctor_name,
-              (SELECT MAX(a.uhid) FROM emr_appointments a
-               WHERE a.patient_id = o.patient_id AND a.uhid IS NOT NULL) AS uhid
+      `SELECT o.*,
+              COALESCE(o.patient_name, u.first_name || ' ' || u.last_name) AS patient_name,
+              d.first_name || ' ' || d.last_name AS doctor_name
        FROM lab_orders o
        LEFT JOIN users u ON u.id = o.patient_id
        LEFT JOIN users d ON d.id = o.ordering_doctor_id

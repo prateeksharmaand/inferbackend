@@ -93,8 +93,8 @@ class SampleService {
   async getSample(sample_id) {
     const res = await query(
       `SELECT s.*,
-              u.full_name AS patient_name,
-              c.full_name AS collected_by_name,
+              COALESCE(s.patient_uhid, u.first_name || ' ' || u.last_name) AS patient_name,
+              c.first_name || ' ' || c.last_name AS collected_by_name,
               l.name AS lab_name
        FROM lab_samples s
        LEFT JOIN users u ON u.id = s.patient_id
@@ -108,7 +108,9 @@ class SampleService {
 
   async getSamplesByOrder(order_id) {
     const res = await query(
-      `SELECT s.*, u.full_name AS patient_name, c.full_name AS collected_by_name
+      `SELECT s.*,
+              COALESCE(s.patient_uhid, u.first_name || ' ' || u.last_name) AS patient_name,
+              c.first_name || ' ' || c.last_name AS collected_by_name
        FROM lab_samples s
        LEFT JOIN users u ON u.id = s.patient_id
        LEFT JOIN users c ON c.id = s.collected_by
@@ -167,8 +169,8 @@ class SampleService {
 
     let performedByName = null;
     if (performed_by) {
-      const uRes = await query(`SELECT full_name FROM users WHERE id = $1`, [performed_by]);
-      if (uRes.rows.length > 0) performedByName = uRes.rows[0].full_name;
+      const uRes = await query(`SELECT first_name || ' ' || last_name AS name FROM users WHERE id = $1`, [performed_by]);
+      if (uRes.rows.length > 0) performedByName = uRes.rows[0].name;
     }
 
     const res = await query(
