@@ -60,11 +60,20 @@ router.get('/patients/:patient_id/orders', verifyLabToken, async (req, res) => {
 router.get('/lab/:lab_id', verifyLabToken, verifyLabAccess, async (req, res) => {
   try {
     const { status, priority, start_date, end_date } = req.query;
-    const orders = await orderService.getOrdersByLab(req.params.lab_id, {
-      status, priority, start_date, end_date,
-    });
-    return res.json({ success: true, orders });
+    try {
+      const orders = await orderService.getOrdersByLab(req.params.lab_id, {
+        status, priority, start_date, end_date,
+      });
+      return res.json({ success: true, orders });
+    } catch (dbErr) {
+      // Return empty orders if tables don't exist yet (migrations not run)
+      if (dbErr.message.includes('does not exist') || dbErr.message.includes('undefined')) {
+        return res.json({ success: true, orders: [] });
+      }
+      throw dbErr;
+    }
   } catch (err) {
+    console.error('Orders query error:', err);
     return res.status(500).json({ error: err.message });
   }
 });

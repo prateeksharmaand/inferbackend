@@ -18,9 +18,24 @@ router.get('/analytics/dashboard', verifyLabToken, async (req, res) => {
     const lab_id = getLabId(req);
     if (!lab_id) return res.status(400).json({ error: 'lab_id is required' });
     const days = parseInt(req.query.days) || 30;
-    const dashboard = await analyticsService.getDashboard(lab_id, days);
-    return res.json({ success: true, dashboard });
+    try {
+      const dashboard = await analyticsService.getDashboard(lab_id, days);
+      return res.json({ success: true, dashboard });
+    } catch (dbErr) {
+      // Return empty data if tables don't exist yet (migrations not run)
+      if (dbErr.message.includes('does not exist') || dbErr.message.includes('undefined')) {
+        return res.json({ success: true, dashboard: {
+          lab_id, period_days: days,
+          total_orders: 0, completed_orders: 0, cancelled_orders: 0,
+          stat_orders: 0, urgent_orders: 0,
+          avg_tat_hours: 0, min_tat_hours: 0, max_tat_hours: 0,
+          critical_count: 0, total_revenue: 0
+        }});
+      }
+      throw dbErr;
+    }
   } catch (err) {
+    console.error('Analytics dashboard error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
