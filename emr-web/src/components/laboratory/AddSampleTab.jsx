@@ -305,53 +305,6 @@ export function AddSampleTab({ labId, styles: s }) {
               />
             </div>
           </div>
-
-          {/* Test Selection */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-2)', marginBottom: 8 }}>SELECT TESTS</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {LAB_SECTIONS.map((section) => {
-                const tests = catalog[section] || [];
-                const expanded = expandedSections[section];
-                return (
-                  <div key={section} style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
-                    <div
-                      style={{ background: '#f8fafc', padding: '8px 12px', fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                      onClick={() => toggleSection(section)}
-                    >
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={tests.every((t) => selectedTests.includes(t.id))}
-                          onChange={(e) => {
-                            if (e.target.checked) setSelectedTests((prev) => [...new Set([...prev, ...tests.map((t) => t.id)])]);
-                            else setSelectedTests((prev) => prev.filter((id) => !tests.map((t) => t.id).includes(id)));
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        {section}
-                      </label>
-                      <span style={{ fontSize: 11, color: 'var(--color-text-2)' }}>{expanded ? '▲' : '▼'}</span>
-                    </div>
-                    {expanded && (
-                      <div style={{ padding: '8px 12px', maxHeight: 160, overflowY: 'auto' }}>
-                        {tests.length === 0 ? (
-                          <div style={{ fontSize: 12, color: 'var(--color-text-2)' }}>No tests configured</div>
-                        ) : (
-                          tests.map((test) => (
-                            <label key={test.id} className={s.checkLabel}>
-                              <input type="checkbox" checked={selectedTests.includes(test.id)} onChange={() => toggleTest(test.id)} />
-                              {test.test_name || test.name}
-                            </label>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </div>
 
