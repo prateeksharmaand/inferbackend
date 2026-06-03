@@ -22,7 +22,7 @@ router.get('/search', verifyLabToken, async (req, res) => {
 
     // Search registered patients
     const { rows: regRows } = await pool.query(
-      `SELECT p.id,
+      `SELECT DISTINCT p.id,
               p.name,
               p.mobile,
               p.dob,
@@ -49,7 +49,7 @@ router.get('/search', verifyLabToken, async (req, res) => {
     // Also search appointment records for patients not yet registered
     const knownMobiles = new Set(regRows.map(r => r.mobile).filter(Boolean));
     const { rows: apptRows } = await pool.query(
-      `SELECT NULL           AS id,
+      `SELECT DISTINCT NULL           AS id,
               patient_name   AS name,
               patient_mobile AS mobile,
               patient_dob    AS dob,
