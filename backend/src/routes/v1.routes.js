@@ -40,9 +40,9 @@ router.use('/doctors', labResultRoutes);
 router.use('/patients', require('./labs/patientSearchRoutes'));
 
 // Lab test name autocomplete — searches catalog + known LOINC names
-router.get('/autocomplete/lab-tests', require('../../middleware/auth').requireAuth, async (req, res) => {
+router.get('/autocomplete/lab-tests', require('../middleware/auth').requireAuth, async (req, res) => {
   try {
-    const { query } = require('../../config/database');
+    const { query } = require('../config/database');
     const { q, lab_id } = req.query;
     if (!q || q.trim().length < 2) return res.json([]);
     const term = `%${q.trim().toLowerCase()}%`;
