@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS laboratories (
   -- Status
   status VARCHAR(50) DEFAULT 'ACTIVE', -- 'ACTIVE', 'INACTIVE', 'SUSPENDED'
 
+  -- Clinic ownership
+  clinic_id UUID,
+
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   created_by UUID,
@@ -50,6 +53,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS lab_id UUID REFERENCES laboratories(i
 ALTER TABLE users ADD COLUMN IF NOT EXISTS lab_role VARCHAR(50);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS can_upload_results BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_all_results BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
 CREATE INDEX IF NOT EXISTS idx_users_lab ON users(lab_id, lab_role);
 
