@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, RefreshCw, ChevronRight, X, Clock, CheckCircle, FileText } from 'lucide-react';
+import { Plus, RefreshCw, ChevronRight, X, Clock, CheckCircle, FileText, ClipboardList } from 'lucide-react';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
