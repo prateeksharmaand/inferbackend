@@ -3,6 +3,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { OrdersTab } from './OrdersTab';
+import { SamplesTab } from './SamplesTab';
+import { ReportsTab } from './ReportsTab';
+import { AnalyticsTab } from './AnalyticsTab';
+import { CatalogTab } from './CatalogTab';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -17,6 +22,7 @@ async function apiFetch(url, options = {}) {
 }
 
 export function LabPortal() {
+  const labId = localStorage.getItem('lab_id');
   const [activeTab, setActiveTab] = useState('upload');
   const [lab, setLab] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -171,6 +177,36 @@ export function LabPortal() {
         >
           Statistics
         </button>
+        <button
+          className={activeTab === 'orders' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('orders')}
+        >
+          Orders
+        </button>
+        <button
+          className={activeTab === 'samples' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('samples')}
+        >
+          Samples
+        </button>
+        <button
+          className={activeTab === 'reports' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('reports')}
+        >
+          Reports
+        </button>
+        <button
+          className={activeTab === 'analytics' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('analytics')}
+        >
+          Analytics
+        </button>
+        <button
+          className={activeTab === 'catalog' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('catalog')}
+        >
+          Catalog
+        </button>
       </div>
 
       {activeTab === 'upload' && (
@@ -282,6 +318,12 @@ export function LabPortal() {
           </div>
         </div>
       )}
+
+      {activeTab === 'orders' && <OrdersTab labId={labId} />}
+      {activeTab === 'samples' && <SamplesTab labId={labId} />}
+      {activeTab === 'reports' && <ReportsTab labId={labId} />}
+      {activeTab === 'analytics' && <AnalyticsTab labId={labId} />}
+      {activeTab === 'catalog' && <CatalogTab labId={labId} />}
 
       {activeTab === 'stats' && stats && (
         <div className="stats-grid">
