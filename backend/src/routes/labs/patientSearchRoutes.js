@@ -20,9 +20,9 @@ router.get('/search', verifyLabToken, async (req, res) => {
     const term   = `%${q.trim().toLowerCase()}%`;
     const prefix = `${q.trim()}%`;
 
-    // Search registered patients
+    // Search registered patients - deduplicate by name & mobile
     const { rows: regRows } = await pool.query(
-      `SELECT DISTINCT p.id,
+      `SELECT p.id,
               p.name,
               p.mobile,
               p.dob,
@@ -41,6 +41,7 @@ router.get('/search', verifyLabToken, async (req, res) => {
             WHERE ax.patient_mobile = p.mobile
               AND LOWER(ax.uhid) LIKE $1
           )
+       GROUP BY p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number
        ORDER BY p.name
        LIMIT 10`,
       [term, prefix]
@@ -66,8 +67,27 @@ router.get('/search', verifyLabToken, async (req, res) => {
       [term, prefix]
     );
 
-    const unique = apptRows.filter(r => !r.mobile || !knownMobiles.has(r.mobile));
-    res.json([...regRows, ...unique].slice(0, 10));
+    // Deduplicate: filter appointment patients not in registered list
+    // Normalize mobile numbers for comparison (remove spaces, dashes, +91 prefix)
+    const normalizeMobile = (m) => m ? m.replace(/[\s\-+]/g, '').slice(-10) : '';
+    const knownNormalized = new Set(regRows.map(r => normalizeMobile(r.mobile)).filter(Boolean));
+
+    const unique = apptRows.filter(r => {
+      const normalized = normalizeMobile(r.mobile);
+      return !normalized || !knownNormalized.has(normalized);
+    });
+
+    // Also deduplicate by name + mobile to catch variations
+    const seen = new Set();
+    const allResults = [...regRows, ...unique];
+    const deduped = allResults.filter(p => {
+      const key = `${(p.name || '').toLowerCase().trim()}_${normalizeMobile(p.mobile)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    res.json(deduped.slice(0, 10));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
