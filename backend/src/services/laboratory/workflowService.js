@@ -9,7 +9,7 @@ const sampleService = require('./sampleService');
 
 const STATUS_TRANSITIONS = {
   ORDER: {
-    PENDING: ['SCHEDULED', 'CANCELLED'],
+    PENDING: ['SCHEDULED', 'COLLECTED', 'CANCELLED'],
     SCHEDULED: ['COLLECTED', 'CANCELLED'],
     COLLECTED: ['PROCESSING', 'CANCELLED'],
     PROCESSING: ['RESULTED'],
