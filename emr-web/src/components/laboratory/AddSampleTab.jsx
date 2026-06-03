@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, X, RefreshCw } from 'lucide-react';
+import { PatientAutocomplete } from './PatientAutocomplete';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -42,8 +43,6 @@ const sectionHeader = { background: '#f8fafc', padding: '8px 16px', borderBottom
 
 export function AddSampleTab({ labId, styles: s }) {
   // Section 1 — Search
-  const [search, setSearch] = useState({ firstName: '', middleName: '', lastName: '', patientId: '' });
-  const [searchLoading, setSearchLoading] = useState(false);
   const [foundPatient, setFoundPatient] = useState(null);
   const [searchError, setSearchError] = useState('');
 
@@ -91,32 +90,9 @@ export function AddSampleTab({ labId, styles: s }) {
 
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
 
-  const handleRunSearch = async () => {
-    const q = search.patientId || `${search.firstName} ${search.lastName}`.trim();
-    if (!q) { setSearchError('Enter a Patient ID or name to search'); return; }
-    try {
-      setSearchLoading(true);
-      setSearchError('');
-      setFoundPatient(null);
-      if (search.patientId) {
-        const data = await apiFetch(`/api/v1/patients/search?q=${encodeURIComponent(search.patientId)}`);
-        const patient = data.patient || (Array.isArray(data) ? data[0] : null);
-        if (patient) {
-          setFoundPatient(patient);
-        } else {
-          setSearchError('Patient not found');
-        }
-      } else {
-        const data = await apiFetch(`/api/v1/patients/search?q=${encodeURIComponent(q)}`);
-        const patient = data.patient || (Array.isArray(data) ? data[0] : null);
-        if (patient) setFoundPatient(patient);
-        else setSearchError('Patient not found');
-      }
-    } catch (err) {
-      setSearchError(err.message);
-    } finally {
-      setSearchLoading(false);
-    }
+  const handlePatientSelect = (patient) => {
+    setFoundPatient(patient);
+    setSearchError('');
   };
 
   const handleAddSample = () => {
@@ -177,7 +153,7 @@ export function AddSampleTab({ labId, styles: s }) {
       setSamples([]);
       setAccession('');
       setSelectedTests([]);
-      setSearch({ firstName: '', middleName: '', lastName: '', patientId: '' });
+      setFoundPatient(null);
     } catch (err) {
       showMsg(`Failed to save: ${err.message}`, 'error');
     } finally {
@@ -198,42 +174,25 @@ export function AddSampleTab({ labId, styles: s }) {
 
       {/* Section 1 — Search */}
       <div className={s.card} style={{ marginBottom: 16 }}>
-        <div style={sectionHeader}>Search</div>
+        <div style={sectionHeader}>Search *</div>
         <div className={s.cardBody}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 12, alignItems: 'flex-end' }}>
-            <div className={s.field}>
-              <label className={s.label}>First Name</label>
-              <input className={s.input} value={search.firstName} onChange={(e) => setSearch((p) => ({ ...p, firstName: e.target.value }))} placeholder="First name" />
-            </div>
-            <div className={s.field}>
-              <label className={s.label}>Middle Name</label>
-              <input className={s.input} value={search.middleName} onChange={(e) => setSearch((p) => ({ ...p, middleName: e.target.value }))} placeholder="Middle name" />
-            </div>
-            <div className={s.field}>
-              <label className={s.label}>Last Name</label>
-              <input className={s.input} value={search.lastName} onChange={(e) => setSearch((p) => ({ ...p, lastName: e.target.value }))} placeholder="Last name" />
-            </div>
-            <div className={s.field}>
-              <label className={s.label}>Patient ID</label>
-              <input
-                className={s.input}
-                value={search.patientId}
-                onChange={(e) => setSearch((p) => ({ ...p, patientId: e.target.value }))}
-                placeholder="patient-123"
-                onKeyDown={(e) => e.key === 'Enter' && handleRunSearch()}
-              />
-            </div>
-            <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleRunSearch} disabled={searchLoading}>
-              <Search size={14} /> {searchLoading ? 'Searching...' : 'Run Search'}
-            </button>
+          <div className={s.field}>
+            <label className={s.label}>Patient — type name or UHID</label>
+            <PatientAutocomplete
+              value={foundPatient}
+              onChange={handlePatientSelect}
+              placeholder="Search patient by name or UHID…"
+              styles={s}
+            />
           </div>
           {searchError && <div className={`${s.alert} ${s.alertError}`} style={{ marginTop: 12 }}>{searchError}</div>}
           {foundPatient && (
             <div className={`${s.alert} ${s.alertSuccess}`} style={{ marginTop: 12 }}>
-              <strong>Patient Found:</strong> {foundPatient.name || `${foundPatient.first_name || ''} ${foundPatient.last_name || ''}`} &nbsp;|&nbsp;
-              ID: {foundPatient.id || foundPatient.patient_id} &nbsp;|&nbsp;
-              DOB: {foundPatient.date_of_birth || foundPatient.dob || '—'} &nbsp;|&nbsp;
-              Gender: {foundPatient.gender || '—'}
+              <strong>{foundPatient.name}</strong>
+              {foundPatient.uhid && <span style={{ marginLeft: 10, background: '#ede9fe', color: '#6d28d9', padding: '2px 8px', borderRadius: 8, fontWeight: 600, fontSize: 12 }}>UHID: {foundPatient.uhid}</span>}
+              {foundPatient.mobile && <span style={{ marginLeft: 8, color: 'var(--color-text-2)', fontSize: 12 }}>{foundPatient.mobile}</span>}
+              {foundPatient.dob && <span style={{ marginLeft: 8, color: 'var(--color-text-2)', fontSize: 12 }}>DOB: {foundPatient.dob?.slice(0,10)}</span>}
+              {foundPatient.gender && <span style={{ marginLeft: 8, color: 'var(--color-text-2)', fontSize: 12 }}>{foundPatient.gender}</span>}
             </div>
           )}
         </div>

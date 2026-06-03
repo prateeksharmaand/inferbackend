@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   X, User, Clock, Stethoscope, ClipboardList, FileText,
   Activity, Search, PlusCircle, IndianRupee, Paperclip,
-  ChevronRight, CalendarCheck, Syringe, Utensils,
+  ChevronRight, CalendarCheck, Syringe, Utensils, FlaskConical,
 } from 'lucide-react';
 import { api } from '../api/client';
 import MedicalHistorySection from './MedicalHistorySection';
@@ -58,6 +58,7 @@ const TABS = [
   { key: 'Create New Visit',     icon: PlusCircle },
   { key: 'Receipts',             icon: IndianRupee },
   { key: 'Medical Documents',    icon: Paperclip },
+  { key: 'Lab Reports',          icon: FlaskConical },
 ];
 
 // ── Past Visits ───────────────────────────────────────────────────────────────
@@ -253,6 +254,66 @@ function VitalsLabs({ history }) {
                   <span className={styles.labVal}>{r.result}{r.unit ? ` ${r.unit}` : ''}</span>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Lab Reports (from lab system) ─────────────────────────────────────────────
+function LabReportsTab({ patientId }) {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!patientId) { setLoading(false); return; }
+    api.get(`/patients/${patientId}/lab-reports`)
+      .then(data => setReports(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [patientId]);
+
+  if (loading) return <div className={styles.tabPad}><p className={styles.hint}>Loading lab reports…</p></div>;
+  if (!reports.length) return <EmptyState text="No released lab reports found." />;
+
+  return (
+    <div className={styles.tabPad}>
+      {reports.map((r) => (
+        <div key={r.id} style={{ border: '1px solid var(--color-border)', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
+          <div style={{ background: '#f8fafc', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: 13 }}>Report #{r.report_number}</span>
+              {r.order_number && <span style={{ marginLeft: 8, fontSize: 11, color: '#64748b' }}>Order: {r.order_number}</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {r.lab_name && <span style={{ fontSize: 11, background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>{r.lab_name}</span>}
+              <span style={{ fontSize: 11, color: '#64748b' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            </div>
+          </div>
+          {r.observations && <div style={{ padding: '8px 14px', fontSize: 12, color: '#334155', borderBottom: '1px solid var(--color-border)' }}><strong>Observations:</strong> {r.observations}</div>}
+          {r.clinical_notes && <div style={{ padding: '8px 14px', fontSize: 12, color: '#334155', borderBottom: '1px solid var(--color-border)' }}><strong>Notes:</strong> {r.clinical_notes}</div>}
+          {Array.isArray(r.results) && r.results.filter(x => x.test_name).length > 0 && (
+            <div style={{ padding: '10px 14px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead><tr style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: 11 }}><th style={{ textAlign: 'left', paddingBottom: 4 }}>Test</th><th style={{ textAlign: 'left' }}>Result</th><th style={{ textAlign: 'left' }}>Unit</th><th></th></tr></thead>
+                <tbody>
+                  {r.results.filter(x => x.test_name).map((res, i) => (
+                    <tr key={i} style={{ borderTop: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '4px 0', fontWeight: 600 }}>{res.test_name}</td>
+                      <td style={{ padding: '4px 8px', color: res.is_critical ? '#991b1b' : '#1a202c', fontWeight: res.is_critical ? 700 : 400 }}>{res.result_value}</td>
+                      <td style={{ padding: '4px 0', color: '#64748b' }}>{res.result_unit}</td>
+                      <td>{res.is_critical && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>CRITICAL</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {r.pdf_path && (
+            <div style={{ padding: '8px 14px', borderTop: '1px solid var(--color-border)' }}>
+              <a href={`/api/v1/reports/${r.id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>📄 Download PDF Report</a>
             </div>
           )}
         </div>
@@ -567,6 +628,9 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
             )}
             {tab === 'Medical Documents' && (
               <MedicalRecordsTab apptId={appt.id} patientMobile={appt.patient_mobile} />
+            )}
+            {tab === 'Lab Reports' && (
+              <LabReportsTab patientId={appt.emr_patient_id || appt.patient_id} />
             )}
           </div>
         </div>

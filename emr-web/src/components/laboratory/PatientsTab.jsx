@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { Search, Plus, User } from 'lucide-react';
+import { PatientAutocomplete } from './PatientAutocomplete';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -20,8 +21,7 @@ async function apiFetch(url, options = {}) {
 const sectionHeader = { background: '#f8fafc', padding: '8px 16px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: 13 };
 
 export function PatientsTab({ labId, styles: s }) {
-  const [search, setSearch] = useState({ firstName: '', middleName: '', lastName: '', patientId: '' });
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [searchError, setSearchError] = useState('');
   const [searched, setSearched] = useState(false);
@@ -35,22 +35,13 @@ export function PatientsTab({ labId, styles: s }) {
 
   const showMsg = (m, t = 'success') => { setMsg(m); setMsgType(t); setTimeout(() => setMsg(''), 5000); };
 
-  const handleRunSearch = async () => {
-    const q = search.patientId || `${search.firstName} ${search.lastName}`.trim();
-    if (!q) { setSearchError('Enter search criteria'); return; }
-    try {
-      setSearchLoading(true);
-      setSearchError('');
+  const handlePatientSelect = (patient) => {
+    setSelectedPatient(patient);
+    if (patient) {
+      setSearchResults([patient]);
       setSearched(true);
-      const data = await apiFetch(`/api/v1/patients/search?q=${encodeURIComponent(q)}`);
-      const results = data.patients || (data.patient ? [data.patient] : (Array.isArray(data) ? data : []));
-      setSearchResults(results);
-      if (results.length === 0) setSearchError('No patients found');
-    } catch (err) {
-      setSearchError(err.message);
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
+      setSearchError('');
+      handleEditPatient(patient);
     }
   };
 
@@ -116,32 +107,14 @@ export function PatientsTab({ labId, styles: s }) {
       <div className={s.card} style={{ marginBottom: 16 }}>
         <div style={sectionHeader}>Search</div>
         <div className={s.cardBody}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 12, alignItems: 'flex-end' }}>
-            <div className={s.field}>
-              <label className={s.label}>First Name</label>
-              <input className={s.input} value={search.firstName} onChange={(e) => setSearch((p) => ({ ...p, firstName: e.target.value }))} placeholder="First name" />
-            </div>
-            <div className={s.field}>
-              <label className={s.label}>Middle Name</label>
-              <input className={s.input} value={search.middleName} onChange={(e) => setSearch((p) => ({ ...p, middleName: e.target.value }))} placeholder="Middle name" />
-            </div>
-            <div className={s.field}>
-              <label className={s.label}>Last Name</label>
-              <input className={s.input} value={search.lastName} onChange={(e) => setSearch((p) => ({ ...p, lastName: e.target.value }))} placeholder="Last name" />
-            </div>
-            <div className={s.field}>
-              <label className={s.label}>Patient ID</label>
-              <input
-                className={s.input}
-                value={search.patientId}
-                onChange={(e) => setSearch((p) => ({ ...p, patientId: e.target.value }))}
-                placeholder="patient-123"
-                onKeyDown={(e) => e.key === 'Enter' && handleRunSearch()}
-              />
-            </div>
-            <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleRunSearch} disabled={searchLoading}>
-              <Search size={14} /> {searchLoading ? 'Searching...' : 'Run Search'}
-            </button>
+          <div className={s.field}>
+            <label className={s.label}>Search by Name or UHID</label>
+            <PatientAutocomplete
+              value={selectedPatient}
+              onChange={handlePatientSelect}
+              placeholder="Type patient name or UHID to search…"
+              styles={s}
+            />
           </div>
           {searchError && <div className={`${s.alert} ${s.alertError}`} style={{ marginTop: 12 }}>{searchError}</div>}
         </div>

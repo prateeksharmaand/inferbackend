@@ -160,6 +160,68 @@ router.get ('/consents/health-records',         emr.getConsentHealthRecords);
 router.post('/consents/:requestId/respond',     emr.respondConsent);
 router.post('/consents/:requestId/pull-data',   emr.pullConsentData);
 
+// Lab results for EMR patient view — look up by mobile (bridges EMR ↔ lab system)
+router.get('/patients/:id/lab-results', async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+    // Try direct UUID match first, then fall back to mobile-based lookup
+    const { rows: direct } = await pool.query(
+      `SELECT r.*, l.facility_name AS lab_name
+       FROM lab_test_results r
+       LEFT JOIN laboratories l ON l.id = r.lab_id
+       WHERE r.patient_id::text = $1
+       ORDER BY r.result_timestamp DESC LIMIT 100`,
+      [req.params.id]
+    );
+    if (direct.length > 0) return res.json(direct);
+    // Fallback: find user by mobile matching emr_patient
+    const { rows: ep } = await pool.query(`SELECT mobile FROM emr_patients WHERE id=$1`, [req.params.id]);
+    if (!ep.length || !ep[0].mobile) return res.json([]);
+    const { rows } = await pool.query(
+      `SELECT r.*, l.facility_name AS lab_name
+       FROM lab_test_results r
+       LEFT JOIN laboratories l ON l.id = r.lab_id
+       JOIN users u ON u.id = r.patient_id AND u.phone = $1
+       ORDER BY r.result_timestamp DESC LIMIT 100`,
+      [ep[0].mobile]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Lab reports for EMR patient view (released only)
+router.get('/patients/:id/lab-reports', async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+    const { rows: direct } = await pool.query(
+      `SELECT r.*, l.facility_name AS lab_name, o.order_number,
+              array_agg(json_build_object('test_name',res.test_name,'result_value',res.result_value,'result_unit',res.result_unit,'is_critical',res.is_critical_value)) AS results
+       FROM lab_reports r
+       LEFT JOIN laboratories l ON l.id = r.lab_id
+       LEFT JOIN lab_orders o ON o.id = r.order_id
+       LEFT JOIN lab_test_results res ON res.patient_id = r.patient_id AND res.lab_id = r.lab_id
+       WHERE r.patient_id::text = $1 AND r.status = 'RELEASED'
+       GROUP BY r.id, l.facility_name, o.order_number
+       ORDER BY r.created_at DESC`,
+      [req.params.id]
+    );
+    if (direct.length > 0) return res.json(direct);
+    const { rows: ep } = await pool.query(`SELECT mobile FROM emr_patients WHERE id=$1`, [req.params.id]);
+    if (!ep.length || !ep[0].mobile) return res.json([]);
+    const { rows } = await pool.query(
+      `SELECT r.*, l.facility_name AS lab_name, o.order_number
+       FROM lab_reports r
+       LEFT JOIN laboratories l ON l.id = r.lab_id
+       LEFT JOIN lab_orders o ON o.id = r.order_id
+       JOIN users u ON u.id = r.patient_id AND u.phone = $1
+       WHERE r.status = 'RELEASED'
+       ORDER BY r.created_at DESC`,
+      [ep[0].mobile]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Analytics dashboards
 router.get('/analytics/appointments',   analytics.getAppointmentDashboard);
 router.get('/analytics/patients',       analytics.getPatientsDashboard);

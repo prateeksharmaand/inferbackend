@@ -1,0 +1,97 @@
+/**
+ * Patient Search for Lab Portal
+ * Searches EMR patients by name or UHID — same data as the clinic EMR.
+ */
+
+const express = require('express');
+const router = express.Router();
+const { pool } = require('../../config/database');
+const { requireAuth } = require('../../middleware/auth');
+
+/**
+ * GET /api/v1/patients/search?q=<name or uhid>
+ * Returns up to 10 matching patients from emr_patients + emr_appointments.
+ */
+router.get('/search', requireAuth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) return res.json([]);
+
+    const term   = `%${q.trim().toLowerCase()}%`;
+    const prefix = `${q.trim()}%`;
+
+    // Search registered patients
+    const { rows: regRows } = await pool.query(
+      `SELECT p.id,
+              p.name,
+              p.mobile,
+              p.dob,
+              p.gender,
+              p.abha_number,
+              (SELECT MAX(a.uhid)
+               FROM emr_appointments a
+               WHERE a.patient_mobile = p.mobile
+                 AND a.uhid IS NOT NULL AND a.uhid != '') AS uhid
+       FROM emr_patients p
+       WHERE LOWER(p.name) LIKE $1
+          OR p.mobile LIKE $2
+          OR p.abha_number LIKE $2
+          OR EXISTS (
+            SELECT 1 FROM emr_appointments ax
+            WHERE ax.patient_mobile = p.mobile
+              AND LOWER(ax.uhid) LIKE $1
+          )
+       ORDER BY p.name
+       LIMIT 10`,
+      [term, prefix]
+    );
+
+    // Also search appointment records for patients not yet registered
+    const knownMobiles = new Set(regRows.map(r => r.mobile).filter(Boolean));
+    const { rows: apptRows } = await pool.query(
+      `SELECT NULL           AS id,
+              patient_name   AS name,
+              patient_mobile AS mobile,
+              patient_dob    AS dob,
+              patient_gender AS gender,
+              NULL           AS abha_number,
+              MAX(uhid)      AS uhid
+       FROM emr_appointments
+       WHERE (LOWER(patient_name) LIKE $1
+              OR patient_mobile   LIKE $2
+              OR LOWER(uhid)      LIKE $1)
+       GROUP BY patient_name, patient_mobile, patient_dob, patient_gender
+       ORDER BY patient_name
+       LIMIT 10`,
+      [term, prefix]
+    );
+
+    const unique = apptRows.filter(r => !r.mobile || !knownMobiles.has(r.mobile));
+    res.json([...regRows, ...unique].slice(0, 10));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/patients/:id  — fetch single patient by EMR id
+ */
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.*,
+              (SELECT MAX(a.uhid)
+               FROM emr_appointments a
+               WHERE a.patient_mobile = p.mobile
+                 AND a.uhid IS NOT NULL AND a.uhid != '') AS uhid
+       FROM emr_patients p WHERE p.id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Patient not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
