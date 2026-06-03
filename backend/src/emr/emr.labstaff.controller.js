@@ -49,8 +49,8 @@ async function createStaff(req, res) {
 
     // Reuse or create laboratory record
     const labRes = await pool.query(
-      `SELECT id FROM laboratories WHERE facility_name = $1 AND clinic_id = $2 LIMIT 1`,
-      [facility_name, clinic_id]
+      `SELECT id FROM laboratories WHERE facility_name = $1 LIMIT 1`,
+      [facility_name]
     );
 
     let labId;
@@ -59,9 +59,9 @@ async function createStaff(req, res) {
     } else {
       const apiKey  = `lab_pk_${crypto.randomBytes(16).toString('hex')}`;
       const newLab  = await pool.query(
-        `INSERT INTO laboratories (clinic_id, facility_name, lab_type, phone, city, api_key, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE') RETURNING id`,
-        [clinic_id, facility_name, lab_type || 'DIAGNOSTIC', phone || null, city || null, apiKey]
+        `INSERT INTO laboratories (facility_name, lab_type, phone, city, api_key, status)
+         VALUES ($1, $2, $3, $4, $5, 'ACTIVE') RETURNING id`,
+        [facility_name, lab_type || 'DIAGNOSTIC', phone || null, city || null, apiKey]
       );
       labId = newLab.rows[0].id;
     }
