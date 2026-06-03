@@ -15,14 +15,13 @@ const { verifyLabToken } = require('../../middleware/labAuth');
 router.get('/search', verifyLabToken, async (req, res) => {
   try {
     const { q } = req.query;
-    if (!q || q.trim().length < 2) return res.json([]);
+    if (!q || q.trim().length < 1) return res.json([]);
 
-    const term   = `%${q.trim().toLowerCase()}%`;
-    const prefix = `${q.trim()}%`;
+    const searchTerm = `%${q.trim()}%`;
 
-    // Search registered patients - deduplicate by name & mobile
-    const { rows: regRows } = await pool.query(
-      `SELECT p.id,
+    // Search registered patients by name or UHID
+    const { rows } = await pool.query(
+      `SELECT DISTINCT p.id,
               p.name,
               p.mobile,
               p.dob,
@@ -33,53 +32,19 @@ router.get('/search', verifyLabToken, async (req, res) => {
                WHERE a.patient_mobile = p.mobile
                  AND a.uhid IS NOT NULL AND a.uhid != '') AS uhid
        FROM emr_patients p
-       WHERE LOWER(p.name) LIKE $1
-          OR p.mobile LIKE $2
-          OR p.abha_number LIKE $2
-          OR EXISTS (
-            SELECT 1 FROM emr_appointments ax
-            WHERE ax.patient_mobile = p.mobile
-              AND LOWER(ax.uhid) LIKE $1
-          )
-       GROUP BY p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number
+       LEFT JOIN emr_appointments a ON a.patient_mobile = p.mobile
+       WHERE LOWER(p.name) LIKE LOWER($1)
+          OR LOWER(p.mobile) LIKE LOWER($1)
+          OR LOWER(p.abha_number) LIKE LOWER($1)
+          OR LOWER(a.uhid) LIKE LOWER($1)
        ORDER BY p.name
        LIMIT 10`,
-      [term, prefix]
+      [searchTerm]
     );
 
-    // Also search appointment records
-    const { rows: apptRows } = await pool.query(
-      `SELECT DISTINCT NULL           AS id,
-              patient_name   AS name,
-              patient_mobile AS mobile,
-              patient_dob    AS dob,
-              patient_gender AS gender,
-              NULL           AS abha_number,
-              MAX(uhid)      AS uhid
-       FROM emr_appointments
-       WHERE (LOWER(patient_name) LIKE $1
-              OR LOWER(uhid)      LIKE $1)
-       GROUP BY patient_name, patient_mobile, patient_dob, patient_gender
-       ORDER BY patient_name
-       LIMIT 10`,
-      [term]
-    );
-
-    // Deduplicate by name + mobile
-    const normalizeMobile = (m) => m ? m.replace(/[\s\-+]/g, '').slice(-10) : '';
-    const seen = new Set();
-    const allResults = [...regRows, ...apptRows];
-    const deduped = allResults.filter(p => {
-      const key = `${(p.name || '').toLowerCase().trim()}_${normalizeMobile(p.mobile)}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    // Only return patients with valid id (registered in emr_patients)
-    const validResults = deduped.filter(p => p.id !== null);
-    res.json(validResults.slice(0, 10));
+    res.json(rows);
   } catch (err) {
+    console.error('Patient search error:', err);
     res.status(500).json({ error: err.message });
   }
 });
