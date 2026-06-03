@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, X, RefreshCw } from 'lucide-react';
 import { PatientAutocomplete } from './PatientAutocomplete';
 import { SampleTypeAutocomplete } from './SampleTypeAutocomplete';
+import { DoctorAutocomplete } from './DoctorAutocomplete';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -284,14 +285,13 @@ export function AddSampleTab({ labId, styles: s }) {
             </div>
             <div className={s.field}>
               <label className={s.label}>Requester's Name</label>
-              {doctors.length > 0 ? (
-                <select className={s.select} value={requester} onChange={(e) => setRequester(e.target.value)}>
-                  <option value="">— Select Doctor —</option>
-                  {doctors.map((d) => <option key={d.id} value={d.name || d.id}>{d.name || d.id}</option>)}
-                </select>
-              ) : (
-                <input className={s.input} value={requester} onChange={(e) => setRequester(e.target.value)} placeholder="Doctor / Requester name" />
-              )}
+              <DoctorAutocomplete
+                value={requester}
+                onChange={setRequester}
+                doctors={doctors}
+                placeholder="Search doctor or enter name…"
+                styles={s}
+              />
             </div>
           </div>
 
