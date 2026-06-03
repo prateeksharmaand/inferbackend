@@ -13,6 +13,11 @@ const { verifyLabToken } = require('../../middleware/labAuth');
  * Returns up to 10 matching patients from emr_patients + emr_appointments.
  */
 router.get('/search', verifyLabToken, async (req, res) => {
+  // Disable caching for patient search
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
   try {
     const { q } = req.query;
     if (!q || q.trim().length < 1) return res.json([]);
