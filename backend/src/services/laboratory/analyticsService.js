@@ -41,8 +41,7 @@ class AnalyticsService {
       query(
         `SELECT COUNT(*) AS critical_count
          FROM lab_test_results ltr
-         JOIN lab_orders lo ON lo.id = ltr.order_id
-         WHERE lo.lab_id = $1 AND ltr.collected_at >= $2 AND ltr.is_critical_value = TRUE`,
+         WHERE ltr.lab_id = $1 AND ltr.collection_timestamp >= $2 AND ltr.is_critical_value = TRUE`,
         [lab_id, sinceISO]
       ),
       query(
@@ -131,8 +130,7 @@ class AnalyticsService {
            COUNT(*) AS critical_count,
            AVG(ltr.result_value::numeric) AS avg_critical_value
        FROM lab_test_results ltr
-       JOIN lab_orders lo ON lo.id = ltr.order_id
-       WHERE lo.lab_id = $1 AND ltr.is_critical_value = TRUE AND ltr.collected_at >= $2
+       WHERE ltr.lab_id = $1 AND ltr.is_critical_value = TRUE AND ltr.collection_timestamp >= $2
        GROUP BY ltr.test_code, ltr.test_name
        ORDER BY critical_count DESC`,
       [lab_id, since.toISOString()]
@@ -230,8 +228,7 @@ class AnalyticsService {
       query(
         `SELECT COUNT(*) AS critical_count
          FROM lab_test_results ltr
-         JOIN lab_orders lo ON lo.id = ltr.order_id
-         WHERE lo.lab_id = $1 AND ltr.collected_at BETWEEN $2 AND $3 AND ltr.is_critical_value = TRUE`,
+         WHERE ltr.lab_id = $1 AND ltr.collection_timestamp BETWEEN $2 AND $3 AND ltr.is_critical_value = TRUE`,
         [lab_id, dayStart.toISOString(), dayEnd.toISOString()]
       ),
       query(
