@@ -3,8 +3,8 @@
  * CRUD for lab staff accounts managed from OPD settings
  */
 
-const db    = require('../db');
-const bcrypt = require('bcryptjs');
+const { pool } = require('../config/database');
+const bcrypt   = require('bcryptjs');
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -18,7 +18,7 @@ async function listStaff(req, res) {
   try {
     const { clinic_id } = req.emrUser;
 
-    const result = await db.query(
+    const result = await pool.query(
       `SELECT u.id, u.email, u.name, u.lab_id, u.lab_role,
               u.can_upload_results, u.is_active,
               l.facility_name, l.lab_type, l.city, l.phone
@@ -47,14 +47,14 @@ async function createStaff(req, res) {
     }
 
     // Check email not already used
-    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email already in use' });
     }
 
     // Create or reuse laboratory record for this facility
     let labId;
-    const labResult = await db.query(
+    const labResult = await pool.query(
       `SELECT id FROM laboratories
        WHERE facility_name = $1 AND clinic_id = $2 LIMIT 1`,
       [facility_name, clinic_id]
@@ -64,7 +64,7 @@ async function createStaff(req, res) {
       labId = labResult.rows[0].id;
     } else {
       const apiKey = `lab_pk_${require('crypto').randomBytes(16).toString('hex')}`;
-      const newLab = await db.query(
+      const newLab = await pool.query(
         `INSERT INTO laboratories
            (facility_name, lab_type, phone, city, api_key, status, clinic_id)
          VALUES ($1, $2, $3, $4, $5, 'ACTIVE', $6)
@@ -76,7 +76,7 @@ async function createStaff(req, res) {
 
     const hash = await bcrypt.hash(password, 10);
 
-    const user = await db.query(
+    const user = await pool.query(
       `INSERT INTO users
          (name, email, password_hash, lab_id, lab_role, can_upload_results, is_active, clinic_id)
        VALUES ($1, $2, $3, $4, $5, true, true, $6)
@@ -105,7 +105,7 @@ async function updateStaff(req, res) {
     const { name, email, password, lab_role, facility_name, lab_type, phone, city, is_active } = req.body;
 
     // Verify ownership
-    const check = await db.query(
+    const check = await pool.query(
       'SELECT id, lab_id FROM users WHERE id = $1 AND clinic_id = $2',
       [id, clinic_id]
     );
@@ -126,7 +126,7 @@ async function updateStaff(req, res) {
 
     if (updates.length > 0) {
       params.push(id);
-      await db.query(
+      await pool.query(
         `UPDATE users SET ${updates.join(', ')} WHERE id = $${p}`,
         params
       );
@@ -143,7 +143,7 @@ async function updateStaff(req, res) {
       if (city          !== undefined) { labUpdates.push(`city = $${lp++}`);          labParams.push(city); }
       if (labUpdates.length > 0) {
         labParams.push(labId);
-        await db.query(
+        await pool.query(
           `UPDATE laboratories SET ${labUpdates.join(', ')} WHERE id = $${lp}`,
           labParams
         );
@@ -151,7 +151,7 @@ async function updateStaff(req, res) {
     }
 
     // Return updated row
-    const result = await db.query(
+    const result = await pool.query(
       `SELECT u.id, u.name, u.email, u.lab_id, u.lab_role, u.can_upload_results, u.is_active,
               l.facility_name, l.lab_type, l.city, l.phone
        FROM users u
@@ -173,7 +173,7 @@ async function deleteStaff(req, res) {
     const { clinic_id } = req.emrUser;
     const { id } = req.params;
 
-    const result = await db.query(
+    const result = await pool.query(
       'DELETE FROM users WHERE id = $1 AND clinic_id = $2 AND lab_id IS NOT NULL RETURNING id',
       [id, clinic_id]
     );
