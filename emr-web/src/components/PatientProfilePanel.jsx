@@ -263,6 +263,100 @@ function VitalsLabs({ history }) {
 }
 
 // ── Lab Reports (from lab system) ─────────────────────────────────────────────
+function LabReportCard({ r }) {
+  const [open, setOpen] = useState(true);
+  const hasResults = Array.isArray(r.results) && r.results.filter(x => x.test_name).length > 0;
+  const statusColors = { PENDING: '#92400e', COLLECTED: '#1e40af', PROCESSING: '#6d28d9', RESULTED: '#065f46', REPORTED: '#065f46', CANCELLED: '#991b1b' };
+
+  return (
+    <div style={{ border: '1px solid var(--color-border)', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
+      {/* Header — clickable to toggle */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ background: '#f8fafc', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>
+            {r.report_number ? `Report #${r.report_number}` : 'Lab Results'}
+          </span>
+          {r.order_number && (
+            <span style={{ fontSize: 11, color: '#64748b', background: '#f1f5f9', padding: '1px 7px', borderRadius: 6 }}>
+              {r.order_number}
+            </span>
+          )}
+          {r.order_status && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 6, background: '#e0f2fe', color: statusColors[r.order_status] || '#334155' }}>
+              {r.order_status}
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          {r.lab_name && <span style={{ fontSize: 11, background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>{r.lab_name}</span>}
+          <span style={{ fontSize: 11, color: '#64748b' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>{open ? '▲' : '▼'}</span>
+        </div>
+      </div>
+
+      {/* Body — collapsible */}
+      {open && (
+        <div>
+          {r.observations && <div style={{ padding: '8px 14px', fontSize: 12, color: '#334155', borderTop: '1px solid var(--color-border)' }}><strong>Observations:</strong> {r.observations}</div>}
+          {r.clinical_notes && <div style={{ padding: '8px 14px', fontSize: 12, color: '#334155', borderTop: '1px solid var(--color-border)' }}><strong>Notes:</strong> {r.clinical_notes}</div>}
+
+          {hasResults ? (
+            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--color-border)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: 11 }}>
+                    <th style={{ textAlign: 'left', paddingBottom: 6 }}>Test</th>
+                    <th style={{ textAlign: 'left' }}>Result</th>
+                    <th style={{ textAlign: 'left' }}>Unit</th>
+                    <th style={{ textAlign: 'left' }}>Ref Range</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.results.filter(x => x.test_name).map((res, i) => {
+                    const refRange = (res.reference_range_low != null && res.reference_range_high != null)
+                      ? `${res.reference_range_low} – ${res.reference_range_high}`
+                      : null;
+                    const val = res.result_value;
+                    const isHigh = val != null && res.reference_range_high != null && val > res.reference_range_high;
+                    const isLow  = val != null && res.reference_range_low  != null && val < res.reference_range_low;
+                    return (
+                      <tr key={i} style={{ borderTop: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '5px 0', fontWeight: 600 }}>{res.test_name}</td>
+                        <td style={{ padding: '5px 8px', color: res.is_critical ? '#991b1b' : isHigh || isLow ? '#b45309' : '#1a202c', fontWeight: res.is_critical || isHigh || isLow ? 700 : 400 }}>
+                          {val != null ? val : <span style={{ color: '#94a3b8' }}>Pending</span>}
+                          {isHigh && <span style={{ marginLeft: 4, fontSize: 10 }}>▲</span>}
+                          {isLow  && <span style={{ marginLeft: 4, fontSize: 10 }}>▼</span>}
+                        </td>
+                        <td style={{ padding: '5px 0', color: '#64748b' }}>{res.result_unit || '—'}</td>
+                        <td style={{ padding: '5px 8px', color: '#64748b', fontSize: 11 }}>{refRange || '—'}</td>
+                        <td>{res.is_critical && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>CRITICAL</span>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ padding: '12px 14px', fontSize: 12, color: '#94a3b8', borderTop: '1px solid var(--color-border)' }}>
+              Results pending — not yet uploaded by lab.
+            </div>
+          )}
+
+          {r.pdf_path && (
+            <div style={{ padding: '8px 14px', borderTop: '1px solid var(--color-border)' }}>
+              <a href={`/api/v1/reports/${r.id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>📄 Download PDF Report</a>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LabReportsTab({ patientId, uhid }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -281,58 +375,7 @@ function LabReportsTab({ patientId, uhid }) {
 
   return (
     <div className={styles.tabPad}>
-      {reports.map((r) => (
-        <div key={r.id} style={{ border: '1px solid var(--color-border)', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
-          <div style={{ background: '#f8fafc', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
-            <div>
-              {r.report_number
-                ? <span style={{ fontWeight: 700, fontSize: 13 }}>Report #{r.report_number}</span>
-                : <span style={{ fontWeight: 700, fontSize: 13 }}>Lab Results</span>}
-              {r.order_number && <span style={{ marginLeft: 8, fontSize: 11, color: '#64748b' }}>Order: {r.order_number}</span>}
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {r.lab_name && <span style={{ fontSize: 11, background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>{r.lab_name}</span>}
-              <span style={{ fontSize: 11, color: '#64748b' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-            </div>
-          </div>
-          {r.observations && <div style={{ padding: '8px 14px', fontSize: 12, color: '#334155', borderBottom: '1px solid var(--color-border)' }}><strong>Observations:</strong> {r.observations}</div>}
-          {r.clinical_notes && <div style={{ padding: '8px 14px', fontSize: 12, color: '#334155', borderBottom: '1px solid var(--color-border)' }}><strong>Notes:</strong> {r.clinical_notes}</div>}
-          {Array.isArray(r.results) && r.results.filter(x => x.test_name).length > 0 && (
-            <div style={{ padding: '10px 14px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead><tr style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: 11 }}>
-                  <th style={{ textAlign: 'left', paddingBottom: 4 }}>Test</th>
-                  <th style={{ textAlign: 'left' }}>Result</th>
-                  <th style={{ textAlign: 'left' }}>Unit</th>
-                  <th style={{ textAlign: 'left' }}>Ref Range</th>
-                  <th></th>
-                </tr></thead>
-                <tbody>
-                  {r.results.filter(x => x.test_name).map((res, i) => {
-                    const refRange = (res.reference_range_low != null && res.reference_range_high != null)
-                      ? `${res.reference_range_low} – ${res.reference_range_high}`
-                      : '—';
-                    return (
-                      <tr key={i} style={{ borderTop: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '4px 0', fontWeight: 600 }}>{res.test_name}</td>
-                        <td style={{ padding: '4px 8px', color: res.is_critical ? '#991b1b' : '#1a202c', fontWeight: res.is_critical ? 700 : 400 }}>{res.result_value ?? '—'}</td>
-                        <td style={{ padding: '4px 0', color: '#64748b' }}>{res.result_unit || '—'}</td>
-                        <td style={{ padding: '4px 8px', color: '#64748b', fontSize: 11 }}>{refRange}</td>
-                        <td>{res.is_critical && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>CRITICAL</span>}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {r.pdf_path && (
-            <div style={{ padding: '8px 14px', borderTop: '1px solid var(--color-border)' }}>
-              <a href={`/api/v1/reports/${r.id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>📄 Download PDF Report</a>
-            </div>
-          )}
-        </div>
-      ))}
+      {reports.map((r) => <LabReportCard key={r.id} r={r} />)}
     </div>
   );
 }

@@ -288,17 +288,21 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
     // Also check lab_orders by UHID and pull their samples' results
     if (uhid) {
       const { rows: orderResults } = await pool.query(
-        `SELECT o.id AS order_id, o.order_number, o.created_at, o.clinical_notes,
+        `SELECT o.id AS order_id, o.order_number, o.created_at, o.clinical_notes, o.status AS order_status,
                 l.facility_name AS lab_name,
                 json_agg(json_build_object(
                   'test_name', oi.test_name,
-                  'result_value', null,
-                  'result_unit', null,
-                  'is_critical', false
-                )) AS results
+                  'result_value', ltr.result_value,
+                  'result_unit', ltr.result_unit,
+                  'is_critical', COALESCE(ltr.is_critical_value, false),
+                  'reference_range_low', ltr.reference_range_low,
+                  'reference_range_high', ltr.reference_range_high,
+                  'result_status', ltr.result_status
+                ) ORDER BY oi.test_name) AS results
          FROM lab_orders o
          LEFT JOIN laboratories l ON l.id = o.lab_id
          LEFT JOIN lab_order_items oi ON oi.order_id = o.id
+         LEFT JOIN lab_test_results ltr ON ltr.id = oi.result_id
          WHERE o.patient_uhid = $1
          GROUP BY o.id, l.facility_name
          ORDER BY o.created_at DESC`,
@@ -316,6 +320,7 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
             id: `order_${o.order_id}`,
             report_number: null,
             order_number: o.order_number,
+            order_status: o.order_status,
             lab_name: o.lab_name || 'Lab',
             created_at: o.created_at,
             observations: null,
