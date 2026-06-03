@@ -4,13 +4,13 @@
  */
 
 const router = require('express').Router();
-const authMiddleware = require('../../middleware/auth');
+const labAuth = require('../../middleware/labAuth');
 const { query } = require('../../config/database');
 
-const requireAuth = authMiddleware.requireAuth;
+const verifyLabToken = labAuth.verifyLabToken;
 
 // GET /catalog - list tests
-router.get('/catalog', requireAuth, async (req, res) => {
+router.get('/catalog', verifyLabToken, async (req, res) => {
   try {
     const { lab_id, category, specimen_type, is_active = 'true', search } = req.query;
     const labId = lab_id || req.user.lab_id;
@@ -33,7 +33,7 @@ router.get('/catalog', requireAuth, async (req, res) => {
 });
 
 // POST /catalog - add test
-router.post('/catalog', requireAuth, async (req, res) => {
+router.post('/catalog', verifyLabToken, async (req, res) => {
   try {
     const {
       lab_id, test_code, test_name, category, sub_category, specimen_type,
@@ -72,7 +72,7 @@ router.post('/catalog', requireAuth, async (req, res) => {
 });
 
 // PUT /catalog/:test_id - update test
-router.put('/catalog/:test_id', requireAuth, async (req, res) => {
+router.put('/catalog/:test_id', verifyLabToken, async (req, res) => {
   try {
     const {
       test_code, test_name, category, sub_category, specimen_type, collection_method,
@@ -116,7 +116,7 @@ router.put('/catalog/:test_id', requireAuth, async (req, res) => {
 });
 
 // DELETE /catalog/:test_id - deactivate test
-router.delete('/catalog/:test_id', requireAuth, async (req, res) => {
+router.delete('/catalog/:test_id', verifyLabToken, async (req, res) => {
   try {
     const result = await query(
       `UPDATE lab_test_catalog SET is_active = FALSE WHERE id = $1 RETURNING *`,
@@ -130,7 +130,7 @@ router.delete('/catalog/:test_id', requireAuth, async (req, res) => {
 });
 
 // GET /panels - list panels
-router.get('/panels', requireAuth, async (req, res) => {
+router.get('/panels', verifyLabToken, async (req, res) => {
   try {
     const { lab_id, is_active = 'true' } = req.query;
     const labId = lab_id || req.user.lab_id;
@@ -160,7 +160,7 @@ router.get('/panels', requireAuth, async (req, res) => {
 });
 
 // POST /panels - create panel
-router.post('/panels', requireAuth, async (req, res) => {
+router.post('/panels', verifyLabToken, async (req, res) => {
   try {
     const { lab_id, panel_code, panel_name, description, price } = req.body;
     if (!panel_code || !panel_name) {
@@ -180,7 +180,7 @@ router.post('/panels', requireAuth, async (req, res) => {
 });
 
 // PUT /panels/:panel_id - update panel
-router.put('/panels/:panel_id', requireAuth, async (req, res) => {
+router.put('/panels/:panel_id', verifyLabToken, async (req, res) => {
   try {
     const { panel_code, panel_name, description, price, is_active } = req.body;
     const result = await query(
@@ -201,7 +201,7 @@ router.put('/panels/:panel_id', requireAuth, async (req, res) => {
 });
 
 // POST /panels/:panel_id/tests - add tests to panel
-router.post('/panels/:panel_id/tests', requireAuth, async (req, res) => {
+router.post('/panels/:panel_id/tests', verifyLabToken, async (req, res) => {
   try {
     const { test_ids } = req.body;
     if (!Array.isArray(test_ids) || test_ids.length === 0) {

@@ -7,7 +7,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { query: dbQuery } = require('../../config/database');
 const { emrAuth } = require('../../emr/emr.middleware');
-const { requireAuth } = require('../../middleware/auth');
+const { verifyLabToken } = require('../../middleware/labAuth');
 const { verifyLabAccess } = require('../../middleware/labAuth');
 const auditService = require('../../services/laboratory/auditService');
 const criticalValueService = require('../../services/laboratory/criticalValueService');
@@ -237,7 +237,7 @@ router.put(
  * GET /api/v1/admin/laboratories/:lab_id/dashboard
  * Get lab dashboard statistics
  */
-router.get('/laboratories/:lab_id/dashboard', requireAuth, verifyLabAccess, async (req, res) => {
+router.get('/laboratories/:lab_id/dashboard', verifyLabToken, verifyLabAccess, async (req, res) => {
   try {
     const { lab_id } = req.params;
     const { days = 7 } = req.query;

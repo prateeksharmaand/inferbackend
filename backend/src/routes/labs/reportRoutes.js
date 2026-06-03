@@ -6,13 +6,13 @@
 const path = require('path');
 const fs = require('fs');
 const router = require('express').Router();
-const authMiddleware = require('../../middleware/auth');
+const labAuth = require('../../middleware/labAuth');
 const reportService = require('../../services/laboratory/reportService');
 
-const requireAuth = authMiddleware.requireAuth;
+const verifyLabToken = labAuth.verifyLabToken;
 
 // POST /reports - create report
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', verifyLabToken, async (req, res) => {
   try {
     const {
       order_id, patient_id, lab_id, doctor_id, report_type,
@@ -36,7 +36,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // GET /reports/:report_id - get report
-router.get('/:report_id', requireAuth, async (req, res) => {
+router.get('/:report_id', verifyLabToken, async (req, res) => {
   try {
     const report = await reportService.getReport(req.params.report_id);
     if (!report) return res.status(404).json({ error: 'Report not found' });
@@ -47,7 +47,7 @@ router.get('/:report_id', requireAuth, async (req, res) => {
 });
 
 // GET /reports/:report_id/pdf - download PDF
-router.get('/:report_id/pdf', requireAuth, async (req, res) => {
+router.get('/:report_id/pdf', verifyLabToken, async (req, res) => {
   try {
     const { pdf_path, file_path } = await reportService.generatePDF(req.params.report_id);
 
@@ -71,7 +71,7 @@ router.get('/:report_id/pdf', requireAuth, async (req, res) => {
 });
 
 // GET /patients/:patient_id/reports - patient reports
-router.get('/patients/:patient_id/reports', requireAuth, async (req, res) => {
+router.get('/patients/:patient_id/reports', verifyLabToken, async (req, res) => {
   try {
     const { status, start_date, end_date } = req.query;
     const reports = await reportService.getReportsByPatient(req.params.patient_id, {
@@ -84,7 +84,7 @@ router.get('/patients/:patient_id/reports', requireAuth, async (req, res) => {
 });
 
 // POST /reports/:report_id/approve - approve report
-router.post('/:report_id/approve', requireAuth, async (req, res) => {
+router.post('/:report_id/approve', verifyLabToken, async (req, res) => {
   try {
     const report = await reportService.approveReport(req.params.report_id, req.user.id);
     return res.json({ success: true, report });
@@ -94,7 +94,7 @@ router.post('/:report_id/approve', requireAuth, async (req, res) => {
 });
 
 // POST /reports/:report_id/release - release to doctor
-router.post('/:report_id/release', requireAuth, async (req, res) => {
+router.post('/:report_id/release', verifyLabToken, async (req, res) => {
   try {
     const report = await reportService.releaseReport(req.params.report_id, req.user.id);
     return res.json({ success: true, report });
@@ -104,7 +104,7 @@ router.post('/:report_id/release', requireAuth, async (req, res) => {
 });
 
 // GET /patients/:patient_id/trends/:test_code - trend data
-router.get('/patients/:patient_id/trends/:test_code', requireAuth, async (req, res) => {
+router.get('/patients/:patient_id/trends/:test_code', verifyLabToken, async (req, res) => {
   try {
     const months = parseInt(req.query.months) || 6;
     const trends = await reportService.getTrendData(

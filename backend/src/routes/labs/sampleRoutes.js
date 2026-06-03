@@ -4,14 +4,14 @@
  */
 
 const router = require('express').Router();
-const authMiddleware = require('../../middleware/auth');
+const labAuth = require('../../middleware/labAuth');
 const sampleService = require('../../services/laboratory/sampleService');
 const workflowService = require('../../services/laboratory/workflowService');
 
-const requireAuth = authMiddleware.requireAuth;
+const verifyLabToken = labAuth.verifyLabToken;
 
 // POST /samples - register sample
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', verifyLabToken, async (req, res) => {
   try {
     const {
       order_id, patient_id, lab_id, specimen_type, collection_method,
@@ -36,7 +36,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // GET /samples/:sample_id - get sample
-router.get('/:sample_id', requireAuth, async (req, res) => {
+router.get('/:sample_id', verifyLabToken, async (req, res) => {
   try {
     const sample = await sampleService.getSample(req.params.sample_id);
     if (!sample) return res.status(404).json({ error: 'Sample not found' });
@@ -47,7 +47,7 @@ router.get('/:sample_id', requireAuth, async (req, res) => {
 });
 
 // GET /orders/:order_id/samples - samples for order
-router.get('/orders/:order_id/samples', requireAuth, async (req, res) => {
+router.get('/orders/:order_id/samples', verifyLabToken, async (req, res) => {
   try {
     const samples = await sampleService.getSamplesByOrder(req.params.order_id);
     return res.json({ success: true, samples });
@@ -57,7 +57,7 @@ router.get('/orders/:order_id/samples', requireAuth, async (req, res) => {
 });
 
 // PATCH /samples/:sample_id/status - update status
-router.patch('/:sample_id/status', requireAuth, async (req, res) => {
+router.patch('/:sample_id/status', verifyLabToken, async (req, res) => {
   try {
     const { status, notes } = req.body;
     if (!status) return res.status(400).json({ error: 'status is required' });
@@ -72,7 +72,7 @@ router.patch('/:sample_id/status', requireAuth, async (req, res) => {
 });
 
 // POST /samples/:sample_id/custody - add custody event
-router.post('/:sample_id/custody', requireAuth, async (req, res) => {
+router.post('/:sample_id/custody', verifyLabToken, async (req, res) => {
   try {
     const { action, location, notes } = req.body;
     if (!action) return res.status(400).json({ error: 'action is required' });
@@ -87,7 +87,7 @@ router.post('/:sample_id/custody', requireAuth, async (req, res) => {
 });
 
 // GET /samples/:sample_id/custody - custody chain
-router.get('/:sample_id/custody', requireAuth, async (req, res) => {
+router.get('/:sample_id/custody', verifyLabToken, async (req, res) => {
   try {
     const chain = await sampleService.getCustodyChain(req.params.sample_id);
     return res.json({ success: true, chain });
@@ -97,7 +97,7 @@ router.get('/:sample_id/custody', requireAuth, async (req, res) => {
 });
 
 // POST /samples/:sample_id/reject - reject sample
-router.post('/:sample_id/reject', requireAuth, async (req, res) => {
+router.post('/:sample_id/reject', verifyLabToken, async (req, res) => {
   try {
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ error: 'reason is required' });

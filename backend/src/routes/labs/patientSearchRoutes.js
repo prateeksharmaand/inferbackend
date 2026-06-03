@@ -6,13 +6,13 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../../config/database');
-const { requireAuth } = require('../../middleware/auth');
+const { verifyLabToken } = require('../../middleware/labAuth');
 
 /**
  * GET /api/v1/patients/search?q=<name or uhid>
  * Returns up to 10 matching patients from emr_patients + emr_appointments.
  */
-router.get('/search', requireAuth, async (req, res) => {
+router.get('/search', verifyLabToken, async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.trim().length < 2) return res.json([]);
@@ -76,7 +76,7 @@ router.get('/search', requireAuth, async (req, res) => {
 /**
  * GET /api/v1/patients/:id  — fetch single patient by EMR id
  */
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', verifyLabToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT p.*,

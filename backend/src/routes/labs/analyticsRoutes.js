@@ -4,10 +4,8 @@
  */
 
 const router = require('express').Router();
-const authMiddleware = require('../../middleware/auth');
+const { verifyLabToken } = require('../../middleware/labAuth');
 const analyticsService = require('../../services/laboratory/analyticsService');
-
-const requireAuth = authMiddleware.requireAuth;
 
 // All analytics routes require a lab_id query param or resolved from user context
 function getLabId(req) {
@@ -15,7 +13,7 @@ function getLabId(req) {
 }
 
 // GET /analytics/dashboard
-router.get('/analytics/dashboard', requireAuth, async (req, res) => {
+router.get('/analytics/dashboard', verifyLabToken, async (req, res) => {
   try {
     const lab_id = getLabId(req);
     if (!lab_id) return res.status(400).json({ error: 'lab_id is required' });
@@ -28,7 +26,7 @@ router.get('/analytics/dashboard', requireAuth, async (req, res) => {
 });
 
 // GET /analytics/test-volume
-router.get('/analytics/test-volume', requireAuth, async (req, res) => {
+router.get('/analytics/test-volume', verifyLabToken, async (req, res) => {
   try {
     const lab_id = getLabId(req);
     if (!lab_id) return res.status(400).json({ error: 'lab_id is required' });
@@ -41,7 +39,7 @@ router.get('/analytics/test-volume', requireAuth, async (req, res) => {
 });
 
 // GET /analytics/turnaround
-router.get('/analytics/turnaround', requireAuth, async (req, res) => {
+router.get('/analytics/turnaround', verifyLabToken, async (req, res) => {
   try {
     const lab_id = getLabId(req);
     if (!lab_id) return res.status(400).json({ error: 'lab_id is required' });
@@ -54,7 +52,7 @@ router.get('/analytics/turnaround', requireAuth, async (req, res) => {
 });
 
 // GET /analytics/critical-values
-router.get('/analytics/critical-values', requireAuth, async (req, res) => {
+router.get('/analytics/critical-values', verifyLabToken, async (req, res) => {
   try {
     const lab_id = getLabId(req);
     if (!lab_id) return res.status(400).json({ error: 'lab_id is required' });
@@ -67,7 +65,7 @@ router.get('/analytics/critical-values', requireAuth, async (req, res) => {
 });
 
 // GET /analytics/revenue
-router.get('/analytics/revenue', requireAuth, async (req, res) => {
+router.get('/analytics/revenue', verifyLabToken, async (req, res) => {
   try {
     const lab_id = getLabId(req);
     if (!lab_id) return res.status(400).json({ error: 'lab_id is required' });
@@ -80,7 +78,7 @@ router.get('/analytics/revenue', requireAuth, async (req, res) => {
 });
 
 // GET /analytics/compliance
-router.get('/analytics/compliance', requireAuth, async (req, res) => {
+router.get('/analytics/compliance', verifyLabToken, async (req, res) => {
   try {
     const lab_id = getLabId(req);
     if (!lab_id) return res.status(400).json({ error: 'lab_id is required' });
