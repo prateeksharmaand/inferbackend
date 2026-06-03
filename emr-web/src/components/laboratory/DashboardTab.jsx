@@ -195,9 +195,9 @@ export function DashboardTab({ labId, styles: s }) {
       {/* Status bar */}
       <div className={s.card} style={{ marginBottom: 16 }}>
         <div className={s.cardBody} style={{ padding: '10px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 13 }}>
+          <div className={statsLoading ? s.shimmer : ''} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 13 }}>
             <button className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={handleRefresh} disabled={statsLoading}>
-              <RefreshCw size={13} /> Refresh
+              <span className={statsLoading ? s.spinIcon : ''}><RefreshCw size={13} /></span> Refresh
             </button>
             <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>Today's Status ({todayStr})</span>
             <span style={{ color: 'var(--color-text-2)' }}>▶</span>
