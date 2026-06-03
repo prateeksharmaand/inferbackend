@@ -263,17 +263,18 @@ function VitalsLabs({ history }) {
 }
 
 // ── Lab Reports (from lab system) ─────────────────────────────────────────────
-function LabReportsTab({ patientId }) {
+function LabReportsTab({ patientId, uhid }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!patientId) { setLoading(false); return; }
-    api.get(`/patients/${patientId}/lab-reports`)
+    const id = patientId || 'unknown';
+    const params = uhid ? `?uhid=${encodeURIComponent(uhid)}` : '';
+    api.get(`/patients/${id}/lab-reports${params}`)
       .then(data => setReports(Array.isArray(data) ? data : []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [patientId]);
+  }, [patientId, uhid]);
 
   if (loading) return <div className={styles.tabPad}><p className={styles.hint}>Loading lab reports…</p></div>;
   if (!reports.length) return <EmptyState text="No lab reports found." />;
@@ -644,7 +645,7 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
               <MedicalRecordsTab apptId={appt.id} patientMobile={appt.patient_mobile} />
             )}
             {tab === 'Lab Reports' && (
-              <LabReportsTab patientId={appt.emr_patient_id || appt.patient_id} />
+              <LabReportsTab patientId={appt.emr_patient_id || appt.patient_id} uhid={appt.uhid} />
             )}
           </div>
         </div>

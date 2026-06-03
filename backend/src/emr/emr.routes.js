@@ -194,12 +194,27 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
   try {
     const { pool } = require('../config/database');
 
-    // 1. Look up patient UHID from emr_appointments
-    const { rows: uhidRows } = await pool.query(
-      `SELECT MAX(uhid) AS uhid FROM emr_appointments WHERE emr_patient_id = $1 AND uhid IS NOT NULL`,
-      [req.params.id]
-    );
-    const uhid = uhidRows[0]?.uhid || null;
+    // 1. Resolve UHID — prefer query param, then look up from emr_appointments
+    let uhid = req.query.uhid || null;
+    if (!uhid) {
+      const { rows: uhidRows } = await pool.query(
+        `SELECT MAX(uhid) AS uhid FROM emr_appointments WHERE emr_patient_id = $1 AND uhid IS NOT NULL`,
+        [req.params.id]
+      );
+      uhid = uhidRows[0]?.uhid || null;
+    }
+    // Also try matching by appointment patient_id column (UUID) in case emr_patient_id differs
+    if (!uhid && req.params.id && req.params.id !== 'unknown') {
+      const { rows: uhidRows2 } = await pool.query(
+        `SELECT MAX(uhid) AS uhid FROM emr_appointments WHERE uhid IS NOT NULL AND (
+          emr_patient_id::text = $1 OR patient_mobile IN (
+            SELECT mobile FROM emr_patients WHERE id::text = $1
+          )
+        )`,
+        [req.params.id]
+      );
+      uhid = uhidRows2[0]?.uhid || null;
+    }
 
     // 2. Formal lab_reports (any status)
     const { rows: formalReports } = await pool.query(
