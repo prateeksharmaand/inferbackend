@@ -14,17 +14,21 @@ const verifyLabToken = labAuth.verifyLabToken;
 router.post('/', verifyLabToken, async (req, res) => {
   try {
     const {
-      order_id, patient_id, lab_id, specimen_type, collection_method,
+      order_id, patient_id, patient_uhid, lab_id, specimen_type, collection_method,
       collection_site, collected_by, collected_at, volume_ml, container_type,
       storage_location, notes,
     } = req.body;
 
-    if (!patient_id || !lab_id || !specimen_type) {
-      return res.status(400).json({ error: 'patient_id, lab_id, and specimen_type are required' });
+    if (!patient_uhid && !patient_id) {
+      return res.status(400).json({ error: 'patient_uhid or patient_id is required' });
+    }
+    if (!lab_id || !specimen_type) {
+      return res.status(400).json({ error: 'lab_id and specimen_type are required' });
     }
 
     const sample = await sampleService.createSample({
-      order_id, patient_id, lab_id, specimen_type, collection_method,
+      order_id, patient_id: patient_id || null, patient_uhid: patient_uhid || null,
+      lab_id, specimen_type, collection_method,
       collection_site, collected_by: collected_by || req.user.id,
       collected_at, volume_ml, container_type, storage_location, notes,
     });

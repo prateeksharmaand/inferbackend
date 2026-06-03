@@ -16,6 +16,8 @@ function generateOrderNumber() {
 class OrderService {
   async createOrder({
     patient_id,
+    patient_uhid,
+    patient_name,
     lab_id,
     ordering_doctor_id,
     clinic_id,
@@ -72,13 +74,15 @@ class OrderService {
     const orderNumber = generateOrderNumber();
     const orderRes = await query(
       `INSERT INTO lab_orders
-         (order_number, patient_id, lab_id, ordering_doctor_id, clinic_id, priority,
+         (order_number, patient_id, patient_uhid, patient_name, lab_id, ordering_doctor_id, clinic_id, priority,
           clinical_notes, diagnosis_codes, scheduled_collection_at, total_cost)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [
         orderNumber,
-        patient_id,
+        patient_id || null,
+        patient_uhid || null,
+        patient_name || null,
         lab_id,
         ordering_doctor_id || null,
         clinic_id || null,

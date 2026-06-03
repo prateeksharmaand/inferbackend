@@ -12,16 +12,20 @@ const workflowService = require('../../services/laboratory/workflowService');
 router.post('/', verifyLabToken, async (req, res) => {
   try {
     const {
-      patient_id, lab_id, ordering_doctor_id, clinic_id, priority,
+      patient_id, patient_uhid, patient_name, lab_id, ordering_doctor_id, clinic_id, priority,
       clinical_notes, diagnosis_codes, tests, panels, scheduled_collection_at,
     } = req.body;
 
-    if (!patient_id || !lab_id) {
-      return res.status(400).json({ error: 'patient_id and lab_id are required' });
+    if (!patient_uhid && !patient_id) {
+      return res.status(400).json({ error: 'patient_uhid or patient_id is required' });
+    }
+    if (!lab_id) {
+      return res.status(400).json({ error: 'lab_id is required' });
     }
 
     const order = await orderService.createOrder({
-      patient_id, lab_id, ordering_doctor_id, clinic_id, priority,
+      patient_id: patient_id || null, patient_uhid: patient_uhid || null, patient_name: patient_name || null,
+      lab_id, ordering_doctor_id, clinic_id, priority,
       clinical_notes, diagnosis_codes, tests, panels, scheduled_collection_at,
       performed_by: req.user.id,
     });

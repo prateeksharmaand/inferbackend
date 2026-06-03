@@ -23,6 +23,7 @@ class SampleService {
   async createSample({
     order_id,
     patient_id,
+    patient_uhid,
     lab_id,
     specimen_type,
     collection_method,
@@ -39,16 +40,17 @@ class SampleService {
 
     const res = await query(
       `INSERT INTO lab_samples
-         (sample_id, barcode, order_id, patient_id, lab_id, specimen_type,
+         (sample_id, barcode, order_id, patient_id, patient_uhid, lab_id, specimen_type,
           collection_method, collection_site, collected_by, collected_at,
           volume_ml, container_type, storage_location, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
         sample_id,
         barcode,
         order_id || null,
-        patient_id,
+        patient_id || null,
+        patient_uhid || null,
         lab_id,
         specimen_type,
         collection_method || null,

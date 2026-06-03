@@ -138,7 +138,7 @@ export function AddSampleTab({ labId, styles: s }) {
 
   const handleSave = async () => {
     if (!labId) { toast.error('Lab ID is required. Please reload and try again.'); return; }
-    if (!foundPatient || !foundPatient.id) { toast.error('Please search and select a patient first'); return; }
+    if (!foundPatient || (!foundPatient.uhid && !foundPatient.id)) { toast.error('Please search and select a patient first'); return; }
     if (samples.length === 0) { toast.error('Please add at least one sample'); return; }
 
     try {
@@ -147,7 +147,9 @@ export function AddSampleTab({ labId, styles: s }) {
         method: 'POST',
         body: JSON.stringify({
           lab_id: labId,
-          patient_id: foundPatient.id,
+          patient_uhid: foundPatient.uhid || null,
+          patient_id: foundPatient.id || null,
+          patient_name: foundPatient.name || null,
           tests: selectedTests,
           priority: 'ROUTINE',
           clinical_notes: `${sampleSource} | ${requester}`,
@@ -161,7 +163,8 @@ export function AddSampleTab({ labId, styles: s }) {
           body: JSON.stringify({
             order_id: orderId,
             lab_id: labId,
-            patient_id: foundPatient.id,
+            patient_uhid: foundPatient.uhid || null,
+            patient_id: foundPatient.id || null,
             specimen_type: sample.type,
             collection_site: sampleSource,
             notes: `Received: ${receivedDate} | Requested by: ${requester}`,
