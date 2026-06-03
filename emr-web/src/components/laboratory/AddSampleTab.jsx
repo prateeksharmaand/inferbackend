@@ -36,7 +36,6 @@ const LAB_SECTIONS = [
   'Haematology Lab Department',
 ];
 
-const SAMPLE_TYPES = ['BLOOD', 'URINE', 'STOOL', 'TISSUE', 'SWAB', 'CSF', 'SERUM', 'PLASMA', 'OTHER'];
 const SOURCES = ['OPD-1', 'OPD-2', 'Emergency', 'IPD', 'External'];
 
 const sectionHeader = { background: '#f8fafc', padding: '8px 16px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: 13 };
@@ -47,7 +46,8 @@ export function AddSampleTab({ labId, styles: s }) {
   const [searchError, setSearchError] = useState('');
 
   // Section 2 — Sample
-  const [sampleType, setSampleType] = useState('BLOOD');
+  const [sampleType, setSampleType] = useState('');
+  const [sampleTypes, setSampleTypes] = useState([]);
   const [samples, setSamples] = useState([]);
 
   // Section 3 — Order
@@ -66,7 +66,7 @@ export function AddSampleTab({ labId, styles: s }) {
 
   const showMsg = (m, t = 'success') => { setMsg(m); setMsgType(t); setTimeout(() => setMsg(''), 5000); };
 
-  // Load catalog
+  // Load catalog and sample types
   const loadCatalog = useCallback(async () => {
     if (!labId) return;
     try {
@@ -88,7 +88,24 @@ export function AddSampleTab({ labId, styles: s }) {
     }
   }, [labId]);
 
-  useEffect(() => { loadCatalog(); }, [loadCatalog]);
+  // Load sample types from API
+  const loadSampleTypes = useCallback(async () => {
+    try {
+      const data = await apiFetch(`/api/v1/sample-types`);
+      const types = data.sample_types || [];
+      setSampleTypes(types);
+      if (types.length > 0 && !sampleType) {
+        setSampleType(types[0].name);
+      }
+    } catch {
+      setSampleTypes([]);
+    }
+  }, [sampleType]);
+
+  useEffect(() => {
+    loadCatalog();
+    loadSampleTypes();
+  }, [loadCatalog, loadSampleTypes]);
 
   const handlePatientSelect = (patient) => {
     setFoundPatient(patient);
@@ -206,7 +223,8 @@ export function AddSampleTab({ labId, styles: s }) {
             <div className={s.field} style={{ minWidth: 200 }}>
               <label className={s.label}>Sample Type</label>
               <select className={s.select} value={sampleType} onChange={(e) => setSampleType(e.target.value)}>
-                {SAMPLE_TYPES.map((t) => <option key={t}>{t}</option>)}
+                <option value="">Select sample type...</option>
+                {sampleTypes.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
               </select>
             </div>
             <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleAddSample}>

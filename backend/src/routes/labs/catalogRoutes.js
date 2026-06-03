@@ -236,4 +236,21 @@ router.post('/panels/:panel_id/tests', verifyLabToken, async (req, res) => {
   }
 });
 
+// GET /sample-types - list all sample types
+router.get('/sample-types', verifyLabToken, async (req, res) => {
+  try {
+    const res2 = await query(
+      `SELECT id, name, description FROM lab_sample_types WHERE is_active = true ORDER BY name`,
+      []
+    );
+    return res.json({ success: true, sample_types: res2.rows });
+  } catch (err) {
+    // If table doesn't exist yet (migration not run), return empty array
+    if (err.message.includes('does not exist')) {
+      return res.json({ success: true, sample_types: [] });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
