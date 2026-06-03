@@ -292,17 +292,21 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
                 l.facility_name AS lab_name,
                 json_agg(json_build_object(
                   'test_name', oi.test_name,
-                  'result_value', ltr.result_value,
-                  'result_unit', ltr.result_unit,
-                  'is_critical', COALESCE(ltr.is_critical_value, false),
-                  'reference_range_low', ltr.reference_range_low,
-                  'reference_range_high', ltr.reference_range_high,
-                  'result_status', ltr.result_status
+                  'result_value', COALESCE(ltr.result_value, ltr2.result_value),
+                  'result_unit', COALESCE(ltr.result_unit, ltr2.result_unit),
+                  'is_critical', COALESCE(ltr.is_critical_value, ltr2.is_critical_value, false),
+                  'reference_range_low', COALESCE(ltr.reference_range_low, ltr2.reference_range_low),
+                  'reference_range_high', COALESCE(ltr.reference_range_high, ltr2.reference_range_high),
+                  'result_status', COALESCE(ltr.result_status, ltr2.result_status)
                 ) ORDER BY oi.test_name) AS results
          FROM lab_orders o
          LEFT JOIN laboratories l ON l.id = o.lab_id
          LEFT JOIN lab_order_items oi ON oi.order_id = o.id
          LEFT JOIN lab_test_results ltr ON ltr.id = oi.result_id
+         LEFT JOIN lab_test_results ltr2
+           ON ltr.id IS NULL
+           AND ltr2.patient_uhid = o.patient_uhid
+           AND (LOWER(ltr2.test_code) = LOWER(oi.test_code) OR LOWER(ltr2.test_name) = LOWER(oi.test_name))
          WHERE o.patient_uhid = $1
          GROUP BY o.id, l.facility_name
          ORDER BY o.created_at DESC`,
