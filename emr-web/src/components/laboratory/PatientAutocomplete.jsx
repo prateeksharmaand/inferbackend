@@ -15,16 +15,25 @@ export function PatientAutocomplete({ value, onChange, placeholder = 'Search by 
 
   useEffect(() => {
     const doSearch = async () => {
-      if (query.trim().length < 2) { setResults([]); return; }
+      if (query.trim().length < 1) { setResults([]); return; }
       setLoading(true);
       try {
         const token = localStorage.getItem('auth_token');
         const res = await fetch(`/api/v1/patients/search?q=${encodeURIComponent(query.trim())}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        if (!res.ok) {
+          console.error('Patient search error:', res.status, res.statusText);
+          setResults([]);
+          setLoading(false);
+          return;
+        }
         const data = await res.json();
         setResults(Array.isArray(data) ? data : []);
-      } catch { setResults([]); }
+      } catch (err) {
+        console.error('Patient search error:', err);
+        setResults([]);
+      }
       setLoading(false);
     };
     doSearch();
@@ -108,7 +117,7 @@ export function PatientAutocomplete({ value, onChange, placeholder = 'Search by 
         </div>
       )}
 
-      {open && !loading && query.length >= 2 && results.length === 0 && (
+      {open && !loading && query.length >= 1 && results.length === 0 && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
           background: 'white', border: '1px solid var(--color-border)',
