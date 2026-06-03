@@ -145,7 +145,7 @@ export function DashboardTab({ labId, styles: s }) {
     if (!labId) return;
     try {
       setPendingLoading(true);
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?status=PENDING,SCHEDULED`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}/orders?status=PENDING,SCHEDULED`);
       setPendingOrders(data.orders || data || []);
     } catch { setPendingOrders([]); } finally { setPendingLoading(false); }
   }, [labId]);
@@ -154,7 +154,7 @@ export function DashboardTab({ labId, styles: s }) {
     if (!labId) return;
     try {
       setCollectedLoading(true);
-      const data = await apiFetch(`/api/v1/lab/${labId}/orders?status=COLLECTED,PROCESSING`);
+      const data = await apiFetch(`/api/v1/orders/lab/${labId}/orders?status=COLLECTED,PROCESSING`);
       setCollectedOrders(data.orders || data || []);
     } catch { setCollectedOrders([]); } finally { setCollectedLoading(false); }
   }, [labId]);
