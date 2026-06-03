@@ -96,15 +96,9 @@ done
 # ── STEP 3: Run incremental migrations (users table now exists) ───────────────
 if [[ "$SKIP_MIGRATE" == "false" ]]; then
   log "Running incremental migrations..."
-  for migration in \
-      backend/migrations/002_gmail_sync.sql \
-      backend/migrations/003_risk_predictions.sql \
-      backend/migrations/004_abdm_m2_sessions.sql \
-      backend/migrations/005_emr.sql \
-      backend/migrations/007_emr_full.sql; do
-
+  for migration in backend/migrations/{002,003,004,005,007,008,009,010,011,012,013,014,015,016,017,018,019,020,021,022}_*.sql; do
     if [[ -f "$REPO_ROOT/$migration" ]]; then
-      log "  → $migration"
+      log "  → $(basename "$migration")"
       $DC exec -T postgres psql \
         -U "${DB_USER:-phr_user}" \
         -d "${DB_NAME:-phr_db}" \
