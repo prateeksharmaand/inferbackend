@@ -46,6 +46,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // EMR API routes (static UI served by nginx at emr.inferapp.online)
 app.use('/api/emr', require('./src/emr/emr.routes'));
 
+// V1 API routes (OPD portal)
+app.use('/api/v1', require('./src/routes/v1.routes'));
+
 // Health check
 app.get('/health', (_, res) => res.json({ status: 'healthy', timestamp: new Date().toISOString(), version: process.env.npm_package_version || '1.0.0' }));
 
