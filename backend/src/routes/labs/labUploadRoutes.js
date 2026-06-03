@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const db = require('../../db');
+const { query: dbQuery } = require('../../config/database');
 const { verifyLabApiKey, verifyLabToken, checkLabPermission } = require('../../middleware/labAuth');
 const dataParser = require('../../services/laboratory/dataParser');
 const auditService = require('../../services/laboratory/auditService');
@@ -70,7 +70,7 @@ router.post(
           (await criticalValueService.isCriticalValue(lab_id, result.test_code, result.result_value));
 
         // Insert result
-        const dbResult = await db.query(
+        const dbResult = await dbQuery(
           `INSERT INTO lab_test_results (
             patient_id, lab_id, test_code, test_name, result_value, result_unit,
             reference_range_low, reference_range_high, result_status, source_format,
@@ -100,7 +100,7 @@ router.post(
 
         // Create anomaly alert if critical
         if (isCritical) {
-          await db.query(
+          await dbQuery(
             `INSERT INTO lab_anomalies (
               result_id, patient_id, anomaly_type, severity,
               clinical_context, recommended_action
@@ -192,7 +192,7 @@ router.post(
       }
 
       // Save encrypted file
-      const fileResult = await db.query(
+      const fileResult = await dbQuery(
         `INSERT INTO encrypted_files (
           lab_id, original_filename, file_size_bytes, mime_type,
           ocr_extracted_text, ocr_confidence, encrypted_content
@@ -220,7 +220,7 @@ router.post(
           result.result_value
         );
 
-        const dbResult = await db.query(
+        const dbResult = await dbQuery(
           `INSERT INTO lab_test_results (
             patient_id, lab_id, test_code, test_name, result_value, result_unit,
             reference_range_low, reference_range_high, source_format, file_reference_id,
@@ -294,7 +294,7 @@ router.get('/status', (req, res, next) => {
   try {
     const lab_id = req.user.lab_id;
 
-    const result = await db.query(
+    const result = await dbQuery(
       'SELECT id, facility_name, status, api_key FROM laboratories WHERE id = $1',
       [lab_id]
     );

@@ -5,9 +5,8 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const db = require('../../db');
-const { requireAuth, requireRole } = require('../../middleware/auth');
-const { verifyLabAccess } = require('../../middleware/labAuth');
+const { query: dbQuery } = require('../../config/database');
+const { emrAuth } = require('../../emr/emr.middleware');
 const auditService = require('../../services/laboratory/auditService');
 const criticalValueService = require('../../services/laboratory/criticalValueService');
 
@@ -17,8 +16,7 @@ const criticalValueService = require('../../services/laboratory/criticalValueSer
  */
 router.post(
   '/laboratories',
-  requireAuth,
-  requireRole('ADMIN'),
+  emrAuth,
   async (req, res) => {
     try {
       const {
@@ -46,7 +44,7 @@ router.post(
       const apiKey = `lab_pk_${crypto.randomBytes(16).toString('hex')}`;
       const apiSecret = `lab_sk_${crypto.randomBytes(32).toString('hex')}`;
 
-      const result = await db.query(
+      const result = await dbQuery(
         `INSERT INTO laboratories (
           facility_name, lab_type, email, phone, address_line1, city, state, postal_code,
           api_key, api_secret_encrypted, hl7_enabled, fhir_enabled, processing_sla_seconds,
@@ -108,13 +106,12 @@ router.post(
  */
 router.get(
   '/laboratories/:lab_id',
-  requireAuth,
-  verifyLabAccess,
+  emrAuth,
   async (req, res) => {
     try {
       const { lab_id } = req.params;
 
-      const result = await db.query(
+      const result = await dbQuery(
         `SELECT id, facility_name, lab_type, email, phone, address_line1, city, state, postal_code,
                 hl7_enabled, fhir_enabled, processing_sla_seconds, critical_value_thresholds,
                 is_nabl_accredited, iso_15189_compliant, status, created_at, updated_at
@@ -137,7 +134,7 @@ router.get(
  * GET /api/v1/admin/laboratories
  * List laboratories
  */
-router.get('/laboratories', requireAuth, async (req, res) => {
+router.get('/laboratories', emrAuth, async (req, res) => {
   try {
     const { type, status, limit = 20, offset = 0 } = req.query;
 
@@ -163,7 +160,7 @@ router.get('/laboratories', requireAuth, async (req, res) => {
     query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
-    const result = await db.query(query, params);
+    const result = await dbQuery(query, params);
 
     res.json({
       laboratories: result.rows,
@@ -182,8 +179,7 @@ router.get('/laboratories', requireAuth, async (req, res) => {
  */
 router.put(
   '/laboratories/:lab_id',
-  requireAuth,
-  verifyLabAccess,
+  emrAuth,
   async (req, res) => {
     try {
       const { lab_id } = req.params;
@@ -215,7 +211,7 @@ router.put(
       }
 
       const query = `UPDATE laboratories SET ${updates.join(', ')} WHERE id = $1 RETURNING *`;
-      const result = await db.query(query, params);
+      const result = await dbQuery(query, params);
 
       // Audit log
       await auditService.logAction({
@@ -244,7 +240,7 @@ router.get('/laboratories/:lab_id/dashboard', requireAuth, verifyLabAccess, asyn
     const { lab_id } = req.params;
     const { days = 7 } = req.query;
 
-    const result = await db.query(
+    const result = await dbQuery(
       `SELECT
         COUNT(*) as total_results,
         SUM(CASE WHEN result_status = 'FINAL' THEN 1 ELSE 0 END) as finalized_count,
@@ -282,8 +278,7 @@ router.get('/laboratories/:lab_id/dashboard', requireAuth, verifyLabAccess, asyn
  */
 router.post(
   '/laboratories/:lab_id/critical-values',
-  requireAuth,
-  verifyLabAccess,
+  emrAuth,
   async (req, res) => {
     try {
       const { lab_id } = req.params;
