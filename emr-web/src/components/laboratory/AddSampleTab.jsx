@@ -137,7 +137,8 @@ export function AddSampleTab({ labId, styles: s }) {
   };
 
   const handleSave = async () => {
-    if (!foundPatient) { toast.error('Please search and select a patient first'); return; }
+    if (!labId) { toast.error('Lab ID is required. Please reload and try again.'); return; }
+    if (!foundPatient || !foundPatient.id) { toast.error('Please search and select a patient first'); return; }
     if (samples.length === 0) { toast.error('Please add at least one sample'); return; }
 
     try {
@@ -197,11 +198,11 @@ export function AddSampleTab({ labId, styles: s }) {
             {/* Left Column — Patient */}
             <div>
               <div className={s.field}>
-                <label className={s.label}>Patient — type name or UHID</label>
+                <label className={s.label}>Search by Name or UHID</label>
                 <PatientAutocomplete
                   value={foundPatient}
                   onChange={handlePatientSelect}
-                  placeholder="Search patient by name or UHID…"
+                  placeholder="Type patient name or UHID to search…"
                   styles={s}
                 />
               </div>
