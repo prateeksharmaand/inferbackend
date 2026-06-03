@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, X, RefreshCw } from 'lucide-react';
 import { PatientAutocomplete } from './PatientAutocomplete';
+import { SampleTypeAutocomplete } from './SampleTypeAutocomplete';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -222,10 +223,13 @@ export function AddSampleTab({ labId, styles: s }) {
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 12 }}>
             <div className={s.field} style={{ minWidth: 200 }}>
               <label className={s.label}>Sample Type</label>
-              <select className={s.select} value={sampleType} onChange={(e) => setSampleType(e.target.value)}>
-                <option value="">Select sample type...</option>
-                {sampleTypes.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
-              </select>
+              <SampleTypeAutocomplete
+                value={sampleType}
+                onChange={setSampleType}
+                sampleTypes={sampleTypes}
+                placeholder="Search sample type..."
+                styles={s}
+              />
             </div>
             <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleAddSample}>
               <Plus size={14} /> Add Sample
