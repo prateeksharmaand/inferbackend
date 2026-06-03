@@ -82,11 +82,18 @@ export function AddSampleTab({ labId, styles: s }) {
         }
       }
       setCatalog(catalogBySection);
-      // Also try to get doctor list
-      const docData = await apiFetch(`/api/v1/catalog?lab_id=${labId}`);
-      setDoctors(docData.doctors || []);
     } catch {
       // silently fail
+    }
+  }, [labId]);
+
+  // Load doctors from EMR
+  const loadDoctors = useCallback(async () => {
+    try {
+      const docData = await apiFetch(`/api/v1/doctors`);
+      setDoctors(docData.doctors || []);
+    } catch {
+      setDoctors([]);
     }
   }, [labId]);
 
@@ -107,7 +114,8 @@ export function AddSampleTab({ labId, styles: s }) {
   useEffect(() => {
     loadCatalog();
     loadSampleTypes();
-  }, [loadCatalog, loadSampleTypes]);
+    loadDoctors();
+  }, [loadCatalog, loadSampleTypes, loadDoctors]);
 
   const handlePatientSelect = (patient) => {
     setFoundPatient(patient);

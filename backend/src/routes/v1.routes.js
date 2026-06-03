@@ -63,4 +63,22 @@ router.get('/autocomplete/lab-tests', require('../middleware/auth').requireAuth,
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /doctors - list all doctors from EMR
+router.get('/doctors', require('../middleware/auth').requireAuth, async (req, res) => {
+  try {
+    const { query } = require('../config/database');
+    const { rows } = await query(
+      `SELECT id, first_name, last_name, CONCAT(first_name, ' ', last_name) as name, email, phone
+       FROM users
+       WHERE role = 'doctor' AND is_active = true
+       ORDER BY first_name, last_name`,
+      []
+    );
+    res.json({ success: true, doctors: rows });
+  } catch (err) {
+    // If query fails, return empty array
+    res.json({ success: true, doctors: [] });
+  }
+});
+
 module.exports = router;
