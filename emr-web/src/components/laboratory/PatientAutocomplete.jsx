@@ -28,7 +28,6 @@ export function PatientAutocomplete({ value, onChange, placeholder = 'Search by 
       });
       const data = await res.json();
       setResults(Array.isArray(data) ? data : []);
-      setOpen(true);
     } catch { setResults([]); }
     setLoading(false);
   }, 300), []);

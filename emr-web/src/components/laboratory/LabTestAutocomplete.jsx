@@ -29,7 +29,6 @@ export function LabTestAutocomplete({ value, onChange, labId, placeholder = 'Sea
       });
       const data = await res.json();
       setResults(Array.isArray(data) ? data : []);
-      setOpen(true);
     } catch { setResults([]); }
     setLoading(false);
   }, 300), [labId]);
