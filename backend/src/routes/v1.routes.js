@@ -63,8 +63,8 @@ router.get('/autocomplete/lab-tests', require('../middleware/auth').requireAuth,
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /doctors - list all doctors from EMR
-router.get('/doctors', require('../middleware/auth').requireAuth, async (req, res) => {
+// GET /doctors - list all doctors from EMR (accessible to lab staff)
+router.get('/doctors', require('../middleware/labAuth').verifyLabToken, async (req, res) => {
   try {
     const { query } = require('../config/database');
     const { rows } = await query(
