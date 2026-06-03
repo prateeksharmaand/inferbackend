@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, UserRound, LayoutList } from 'lucide-react';
+import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, UserRound, LayoutList, FlaskConical } from 'lucide-react';
 import UhidSettings from './settings/UhidSettings';
 import CustomAttributes from './settings/CustomAttributes';
 import ServicesSettings from './settings/ServicesSettings';
 import InferPadSettings from './settings/InferPadSettings';
 import DoctorsSettings from './settings/DoctorsSettings';
 import QueuesSettings from './settings/QueuesSettings';
+import LabStaffSettings from './settings/LabStaffSettings';
 import styles from './Settings.module.css';
 
 const TABS = [
   { key: 'queues',   Icon: LayoutList,     label: 'Queues' },
   { key: 'doctors',  Icon: UserRound,      label: 'Doctors' },
+  { key: 'labstaff', Icon: FlaskConical,   label: 'Lab Staff' },
   { key: 'uhid',     Icon: Hash,           label: 'UHID Settings' },
   { key: 'tags',     Icon: Tag,            label: 'Custom Attributes' },
   { key: 'services', Icon: Stethoscope,    label: 'Services' },
@@ -45,10 +47,11 @@ export default function Settings() {
 
       <div className={styles.content}>
         {tab === 'queues'   && <QueuesSettings />}
+        {tab === 'doctors'  && <DoctorsSettings />}
+        {tab === 'labstaff' && <LabStaffSettings />}
         {tab === 'uhid'     && <UhidSettings />}
         {tab === 'tags'     && <CustomAttributes />}
         {tab === 'services' && <ServicesSettings />}
-        {tab === 'doctors'  && <DoctorsSettings />}
         {tab === 'inferpad' && <InferPadSettings />}
       </div>
     </div>

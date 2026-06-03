@@ -1,6 +1,7 @@
 const router  = require('express').Router();
 const { emrAuth } = require('./emr.middleware');
-const auth    = require('./emr.auth.controller');
+const auth      = require('./emr.auth.controller');
+const labStaff  = require('./emr.labstaff.controller');
 const emr     = require('./emr.controller');
 const queue   = require('./emr.queue.controller');
 const appt    = require('./emr.appointment.controller');
@@ -44,6 +45,12 @@ router.post  ('/auth/add-doctor',    auth.addDoctor);
 router.get   ('/auth/doctors',       auth.listDoctors);
 router.patch ('/auth/doctors/:id',   auth.updateDoctor);
 router.delete('/auth/doctors/:id',   auth.deleteDoctor);
+
+// Lab Staff (managed from OPD Settings → Lab Staff tab)
+router.get   ('/labs/staff',         labStaff.listStaff);
+router.post  ('/labs/staff',         labStaff.createStaff);
+router.patch ('/labs/staff/:id',     labStaff.updateStaff);
+router.delete('/labs/staff/:id',     labStaff.deleteStaff);
 
 // Patients (existing EMR patient store)
 router.get   ('/patients',                         emr.listPatients);
