@@ -116,7 +116,7 @@ class WorkflowService {
 
   async getWorkflowHistory(entity_type, entity_id) {
     const res = await query(
-      `SELECT we.*, u.full_name AS performed_by_name
+      `SELECT we.*, u.first_name || ' ' || u.last_name AS performed_by_name
        FROM lab_workflow_events we
        LEFT JOIN users u ON u.id = we.performed_by
        WHERE we.entity_type = $1 AND we.entity_id = $2
@@ -130,7 +130,7 @@ class WorkflowService {
     // Find orders where TAT has been exceeded based on catalog turnaround_hours
     const res = await query(
       `SELECT lo.id, lo.order_number, lo.status, lo.priority, lo.created_at,
-              lo.patient_id, u.full_name AS patient_name,
+              lo.patient_id, COALESCE(lo.patient_name, u.first_name || ' ' || u.last_name) AS patient_name,
               EXTRACT(EPOCH FROM (NOW() - lo.created_at))/3600 AS hours_elapsed,
               MIN(tc.turnaround_hours) AS expected_tat_hours
        FROM lab_orders lo
@@ -141,7 +141,7 @@ class WorkflowService {
          AND lo.status NOT IN ('REPORTED','CANCELLED')
          AND lo.reported_at IS NULL
        GROUP BY lo.id, lo.order_number, lo.status, lo.priority, lo.created_at,
-                lo.patient_id, u.full_name
+                lo.patient_id, lo.patient_name, u.first_name, u.last_name
        HAVING EXTRACT(EPOCH FROM (NOW() - lo.created_at))/3600 > MIN(tc.turnaround_hours)
        ORDER BY hours_elapsed DESC`,
       [lab_id]

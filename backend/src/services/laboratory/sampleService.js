@@ -95,7 +95,7 @@ class SampleService {
       `SELECT s.*,
               COALESCE(s.patient_uhid, u.first_name || ' ' || u.last_name) AS patient_name,
               c.first_name || ' ' || c.last_name AS collected_by_name,
-              l.name AS lab_name
+              l.facility_name AS lab_name
        FROM lab_samples s
        LEFT JOIN users u ON u.id = s.patient_id
        LEFT JOIN users c ON c.id = s.collected_by
@@ -190,7 +190,7 @@ class SampleService {
     }
 
     const res = await query(
-      `SELECT c.*, u.full_name AS user_name
+      `SELECT c.*, u.first_name || ' ' || u.last_name AS user_name
        FROM lab_sample_custody c
        LEFT JOIN users u ON u.id = c.performed_by
        WHERE c.sample_id = $1

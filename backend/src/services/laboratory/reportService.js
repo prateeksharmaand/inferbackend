@@ -72,13 +72,13 @@ class ReportService {
   async getReport(report_id) {
     const res = await query(
       `SELECT r.*,
-              p.full_name AS patient_name,
+              COALESCE(r.patient_name, p.first_name || ' ' || p.last_name) AS patient_name,
               p.date_of_birth AS patient_dob,
-              d.full_name AS doctor_name,
-              l.name AS lab_name,
-              l.address AS lab_address,
+              d.first_name || ' ' || d.last_name AS doctor_name,
+              l.facility_name AS lab_name,
+              l.address_line1 AS lab_address,
               l.phone AS lab_phone,
-              ab.full_name AS approved_by_name
+              ab.first_name || ' ' || ab.last_name AS approved_by_name
        FROM lab_reports r
        LEFT JOIN users p ON p.id = r.patient_id
        LEFT JOIN users d ON d.id = r.doctor_id
@@ -130,7 +130,7 @@ class ReportService {
     }
 
     const res = await query(
-      `SELECT r.*, l.name AS lab_name, d.full_name AS doctor_name
+      `SELECT r.*, l.facility_name AS lab_name, d.first_name || ' ' || d.last_name AS doctor_name
        FROM lab_reports r
        LEFT JOIN laboratories l ON l.id = r.lab_id
        LEFT JOIN users d ON d.id = r.doctor_id
@@ -355,7 +355,7 @@ class ReportService {
 
     const res = await query(
       `SELECT ltr.result_value, ltr.result_unit, ltr.collected_at, ltr.is_abnormal, ltr.is_critical_value,
-              lo.lab_id, l.name AS lab_name
+              lo.lab_id, l.facility_name AS lab_name
        FROM lab_test_results ltr
        JOIN lab_order_items loi ON loi.result_id = ltr.id
        JOIN lab_orders lo ON lo.id = loi.order_id

@@ -129,7 +129,7 @@ class OrderService {
       `SELECT o.*,
               COALESCE(o.patient_name, u.first_name || ' ' || u.last_name) AS patient_name,
               d.first_name || ' ' || d.last_name AS doctor_name,
-              l.name AS lab_name
+              l.facility_name AS lab_name
        FROM lab_orders o
        LEFT JOIN users u ON u.id = o.patient_id
        LEFT JOIN users d ON d.id = o.ordering_doctor_id
@@ -170,7 +170,7 @@ class OrderService {
     }
 
     const res = await query(
-      `SELECT o.*, l.name AS lab_name, d.first_name || ' ' || d.last_name AS doctor_name
+      `SELECT o.*, l.facility_name AS lab_name, d.first_name || ' ' || d.last_name AS doctor_name
        FROM lab_orders o
        LEFT JOIN laboratories l ON l.id = o.lab_id
        LEFT JOIN users d ON d.id = o.ordering_doctor_id
@@ -290,7 +290,7 @@ class OrderService {
 
   async getOrderTimeline(order_id) {
     const res = await query(
-      `SELECT we.*, u.full_name AS performed_by_name
+      `SELECT we.*, u.first_name || ' ' || u.last_name AS performed_by_name
        FROM lab_workflow_events we
        LEFT JOIN users u ON u.id = we.performed_by
        WHERE we.entity_type = 'ORDER' AND we.entity_id = $1
