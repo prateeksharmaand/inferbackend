@@ -20,6 +20,7 @@ const analytics   = require('./emr.analytics.controller');
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
 router.post('/auth/register-clinic', auth.registerClinic);
+router.post('/auth/lab/login',       labStaff.loginStaff);
 
 // Autocomplete proxy (ICD-10 / RxTerms via NLM — public, avoids CSP)
 router.get('/autocomplete/icd10',   ac.searchICD10);
