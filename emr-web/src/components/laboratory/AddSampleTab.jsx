@@ -270,7 +270,7 @@ export function AddSampleTab({ labId, styles: s }) {
       <div className={s.card} style={{ marginBottom: 16 }}>
         <div style={sectionHeader}>Order *</div>
         <div className={s.cardBody}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div className={s.field}>
               <label className={s.label}>Accession Number *</label>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -291,6 +291,9 @@ export function AddSampleTab({ labId, styles: s }) {
               <label className={s.label}>Received Date</label>
               <input className={s.input} type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} />
             </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 16 }}>
             <div className={s.field}>
               <label className={s.label}>Requester's Name</label>
               <DoctorAutocomplete
