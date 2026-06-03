@@ -3,7 +3,8 @@
  */
 
 const jwt = require('jsonwebtoken');
-const db = require('../db');
+const { query } = require('../config/database');
+const db = { query };
 const crypto = require('crypto');
 
 /**

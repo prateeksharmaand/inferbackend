@@ -2,7 +2,8 @@
  * Critical Value Detection Service
  */
 
-const db = require('../../db');
+const { query } = require('../../config/database');
+const db = { query };
 
 class CriticalValueService {
   /**

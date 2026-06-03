@@ -5,7 +5,8 @@
 
 const socketIO = require('socket.io');
 const jwt = require('jsonwebtoken');
-const db = require('../db');
+const { query } = require('../config/database');
+const db = { query };
 
 class LabSocketManager {
   constructor(server) {

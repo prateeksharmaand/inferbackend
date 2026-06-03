@@ -3,7 +3,8 @@
  * Immutable append-only audit trail
  */
 
-const db = require('../../db');
+const { query } = require('../../config/database');
+const db = { query };
 
 class AuditService {
   /**
