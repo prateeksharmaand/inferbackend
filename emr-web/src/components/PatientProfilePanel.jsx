@@ -276,7 +276,7 @@ function LabReportsTab({ patientId }) {
   }, [patientId]);
 
   if (loading) return <div className={styles.tabPad}><p className={styles.hint}>Loading lab reports…</p></div>;
-  if (!reports.length) return <EmptyState text="No released lab reports found." />;
+  if (!reports.length) return <EmptyState text="No lab reports found." />;
 
   return (
     <div className={styles.tabPad}>
@@ -284,7 +284,9 @@ function LabReportsTab({ patientId }) {
         <div key={r.id} style={{ border: '1px solid var(--color-border)', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
           <div style={{ background: '#f8fafc', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
             <div>
-              <span style={{ fontWeight: 700, fontSize: 13 }}>Report #{r.report_number}</span>
+              {r.report_number
+                ? <span style={{ fontWeight: 700, fontSize: 13 }}>Report #{r.report_number}</span>
+                : <span style={{ fontWeight: 700, fontSize: 13 }}>Lab Results</span>}
               {r.order_number && <span style={{ marginLeft: 8, fontSize: 11, color: '#64748b' }}>Order: {r.order_number}</span>}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -297,16 +299,28 @@ function LabReportsTab({ patientId }) {
           {Array.isArray(r.results) && r.results.filter(x => x.test_name).length > 0 && (
             <div style={{ padding: '10px 14px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead><tr style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: 11 }}><th style={{ textAlign: 'left', paddingBottom: 4 }}>Test</th><th style={{ textAlign: 'left' }}>Result</th><th style={{ textAlign: 'left' }}>Unit</th><th></th></tr></thead>
+                <thead><tr style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: 11 }}>
+                  <th style={{ textAlign: 'left', paddingBottom: 4 }}>Test</th>
+                  <th style={{ textAlign: 'left' }}>Result</th>
+                  <th style={{ textAlign: 'left' }}>Unit</th>
+                  <th style={{ textAlign: 'left' }}>Ref Range</th>
+                  <th></th>
+                </tr></thead>
                 <tbody>
-                  {r.results.filter(x => x.test_name).map((res, i) => (
-                    <tr key={i} style={{ borderTop: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '4px 0', fontWeight: 600 }}>{res.test_name}</td>
-                      <td style={{ padding: '4px 8px', color: res.is_critical ? '#991b1b' : '#1a202c', fontWeight: res.is_critical ? 700 : 400 }}>{res.result_value}</td>
-                      <td style={{ padding: '4px 0', color: '#64748b' }}>{res.result_unit}</td>
-                      <td>{res.is_critical && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>CRITICAL</span>}</td>
-                    </tr>
-                  ))}
+                  {r.results.filter(x => x.test_name).map((res, i) => {
+                    const refRange = (res.reference_range_low != null && res.reference_range_high != null)
+                      ? `${res.reference_range_low} – ${res.reference_range_high}`
+                      : '—';
+                    return (
+                      <tr key={i} style={{ borderTop: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '4px 0', fontWeight: 600 }}>{res.test_name}</td>
+                        <td style={{ padding: '4px 8px', color: res.is_critical ? '#991b1b' : '#1a202c', fontWeight: res.is_critical ? 700 : 400 }}>{res.result_value ?? '—'}</td>
+                        <td style={{ padding: '4px 0', color: '#64748b' }}>{res.result_unit || '—'}</td>
+                        <td style={{ padding: '4px 8px', color: '#64748b', fontSize: 11 }}>{refRange}</td>
+                        <td>{res.is_critical && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>CRITICAL</span>}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
