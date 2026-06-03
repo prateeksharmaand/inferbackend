@@ -190,50 +190,48 @@ export function AddSampleTab({ labId, styles: s }) {
 
       {msg && <div className={`${s.alert} ${msgType === 'error' ? s.alertError : s.alertSuccess}`}>{msg}</div>}
 
-      {/* Section 1 — Search */}
+      {/* Section 1 & 2 — Search & Sample (2-column layout) */}
       <div className={s.card} style={{ marginBottom: 16 }}>
-        <div style={sectionHeader}>Search *</div>
+        <div style={sectionHeader}>Search * | Sample *</div>
         <div className={s.cardBody}>
-          <div className={s.field}>
-            <label className={s.label}>Patient — type name or UHID</label>
-            <PatientAutocomplete
-              value={foundPatient}
-              onChange={handlePatientSelect}
-              placeholder="Search patient by name or UHID…"
-              styles={s}
-            />
-          </div>
-          {searchError && <div className={`${s.alert} ${s.alertError}`} style={{ marginTop: 12 }}>{searchError}</div>}
-          {foundPatient && (
-            <div className={`${s.alert} ${s.alertSuccess}`} style={{ marginTop: 12 }}>
-              <strong>{foundPatient.name}</strong>
-              {foundPatient.uhid && <span style={{ marginLeft: 10, background: '#ede9fe', color: '#6d28d9', padding: '2px 8px', borderRadius: 8, fontWeight: 600, fontSize: 12 }}>UHID: {foundPatient.uhid}</span>}
-              {foundPatient.mobile && <span style={{ marginLeft: 8, color: 'var(--color-text-2)', fontSize: 12 }}>{foundPatient.mobile}</span>}
-              {foundPatient.dob && <span style={{ marginLeft: 8, color: 'var(--color-text-2)', fontSize: 12 }}>DOB: {foundPatient.dob?.slice(0,10)}</span>}
-              {foundPatient.gender && <span style={{ marginLeft: 8, color: 'var(--color-text-2)', fontSize: 12 }}>{foundPatient.gender}</span>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+            {/* Left Column — Patient */}
+            <div>
+              <div className={s.field}>
+                <label className={s.label}>Patient — type name or UHID</label>
+                <PatientAutocomplete
+                  value={foundPatient}
+                  onChange={handlePatientSelect}
+                  placeholder="Search patient by name or UHID…"
+                  styles={s}
+                />
+              </div>
+              {searchError && <div className={`${s.alert} ${s.alertError}`} style={{ marginTop: 8, fontSize: 12 }}>{searchError}</div>}
+              {foundPatient && (
+                <div className={`${s.alert} ${s.alertSuccess}`} style={{ marginTop: 8, fontSize: 12 }}>
+                  <strong>{foundPatient.name}</strong>
+                  {foundPatient.uhid && <span style={{ marginLeft: 8, background: '#ede9fe', color: '#6d28d9', padding: '2px 6px', borderRadius: 6, fontWeight: 600, fontSize: 11 }}>UHID: {foundPatient.uhid}</span>}
+                  {foundPatient.mobile && <span style={{ marginLeft: 6, color: 'var(--color-text-2)', fontSize: 11 }}>{foundPatient.mobile}</span>}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Section 2 — Sample */}
-      <div className={s.card} style={{ marginBottom: 16 }}>
-        <div style={sectionHeader}>Sample *</div>
-        <div className={s.cardBody}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 12 }}>
-            <div className={s.field} style={{ minWidth: 200 }}>
-              <label className={s.label}>Sample Type</label>
-              <SampleTypeAutocomplete
-                value={sampleType}
-                onChange={setSampleType}
-                sampleTypes={sampleTypes}
-                placeholder="Search sample type..."
-                styles={s}
-              />
+            {/* Right Column — Sample Type */}
+            <div>
+              <div className={s.field}>
+                <label className={s.label}>Sample Type</label>
+                <SampleTypeAutocomplete
+                  value={sampleType}
+                  onChange={setSampleType}
+                  sampleTypes={sampleTypes}
+                  placeholder="Search sample type..."
+                  styles={s}
+                />
+              </div>
+              <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleAddSample} style={{ marginTop: 28, width: '100%' }}>
+                <Plus size={14} /> Add Sample
+              </button>
             </div>
-            <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleAddSample}>
-              <Plus size={14} /> Add Sample
-            </button>
           </div>
           {samples.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
