@@ -204,7 +204,9 @@ class OrderService {
     }
 
     const res = await query(
-      `SELECT o.*, u.full_name AS patient_name, d.full_name AS doctor_name
+      `SELECT o.*, u.full_name AS patient_name, d.full_name AS doctor_name,
+              (SELECT MAX(a.uhid) FROM emr_appointments a
+               WHERE a.patient_id = o.patient_id AND a.uhid IS NOT NULL) AS uhid
        FROM lab_orders o
        LEFT JOIN users u ON u.id = o.patient_id
        LEFT JOIN users d ON d.id = o.ordering_doctor_id

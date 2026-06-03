@@ -29,18 +29,18 @@ function FilterInput({ placeholder, value, onChange }) {
 }
 
 function OrderTable({ orders, loading, onCollect, styles: s, showCollect }) {
-  const [filters, setFilters] = useState({ patientId: '', patientName: '', source: '', section: '', sampleType: '', priority: '' });
+  const [filters, setFilters] = useState({ uhid: '', patientName: '', source: '', section: '', sampleType: '', priority: '' });
   const setFilter = (key, val) => setFilters((p) => ({ ...p, [key]: val }));
 
   const filtered = orders.filter((o) => {
-    const pid = (o.patient_id || '').toLowerCase();
+    const uid = (o.uhid || '').toLowerCase();
     const pname = (o.patient_name || '').toLowerCase();
     const src = (o.source || o.sample_source || '').toLowerCase();
     const sec = (o.section_name || o.department || '').toLowerCase();
     const st = (o.sample_type || '').toLowerCase();
     const pri = (o.priority || '').toLowerCase();
     return (
-      pid.includes(filters.patientId.toLowerCase()) &&
+      uid.includes(filters.uhid.toLowerCase()) &&
       pname.includes(filters.patientName.toLowerCase()) &&
       src.includes(filters.source.toLowerCase()) &&
       sec.includes(filters.section.toLowerCase()) &&
@@ -51,7 +51,7 @@ function OrderTable({ orders, loading, onCollect, styles: s, showCollect }) {
 
   if (loading) return <div className={s.emptyState}><div className={s.emptyText}>Loading...</div></div>;
 
-  const cols = ['Patient ID', 'Patient Name', 'Source', 'Section Name', 'Sample Type', 'Priority', 'Total', 'Notes'];
+  const cols = ['UHID', 'Patient Name', 'Source', 'Section Name', 'Sample Type', 'Priority', 'Total', 'Notes'];
   if (showCollect) cols.push('Action');
 
   return (
@@ -60,7 +60,7 @@ function OrderTable({ orders, loading, onCollect, styles: s, showCollect }) {
         <thead>
           <tr>{cols.map((h) => <th key={h}>{h}</th>)}</tr>
           <tr style={{ background: '#f8fafc' }}>
-            <th><FilterInput placeholder="Filter..." value={filters.patientId} onChange={(v) => setFilter('patientId', v)} /></th>
+            <th><FilterInput placeholder="Filter..." value={filters.uhid} onChange={(v) => setFilter('uhid', v)} /></th>
             <th><FilterInput placeholder="Filter..." value={filters.patientName} onChange={(v) => setFilter('patientName', v)} /></th>
             <th><FilterInput placeholder="Filter..." value={filters.source} onChange={(v) => setFilter('source', v)} /></th>
             <th><FilterInput placeholder="Filter..." value={filters.section} onChange={(v) => setFilter('section', v)} /></th>
@@ -77,7 +77,7 @@ function OrderTable({ orders, loading, onCollect, styles: s, showCollect }) {
           ) : (
             filtered.map((o) => (
               <tr key={o.id}>
-                <td>{o.patient_id || '—'}</td>
+                <td>{o.uhid || '—'}</td>
                 <td>{o.patient_name || o.patient?.name || '—'}</td>
                 <td>{o.source || o.sample_source || '—'}</td>
                 <td>{o.section_name || o.department || '—'}</td>
