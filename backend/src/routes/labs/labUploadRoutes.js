@@ -37,14 +37,19 @@ router.post(
   },
   async (req, res) => {
     try {
-      const { format, data, patient_id, is_critical } = req.body;
+      const { format, data, patient_id: rawPatientId, is_critical } = req.body;
       const lab_id = req.user.lab_id;
 
-      if (!format || !data || !patient_id) {
+      if (!format || !data || !rawPatientId) {
         return res.status(400).json({
           error: 'Missing required fields: format, data, patient_id'
         });
       }
+
+      // Detect whether patient identifier is a UUID or a UHID (e.g. INFER1607)
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const patient_id     = UUID_RE.test(rawPatientId) ? rawPatientId : null;
+      const patient_uhid   = UUID_RE.test(rawPatientId) ? null : rawPatientId;
 
       // Parse data based on format
       let parsed;
@@ -72,13 +77,14 @@ router.post(
         // Insert result
         const dbResult = await dbQuery(
           `INSERT INTO lab_test_results (
-            patient_id, lab_id, test_code, test_name, result_value, result_unit,
+            patient_id, patient_uhid, lab_id, test_code, test_name, result_value, result_unit,
             reference_range_low, reference_range_high, result_status, source_format,
             collection_timestamp, is_critical_value, visibility_status, raw_data_encrypted
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
           RETURNING id, test_name, is_critical_value`,
           [
             patient_id,
+            patient_uhid,
             lab_id,
             result.test_code,
             result.test_name,
@@ -102,12 +108,13 @@ router.post(
         if (isCritical) {
           await dbQuery(
             `INSERT INTO lab_anomalies (
-              result_id, patient_id, anomaly_type, severity,
+              result_id, patient_id, patient_uhid, anomaly_type, severity,
               clinical_context, recommended_action
-            ) VALUES ($1, $2, $3, $4, $5, $6)`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               newResult.id,
               patient_id,
+              patient_uhid,
               'CRITICAL_VALUE',
               'CRITICAL',
               `${result.test_name} = ${result.result_value} (CRITICAL)`,
