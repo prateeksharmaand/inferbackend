@@ -3,13 +3,8 @@
  * Searches /api/v1/patients/search?q= (name or UHID) — same patients as EMR.
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, User, X } from 'lucide-react';
-
-function debounce(fn, ms) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-}
 
 export function PatientAutocomplete({ value, onChange, placeholder = 'Search by name or UHID…', styles: s }) {
   const [query, setQuery] = useState(value?.name || '');
@@ -18,21 +13,22 @@ export function PatientAutocomplete({ value, onChange, placeholder = 'Search by 
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
 
-  const doSearch = useCallback(debounce(async (q) => {
-    if (q.trim().length < 2) { setResults([]); return; }
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('auth_token');
-      const res = await fetch(`/api/v1/patients/search?q=${encodeURIComponent(q.trim())}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setResults(Array.isArray(data) ? data : []);
-    } catch { setResults([]); }
-    setLoading(false);
-  }, 300), []);
-
-  useEffect(() => { doSearch(query); }, [query]);
+  useEffect(() => {
+    const doSearch = async () => {
+      if (query.trim().length < 2) { setResults([]); return; }
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch(`/api/v1/patients/search?q=${encodeURIComponent(query.trim())}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setResults(Array.isArray(data) ? data : []);
+      } catch { setResults([]); }
+      setLoading(false);
+    };
+    doSearch();
+  }, [query]);
 
   // Close on outside click
   useEffect(() => {
@@ -61,21 +57,26 @@ export function PatientAutocomplete({ value, onChange, placeholder = 'Search by 
           className={s.searchInput}
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => query.length >= 2 && setOpen(true)}
+          onFocus={() => setOpen(true)}
           placeholder={placeholder}
         />
         {loading && <span style={{ fontSize: 11, color: 'var(--color-text-3)' }}>…</span>}
         {query && <button onClick={clear} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-3)', display: 'flex' }}><X size={13} /></button>}
       </div>
 
-      {open && results.length > 0 && (
+      {open && (loading || results.length > 0) && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
           background: 'white', border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)',
           zIndex: 1000, maxHeight: 260, overflowY: 'auto',
         }}>
-          {results.map((p, i) => (
+          {loading && (
+            <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--color-text-2)' }}>
+              Searching…
+            </div>
+          )}
+          {!loading && results.map((p, i) => (
             <div key={p.id || i}
               onClick={() => select(p)}
               style={{
