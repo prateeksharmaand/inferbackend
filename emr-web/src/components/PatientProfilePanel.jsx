@@ -266,7 +266,8 @@ function VitalsLabs({ history }) {
 function LabReportCard({ r }) {
   const [open, setOpen] = useState(true);
   const hasResults = Array.isArray(r.results) && r.results.filter(x => x.test_name).length > 0;
-  const statusColors = { PENDING: '#92400e', COLLECTED: '#1e40af', PROCESSING: '#6d28d9', RESULTED: '#065f46', REPORTED: '#065f46', CANCELLED: '#991b1b' };
+  const statusColors  = { PENDING: '#92400e', COLLECTED: '#1e40af', PROCESSING: '#6d28d9', RESULTED: '#065f46', REPORTED: '#065f46', CANCELLED: '#991b1b' };
+  const statusLabels  = { PENDING: 'Sample Pending', SCHEDULED: 'Scheduled', COLLECTED: 'Sample Collected', PROCESSING: 'Under Testing', RESULTED: 'Results Ready', REPORTED: 'Report Released', CANCELLED: 'Cancelled' };
 
   return (
     <div style={{ border: '1px solid var(--color-border)', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
@@ -286,7 +287,7 @@ function LabReportCard({ r }) {
           )}
           {r.order_status && (
             <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 6, background: '#e0f2fe', color: statusColors[r.order_status] || '#334155' }}>
-              {r.order_status}
+              {statusLabels[r.order_status] || r.order_status}
             </span>
           )}
         </div>
