@@ -23,6 +23,7 @@ export default function AutocompleteInput({
   placeholder,
   className,
   inputClassName,
+  inputStyle,
 }) {
   const [items,   setItems]   = useState([]);
   const [loading, setLoading] = useState(false);
@@ -77,6 +78,7 @@ export default function AutocompleteInput({
         <div className={styles.inputWrap}>
           <input
             className={`${styles.input} ${inputClassName || ''}`}
+            style={inputStyle}
             value={value || ''}
             onChange={e => onChange(e.target.value)}
             onKeyDown={onKey}

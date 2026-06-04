@@ -628,15 +628,30 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
               {form.lab_results.length > 0 && (
                 <div className={styles.table}>
                   <div className={`${styles.tHead} ${styles.tHead4}`}><span>Test Name</span><span>Result</span><span>Unit</span><span>Normal Range</span><span /></div>
-                  {form.lab_results.map((r, i) => (
-                    <div key={i} className={`${styles.tRow} ${styles.tRow4}`}>
-                      <AutocompleteInput value={r.test} onChange={v => updateLabResult(i, 'test', v)} onSelect={item => updateLabResult(i, 'test', item.name)} fetchSuggestions={fetchLOINC} placeholder="e.g. Hb" inputClassName={styles.cellInput} />
-                      <input placeholder="e.g. 12.5" value={r.result} className={styles.cellInput} onChange={e => updateLabResult(i, 'result', e.target.value)} />
-                      <input placeholder="e.g. g/dL" value={r.unit}   className={styles.cellInput} onChange={e => updateLabResult(i, 'unit',   e.target.value)} />
-                      <input placeholder="e.g. 11-16" value={r.range}  className={styles.cellInput} onChange={e => updateLabResult(i, 'range',  e.target.value)} />
+                  {form.lab_results.map((r, i) => {
+                    // Determine flag from result vs range (e.g. "11-16", "11–16", ">4")
+                    let flag = null;
+                    const val = parseFloat(r.result);
+                    if (!isNaN(val) && r.range) {
+                      const m = r.range.match(/([<>]?)\s*([\d.]+)\s*[-–]\s*([\d.]+)/);
+                      if (m) {
+                        const lo = parseFloat(m[2]), hi = parseFloat(m[3]);
+                        flag = val < lo ? 'L' : val > hi ? 'H' : 'N';
+                      }
+                    }
+                    const borderColor = flag === 'N' ? '#16a34a' : (flag === 'L' || flag === 'H') ? '#dc2626' : undefined;
+                    const inputStyle = borderColor ? { borderColor, boxShadow: `0 0 0 1px ${borderColor}` } : {};
+                    return (
+                    <div key={i} className={`${styles.tRow} ${styles.tRow4}`}
+                      style={borderColor ? { borderLeft: `3px solid ${borderColor}`, borderRadius: 5 } : {}}>
+                      <AutocompleteInput value={r.test} onChange={v => updateLabResult(i, 'test', v)} onSelect={item => updateLabResult(i, 'test', item.name)} fetchSuggestions={fetchLOINC} placeholder="e.g. Hb" inputClassName={styles.cellInput} inputStyle={inputStyle} />
+                      <input placeholder="e.g. 12.5" value={r.result} className={styles.cellInput} style={inputStyle} onChange={e => updateLabResult(i, 'result', e.target.value)} />
+                      <input placeholder="e.g. g/dL" value={r.unit}   className={styles.cellInput} style={inputStyle} onChange={e => updateLabResult(i, 'unit',   e.target.value)} />
+                      <input placeholder="e.g. 11-16" value={r.range}  className={styles.cellInput} style={inputStyle} onChange={e => updateLabResult(i, 'range',  e.target.value)} />
                       <button className={styles.del} onClick={() => set('lab_results', form.lab_results.filter((_, j) => j !== i))}>✕</button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               <button className={styles.addLine} onClick={addLabResult}><Plus size={13} /> Add Result</button>
