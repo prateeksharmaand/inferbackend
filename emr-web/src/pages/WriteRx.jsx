@@ -74,7 +74,102 @@ function LangPicker({ value, onChange }) {
   );
 }
 
-const BASE_TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
+const BASE_TABS = ['Overview', 'InferPad', 'Canvas', 'Lab Tests', 'Medical Records'];
+
+// ── Lab Tests Tab ─────────────────────────────────────────────────────────────
+const STATUS_LABELS = {
+  PENDING: 'Pending', SCHEDULED: 'Scheduled', COLLECTED: 'Sample Collected',
+  PROCESSING: 'Under Testing', RESULTED: 'Results Ready', REPORTED: 'Reported', CANCELLED: 'Cancelled',
+};
+const STATUS_COLORS_LT = {
+  PENDING:'#64748b', SCHEDULED:'#2563eb', COLLECTED:'#d97706',
+  PROCESSING:'#7c3aed', RESULTED:'#059669', REPORTED:'#0891b2', CANCELLED:'#dc2626',
+};
+
+function LabTestsTab({ reports, loading }) {
+  const [expanded, setExpanded] = React.useState({});
+  const toggle = (id) => setExpanded(p => ({ ...p, [id]: !p[id] }));
+
+  if (loading) return <p style={{ color: '#64748b', padding: 16 }}>Loading lab results…</p>;
+  if (!reports.length) return (
+    <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>
+      <div style={{ fontSize: 32, marginBottom: 8 }}>🧪</div>
+      <div>No lab results found for this patient.</div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '12px 0' }}>
+      {reports.map(r => {
+        const open = expanded[r.id || r.order_number];
+        const color = STATUS_COLORS_LT[r.order_status] || '#64748b';
+        const label = STATUS_LABELS[r.order_status]    || r.order_status || 'Unknown';
+        const hasResults = r.results?.some(x => x.result_value != null);
+        return (
+          <div key={r.id || r.order_number} style={{ border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 10, overflow: 'hidden' }}>
+            {/* Header */}
+            <div onClick={() => toggle(r.id || r.order_number)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', cursor: 'pointer', userSelect: 'none' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {r.report_number || r.order_number || 'Lab Order'}
+                  <span style={{ background: color + '22', color, padding: '1px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>{label}</span>
+                  {r.priority === 'STAT' && <span style={{ background: '#fee2e2', color: '#dc2626', padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>STAT</span>}
+                </div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                  {r.lab_name} · {r.sample_collected_at ? new Date(r.sample_collected_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : r.report_date || ''}
+                  {r.results?.length > 0 && <span style={{ marginLeft: 8 }}>{r.results.length} test{r.results.length > 1 ? 's' : ''}</span>}
+                </div>
+              </div>
+              <div style={{ fontSize: 14, color: '#94a3b8' }}>{open ? '▲' : '▼'}</div>
+            </div>
+
+            {/* Results */}
+            {open && (
+              <div style={{ padding: '0 14px 12px' }}>
+                {!hasResults ? (
+                  <div style={{ color: '#94a3b8', fontSize: 13, padding: '10px 0' }}>Results pending — not yet uploaded by lab</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 8 }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc' }}>
+                        {['Test', 'Result', 'Unit', 'Reference Range', 'Flag'].map(h => (
+                          <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', fontSize: 11, textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.results.map((x, i) => {
+                        const val  = x.result_value != null ? parseFloat(x.result_value) : null;
+                        const low  = x.reference_range_low  != null ? parseFloat(x.reference_range_low)  : null;
+                        const high = x.reference_range_high != null ? parseFloat(x.reference_range_high) : null;
+                        const flag = x.is_critical_value ? 'C' : val != null && high != null && val > high ? 'H' : val != null && low != null && val < low ? 'L' : '';
+                        const flagColor = flag === 'C' ? '#dc2626' : flag === 'H' ? '#b45309' : flag === 'L' ? '#1e40af' : '#059669';
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', background: flag === 'C' ? '#fff5f5' : undefined }}>
+                            <td style={{ padding: '6px 8px', fontWeight: 500 }}>{x.test_name}</td>
+                            <td style={{ padding: '6px 8px', fontWeight: 700, color: flag ? flagColor : '#1e293b' }}>{x.result_value ?? '—'}</td>
+                            <td style={{ padding: '6px 8px', color: '#64748b' }}>{x.result_unit || '—'}</td>
+                            <td style={{ padding: '6px 8px', color: '#64748b' }}>
+                              {low != null && high != null ? `${low}–${high}` : low != null ? `≥${low}` : high != null ? `≤${high}` : '—'}
+                            </td>
+                            <td style={{ padding: '6px 8px' }}>
+                              {flag && <span style={{ background: flagColor + '22', color: flagColor, padding: '1px 7px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>{flag === 'C' ? '⚠ Critical' : flag}</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+                {r.clinical_notes && <div style={{ marginTop: 8, fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>Notes: {r.clinical_notes}</div>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const MED_HISTORY_LABELS = {
   diabetes: 'Diabetes', hypertension: 'Hypertension', hypothyroidism: 'Hypothyroidism',
@@ -369,6 +464,8 @@ export default function WriteRx() {
 
   const [appt,            setAppt]            = useState(null);
   const [pastNotes,       setPastNotes]       = useState([]);
+  const [labReports,      setLabReports]      = useState([]);
+  const [labLoading,      setLabLoading]      = useState(false);
   const [saving,          setSaving]          = useState(false);
   const [error,           setError]           = useState('');
   const [tab,             setTab]             = useState('Overview');
@@ -480,6 +577,24 @@ export default function WriteRx() {
       }
     }).catch(() => {});
   }, [appointmentId]);
+
+  // Fetch lab results when appt UHID or mobile is known
+  useEffect(() => {
+    if (!appt) return;
+    const uhid   = appt.uhid;
+    const mobile = appt.patient_mobile;
+    const emrId  = appt.emr_patient_id || appt.id;
+    if (!uhid && !emrId) return;
+    setLabLoading(true);
+    const params = uhid ? `?uhid=${encodeURIComponent(uhid)}` : '';
+    fetch(`/api/emr/patients/${emrId}/lab-reports${params}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('emr_token')}` },
+    })
+      .then(r => r.json())
+      .then(d => setLabReports(Array.isArray(d) ? d : []))
+      .catch(() => setLabReports([]))
+      .finally(() => setLabLoading(false));
+  }, [appt?.id, appt?.uhid]);
 
   const set      = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setVital = (k, v) => setForm(f => ({ ...f, vitals: { ...f.vitals, [k]: v } }));
@@ -1066,6 +1181,12 @@ export default function WriteRx() {
               initialImage={form.canvasImage || null}
               onSave={img => set('canvasImage', img)}
             />
+          )}
+
+          {tab === 'Lab Tests' && (
+            <div className={styles.tabBody}>
+              <LabTestsTab reports={labReports} loading={labLoading} />
+            </div>
           )}
 
           {tab === 'Medical Records' && (
