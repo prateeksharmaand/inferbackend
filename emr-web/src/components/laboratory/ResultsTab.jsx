@@ -234,7 +234,7 @@ function OrderCard({ order, catalog, initialItems, onSave, saving, styles: s }) 
                 <TestResultRow
                   item={item}
                   catalog={catalog}
-                  onChange={(field, val) => onChange(order.id, idx, field, val)}
+                  onChange={(field, val) => onChange(idx, field, val)}
                   styles={s}
                 />
                 {item.note_open && (
