@@ -124,7 +124,7 @@ export function LabPortal() {
         {/* Tab content */}
         <main
           className={styles.content}
-          style={activeTab === 'reports' ? { padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' } : undefined}
+          style={activeTab === 'reports' ? { padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'row' } : undefined}
         >
           {activeTab === 'dashboard'      && <DashboardTab labId={labId} styles={styles} />}
           {activeTab === 'add-sample'     && <AddSampleTab labId={labId} styles={styles} />}

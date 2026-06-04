@@ -385,9 +385,9 @@ export function ReportsTab({ labId, styles: s }) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 0, minHeight: 'calc(100vh - 120px)', margin: '-24px' }}>
+    <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0 }}>
       {/* Left submenu */}
-      <div style={{ width: 220, flexShrink: 0, background: 'var(--color-surface)', borderRight: '1px solid var(--color-border)', paddingTop: 8 }}>
+      <div style={{ width: 210, flexShrink: 0, background: 'var(--color-surface)', borderRight: '1px solid var(--color-border)', paddingTop: 8, overflowY: 'auto' }}>
         {groups.map((group) => (
           <div key={group} style={{ marginBottom: 8 }}>
             <div style={{ padding: '8px 16px 4px', fontSize: 11, fontWeight: 700, color: 'var(--color-text-2)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -415,7 +415,7 @@ export function ReportsTab({ labId, styles: s }) {
       </div>
 
       {/* Content area */}
-      <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+      <div style={{ flex: 1, padding: 24, overflowY: 'auto', minWidth: 0 }}>
         {renderContent()}
       </div>
     </div>
