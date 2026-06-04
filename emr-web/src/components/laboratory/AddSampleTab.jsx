@@ -67,7 +67,7 @@ function Section({ title, badge, open, onToggle, children, zIndex }) {
   );
 }
 
-export function AddSampleTab({ labId, styles: s }) {
+export function AddSampleTab({ labId, styles: s, prefillPatient, onPrefillUsed }) {
   // ── Patient ──────────────────────────────────────────────────────────────────
   const [foundPatient, setFoundPatient] = useState(null);
 
@@ -149,6 +149,15 @@ export function AddSampleTab({ labId, styles: s }) {
   }, []);
 
   useEffect(() => { loadCatalog(); loadSampleTypes(); loadDoctors(); }, [loadCatalog, loadSampleTypes, loadDoctors]);
+
+  // Pre-fill patient when navigating from Patients tab
+  useEffect(() => {
+    if (prefillPatient) {
+      setFoundPatient(prefillPatient);
+      setOpenSections(p => ({ ...p, patient: true }));
+      if (onPrefillUsed) onPrefillUsed();
+    }
+  }, [prefillPatient]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleAddSample = () => {

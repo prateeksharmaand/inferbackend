@@ -42,6 +42,12 @@ export function LabPortal() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [facilityName, setFacilityName] = useState('Loading...');
+  const [addSamplePatient, setAddSamplePatient] = useState(null);
+
+  const goToAddSample = (patient) => {
+    setAddSamplePatient(patient);
+    setActiveTab('add-sample');
+  };
 
   useEffect(() => {
     apiFetch('/api/v1/labs/status')
@@ -127,9 +133,9 @@ export function LabPortal() {
           style={activeTab === 'reports' ? { padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'row' } : undefined}
         >
           {activeTab === 'dashboard'      && <DashboardTab labId={labId} styles={styles} />}
-          {activeTab === 'add-sample'     && <AddSampleTab labId={labId} styles={styles} />}
+          {activeTab === 'add-sample'     && <AddSampleTab labId={labId} styles={styles} prefillPatient={addSamplePatient} onPrefillUsed={() => setAddSamplePatient(null)} />}
           {activeTab === 'edit-sample'    && <EditSampleTab labId={labId} styles={styles} />}
-          {activeTab === 'patient'        && <PatientsTab labId={labId} styles={styles} />}
+          {activeTab === 'patient'        && <PatientsTab labId={labId} styles={styles} onAddSample={goToAddSample} />}
           {activeTab === 'non-conformity' && <NonConformityTab labId={labId} styles={styles} />}
           {activeTab === 'results'        && <ResultsTab labId={labId} styles={styles} />}
           {activeTab === 'reports'        && <ReportsTab labId={labId} styles={styles} />}
