@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import ManageTemplatesModal from './ManageTemplatesModal';
 import styles from './ScribePanel.module.css';
 
-const SEGMENT_MS = 2000;
+const SEGMENT_MS = 5000; // 5s chunks — fewer requests, still feels real-time
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -40,9 +40,9 @@ async function sendChunk(blob, language = 'en', specialization = '', drugFormula
   if (drugFormulary)  form.append('drugFormulary', drugFormulary);
   const token = localStorage.getItem('emr_token');
 
-  // Timeout after 8s to prevent lag in live transcript
+  // Timeout after 25s — Whisper can be slow under load
   const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), 8000);
+  const timeout = setTimeout(() => ctrl.abort(), 25000);
 
   try {
     const res = await fetch('/api/emr/scribe/transcribe', {
@@ -160,15 +160,20 @@ export default function ScribePanel({
       recordingRef.current = true;
       setStatus('recording');
       (async () => {
+        // Process chunks sequentially — one Whisper request at a time to avoid 429s
         while (recordingRef.current) {
           const blob = await recordSegment(streamRef.current, SEGMENT_MS);
           if (!recordingRef.current) break;
           if (blob.size < 500) continue;
           setPending(n => n + 1);
-          sendChunk(blob, language, spec, drugs)
-            .then(text => { if (text) setTranscript(t => t ? t + ' ' + text : text); })
-            .catch(err => console.warn('[scribe] chunk failed:', err.message))
-            .finally(() => setPending(n => n - 1));
+          try {
+            const text = await sendChunk(blob, language, spec, drugs);
+            if (text) setTranscript(t => t ? t + ' ' + text : text);
+          } catch (err) {
+            console.warn('[scribe] chunk failed:', err.message);
+          } finally {
+            setPending(n => n - 1);
+          }
         }
       })();
     } catch {
