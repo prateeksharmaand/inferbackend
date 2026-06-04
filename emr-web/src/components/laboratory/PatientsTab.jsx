@@ -156,7 +156,7 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
             <table className={s.table}>
               <thead>
                 <tr>
-                  {['UHID / ID', 'Name', 'Age', 'DOB', 'Gender', 'Phone', 'Actions'].map(h => <th key={h}>{h}</th>)}
+                  {['UHID (Patient ID)', 'Name', 'Age', 'DOB', 'Gender', 'Phone', 'Actions'].map(h => <th key={h}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -170,7 +170,7 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
                       <td>
                         {p.uhid
                           ? <span style={{ background: '#ede9fe', color: '#6d28d9', padding: '2px 7px', borderRadius: 6, fontWeight: 700, fontSize: 12 }}>{p.uhid}</span>
-                          : <span style={{ color: 'var(--color-text-3)', fontSize: 12 }}>{pid}</span>}
+                          : <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 600 }}>No UHID</span>}
                       </td>
                       <td style={{ fontWeight: 600 }}>{p.name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || '—'}</td>
                       <td>{age ?? <span style={{ color: 'var(--color-text-3)' }}>—</span>}</td>
@@ -258,6 +258,9 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
             {mode === 'new' ? 'New Patient' : `Edit Patient${current?.uhid ? ` — ${current.uhid}` : ''}`}
           </div>
           <div className={s.cardBody}>
+            <div style={{ fontSize: 11, color: '#6d28d9', background: '#ede9fe', padding: '5px 10px', borderRadius: 6, marginBottom: 12, fontWeight: 600 }}>
+              Note: UHID (e.g. INFER1607) is the universal patient identifier used across all lab orders, samples and reports.
+            </div>
             {mode === 'new' && (
               <div className={`${s.alert} ${s.alertInfo}`} style={{ marginBottom: 14 }}>
                 New patients must be registered at reception / EMR portal. Use this form to update notes for an existing patient found above.
