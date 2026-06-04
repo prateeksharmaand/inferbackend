@@ -242,67 +242,137 @@ function VaccinationsTab({ history, loading }) {
 // ── Lab Tests tab ─────────────────────────────────────────────────────────────
 const FLAG_COLOR = { H: '#b45309', L: '#1e40af', C: '#dc2626' };
 
-function LabTestsTab({ reports, loading }) {
-  const [open, setOpen] = useState({});
-  const toggle = (id) => setOpen(p => ({ ...p, [id]: !p[id] }));
+function LabOrderCard({ r, appt }) {
+  const [open,      setOpen]    = useState(false);
+  const [aiSummary, setAiSummary] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [applied,   setApplied]  = useState(false);
 
-  if (loading) return <div className={s.hint}>Loading lab results…</div>;
-  if (!reports.length) return <div className={s.hint}>No lab results found for this patient.</div>;
+  const key = r.id || r.order_number;
+  const statusColor = { PENDING:'#64748b', COLLECTED:'#d97706', PROCESSING:'#7c3aed', RESULTED:'#059669', REPORTED:'#0891b2' }[r.order_status] || '#64748b';
+  const statusLabel = { PENDING:'Pending', COLLECTED:'Collected', PROCESSING:'Testing', RESULTED:'Ready', REPORTED:'Reported' }[r.order_status] || r.order_status || '';
+  const filledResults = (r.results || []).filter(x => x.result_value != null);
+  const hasVals = filledResults.length > 0;
+
+  const generateSummary = async () => {
+    if (aiSummary) return; // already generated
+    setAiLoading(true);
+    try {
+      const res = await fetch('/api/emr/ai/lab-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('emr_token')}` },
+        body: JSON.stringify({
+          results:        filledResults,
+          patient_name:   appt?.patient_name,
+          patient_age:    appt?.patient_age || appt?.patient_dob,
+          patient_gender: appt?.patient_gender,
+          order_number:   r.order_number,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAiSummary(data.summary);
+    } catch (err) {
+      setAiSummary('AI summary failed: ' + err.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applyToInferPad = () => {
+    // Format results as lab_results objects that InferPad accepts
+    const labItems = filledResults.map(x => ({
+      test:   x.test_name || '',
+      result: String(x.result_value ?? ''),
+      unit:   x.result_unit || '',
+      range:  x.reference_range_low != null && x.reference_range_high != null
+        ? `${x.reference_range_low}–${x.reference_range_high}` : '',
+    }));
+    // Dispatch event — InferPad listens for this
+    window.dispatchEvent(new CustomEvent('lab:apply', { detail: { items: labItems, orderNumber: r.order_number, summary: aiSummary } }));
+    setApplied(true);
+    setTimeout(() => setApplied(false), 2500);
+  };
 
   return (
-    <div style={{ padding: '8px 0' }}>
-      {reports.map(r => {
-        const key = r.id || r.order_number;
-        const isOpen = open[key];
-        const statusColor = {
-          PENDING:'#64748b', COLLECTED:'#d97706', PROCESSING:'#7c3aed',
-          RESULTED:'#059669', REPORTED:'#0891b2',
-        }[r.order_status] || '#64748b';
-        const statusLabel = {
-          PENDING:'Pending', COLLECTED:'Collected', PROCESSING:'Testing',
-          RESULTED:'Ready', REPORTED:'Reported',
-        }[r.order_status] || r.order_status || '';
-        const hasVals = r.results?.some(x => x.result_value != null);
-        return (
-          <div key={key} style={{ borderBottom: '1px solid #f1f5f9' }}>
-            <div onClick={() => toggle(key)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', cursor: 'pointer' }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{r.report_number || r.order_number || 'Lab Order'}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {r.lab_name && <span>{r.lab_name}</span>}
-                  {r.sample_collected_at && <span>{fmtDate(r.sample_collected_at)}</span>}
-                  <span style={{ background: statusColor + '22', color: statusColor, padding: '0 6px', borderRadius: 6, fontWeight: 600 }}>{statusLabel}</span>
-                </div>
-              </div>
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>{isOpen ? '▲' : '▼'}</span>
-            </div>
-            {isOpen && (
-              <div style={{ padding: '0 14px 10px' }}>
-                {!hasVals ? (
-                  <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Results pending</div>
-                ) : (
-                  r.results.map((x, i) => {
-                    const val  = x.result_value != null ? parseFloat(x.result_value) : null;
-                    const flag = x.is_critical_value ? 'C'
-                      : val != null && x.reference_range_high != null && val > parseFloat(x.reference_range_high) ? 'H'
-                      : val != null && x.reference_range_low  != null && val < parseFloat(x.reference_range_low)  ? 'L' : '';
-                    return (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #f8fafc', fontSize: 12 }}>
-                        <span style={{ color: '#475569' }}>{x.test_name}</span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ fontWeight: 700, color: FLAG_COLOR[flag] || '#1e293b' }}>{x.result_value ?? '—'}</span>
-                          {x.result_unit && <span style={{ color: '#94a3b8', fontSize: 10 }}>{x.result_unit}</span>}
-                          {flag && <span style={{ color: FLAG_COLOR[flag], fontWeight: 700, fontSize: 10 }}>{flag}</span>}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
+    <div style={{ borderBottom: '1px solid #f1f5f9' }}>
+      {/* Header — click to expand */}
+      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', cursor: 'pointer' }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{r.report_number || r.order_number || 'Lab Order'}</div>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {r.lab_name && <span>{r.lab_name}</span>}
+            {r.sample_collected_at && <span>{fmtDate(r.sample_collected_at)}</span>}
+            <span style={{ background: statusColor + '22', color: statusColor, padding: '0 6px', borderRadius: 6, fontWeight: 600 }}>{statusLabel}</span>
+          </div>
+        </div>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>{open ? '▲' : '▼'}</span>
+      </div>
+
+      {/* Expanded content */}
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Scrollable results area */}
+          <div style={{ maxHeight: 220, overflowY: 'auto', padding: '0 14px 6px' }}>
+            {!hasVals ? (
+              <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', padding: '8px 0' }}>Results pending — not yet entered by lab</div>
+            ) : (
+              <>
+                {filledResults.map((x, i) => {
+                  const val  = parseFloat(x.result_value);
+                  const flag = x.is_critical_value ? 'C'
+                    : (!isNaN(val) && x.reference_range_high != null && val > parseFloat(x.reference_range_high)) ? 'H'
+                    : (!isNaN(val) && x.reference_range_low  != null && val < parseFloat(x.reference_range_low))  ? 'L' : '';
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #f8fafc', fontSize: 12 }}>
+                      <span style={{ color: '#475569' }}>{x.test_name}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontWeight: 700, color: FLAG_COLOR[flag] || '#1e293b' }}>{x.result_value}</span>
+                        {x.result_unit && <span style={{ color: '#94a3b8', fontSize: 10 }}>{x.result_unit}</span>}
+                        {flag && <span style={{ color: FLAG_COLOR[flag], fontWeight: 700, fontSize: 10 }}>{flag}</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* AI Summary */}
+            {aiSummary && (
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 11, color: '#166534', lineHeight: 1.6 }}>
+                <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>✨ AI Summary</div>
+                {aiSummary}
               </div>
             )}
           </div>
-        );
-      })}
+
+          {/* Sticky action buttons */}
+          <div style={{ position: 'sticky', bottom: 0, background: 'white', borderTop: '1px solid #f1f5f9', padding: '8px 14px', display: 'flex', gap: 6 }}>
+            <button
+              onClick={applyToInferPad}
+              disabled={!hasVals}
+              style={{ flex: 1, padding: '6px 8px', fontSize: 11, fontWeight: 700, cursor: hasVals ? 'pointer' : 'not-allowed', borderRadius: 7, border: '1.5px solid #7c3aed', background: applied ? '#7c3aed' : 'white', color: applied ? 'white' : '#7c3aed', transition: 'all .15s', opacity: hasVals ? 1 : 0.4 }}>
+              {applied ? '✓ Applied!' : '📋 Apply to InferPad'}
+            </button>
+            <button
+              onClick={generateSummary}
+              disabled={aiLoading || !hasVals || !!aiSummary}
+              style={{ flex: 1, padding: '6px 8px', fontSize: 11, fontWeight: 700, cursor: (hasVals && !aiSummary) ? 'pointer' : 'not-allowed', borderRadius: 7, border: '1.5px solid #059669', background: aiSummary ? '#059669' : 'white', color: aiSummary ? 'white' : '#059669', opacity: hasVals ? 1 : 0.4, transition: 'all .15s' }}>
+              {aiLoading ? '⏳ Generating…' : aiSummary ? '✓ Summary Ready' : '✨ AI Summary'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LabTestsTab({ reports, loading, appt }) {
+  if (loading) return <div className={s.hint}>Loading lab results…</div>;
+  if (!reports.length) return <div className={s.hint}>No lab results found for this patient.</div>;
+  return (
+    <div style={{ padding: '8px 0' }}>
+      {reports.map(r => <LabOrderCard key={r.id || r.order_number} r={r} appt={appt} />)}
     </div>
   );
 }
@@ -402,7 +472,7 @@ export default function PatientContextPanel({ appt, onClose, rightOffset = 0, mi
         {activeTab === 'history'      && <HistoryTab      history={history}    loading={loading}    />}
         {activeTab === 'vitals'       && <VitalsTab       history={history}    loading={loading}    />}
         {activeTab === 'records'      && <RecordsTab      history={history}    loading={loading}    />}
-        {activeTab === 'lab-tests'    && <LabTestsTab     reports={labReports} loading={labLoading} />}
+        {activeTab === 'lab-tests'    && <LabTestsTab     reports={labReports} loading={labLoading} appt={appt} />}
         {activeTab === 'vaccinations' && <VaccinationsTab history={history}    loading={loading}    />}
       </div>}
     </div>

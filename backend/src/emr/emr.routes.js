@@ -361,4 +361,57 @@ router.use('/inbound', inbound);
 // Diet charts + food library
 router.use('/diet', require('../routes/diet.routes'));
 
+// POST /ai/lab-summary — AI-driven clinical interpretation of lab results
+router.post('/ai/lab-summary', async (req, res) => {
+  try {
+    const axios = require('axios');
+    const { results, patient_name, patient_age, patient_gender, order_number } = req.body;
+    if (!Array.isArray(results) || results.length === 0) return res.status(400).json({ error: 'results array required' });
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'AI not configured (GEMINI_API_KEY missing)' });
+
+    const resultLines = results
+      .filter(r => r.result_value != null)
+      .map(r => {
+        const flag = r.is_critical_value ? 'CRITICAL'
+          : (r.result_value > r.reference_range_high) ? 'HIGH'
+          : (r.result_value < r.reference_range_low) ? 'LOW' : 'Normal';
+        const range = r.reference_range_low != null && r.reference_range_high != null
+          ? ` (ref: ${r.reference_range_low}–${r.reference_range_high} ${r.result_unit || ''})` : '';
+        return `- ${r.test_name}: ${r.result_value} ${r.result_unit || ''}${range} [${flag}]`;
+      }).join('\n');
+
+    const prompt = `You are a clinical lab specialist. Provide a concise, doctor-readable interpretation of these lab results.
+
+Patient: ${patient_name || 'Unknown'}${patient_age ? `, ${patient_age}y` : ''}${patient_gender ? `, ${patient_gender}` : ''}
+Order: ${order_number || 'N/A'}
+
+Lab Results:
+${resultLines}
+
+Instructions:
+1. Write 2-4 sentences interpreting the key findings clinically
+2. Highlight any critical or abnormal values and their clinical significance
+3. Suggest any follow-up tests or clinical actions if warranted
+4. Keep language concise and suitable for a doctor's notes
+5. Do NOT diagnose — interpret findings only`;
+
+    const body = {
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 512, temperature: 0.3, thinkingConfig: { thinkingBudget: 0 } },
+    };
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      body,
+      { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
+    );
+
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) return res.status(500).json({ error: 'Empty AI response' });
+    return res.json({ success: true, summary: text.trim() });
+  } catch (err) {
+    return res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+  }
+});
+
 module.exports = router;

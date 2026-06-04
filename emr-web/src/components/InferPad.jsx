@@ -373,6 +373,21 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
     return () => window.removeEventListener('storage', handler);
   }, [clinicId]);
 
+  // Listen for lab results applied from PatientContextPanel
+  useEffect(() => {
+    const handler = (e) => {
+      const { items, summary } = e.detail || {};
+      if (Array.isArray(items) && items.length > 0) {
+        set('lab_results', [...(form.lab_results || []), ...items]);
+      }
+      if (summary) {
+        set('notes', [form.notes, `Lab Summary: ${summary}`].filter(Boolean).join('\n\n'));
+      }
+    };
+    window.addEventListener('lab:apply', handler);
+    return () => window.removeEventListener('lab:apply', handler);
+  }); // no deps — reads latest form
+
   const visibleVitals = vitalsOrder
     .map(k => VITALS_ALL.find(v => v.key === k))
     .filter(Boolean);
