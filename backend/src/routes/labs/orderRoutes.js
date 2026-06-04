@@ -97,6 +97,71 @@ router.patch('/:order_id/status', verifyLabToken, async (req, res) => {
   }
 });
 
+// POST /orders/:order_id/results - save results for all items in an order
+router.post('/:order_id/results', verifyLabToken, async (req, res) => {
+  try {
+    const { results, instrument, technician_notes, action } = req.body;
+    // results: [{ test_code, test_name, result_value, result_unit, reference_range_low, reference_range_high, is_critical_value }]
+    if (!Array.isArray(results) || results.length === 0) return res.status(400).json({ error: 'results array required' });
+
+    const { query } = require('../../config/database');
+
+    // Get order to get lab_id and patient info
+    const orderRes = await query(`SELECT * FROM lab_orders WHERE id = $1`, [req.params.order_id]);
+    if (!orderRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = orderRes.rows[0];
+
+    const saved = [];
+    for (const r of results) {
+      if (r.result_value === null || r.result_value === undefined || r.result_value === '') continue;
+
+      // Insert into lab_test_results
+      const isCritical = r.is_critical_value || (
+        r.result_value != null && (
+          (r.critical_low  != null && parseFloat(r.result_value) < parseFloat(r.critical_low))  ||
+          (r.critical_high != null && parseFloat(r.result_value) > parseFloat(r.critical_high))
+        )
+      );
+
+      const trRes = await query(
+        `INSERT INTO lab_test_results
+           (patient_id, patient_uhid, lab_id, test_code, test_name, result_value, result_unit,
+            reference_range_low, reference_range_high, result_status, source_format,
+            collection_timestamp, is_critical_value, visibility_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'FINAL','MANUAL',NOW(),$10,'DOCTOR_VISIBLE')
+         RETURNING id`,
+        [
+          order.patient_id || null, order.patient_uhid || null, order.lab_id,
+          r.test_code, r.test_name,
+          parseFloat(r.result_value), r.result_unit || null,
+          r.reference_range_low || null, r.reference_range_high || null,
+          isCritical,
+        ]
+      );
+      const resultId = trRes.rows[0].id;
+      saved.push({ test_code: r.test_code, result_id: resultId, is_critical: isCritical });
+
+      // Link back to order item
+      await query(
+        `UPDATE lab_order_items SET result_id = $1, status = 'RESULTED' WHERE order_id = $2 AND test_code = $3`,
+        [resultId, req.params.order_id, r.test_code]
+      ).catch(() => {}); // non-fatal if item not found
+    }
+
+    // Advance order status based on action
+    const statusMap = { validate: 'RESULTED', draft: 'PROCESSING', review: 'PROCESSING', reject: 'CANCELLED' };
+    const newStatus = statusMap[action] || 'RESULTED';
+    await query(
+      `UPDATE lab_orders SET status = $1, updated_at = NOW() WHERE id = $2`,
+      [newStatus, req.params.order_id]
+    );
+
+    return res.json({ success: true, saved, order_status: newStatus });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /orders/:order_id - cancel order
 router.delete('/:order_id', verifyLabToken, async (req, res) => {
   try {
