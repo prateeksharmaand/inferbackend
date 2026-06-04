@@ -129,7 +129,7 @@ router.post('/', verifyLabToken, async (req, res) => {
   try {
     const {
       patient_name, patient_mobile, patient_dob, patient_gender,
-      patient_abha, uhid, channel, notes, appointment_date, appointment_time,
+      patient_abha, uhid, aadhaar, channel, notes, appointment_date, appointment_time,
       medical_history,
     } = req.body;
 
@@ -157,7 +157,7 @@ router.post('/', verifyLabToken, async (req, res) => {
         patient_abha || null,
         uhid || null,
         channel || 'Lab Walk-in',
-        notes || null,
+        [notes, aadhaar ? `Aadhaar: ${aadhaar}` : null].filter(Boolean).join(' | ') || null,
         dateToUse,
         appointment_time || null,
         clinicId || null,

@@ -49,7 +49,7 @@ const EMPTY_FORM = {
 
 const EMPTY_NEW = {
   patient_name: '', patient_mobile: '', patient_dob: '', patient_gender: 'Male',
-  patient_abha: '', uhid: '', channel: 'Lab Walk-in',
+  patient_abha: '', uhid: '', aadhaar: '', channel: 'Lab Walk-in',
   appointment_date: new Date().toISOString().split('T')[0],
   notes: '',
 };
@@ -335,6 +335,10 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
               <div className={s.field}>
                 <label className={s.label}>ABHA ID</label>
                 <input className={s.input} value={newForm.patient_abha} onChange={e => setNewForm(f=>({...f,patient_abha:e.target.value}))} placeholder="12-3456-7890-1234" />
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>Aadhaar / ID Proof No.</label>
+                <input className={s.input} value={newForm.aadhaar} onChange={e => setNewForm(f=>({...f,aadhaar:e.target.value}))} placeholder="XXXX XXXX XXXX" maxLength={14} />
               </div>
               <div className={s.field}>
                 <label className={s.label}>UHID</label>
