@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Clock, Activity, FileText, Syringe, Minimize2, ChevronLeft } from 'lucide-react';
+import { X, Clock, Activity, FileText, Syringe, Minimize2, ChevronLeft, FlaskConical } from 'lucide-react';
 import { api } from '../api/client';
 import s from './PatientContextPanel.module.css';
 
@@ -10,10 +10,11 @@ function fmtDate(d) {
 }
 
 const TABS = [
-  { id: 'history',       icon: Clock,     label: 'History'       },
-  { id: 'vitals',        icon: Activity,  label: 'Vitals'        },
-  { id: 'records',       icon: FileText,  label: 'Records'       },
-  { id: 'vaccinations',  icon: Syringe,   label: 'Vaccinations'  },
+  { id: 'history',       icon: Clock,         label: 'History'    },
+  { id: 'vitals',        icon: Activity,      label: 'Vitals'     },
+  { id: 'records',       icon: FileText,      label: 'Records'    },
+  { id: 'lab-tests',     icon: FlaskConical,  label: 'Lab Tests'  },
+  { id: 'vaccinations',  icon: Syringe,       label: 'Vaccinations' },
 ];
 
 const STATUS_CFG = {
@@ -238,11 +239,81 @@ function VaccinationsTab({ history, loading }) {
   );
 }
 
+// ── Lab Tests tab ─────────────────────────────────────────────────────────────
+const FLAG_COLOR = { H: '#b45309', L: '#1e40af', C: '#dc2626' };
+
+function LabTestsTab({ reports, loading }) {
+  const [open, setOpen] = useState({});
+  const toggle = (id) => setOpen(p => ({ ...p, [id]: !p[id] }));
+
+  if (loading) return <div className={s.hint}>Loading lab results…</div>;
+  if (!reports.length) return <div className={s.hint}>No lab results found for this patient.</div>;
+
+  return (
+    <div style={{ padding: '8px 0' }}>
+      {reports.map(r => {
+        const key = r.id || r.order_number;
+        const isOpen = open[key];
+        const statusColor = {
+          PENDING:'#64748b', COLLECTED:'#d97706', PROCESSING:'#7c3aed',
+          RESULTED:'#059669', REPORTED:'#0891b2',
+        }[r.order_status] || '#64748b';
+        const statusLabel = {
+          PENDING:'Pending', COLLECTED:'Collected', PROCESSING:'Testing',
+          RESULTED:'Ready', REPORTED:'Reported',
+        }[r.order_status] || r.order_status || '';
+        const hasVals = r.results?.some(x => x.result_value != null);
+        return (
+          <div key={key} style={{ borderBottom: '1px solid #f1f5f9' }}>
+            <div onClick={() => toggle(key)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', cursor: 'pointer' }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{r.report_number || r.order_number || 'Lab Order'}</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {r.lab_name && <span>{r.lab_name}</span>}
+                  {r.sample_collected_at && <span>{fmtDate(r.sample_collected_at)}</span>}
+                  <span style={{ background: statusColor + '22', color: statusColor, padding: '0 6px', borderRadius: 6, fontWeight: 600 }}>{statusLabel}</span>
+                </div>
+              </div>
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>{isOpen ? '▲' : '▼'}</span>
+            </div>
+            {isOpen && (
+              <div style={{ padding: '0 14px 10px' }}>
+                {!hasVals ? (
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Results pending</div>
+                ) : (
+                  r.results.map((x, i) => {
+                    const val  = x.result_value != null ? parseFloat(x.result_value) : null;
+                    const flag = x.is_critical_value ? 'C'
+                      : val != null && x.reference_range_high != null && val > parseFloat(x.reference_range_high) ? 'H'
+                      : val != null && x.reference_range_low  != null && val < parseFloat(x.reference_range_low)  ? 'L' : '';
+                    return (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #f8fafc', fontSize: 12 }}>
+                        <span style={{ color: '#475569' }}>{x.test_name}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontWeight: 700, color: FLAG_COLOR[flag] || '#1e293b' }}>{x.result_value ?? '—'}</span>
+                          {x.result_unit && <span style={{ color: '#94a3b8', fontSize: 10 }}>{x.result_unit}</span>}
+                          {flag && <span style={{ color: FLAG_COLOR[flag], fontWeight: 700, fontSize: 10 }}>{flag}</span>}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function PatientContextPanel({ appt, onClose, rightOffset = 0, minimized = false, onMinimize = () => {} }) {
   const [activeTab,  setActiveTab]  = useState('history');
   const [history,    setHistory]    = useState([]);
   const [loading,    setLoading]    = useState(true);
+  const [labReports, setLabReports] = useState([]);
+  const [labLoading, setLabLoading] = useState(false);
 
   const activeTabCfg = TABS.find(t => t.id === activeTab);
 
@@ -256,6 +327,23 @@ export default function PatientContextPanel({ appt, onClose, rightOffset = 0, mi
       .then(rows => { setHistory(rows); setLoading(false); })
       .catch(() => setLoading(false));
   }, [appt?.id]); // eslint-disable-line
+
+  // Fetch lab results when tab is opened or appt changes
+  useEffect(() => {
+    if (activeTab !== 'lab-tests' || !appt) return;
+    const uhid  = appt.uhid;
+    const emrId = appt.emr_patient_id || appt.id;
+    if (!uhid && !emrId) return;
+    setLabLoading(true);
+    const params = uhid ? `?uhid=${encodeURIComponent(uhid)}` : '';
+    fetch(`/api/emr/patients/${emrId}/lab-reports${params}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('emr_token')}` },
+    })
+      .then(r => r.json())
+      .then(d => setLabReports(Array.isArray(d) ? d : []))
+      .catch(() => setLabReports([]))
+      .finally(() => setLabLoading(false));
+  }, [activeTab, appt?.id, appt?.uhid]); // eslint-disable-line
 
   const age     = appt?.patient_dob
     ? Math.floor((Date.now() - new Date(appt.patient_dob)) / (365.25 * 24 * 60 * 60 * 1000))
@@ -311,10 +399,11 @@ export default function PatientContextPanel({ appt, onClose, rightOffset = 0, mi
 
       {/* Content */}
       {!minimized && <div className={s.body}>
-        {activeTab === 'history'      && <HistoryTab      history={history} loading={loading} />}
-        {activeTab === 'vitals'       && <VitalsTab       history={history} loading={loading} />}
-        {activeTab === 'records'      && <RecordsTab      history={history} loading={loading} />}
-        {activeTab === 'vaccinations' && <VaccinationsTab history={history} loading={loading} />}
+        {activeTab === 'history'      && <HistoryTab      history={history}    loading={loading}    />}
+        {activeTab === 'vitals'       && <VitalsTab       history={history}    loading={loading}    />}
+        {activeTab === 'records'      && <RecordsTab      history={history}    loading={loading}    />}
+        {activeTab === 'lab-tests'    && <LabTestsTab     reports={labReports} loading={labLoading} />}
+        {activeTab === 'vaccinations' && <VaccinationsTab history={history}    loading={loading}    />}
       </div>}
     </div>
   );
