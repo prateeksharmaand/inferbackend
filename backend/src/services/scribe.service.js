@@ -3,6 +3,7 @@ const FormData = require('form-data');
 const { spawn } = require('child_process');
 
 const WHISPER_BASE  = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
+const WHISPER_MODEL = process.env.WHISPER_MODEL    || 'small';
 const GEMINI_KEY    = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL  = 'gemini-2.5-flash';
 const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -106,7 +107,7 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en',
 
   const langParam = language === 'auto' ? '' : `&language=${language}`;
   const res = await axios.post(
-    `${WHISPER_BASE}/asr?task=transcribe${langParam}&output=json&vad_filter=false&initial_prompt=${encodeURIComponent(promptText)}`,
+    `${WHISPER_BASE}/asr?task=transcribe${langParam}&output=json&vad_filter=false&initial_prompt=${encodeURIComponent(promptText)}&model=${WHISPER_MODEL}`,
     form,
     { headers: form.getHeaders(), timeout: 60_000 }
   );
