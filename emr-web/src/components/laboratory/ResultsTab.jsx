@@ -101,14 +101,15 @@ function TestResultRow({ item, catalog, onChange, styles: s }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <input
               className={s.input}
-              type="number"
-              step="any"
+              type="text"
+              inputMode="decimal"
               value={item.result_value ?? ''}
               onChange={e => onChange('result_value', e.target.value)}
-              placeholder="—"
+              placeholder="Enter value"
               style={{
                 width: 90, fontWeight: 700, fontSize: 14,
                 borderColor: flagCfg && flag !== 'N' ? flagCfg.color : undefined,
+                background: flagCfg && (flag === 'C+' || flag === 'C-') ? '#fef2f2' : undefined,
               }}
             />
             {unit && <span style={{ fontSize: 12, color: 'var(--color-text-3)', whiteSpace: 'nowrap' }}>{unit}</span>}
@@ -173,8 +174,21 @@ function TestResultRow({ item, catalog, onChange, styles: s }) {
 }
 
 // One card per order (Lab No / Sample Type / Patient)
-function OrderCard({ order, catalog, allResults, onChange, onSave, saving, styles: s }) {
-  const items      = allResults[order.id] || [];
+function OrderCard({ order, catalog, initialItems, onSave, saving, styles: s }) {
+  // Keep result state locally so typing doesn't lose focus on parent re-render
+  const [items, setItems] = useState(initialItems || []);
+
+  // Sync if initialItems changes (e.g. after load)
+  const prevRef = useRef(null);
+  useEffect(() => {
+    const key = initialItems.map(i => i.test_code).join(',');
+    if (prevRef.current !== key) { setItems(initialItems); prevRef.current = key; }
+  }, [initialItems]);
+
+  const onChange = (idx, field, val) =>
+    setItems(rows => rows.map((r, i) => i === idx ? { ...r, [field]: val } : r));
+
+  const handleSave = (action) => onSave(order, action, items);
   const age        = computeAge(order.patient_dob);
   const isStat     = order.priority === 'STAT';
   const isUrgent   = order.priority === 'URGENT';
@@ -238,10 +252,10 @@ function OrderCard({ order, catalog, allResults, onChange, onSave, saving, style
 
       {/* Card footer */}
       <div style={{ padding: '8px 16px', borderTop: '1px solid var(--color-border)', display: 'flex', gap: 8, justifyContent: 'flex-end', background: '#fafafa' }}>
-        <button className={`${s.btn} ${s.btnSm} ${s.btnSecondary}`} onClick={() => onSave(order, 'draft')} disabled={saving[order.id]}>
+        <button className={`${s.btn} ${s.btnSm} ${s.btnSecondary}`} onClick={() => handleSave('draft')} disabled={saving[order.id]}>
           Save Draft
         </button>
-        <button className={`${s.btn} ${s.btnSm} ${s.btnPrimary}`} onClick={() => onSave(order, 'validate')} disabled={saving[order.id]}
+        <button className={`${s.btn} ${s.btnSm} ${s.btnPrimary}`} onClick={() => handleSave('validate')} disabled={saving[order.id]}
           style={{ background: isStat ? '#991b1b' : undefined }}>
           <CheckCircle size={12} /> {saving[order.id] ? 'Saving…' : 'Validate'}
         </button>
@@ -366,14 +380,13 @@ export function ResultsTab({ labId, styles: s }) {
     });
   };
 
-  const handleSave = async (order, action) => {
-    const items = allResults[order.id] || [];
-    const filled = items.filter(r => r.result_value !== '' && r.result_value != null && !r.not_reported);
+  const handleSave = async (order, action, items) => {
+    const filled = (items || []).filter(r => r.result_value !== '' && r.result_value != null && !r.not_reported);
 
     // Critical check before validate
     if (action === 'validate') {
       const crits = filled.filter(r => { const f = flagResult(r.result_value, r.rl, r.rh, r.cl, r.ch); return f === 'C+' || f === 'C-'; });
-      if (crits.length > 0 && !critAlert) { setCritAlert({ crits, order, action }); return; }
+      if (crits.length > 0 && !critAlert) { setCritAlert({ crits, order, action, items }); return; }
     }
     setCritAlert(null);
 
@@ -507,8 +520,7 @@ export function ResultsTab({ labId, styles: s }) {
                 key={order.id}
                 order={order}
                 catalog={catalog}
-                allResults={{ [order.id]: getItemsForDept(order.id) }}
-                onChange={onChange}
+                initialItems={getItemsForDept(order.id)}
                 onSave={handleSave}
                 saving={saving}
                 styles={s}
@@ -664,7 +676,7 @@ export function ResultsTab({ labId, styles: s }) {
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
               <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setCritAlert(null)}>Review Again</button>
               <button className={`${s.btn} ${s.btnPrimary}`} style={{ background:'#991b1b' }}
-                onClick={() => handleSave(critAlert.order, critAlert.action)}>
+                onClick={() => handleSave(critAlert.order, critAlert.action, critAlert.items)}>
                 Confirm & Validate
               </button>
             </div>
