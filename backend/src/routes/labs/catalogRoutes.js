@@ -427,23 +427,34 @@ router.post('/catalog/seed', verifyLabToken, async (req, res) => {
     let panelsAdded = 0;
     for (const p of PANELS) {
       try {
-        const pr = await query(
-          `INSERT INTO lab_test_panels (lab_id, panel_code, panel_name, price, is_active)
-           VALUES ($1,$2,$3,$4,true)
-           ON CONFLICT (lab_id, panel_code) DO NOTHING
-           RETURNING id`,
-          [labId, p.code, p.name, p.price]
+        // Check if panel already exists
+        const existing = await query(
+          `SELECT id FROM lab_test_panels WHERE lab_id = $1 AND panel_code = $2`,
+          [labId, p.code]
         );
-        const panelId = pr.rows[0]?.id;
+        let panelId = existing.rows[0]?.id;
+        if (!panelId) {
+          const pr = await query(
+            `INSERT INTO lab_test_panels (lab_id, panel_code, panel_name, price, is_active)
+             VALUES ($1,$2,$3,$4,true) RETURNING id`,
+            [labId, p.code, p.name, p.price]
+          );
+          panelId = pr.rows[0]?.id;
+          panelsAdded++;
+        }
         if (!panelId) continue;
-        panelsAdded++;
         for (const tc of p.tests) {
           const tid = codeToId[tc];
-          if (tid) await query(`INSERT INTO lab_test_panels_tests (panel_id, test_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [panelId, tid]).catch(() =>
-            query(`INSERT INTO lab_panel_tests (panel_id, test_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [panelId, tid])
-          );
+          if (tid) {
+            try {
+              await query(
+                `INSERT INTO lab_panel_tests (panel_id, test_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [panelId, tid]
+              );
+            } catch { /* skip */ }
+          }
         }
-      } catch { /* panel already exists */ }
+      } catch { /* skip */ }
     }
 
     return res.json({ success: true, tests_added: added, tests_skipped: skipped, panels_added: panelsAdded });
