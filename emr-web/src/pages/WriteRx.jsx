@@ -534,6 +534,19 @@ export default function WriteRx() {
     };
   });
 
+  // Re-read images once user loads (clinic_id may differ from localStorage init)
+  useEffect(() => {
+    if (!user) return;
+    const cid = user.clinic_id || 'default';
+    const uid = user.id        || 'default';
+    setRxImages({
+      headerImg:        localStorage.getItem(`rx_header_${cid}`)        || '',
+      footerImg:        localStorage.getItem(`rx_footer_${cid}`)        || '',
+      googleReviewLink: localStorage.getItem(`rx_google_review_${cid}`) || '',
+      signatureImg:     localStorage.getItem(`rx_sig_${uid}_${cid}`)    || '',
+    });
+  }, [user?.clinic_id, user?.id]);
+
   useEffect(() => {
     if (appointmentId === 'new') return;
     api.get(`/appointments/${appointmentId}`).then(data => {
