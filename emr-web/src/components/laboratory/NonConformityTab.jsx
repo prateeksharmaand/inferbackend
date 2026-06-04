@@ -388,34 +388,34 @@ export function NonConformityTab({ labId, styles: s }) {
         </div>
       </div>
 
-      {/* ── Filters ── */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-        <select className={s.select} style={{ minWidth: 130 }} value={fStatus} onChange={e => setFStatus(e.target.value)}>
+      {/* ── Filters — single row ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr auto', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+        <select className={s.select} value={fStatus} onChange={e => setFStatus(e.target.value)}>
           <option value="">All Statuses</option>
           <option value="OPEN">Open</option>
           <option value="IN_PROGRESS">In Progress</option>
           <option value="RESOLVED">Resolved</option>
           <option value="ESCALATED">Escalated</option>
         </select>
-        <select className={s.select} style={{ minWidth: 120 }} value={fSeverity} onChange={e => setFSeverity(e.target.value)}>
+        <select className={s.select} value={fSeverity} onChange={e => setFSeverity(e.target.value)}>
           <option value="">All Severities</option>
           <option value="MINOR">Minor</option>
           <option value="MAJOR">Major</option>
           <option value="CRITICAL">Critical</option>
         </select>
-        <select className={s.select} style={{ minWidth: 150 }} value={fStage} onChange={e => setFStage(e.target.value)}>
+        <select className={s.select} value={fStage} onChange={e => setFStage(e.target.value)}>
           <option value="">All Stages</option>
           <option value="PRE_ANALYTICAL">Pre-Analytical</option>
           <option value="ANALYTICAL">Analytical</option>
           <option value="POST_ANALYTICAL">Post-Analytical</option>
         </select>
-        <input className={s.input} type="date" value={fStart} onChange={e => setFStart(e.target.value)} style={{ width: 140 }} />
-        <input className={s.input} type="date" value={fEnd}   onChange={e => setFEnd(e.target.value)}   style={{ width: 140 }} />
-        {(fStatus || fSeverity || fStage || fStart || fEnd) && (
-          <button className={`${s.btn} ${s.btnSm} ${s.btnSecondary}`} onClick={() => { setFStatus(''); setFSeverity(''); setFStage(''); setFStart(''); setFEnd(''); }}>
-            <X size={12} /> Clear
-          </button>
-        )}
+        <input className={s.input} type="date" value={fStart} onChange={e => setFStart(e.target.value)} />
+        <input className={s.input} type="date" value={fEnd}   onChange={e => setFEnd(e.target.value)} />
+        <button className={`${s.btn} ${s.btnSm} ${s.btnSecondary}`}
+          onClick={() => { setFStatus(''); setFSeverity(''); setFStage(''); setFStart(''); setFEnd(''); }}
+          style={{ opacity: (fStatus || fSeverity || fStage || fStart || fEnd) ? 1 : 0.35 }}>
+          <X size={12} /> Clear
+        </button>
       </div>
 
       {/* ── Events list ── */}
