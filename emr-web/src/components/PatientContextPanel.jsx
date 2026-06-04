@@ -272,6 +272,8 @@ function LabOrderCard({ r, appt }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setAiSummary(data.summary);
+      // Immediately push summary to InferPad Notes
+      window.dispatchEvent(new CustomEvent('lab:apply', { detail: { items: [], summary: data.summary } }));
     } catch (err) {
       setAiSummary('AI summary failed: ' + err.message);
     } finally {
