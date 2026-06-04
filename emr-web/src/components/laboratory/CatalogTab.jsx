@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, RefreshCw, Edit2, ToggleLeft, ToggleRight, X, Check, Layers } from 'lucide-react';
+import { Plus, RefreshCw, Edit2, ToggleLeft, ToggleRight, X, Check, Layers, Download, Trash2 } from 'lucide-react';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -43,6 +43,7 @@ export function CatalogTab({ labId, styles: s }) {
   const [testFormError, setTestFormError] = useState('');
   const [testFormSuccess, setTestFormSuccess] = useState('');
   const [toggleLoadingId, setToggleLoadingId] = useState(null);
+  const [seeding, setSeeding] = useState(false);
 
   const [panels, setPanels] = useState([]);
   const [panelsLoading, setPanelsLoading] = useState(false);
@@ -176,6 +177,30 @@ export function CatalogTab({ labId, styles: s }) {
 
   const toggleSelectedTest = (id) => setSelectedTestIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
+  const handleSeedStandard = async () => {
+    if (!window.confirm('Import ~100 standard Indian lab tests and 12 panels? Existing tests with the same code will be skipped.')) return;
+    try {
+      setSeeding(true);
+      const data = await apiFetch('/api/v1/catalog/seed', { method: 'POST' });
+      alert(`✓ Imported ${data.tests_added} tests (${data.tests_skipped} skipped) and ${data.panels_added} panels.`);
+      fetchTests(); fetchPanels();
+    } catch (err) {
+      alert('Import failed: ' + err.message);
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleRemoveTestFromPanel = async (panelId, testId) => {
+    if (!window.confirm('Remove this test from the panel?')) return;
+    try {
+      await apiFetch(`/api/v1/panels/${panelId}/tests/${testId}`, { method: 'DELETE' });
+      fetchPanels();
+    } catch (err) {
+      alert('Failed: ' + err.message);
+    }
+  };
+
   return (
     <div>
       <div className={s.pageHeader}>
@@ -196,8 +221,11 @@ export function CatalogTab({ labId, styles: s }) {
       {/* Test Catalog */}
       {activeSection === 'catalog' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
             <button className={`${s.btn} ${s.btnSecondary}`} onClick={fetchTests}><RefreshCw size={14} /> Refresh</button>
+            <button className={`${s.btn} ${s.btnSecondary}`} onClick={handleSeedStandard} disabled={seeding} style={{ color: '#6d28d9', borderColor: '#6d28d9' }}>
+              <Download size={14} /> {seeding ? 'Importing…' : 'Import Standard Tests'}
+            </button>
             <button className={`${s.btn} ${s.btnPrimary}`} onClick={() => { setShowAddTest(!showAddTest); setEditTest(null); setTestForm(EMPTY_TEST); setTestFormError(''); setTestFormSuccess(''); }}>
               <Plus size={14} /> {showAddTest && !editTest ? 'Cancel' : 'Add Test'}
             </button>
@@ -351,14 +379,20 @@ export function CatalogTab({ labId, styles: s }) {
                       <Plus size={13} /> Add Tests
                     </button>
                   </div>
-                  {panel.tests && panel.tests.length > 0 && (
+                  {Array.isArray(panel.tests) && panel.tests.length > 0 && (
                     <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {panel.tests.map((t) => (
-                        <span key={t.id || t.test_code} className={`${s.badge} ${s.badgeBlue}`}>
+                        <span key={t.id || t.test_code} style={{ display:'inline-flex', alignItems:'center', gap:4, background:'#dbeafe', color:'#1e40af', borderRadius:12, padding:'2px 8px', fontSize:12, fontWeight:600 }}>
                           {t.test_name || t.test_code}
+                          <button onClick={() => handleRemoveTestFromPanel(panel.id, t.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'#1e40af', padding:0, display:'flex', opacity:0.7 }} title="Remove">
+                            <X size={11} />
+                          </button>
                         </span>
                       ))}
                     </div>
+                  )}
+                  {(!panel.tests || panel.tests.length === 0) && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-2)' }}>No tests added yet. Click "Add Tests" to select from catalog.</div>
                   )}
                 </div>
               </div>
