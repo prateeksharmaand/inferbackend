@@ -705,8 +705,11 @@ function CustomReports({ labId }) {
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-export function AnalyticsTab({ labId, styles: s }) {
-  const [section, setSection] = useState('overview');
+export function AnalyticsTab({ labId, styles: s, activeSection }) {
+  const [section, setSection] = useState(activeSection || 'overview');
+
+  useEffect(() => { if (activeSection) setSection(activeSection); }, [activeSection]);
+
   const today  = new Date().toISOString().split('T')[0];
   const prior30 = (() => { const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0]; })();
   const [startDate, setStartDate] = useState(prior30);
@@ -742,21 +745,9 @@ export function AnalyticsTab({ labId, styles: s }) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 0, minHeight: 'calc(100vh - 60px)', margin: '-24px' }}>
-      {/* Left nav */}
-      <div style={{ width: 200, flexShrink: 0, background: '#1e293b', paddingTop: 12 }}>
-        <div style={{ padding: '8px 16px 12px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Analytics</div>
-        {NAV.map(n => (
-          <button key={n.id} onClick={() => setSection(n.id)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 16px', background: section === n.id ? '#334155' : 'none', color: section === n.id ? 'white' : '#94a3b8', border: 'none', borderLeft: `3px solid ${section === n.id ? '#6366f1' : 'transparent'}`, cursor: 'pointer', fontSize: 12, fontWeight: section === n.id ? 600 : 400, textAlign: 'left', transition: 'all 0.1s' }}>
-            <span>{n.icon}</span>
-            {n.label}
-          </button>
-        ))}
-      </div>
-
+    <div>
       {/* Content */}
-      <div style={{ flex: 1, padding: 24, overflowY: 'auto', background: '#f8fafc', minWidth: 0 }}>
+      <div style={{ minWidth: 0 }}>
         {/* Date range + section title */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: '#1e293b' }}>

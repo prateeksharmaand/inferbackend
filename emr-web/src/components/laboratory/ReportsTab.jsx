@@ -2,7 +2,7 @@
  * ReportsTab - OpenELIS-style Reports with left submenu
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, FileText, BarChart2, AlertTriangle, ScrollText } from 'lucide-react';
 
 const authHeaders = () => ({
@@ -368,8 +368,10 @@ function AuditTrailReport({ labId, styles: s }) {
   );
 }
 
-export function ReportsTab({ labId, styles: s }) {
-  const [activeReport, setActiveReport] = useState('test-status');
+export function ReportsTab({ labId, styles: s, activeReport: propReport }) {
+  const [activeReport, setActiveReport] = useState(propReport || 'test-status');
+
+  useEffect(() => { if (propReport) setActiveReport(propReport); }, [propReport]);
 
   const groups = [...new Set(SUBMENU.map((i) => i.group))];
 
@@ -385,9 +387,9 @@ export function ReportsTab({ labId, styles: s }) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 0, flex: 1, minHeight: 0 }}>
-      {/* Left submenu */}
-      <div style={{ width: 210, flexShrink: 0, background: 'var(--color-surface)', borderRight: '1px solid var(--color-border)', paddingTop: 8, overflowY: 'auto' }}>
+    <div>
+      {/* Submenu navigation moved to LabPortal sidebar */}
+      <div style={{ display: 'none' }}>
         {groups.map((group) => (
           <div key={group} style={{ marginBottom: 8 }}>
             <div style={{ padding: '8px 16px 4px', fontSize: 11, fontWeight: 700, color: 'var(--color-text-2)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -415,7 +417,7 @@ export function ReportsTab({ labId, styles: s }) {
       </div>
 
       {/* Content area */}
-      <div style={{ flex: 1, padding: 24, overflowY: 'auto', minWidth: 0 }}>
+      <div style={{ minWidth: 0 }}>
         {renderContent()}
       </div>
     </div>
