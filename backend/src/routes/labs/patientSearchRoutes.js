@@ -99,6 +99,76 @@ router.get('/search', verifyLabToken, async (req, res) => {
 });
 
 /**
+ * POST /api/v1/patients/generate-uhid - generate next UHID for the clinic
+ */
+router.post('/generate-uhid', verifyLabToken, async (req, res) => {
+  try {
+    // Resolve clinic_id — from lab record
+    const labRes = await pool.query(`SELECT clinic_id FROM laboratories WHERE id = $1`, [req.user.lab_id]);
+    const clinicId = labRes.rows[0]?.clinic_id || req.user.clinic_id;
+    if (!clinicId) return res.status(400).json({ error: 'No clinic linked to this lab' });
+
+    const { rows } = await pool.query(
+      `UPDATE emr_clinics
+       SET uhid_next_number = uhid_next_number + 1
+       WHERE id = $1 AND uhid_prefix IS NOT NULL AND uhid_prefix != ''
+       RETURNING uhid_prefix, uhid_next_number - 1 AS assigned_number`,
+      [clinicId]
+    );
+    if (!rows.length) return res.status(400).json({ error: 'UHID not configured. Go to EMR Settings → UHID.' });
+    const { uhid_prefix, assigned_number } = rows[0];
+    return res.json({ uhid: `${uhid_prefix}${assigned_number}` });
+  } catch (err) { return res.status(500).json({ error: err.message }); }
+});
+
+/**
+ * POST /api/v1/patients - register new patient from lab portal
+ * Creates an emr_appointments record (the standard way patients are added)
+ */
+router.post('/', verifyLabToken, async (req, res) => {
+  try {
+    const {
+      patient_name, patient_mobile, patient_dob, patient_gender,
+      patient_abha, uhid, channel, notes, appointment_date, appointment_time,
+      medical_history,
+    } = req.body;
+
+    if (!patient_name?.trim()) return res.status(400).json({ error: 'patient_name is required' });
+    if (!patient_mobile?.trim()) return res.status(400).json({ error: 'patient_mobile is required' });
+
+    // Resolve clinic_id from lab
+    const labRes = await pool.query(`SELECT clinic_id FROM laboratories WHERE id = $1`, [req.user.lab_id]);
+    const clinicId = labRes.rows[0]?.clinic_id || req.user.clinic_id;
+
+    const dateToUse = appointment_date || new Date().toISOString().split('T')[0];
+
+    const { rows } = await pool.query(
+      `INSERT INTO emr_appointments
+         (patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
+          uhid, channel, notes, appointment_date, appointment_time,
+          clinic_id, status, medical_history)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'booked',$12)
+       RETURNING id, uhid, patient_name, patient_mobile, patient_dob, patient_gender, patient_abha`,
+      [
+        patient_name.trim(),
+        patient_mobile.trim(),
+        patient_dob || null,
+        patient_gender || null,
+        patient_abha || null,
+        uhid || null,
+        channel || 'Lab Walk-in',
+        notes || null,
+        dateToUse,
+        appointment_time || null,
+        clinicId || null,
+        medical_history ? JSON.stringify(medical_history) : null,
+      ]
+    );
+    return res.status(201).json({ success: true, patient: rows[0] });
+  } catch (err) { return res.status(500).json({ error: err.message }); }
+});
+
+/**
  * GET /api/v1/patients/debug/all - list all patients (debug only)
  */
 router.get('/debug/all', verifyLabToken, async (req, res) => {

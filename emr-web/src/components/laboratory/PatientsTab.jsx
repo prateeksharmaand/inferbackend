@@ -40,9 +40,18 @@ function fmtDob(dob) {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+const CHANNELS = ['Lab Walk-in', 'Walk in', 'Online', 'Referral', 'Follow up', 'Emergency', 'External'];
+
 const EMPTY_FORM = {
   first_name: '', last_name: '', date_of_birth: '', gender: '',
   phone: '', address: '', blood_group: '', allergies: '', special_notes: '',
+};
+
+const EMPTY_NEW = {
+  patient_name: '', patient_mobile: '', patient_dob: '', patient_gender: 'Male',
+  patient_abha: '', uhid: '', channel: 'Lab Walk-in',
+  appointment_date: new Date().toISOString().split('T')[0],
+  notes: '',
 };
 
 export function PatientsTab({ labId, styles: s, onAddSample }) {
@@ -50,9 +59,11 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
   const [searchResults, setSearchResults]     = useState([]);
   const [searched, setSearched]               = useState(false);
 
-  const [mode, setMode]     = useState(null); // null | 'view' | 'edit' | 'new'
+  const [mode, setMode]       = useState(null); // null | 'view' | 'edit' | 'new'
   const [current, setCurrent] = useState(null);
-  const [form, setForm]     = useState(EMPTY_FORM);
+  const [form, setForm]       = useState(EMPTY_FORM);
+  const [newForm, setNewForm] = useState(EMPTY_NEW);
+  const [generatingUhid, setGeneratingUhid] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg]       = useState('');
   const [msgType, setMsgType] = useState('');
@@ -80,8 +91,49 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
 
   const openNew = () => {
     setCurrent(null);
-    setForm(EMPTY_FORM);
+    setNewForm(EMPTY_NEW);
     setMode('new');
+  };
+
+  const handleGenerateUhid = async () => {
+    setGeneratingUhid(true);
+    try {
+      const data = await apiFetch('/api/v1/patients/generate-uhid', { method: 'POST' });
+      setNewForm(f => ({ ...f, uhid: data.uhid }));
+    } catch (err) {
+      showMsg('UHID generation failed: ' + err.message, 'error');
+    } finally {
+      setGeneratingUhid(false);
+    }
+  };
+
+  const handleRegister = async (andAddSample = false) => {
+    if (!newForm.patient_name.trim()) { showMsg('Patient name is required', 'error'); return; }
+    if (!newForm.patient_mobile.trim()) { showMsg('Mobile number is required', 'error'); return; }
+    try {
+      setSaving(true);
+      const data = await apiFetch('/api/v1/patients', {
+        method: 'POST',
+        body: JSON.stringify(newForm),
+      });
+      const saved = {
+        ...data.patient,
+        name:   data.patient.patient_name,
+        mobile: data.patient.patient_mobile,
+        dob:    data.patient.patient_dob,
+        gender: data.patient.patient_gender,
+      };
+      showMsg(`Patient ${saved.name} registered${saved.uhid ? ` — UHID: ${saved.uhid}` : ''}`);
+      setSearchResults([saved]);
+      setSearched(true);
+      setMode('view');
+      setCurrent(saved);
+      if (andAddSample && onAddSample) onAddSample(saved);
+    } catch (err) {
+      showMsg('Registration failed: ' + err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePatientSelect = (p) => {
@@ -251,36 +303,94 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
         </div>
       )}
 
-      {/* Edit / New form */}
-      {(mode === 'edit' || mode === 'new') && (
+      {/* New Patient registration form */}
+      {mode === 'new' && (
+        <div className={s.card} style={{ marginBottom: 16 }}>
+          <div style={{ background: '#f8fafc', padding: '8px 16px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: 13 }}>New Patient Registration</div>
+          <div className={s.cardBody}>
+            <div style={{ fontSize: 11, color: '#6d28d9', background: '#ede9fe', padding: '5px 10px', borderRadius: 6, marginBottom: 14, fontWeight: 600 }}>
+              Note: UHID (e.g. INFER1607) is the universal patient identifier across all lab orders, samples and reports.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div className={s.field}>
+                <label className={s.label}>Patient Name *</label>
+                <input className={s.input} value={newForm.patient_name} onChange={e => setNewForm(f=>({...f,patient_name:e.target.value}))} placeholder="Full name" />
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>Mobile *</label>
+                <input className={s.input} value={newForm.patient_mobile} onChange={e => setNewForm(f=>({...f,patient_mobile:e.target.value}))} placeholder="+91 9999999999" />
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>Date of Birth</label>
+                <input className={s.input} type="date" value={newForm.patient_dob} onChange={e => setNewForm(f=>({...f,patient_dob:e.target.value}))} />
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>Gender</label>
+                <select className={s.select} value={newForm.patient_gender} onChange={e => setNewForm(f=>({...f,patient_gender:e.target.value}))}>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>ABHA ID</label>
+                <input className={s.input} value={newForm.patient_abha} onChange={e => setNewForm(f=>({...f,patient_abha:e.target.value}))} placeholder="12-3456-7890-1234" />
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>UHID</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input className={s.input} style={{ flex: 1 }} value={newForm.uhid} onChange={e => setNewForm(f=>({...f,uhid:e.target.value}))} placeholder="Auto-generate or type manually" />
+                  <button className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} type="button" onClick={handleGenerateUhid} disabled={generatingUhid} style={{ whiteSpace: 'nowrap' }}>
+                    {generatingUhid ? '…' : 'Generate UHID'}
+                  </button>
+                </div>
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>Channel</label>
+                <select className={s.select} value={newForm.channel} onChange={e => setNewForm(f=>({...f,channel:e.target.value}))}>
+                  {CHANNELS.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>Date</label>
+                <input className={s.input} type="date" value={newForm.appointment_date} onChange={e => setNewForm(f=>({...f,appointment_date:e.target.value}))} />
+              </div>
+            </div>
+            <div className={s.field} style={{ marginBottom: 14 }}>
+              <label className={s.label}>Notes / Allergies / Special Instructions</label>
+              <textarea className={s.input} rows={2} value={newForm.notes} onChange={e => setNewForm(f=>({...f,notes:e.target.value}))} placeholder="Allergies, special instructions, clinical context…" style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }} />
+            </div>
+            <div className={s.formActions}>
+              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setMode(null)}><X size={14} /> Cancel</button>
+              {onAddSample && (
+                <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => handleRegister(true)} disabled={saving}
+                  style={{ color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}>
+                  <FlaskConical size={14} /> {saving ? 'Saving…' : 'Save & Add Sample'}
+                </button>
+              )}
+              <button className={`${s.btn} ${s.btnPrimary}`} onClick={() => handleRegister(false)} disabled={saving}>
+                <Check size={14} /> {saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit existing patient form */}
+      {mode === 'edit' && (
         <div className={s.card}>
           <div style={{ background: '#f8fafc', padding: '8px 16px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: 13 }}>
-            {mode === 'new' ? 'New Patient' : `Edit Patient${current?.uhid ? ` — ${current.uhid}` : ''}`}
+            {`Edit Patient${current?.uhid ? ` — ${current.uhid}` : ''}`}
           </div>
           <div className={s.cardBody}>
             <div style={{ fontSize: 11, color: '#6d28d9', background: '#ede9fe', padding: '5px 10px', borderRadius: 6, marginBottom: 12, fontWeight: 600 }}>
               Note: UHID (e.g. INFER1607) is the universal patient identifier used across all lab orders, samples and reports.
             </div>
-            {mode === 'new' && (
-              <div className={`${s.alert} ${s.alertInfo}`} style={{ marginBottom: 14 }}>
-                New patients must be registered at reception / EMR portal. Use this form to update notes for an existing patient found above.
-              </div>
-            )}
 
-            {/* Basic info */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 12 }}>
-              <div className={s.field}>
-                <label className={s.label}>First Name *</label>
-                <input className={s.input} {...field('first_name')} placeholder="First name" />
-              </div>
-              <div className={s.field}>
-                <label className={s.label}>Last Name</label>
-                <input className={s.input} {...field('last_name')} placeholder="Last name" />
-              </div>
-              <div className={s.field}>
-                <label className={s.label}>Date of Birth</label>
-                <input className={s.input} type="date" {...field('date_of_birth')} />
-              </div>
+              <div className={s.field}><label className={s.label}>First Name *</label><input className={s.input} {...field('first_name')} placeholder="First name" /></div>
+              <div className={s.field}><label className={s.label}>Last Name</label><input className={s.input} {...field('last_name')} placeholder="Last name" /></div>
+              <div className={s.field}><label className={s.label}>Date of Birth</label><input className={s.input} type="date" {...field('date_of_birth')} /></div>
               <div className={s.field}>
                 <label className={s.label}>Gender</label>
                 <select className={s.select} {...field('gender')}>
@@ -291,13 +401,8 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
                 </select>
               </div>
             </div>
-
-            {/* Contact + blood */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div className={s.field}>
-                <label className={s.label}>Phone</label>
-                <input className={s.input} {...field('phone')} placeholder="+91 …" />
-              </div>
+              <div className={s.field}><label className={s.label}>Phone</label><input className={s.input} {...field('phone')} placeholder="+91 …" /></div>
               <div className={s.field}>
                 <label className={s.label}>Blood Group</label>
                 <select className={s.select} {...field('blood_group')}>
@@ -305,13 +410,8 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
                   {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => <option key={bg}>{bg}</option>)}
                 </select>
               </div>
-              <div className={s.field}>
-                <label className={s.label}>Address</label>
-                <input className={s.input} {...field('address')} placeholder="City / Area" />
-              </div>
+              <div className={s.field}><label className={s.label}>Address</label><input className={s.input} {...field('address')} placeholder="City / Area" /></div>
             </div>
-
-            {/* Allergies + Notes */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
               <div className={s.field}>
                 <label className={s.label} style={{ color: '#b45309' }}>⚠ Allergies</label>
@@ -322,19 +422,15 @@ export function PatientsTab({ labId, styles: s, onAddSample }) {
                 <textarea className={s.input} rows={2} {...field('special_notes')} placeholder="Clinical context, special handling instructions…" style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }} />
               </div>
             </div>
-
-            {/* Actions */}
             <div className={s.formActions}>
-              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setMode(null)}>
-                <X size={14} /> Cancel
-              </button>
-              {onAddSample && mode === 'edit' && (
+              <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => setMode(null)}><X size={14} /> Cancel</button>
+              {onAddSample && (
                 <button className={`${s.btn} ${s.btnSecondary}`} onClick={() => handleSave(true)} disabled={saving}
                   style={{ color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}>
                   <FlaskConical size={14} /> {saving ? 'Saving…' : 'Save & Add Sample'}
                 </button>
               )}
-              <button className={`${s.btn} ${s.btnPrimary}`} onClick={() => handleSave(false)} disabled={saving || mode === 'new'}>
+              <button className={`${s.btn} ${s.btnPrimary}`} onClick={() => handleSave(false)} disabled={saving}>
                 <Check size={14} /> {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
