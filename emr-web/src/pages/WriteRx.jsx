@@ -74,7 +74,7 @@ function LangPicker({ value, onChange }) {
   );
 }
 
-const BASE_TABS = ['Overview', 'InferPad', 'Canvas', 'Lab Tests', 'Medical Records'];
+const BASE_TABS = ['Overview', 'InferPad', 'Canvas', 'Medical Records'];
 
 // ── Lab Tests Tab ─────────────────────────────────────────────────────────────
 const STATUS_LABELS = {
