@@ -318,7 +318,44 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
         )}
 
         {labInvLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>{t.LAB_TESTS} :&nbsp;</span><span className={styles.rxInlineValue}>{labInvLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
-        {labResultLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>{t.LAB_RESULTS} :&nbsp;</span><span className={styles.rxInlineValue}>{labResultLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
+        {form.lab_results.length > 0 && (
+          <div className={styles.rxInlineRow}>
+            <span className={styles.rxInlineLabel}>{t.LAB_RESULTS} :&nbsp;</span>
+            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 'inherit', marginTop: 2 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', textAlign: 'left' }}>
+                  {['Test Name', 'Result', 'Unit', 'Normal Range', 'Flag'].map(h => (
+                    <th key={h} style={{ padding: '4px 8px', fontWeight: 700, fontSize: '0.85em', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {form.lab_results.map((r, i) => {
+                  const flag = getFlag(r);
+                  const val  = parseFloat(r.result);
+                  const m    = (r.range || '').match(/([<>]?)\s*([\d.]+)\s*[-–]\s*([\d.]+)/);
+                  const isNormal = m && !isNaN(val) && val >= parseFloat(m[2]) && val <= parseFloat(m[3]);
+                  const rowColor = flag === 'H' || flag === 'L' ? '#dc2626' : flag === 'C' ? '#991b1b' : isNormal ? '#16a34a' : undefined;
+                  const rowBg    = flag === 'H' || flag === 'L' || flag === 'C' ? '#fff5f5' : isNormal ? '#f0fdf4' : undefined;
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', background: rowBg }}>
+                      <td style={{ padding: '4px 8px', fontWeight: 600 }}>{r.test || '—'}</td>
+                      <td style={{ padding: '4px 8px', fontWeight: 700, color: rowColor || 'inherit' }}>{r.result || '—'}</td>
+                      <td style={{ padding: '4px 8px', color: '#64748b' }}>{r.unit || '—'}</td>
+                      <td style={{ padding: '4px 8px', color: '#64748b' }}>{r.range || '—'}</td>
+                      <td style={{ padding: '4px 8px', fontWeight: 700 }}>
+                        {flag
+                          ? <span style={{ color: rowColor, background: (rowColor || '') + '22', padding: '1px 6px', borderRadius: 5, fontSize: '0.85em' }}>{flag === 'H' ? 'HIGH ▲' : flag === 'L' ? 'LOW ▼' : flag === 'C' ? '⚠ CRIT' : flag}</span>
+                          : <span style={{ color: '#16a34a', fontSize: '0.85em' }}>Normal</span>
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
         {form.examination_findings && <RxInlineRow label={t.EXAM_FINDINGS} value={form.examination_findings} />}
         {form.notes    && <RxInlineRow label={t.NOTES}       value={form.notes} />}
         {form.advices  && <RxInlineRow label={t.ADVICES}     value={form.advices} />}
