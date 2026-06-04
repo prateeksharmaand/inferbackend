@@ -192,30 +192,33 @@ export function DashboardTab({ labId, styles: s }) {
     <div>
       {msg && <div className={`${s.alert} ${msgType === 'error' ? s.alertError : s.alertSuccess}`}>{msg}</div>}
 
-      {/* Status bar */}
-      <div className={s.card} style={{ marginBottom: 16 }}>
-        <div className={s.cardBody} style={{ padding: '10px 16px' }}>
-          <div className={statsLoading ? s.shimmer : ''} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 13 }}>
-            <button className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={handleRefresh} disabled={statsLoading}>
-              <span className={statsLoading ? s.spinIcon : ''}><RefreshCw size={13} /></span> Refresh
-            </button>
-            <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>Today's Status ({todayStr})</span>
-            <span style={{ color: 'var(--color-text-2)' }}>▶</span>
-            <span>Samples to collect: <strong>{stats.toCollect}</strong></span>
-            <span style={{ color: 'var(--color-border)' }}>|</span>
-            <span>Samples collected: <strong>{stats.collected}</strong></span>
-            <span style={{ color: 'var(--color-border)' }}>|</span>
-            <span>Total: <strong>{stats.total}</strong></span>
-            <span style={{ color: 'var(--color-border)' }}>|</span>
-            <span>Awaiting Testing: <strong>{stats.awaitingTesting}</strong></span>
-            <span style={{ color: 'var(--color-border)' }}>|</span>
-            <span>Awaiting Validation: <strong>{stats.awaitingValidation}</strong></span>
-            <span style={{ color: 'var(--color-border)' }}>|</span>
-            <span>Completed: <strong style={{ color: '#166534' }}>{stats.completed}</strong></span>
-            <span style={{ color: 'var(--color-border)' }}>|</span>
-            <span>Total Patients Today: <strong>{stats.totalPatients}</strong></span>
-          </div>
+      {/* Today's status header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
+          📅 Today's Status <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--color-text-2)', marginLeft: 6 }}>({todayStr})</span>
         </div>
+        <button className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={handleRefresh} disabled={statsLoading}>
+          <span className={statsLoading ? s.spinIcon : ''}><RefreshCw size={13} /></span> Refresh
+        </button>
+      </div>
+
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 10, marginBottom: 16 }}>
+        {[
+          { label: 'To Collect',          value: stats.toCollect,       accent: '#2563eb', bg: '#eff6ff',  icon: '🧪' },
+          { label: 'Collected',           value: stats.collected,       accent: '#0891b2', bg: '#ecfeff',  icon: '✅' },
+          { label: 'Total Orders',        value: stats.total,           accent: '#6d28d9', bg: '#f5f3ff',  icon: '📋' },
+          { label: 'Awaiting Testing',    value: stats.awaitingTesting, accent: '#d97706', bg: '#fffbeb',  icon: '⏳' },
+          { label: 'Awaiting Validation', value: stats.awaitingValidation, accent: '#7c3aed', bg: '#faf5ff', icon: '🔍' },
+          { label: 'Completed',           value: stats.completed,       accent: '#059669', bg: '#f0fdf4',  icon: '🎯' },
+          { label: 'Patients Today',      value: stats.totalPatients,   accent: '#dc2626', bg: '#fef2f2',  icon: '👤' },
+        ].map(card => (
+          <div key={card.label} style={{ background: card.bg, border: `1.5px solid ${card.accent}22`, borderRadius: 10, padding: '12px 10px', textAlign: 'center', borderTop: `3px solid ${card.accent}` }}>
+            <div style={{ fontSize: 20, marginBottom: 4 }}>{card.icon}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: card.accent, lineHeight: 1 }}>{card.value}</div>
+            <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>{card.label}</div>
+          </div>
+        ))}
       </div>
 
       {/* Two-column */}

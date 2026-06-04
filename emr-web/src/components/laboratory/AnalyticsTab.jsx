@@ -61,25 +61,25 @@ export function AnalyticsTab({ labId, styles: s }) {
 
     setVolLoading(true); setVolError('');
     apiFetch(`/api/v1/analytics/test-volume?lab_id=${labId}&start_date=${startDate}&end_date=${endDate}`)
-      .then((d) => setVolume(d.volume || d.tests || d || []))
+      .then((d) => setVolume(Array.isArray(d.data) ? d.data : d.volume || d.tests || []))
       .catch((e) => setVolError(e.message))
       .finally(() => setVolLoading(false));
 
     setTatLoading(true); setTatError('');
-    apiFetch(`/api/v1/analytics/turnaround?lab_id=${labId}`)
-      .then((d) => setTurnaround(d.turnaround || d || []))
+    apiFetch(`/api/v1/analytics/turnaround?lab_id=${labId}&start_date=${startDate}&end_date=${endDate}`)
+      .then((d) => setTurnaround(Array.isArray(d.data) ? d.data : d.turnaround || []))
       .catch((e) => setTatError(e.message))
       .finally(() => setTatLoading(false));
 
     setRevLoading(true); setRevError('');
-    apiFetch(`/api/v1/analytics/revenue?lab_id=${labId}`)
-      .then((d) => setRevenue(d.revenue || d))
+    apiFetch(`/api/v1/analytics/revenue?lab_id=${labId}&start_date=${startDate}&end_date=${endDate}`)
+      .then((d) => setRevenue(d.data || d.revenue || d))
       .catch((e) => setRevError(e.message))
       .finally(() => setRevLoading(false));
 
     setCompLoading(true); setCompError('');
-    apiFetch(`/api/v1/analytics/compliance?lab_id=${labId}`)
-      .then((d) => setCompliance(d.compliance || d))
+    apiFetch(`/api/v1/analytics/compliance?lab_id=${labId}&start_date=${startDate}&end_date=${endDate}`)
+      .then((d) => setCompliance(d.data || d.compliance || d))
       .catch((e) => setCompError(e.message))
       .finally(() => setCompLoading(false));
   }, [labId, startDate, endDate]);
@@ -111,30 +111,47 @@ export function AnalyticsTab({ labId, styles: s }) {
       </div>
 
       {dashError && <div className={`${s.alert} ${s.alertError}`}>{dashError}</div>}
-      {!dashLoading && dashboard && (
-        <div className={s.statGrid}>
-          <div className={s.statCard}>
-            <div className={s.statIcon}><BarChart2 size={24} color="var(--color-primary)" /></div>
-            <div className={s.statValue}>{dashboard.total_orders ?? dashboard.orders ?? '—'}</div>
-            <div className={s.statLabel}>Total Orders</div>
+      {!dashLoading && dashboard && (() => {
+        // getDashboard returns { orders: { total_orders, completed_orders, ... }, turnaround, critical_values, revenue }
+        const ord = dashboard.orders || dashboard;
+        const cv  = dashboard.critical_values || {};
+        const rev = dashboard.revenue || {};
+        const tat = dashboard.turnaround || {};
+        return (
+          <div className={s.statGrid}>
+            <div className={s.statCard}>
+              <div className={s.statIcon}><BarChart2 size={24} color="var(--color-primary)" /></div>
+              <div className={s.statValue}>{Number(ord.total_orders ?? 0)}</div>
+              <div className={s.statLabel}>Total Orders (30d)</div>
+            </div>
+            <div className={s.statCard}>
+              <div className={s.statIcon}><CheckCircle size={24} color="var(--color-success)" /></div>
+              <div className={s.statValue}>{Number(ord.completed_orders ?? 0)}</div>
+              <div className={s.statLabel}>Completed</div>
+            </div>
+            <div className={s.statCard}>
+              <div className={s.statIcon}><XCircle size={24} color="var(--color-danger)" /></div>
+              <div className={s.statValue}>{Number(ord.cancelled_orders ?? 0)}</div>
+              <div className={s.statLabel}>Cancelled</div>
+            </div>
+            <div className={s.statCard} style={{ borderLeft: '3px solid var(--color-danger)' }}>
+              <div className={s.statIcon}><AlertCircle size={24} color="var(--color-danger)" /></div>
+              <div className={s.statValue} style={{ color: 'var(--color-danger)' }}>{Number(cv.critical_count ?? 0)}</div>
+              <div className={s.statLabel}>Critical Values</div>
+            </div>
+            <div className={s.statCard}>
+              <div className={s.statIcon}><BarChart2 size={24} color="#6d28d9" /></div>
+              <div className={s.statValue}>₹{Number(rev.total_revenue ?? 0).toLocaleString()}</div>
+              <div className={s.statLabel}>Revenue (30d)</div>
+            </div>
+            <div className={s.statCard}>
+              <div className={s.statIcon}><TrendingUp size={24} color="#0891b2" /></div>
+              <div className={s.statValue}>{tat.avg_tat_hours != null ? parseFloat(tat.avg_tat_hours).toFixed(1) + 'h' : '—'}</div>
+              <div className={s.statLabel}>Avg TAT</div>
+            </div>
           </div>
-          <div className={s.statCard}>
-            <div className={s.statIcon}><CheckCircle size={24} color="var(--color-success)" /></div>
-            <div className={s.statValue}>{dashboard.completed_orders ?? dashboard.completed ?? '—'}</div>
-            <div className={s.statLabel}>Completed</div>
-          </div>
-          <div className={s.statCard}>
-            <div className={s.statIcon}><XCircle size={24} color="var(--color-danger)" /></div>
-            <div className={s.statValue}>{dashboard.cancelled_orders ?? dashboard.cancelled ?? '—'}</div>
-            <div className={s.statLabel}>Cancelled</div>
-          </div>
-          <div className={s.statCard} style={{ borderLeft: '3px solid var(--color-danger)' }}>
-            <div className={s.statIcon}><AlertCircle size={24} color="var(--color-danger)" /></div>
-            <div className={s.statValue} style={{ color: 'var(--color-danger)' }}>{dashboard.critical_values_today ?? dashboard.critical_today ?? '—'}</div>
-            <div className={s.statLabel}>Critical Values Today</div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
       {dashLoading && <div className={s.emptyState}><div className={s.emptyText}>Loading dashboard...</div></div>}
 
       {/* Test Volume */}
@@ -158,7 +175,7 @@ export function AnalyticsTab({ labId, styles: s }) {
                   <XAxis dataKey="test_name" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="var(--color-primary)" radius={[3, 3, 0, 0]}>
+                  <Bar dataKey="order_count" name="Orders" fill="var(--color-primary)" radius={[3, 3, 0, 0]}>
                     {volume.map((_, i) => <Cell key={i} fill={`hsl(${220 + i * 15}, 70%, 55%)`} />)}
                   </Bar>
                 </BarChart>
@@ -181,16 +198,16 @@ export function AnalyticsTab({ labId, styles: s }) {
             <div className={s.tableWrap}>
               <table className={s.table}>
                 <thead>
-                  <tr>{['Test Code', 'Avg Hours', 'Min', 'Max', 'Count'].map((h) => <th key={h}>{h}</th>)}</tr>
+                  <tr>{['Test', 'Avg Hours', 'Min', 'Max', 'Samples'].map((h) => <th key={h}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {turnaround.map((row, i) => (
                     <tr key={i}>
-                      <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{row.test_code}</td>
+                      <td style={{ fontWeight: 600 }}>{row.test_name || row.test_code}</td>
                       <td>{row.avg_hours != null ? parseFloat(row.avg_hours).toFixed(1) : '—'}</td>
                       <td>{row.min_hours != null ? parseFloat(row.min_hours).toFixed(1) : '—'}</td>
                       <td>{row.max_hours != null ? parseFloat(row.max_hours).toFixed(1) : '—'}</td>
-                      <td>{row.count ?? '—'}</td>
+                      <td>{row.sample_count ?? row.count ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>
