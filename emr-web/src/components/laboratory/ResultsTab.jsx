@@ -252,6 +252,18 @@ function OrderCard({ order, catalog, allResults, onChange, onSave, saving, style
 
 export function ResultsTab({ labId, styles: s }) {
   const [view,       setView]       = useState('enter'); // 'search' | 'enter' | 'referred'
+  const [searchMode, setSearchMode] = useState('patient'); // 'patient' | 'accession' | 'status'
+  const [searchVal,  setSearchVal]  = useState('');
+  const [searchStatus, setSearchStatus] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching,     setSearching]     = useState(false);
+  const [searchOpen,    setSearchOpen]    = useState(false);
+  const searchRef = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setSearchOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
   const [dept,       setDept]       = useState(DEPARTMENTS[4]); // Biochemistry default
   const [deptOpen,   setDeptOpen]   = useState(false);
   const [allOrders,  setAllOrders]  = useState([]);
@@ -274,6 +286,24 @@ export function ResultsTab({ labId, styles: s }) {
   }, []);
 
   const showMsg = (m, t = 'success') => { setMsg(m); setMsgType(t); setTimeout(() => setMsg(''), 5000); };
+
+  const handleSearch = async () => {
+    setSearching(true); setSearchResults([]);
+    try {
+      let url = `/api/v1/orders/lab/${labId}?limit=50`;
+      if (searchMode === 'accession' && searchVal.trim()) url += `&accession=${encodeURIComponent(searchVal.trim())}`;
+      if (searchMode === 'patient'   && searchVal.trim()) url += `&patient=${encodeURIComponent(searchVal.trim())}`;
+      if (searchMode === 'status'    && searchStatus)     url += `&status=${searchStatus}`;
+      const data = await apiFetch(url);
+      const orders = data.orders || [];
+      const q = searchVal.trim().toLowerCase();
+      const filtered = searchMode === 'patient'
+        ? orders.filter(o => (o.patient_name || '').toLowerCase().includes(q) || (o.patient_uhid || '').toLowerCase().includes(q))
+        : orders;
+      setSearchResults(filtered);
+    } catch { setSearchResults([]); }
+    finally { setSearching(false); }
+  };
 
   const loadOrders = useCallback(async () => {
     if (!labId) return;
@@ -398,11 +428,23 @@ export function ResultsTab({ labId, styles: s }) {
     <div>
       {/* Top nav */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 16, borderBottom: '2px solid var(--color-border)' }}>
-        {/* Search(es) */}
-        <button onClick={() => setView('search')}
-          style={{ padding: '10px 18px', fontSize: 13, fontWeight: view === 'search' ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', borderBottom: view === 'search' ? '2px solid var(--color-primary)' : '2px solid transparent', color: view === 'search' ? 'var(--color-primary)' : 'var(--color-text)', marginBottom: -2 }}>
-          Search(es) ▸
-        </button>
+        {/* Search(es) with submenu */}
+        <div ref={searchRef} style={{ position: 'relative' }}>
+          <button onClick={() => { setView('search'); setSearchOpen(o => !o); }}
+            style={{ padding: '10px 18px', fontSize: 13, fontWeight: view === 'search' ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', borderBottom: view === 'search' ? '2px solid var(--color-primary)' : '2px solid transparent', color: view === 'search' ? 'var(--color-primary)' : 'var(--color-text)', marginBottom: -2, display: 'flex', alignItems: 'center', gap: 4 }}>
+            Search(es) <ChevronDown size={13} />
+          </button>
+          {searchOpen && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, background: 'white', border: '1px solid var(--color-border)', borderRadius: 6, boxShadow: 'var(--shadow-lg)', zIndex: 1000, minWidth: 180 }}>
+              {[['patient', 'By Patient(es)'], ['accession', 'By Accession(es)'], ['status', 'By Status(es)']].map(([mode, label]) => (
+                <button key={mode} onClick={() => { setSearchMode(mode); setSearchOpen(false); setView('search'); setSearchResults([]); setSearchVal(''); }}
+                  style={{ display: 'block', width: '100%', padding: '9px 16px', textAlign: 'left', fontSize: 13, background: searchMode === mode && view === 'search' ? '#eff6ff' : 'none', color: searchMode === mode && view === 'search' ? 'var(--color-primary)' : 'var(--color-text)', border: 'none', cursor: 'pointer', fontWeight: searchMode === mode && view === 'search' ? 600 : 400 }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Enter(es) with dept submenu */}
         <div ref={deptRef} style={{ position: 'relative' }}>
@@ -478,8 +520,83 @@ export function ResultsTab({ labId, styles: s }) {
 
       {/* ── Search(es) view ── */}
       {view === 'search' && (
-        <div className={s.emptyState}>
-          <div className={s.emptyText}>Use the Lab No. search field above or switch to Enter(es) to find and enter results.</div>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            {[['patient','By Patient(es)'],['accession','By Accession(es)'],['status','By Status(es)']].map(([mode, label]) => (
+              <button key={mode} className={`${s.btn} ${s.btnSm} ${searchMode === mode ? s.btnPrimary : s.btnSecondary}`}
+                onClick={() => { setSearchMode(mode); setSearchResults([]); setSearchVal(''); }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className={s.card} style={{ marginBottom: 14 }}>
+            <div className={s.cardBody}>
+              {searchMode === 'status' ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select className={s.select} style={{ width: 220 }} value={searchStatus} onChange={e => setSearchStatus(e.target.value)}>
+                    <option value="">— Select Status —</option>
+                    {['PENDING','SCHEDULED','COLLECTED','PROCESSING','RESULTED','REPORTED','CANCELLED'].map(st => <option key={st} value={st}>{st}</option>)}
+                  </select>
+                  <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleSearch} disabled={searching || !searchStatus}>
+                    <Search size={14} /> {searching ? 'Searching…' : 'Search'}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input className={s.input} style={{ flex: 1 }} value={searchVal}
+                    onChange={e => setSearchVal(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                    placeholder={searchMode === 'accession' ? 'Enter accession / order number…' : 'Enter patient name or UHID…'} />
+                  <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleSearch} disabled={searching || !searchVal.trim()}>
+                    <Search size={14} /> {searching ? 'Searching…' : 'Search'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div className={s.card}>
+              <div className={s.cardHeader}>
+                <div className={s.cardTitle}>Search Results</div>
+                <span className={`${s.badge} ${s.badgeBlue}`}>{searchResults.length} found</span>
+              </div>
+              <div className={s.tableWrap}>
+                <table className={s.table}>
+                  <thead>
+                    <tr>{['Lab No.', 'Patient', 'Sample', 'Tests', 'Status', 'Priority', 'Date', 'Action'].map(h => <th key={h}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {searchResults.map(o => (
+                      <tr key={o.id}>
+                        <td style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{o.order_number}</td>
+                        <td style={{ fontSize: 12 }}>
+                          {o.patient_name || '—'}
+                          {o.patient_uhid && <div style={{ fontSize: 10, color: '#6d28d9', fontWeight: 700 }}>{o.patient_uhid}</div>}
+                        </td>
+                        <td style={{ fontSize: 12 }}>{o.sample_type || '—'}</td>
+                        <td style={{ fontSize: 12 }}>{o.total_tests || '—'}</td>
+                        <td><span style={{ background: '#f1f5f9', color: '#334155', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>{o.status}</span></td>
+                        <td><span style={{ background: o.priority === 'STAT' ? '#fee2e2' : '#f1f5f9', color: o.priority === 'STAT' ? '#991b1b' : '#64748b', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>{o.priority || 'ROUTINE'}</span></td>
+                        <td style={{ fontSize: 12 }}>{o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN') : '—'}</td>
+                        <td>
+                          <button className={`${s.btn} ${s.btnSm} ${s.btnPrimary}`}
+                            onClick={() => { setView('enter'); setDept(DEPARTMENTS[4]); setLabSearch(o.order_number || ''); }}>
+                            Enter Results
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {searchResults.length === 0 && !searching && searchVal && (
+            <div className={s.emptyState}><div className={s.emptyText}>No orders found</div></div>
+          )}
         </div>
       )}
 
