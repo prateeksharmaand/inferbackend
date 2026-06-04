@@ -108,6 +108,14 @@ router.get   ('/appointments/:id/patient-documents', docs.listPatientDocuments);
 router.post  ('/appointments/:id/documents',         docs.uploadDocument);
 router.patch ('/appointments/:id/documents/:docId',  docs.patchDocument);
 router.delete('/appointments/:id/documents/:docId',  docs.deleteDocument);
+router.delete('/appointments/:id', async (req, res) => {
+  const { pool } = require('../config/database');
+  try {
+    const { rows } = await pool.query(`DELETE FROM emr_appointments WHERE id = $1 RETURNING id`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Appointment not found' });
+    res.json({ message: 'Appointment deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // Receipts
 router.get  ('/receipts',     rec.listReceipts);

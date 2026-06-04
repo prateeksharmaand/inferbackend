@@ -158,6 +158,11 @@ export default function Queue() {
     fetchBoard();
   };
 
+  const handleDeleteAppointment = async (apptId) => {
+    await api.delete(`/appointments/${apptId}`).catch(() => {});
+    fetchBoard();
+  };
+
   // ── Drag and drop ─────────────────────────────────────────────────────────────
   // Use counters to avoid flickering: dragLeave fires on every child element,
   // so we only clear the highlight when the counter returns to 0 (truly left).
@@ -358,6 +363,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
+                  onDelete={handleDeleteAppointment}
                   onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
                 />
               ))}
@@ -465,6 +471,7 @@ export default function Queue() {
                 <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
                   onStatusChange={handleStatusChange}
                   onTagUpdate={handleTagUpdate}
+                  onDelete={handleDeleteAppointment}
                   onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
                 />
               ))}

@@ -82,7 +82,7 @@ function reminderTime(timeStr) {
   return `${rh12}:${String(rm).padStart(2, '0')} ${ampm}`;
 }
 
-export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen, onDragStart }) {
+export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen, onDragStart, onDelete }) {
   const { user } = useAuth();
   const [appt,           setAppt]           = useState(initialAppt);
   useEffect(() => { setAppt(initialAppt); }, [initialAppt.status]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -137,6 +137,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
     if (action === 'Write Rx' || action === 'Resume') onOpen('rx');
     if (action === 'Print Appointment Slip') setShowSlip(true);
     if (action === 'Medical Document')       setShowMedDoc(true);
+    if (action === 'Delete Appointment') {
+      if (window.confirm(`Delete appointment for ${appt.patient_name} on ${appt.appointment_date}?\nThis cannot be undone.`)) {
+        onDelete && onDelete(appt.id);
+      }
+    }
   };
 
   const handleSendReminder = async (e) => {
@@ -285,6 +290,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 {showMore && (
                   <ul className={styles.moreMenu}>
                     {MORE_ACTIONS.map(a => <li key={a} onClick={e => { e.stopPropagation(); handleAction(a); }}>{a}</li>)}
+                    {onDelete && <li style={{ color: '#dc2626', borderTop: '1px solid #f1f5f9', marginTop: 2, paddingTop: 6 }} onClick={e => { e.stopPropagation(); handleAction('Delete Appointment'); }}>🗑 Delete Appointment</li>}
                   </ul>
                 )}
               </div>
@@ -314,6 +320,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                   <ul className={styles.moreMenu}>
                     <li onClick={e => { e.stopPropagation(); setShowMore(false); setShowMedDoc(true); }}>Medical Document</li>
                     <li onClick={e => { e.stopPropagation(); setShowMore(false); setShowSlip(true); }}>Print Appointment Slip</li>
+                    {onDelete && <li style={{ color: '#dc2626', borderTop: '1px solid #f1f5f9', marginTop: 2, paddingTop: 6 }} onClick={e => { e.stopPropagation(); handleAction('Delete Appointment'); }}>🗑 Delete Appointment</li>}
                   </ul>
                 )}
               </div>
@@ -347,6 +354,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 {showMore && (
                   <ul className={styles.moreMenu}>
                     <li onClick={e => { e.stopPropagation(); setShowMore(false); setShowMedDoc(true); }}>Medical Document</li>
+                    {onDelete && <li style={{ color: '#dc2626', borderTop: '1px solid #f1f5f9', marginTop: 2, paddingTop: 6 }} onClick={e => { e.stopPropagation(); handleAction('Delete Appointment'); }}>🗑 Delete Appointment</li>}
                   </ul>
                 )}
               </div>
