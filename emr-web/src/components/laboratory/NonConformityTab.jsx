@@ -3,8 +3,8 @@
  * NABH/CAP compliant fields: stage, severity, root cause, corrective action
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, AlertTriangle, Plus, RefreshCw, ChevronDown, Check, X } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, AlertTriangle, Plus, RefreshCw, Check, X } from 'lucide-react';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -88,6 +88,69 @@ const now = () => {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 };
 
+function OrderAutocomplete({ labId, value, onChange, onSelect, styles: s }) {
+  const [results, setResults] = useState([]);
+  const [open, setOpen]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const wrapRef = useRef(null);
+  const timer   = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const search = (q) => {
+    clearTimeout(timer.current);
+    if (!q || q.length < 2) { setResults([]); return; }
+    timer.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const data = await apiFetch(`/api/v1/orders/lab/${labId}?limit=20`);
+        const orders = data.orders || [];
+        const q2 = q.toLowerCase();
+        setResults(orders.filter(o =>
+          (o.order_number || '').toLowerCase().includes(q2) ||
+          (o.patient_name || '').toLowerCase().includes(q2) ||
+          (o.patient_uhid || o.uhid || '').toLowerCase().includes(q2)
+        ).slice(0, 10));
+        setOpen(true);
+      } catch { setResults([]); }
+      finally { setLoading(false); }
+    }, 250);
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', flex: 1 }}>
+      <input className={s.input} value={value}
+        onChange={e => { onChange(e.target.value); search(e.target.value); setOpen(true); }}
+        onFocus={() => value && setOpen(true)}
+        placeholder="Order number or patient name / UHID…" />
+      {open && results.length > 0 && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 2000,
+          background: 'white', border: '1px solid var(--color-border)', borderRadius: 8, boxShadow: 'var(--shadow-lg)', maxHeight: 260, overflowY: 'auto' }}>
+          {results.map(o => (
+            <div key={o.id} onClick={() => { onSelect(o); onChange(o.order_number || ''); setOpen(false); }}
+              style={{ padding: '9px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+              onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+              <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{o.order_number}</div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-2)', marginTop: 2 }}>
+                {o.patient_name && <span>{o.patient_name}</span>}
+                {(o.patient_uhid || o.uhid) && <span style={{ marginLeft: 8, background: '#ede9fe', color: '#6d28d9', padding: '0 5px', borderRadius: 4, fontWeight: 700 }}>{o.patient_uhid || o.uhid}</span>}
+                {o.sample_type && <span style={{ marginLeft: 8 }}>{o.sample_type}</span>}
+                <span style={{ marginLeft: 8, background: '#f1f5f9', padding: '0 5px', borderRadius: 4 }}>{o.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {loading && <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'var(--color-text-3)' }}>…</span>}
+    </div>
+  );
+}
+
 const EMPTY_FORM = {
   accession_number: '', event_type: EVENT_TYPES[0],
   stage: 'PRE_ANALYTICAL', severity: 'MINOR',
@@ -164,6 +227,7 @@ export function NonConformityTab({ labId, styles: s }) {
   };
 
   const handleSave = async (andNotify = false) => {
+    if (!form.accession_number.trim()) { showMsg('Accession / Order Number is required', 'error'); return; }
     if (!form.event_type) { showMsg('Event type is required', 'error'); return; }
     try {
       setSaving(true);
@@ -222,15 +286,25 @@ export function NonConformityTab({ labId, styles: s }) {
           </div>
           <div className={s.cardBody}>
 
-            {/* Accession search */}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 10 }}>
-              <div className={s.field} style={{ flex: 1, marginBottom: 0 }}>
-                <label className={s.label}>Accession / Order Number</label>
-                <input className={s.input} value={form.accession_number} onChange={e => set('accession_number', e.target.value)} placeholder="e.g. ORD20260603-XXXXX" onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+            {/* Accession search with autocomplete */}
+            <div className={s.field} style={{ marginBottom: 10 }}>
+              <label className={s.label}>Accession / Order Number *</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <OrderAutocomplete
+                  labId={labId}
+                  value={form.accession_number}
+                  onChange={v => set('accession_number', v)}
+                  onSelect={order => {
+                    setFoundOrder(order);
+                    setForm(f => ({ ...f, accession_number: order.order_number || '', patient_name: order.patient_name || '', patient_uhid: order.patient_uhid || order.uhid || '' }));
+                    setSearchErr('');
+                  }}
+                  styles={s}
+                />
+                <button className={`${s.btn} ${s.btnSecondary}`} onClick={handleSearch} disabled={searching}>
+                  <Search size={14} /> {searching ? '…' : 'Search'}
+                </button>
               </div>
-              <button className={`${s.btn} ${s.btnSecondary}`} onClick={handleSearch} disabled={searching}>
-                <Search size={14} /> {searching ? 'Searching…' : 'Find Order'}
-              </button>
             </div>
             {searchErr && <div className={`${s.alert} ${s.alertError}`} style={{ marginBottom: 10, fontSize: 12 }}>{searchErr}</div>}
 
