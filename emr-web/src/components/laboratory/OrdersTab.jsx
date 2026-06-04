@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, RefreshCw, ChevronRight, X, Clock, CheckCircle, FileText, ClipboardList } from 'lucide-react';
+import { TestsAutocomplete } from './TestsAutocomplete';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -224,38 +225,18 @@ export function OrdersTab({ labId, styles: s }) {
                 </div>
               </div>
 
-              {catalog.length > 0 && (
-                <div className={s.field} style={{ marginBottom: 12 }}>
-                  <label className={s.label}>Select Tests</label>
-                  <div className={s.scrollBox}>
-                    {Object.entries(catalogByCategory).map(([cat, tests]) => (
-                      <div key={cat} style={{ marginBottom: 8 }}>
-                        <div style={{ fontWeight: 700, color: 'var(--color-text-3)', fontSize: 11, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{cat}</div>
-                        {tests.map((t) => (
-                          <label key={t.id} className={s.checkLabel}>
-                            <input type="checkbox" checked={selectedTests.includes(t.id)} onChange={() => toggleTest(t.id)} disabled={submitting} />
-                            {t.test_name} ({t.test_code})
-                          </label>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {panels.length > 0 && (
-                <div className={s.field} style={{ marginBottom: 14 }}>
-                  <label className={s.label}>Select Panels</label>
-                  <div className={s.scrollBox}>
-                    {panels.map((p) => (
-                      <label key={p.id} className={s.checkLabel}>
-                        <input type="checkbox" checked={selectedPanels.includes(p.id)} onChange={() => togglePanel(p.id)} disabled={submitting} />
-                        {p.panel_name} ({p.panel_code})
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className={s.field} style={{ marginBottom: 14 }}>
+                <label className={s.label}>Tests & Panels Ordered</label>
+                <TestsAutocomplete
+                  allTests={catalog}
+                  allPanels={panels}
+                  selectedTestIds={selectedTests}
+                  selectedPanelIds={selectedPanels}
+                  onChangeTests={setSelectedTests}
+                  onChangePanels={setSelectedPanels}
+                  styles={s}
+                />
+              </div>
 
               <div className={s.formActions}>
                 <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={() => setView('list')}>Cancel</button>

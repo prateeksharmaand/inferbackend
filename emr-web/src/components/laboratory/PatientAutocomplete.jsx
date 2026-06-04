@@ -78,7 +78,7 @@ export function PatientAutocomplete({ value, onChange, placeholder = 'Search by 
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
           background: 'white', border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)',
-          zIndex: 1000, maxHeight: 260, overflowY: 'auto',
+          zIndex: 2000, maxHeight: 260, overflowY: 'auto',
         }}>
           {loading && (
             <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--color-text-2)' }}>

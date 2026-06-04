@@ -8,6 +8,7 @@ import { Plus, X, RefreshCw, ChevronDown, ChevronRight, Printer } from 'lucide-r
 import { PatientAutocomplete } from './PatientAutocomplete';
 import { SampleTypeAutocomplete } from './SampleTypeAutocomplete';
 import { DoctorAutocomplete } from './DoctorAutocomplete';
+import { TestsAutocomplete } from './TestsAutocomplete';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -54,9 +55,9 @@ const FASTING_OPTIONS     = ['Unknown', 'Fasting (8h+)', 'Non-Fasting', 'Fasting
 
 const sh = { background: '#f8fafc', padding: '8px 16px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' };
 
-function Section({ title, badge, open, onToggle, children }) {
+function Section({ title, badge, open, onToggle, children, zIndex }) {
   return (
-    <div className='card' style={{ marginBottom: 14, border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
+    <div className='card' style={{ marginBottom: 14, border: '1px solid var(--color-border)', borderRadius: 8, overflow: open ? 'visible' : 'hidden', position: 'relative', zIndex: zIndex || 'auto' }}>
       <div style={sh} onClick={onToggle}>
         <span>{title}{badge ? <span style={{ marginLeft: 8, fontSize: 11, background: '#dbeafe', color: '#1e40af', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>{badge}</span> : null}</span>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -98,9 +99,10 @@ export function AddSampleTab({ labId, styles: s }) {
 
   // ── Tests ────────────────────────────────────────────────────────────────────
   const [catalog,          setCatalog]          = useState({});
+  const [allTests,         setAllTests]         = useState([]);
+  const [allPanels,        setAllPanels]        = useState([]);
   const [selectedTests,    setSelectedTests]    = useState([]);
-  const [expandedSections, setExpandedSections] = useState({});
-  const [testSearch,       setTestSearch]       = useState('');
+  const [selectedPanels,   setSelectedPanels]   = useState([]);
 
   // ── UI ───────────────────────────────────────────────────────────────────────
   const [openSections, setOpenSections] = useState({ patient: true, sample: true, collection: true, order: true, tests: true, extra: false });
@@ -111,14 +113,23 @@ export function AddSampleTab({ labId, styles: s }) {
   // ── Data loading ─────────────────────────────────────────────────────────────
   const loadCatalog = useCallback(async () => {
     if (!labId) return;
-    const catalogBySection = {};
-    for (const section of LAB_SECTIONS) {
-      try {
-        const data = await apiFetch(`/api/v1/catalog?lab_id=${labId}&category=${encodeURIComponent(section)}`);
-        catalogBySection[section] = data.tests || data || [];
-      } catch { catalogBySection[section] = []; }
-    }
-    setCatalog(catalogBySection);
+    try {
+      const [catData, panData] = await Promise.all([
+        apiFetch(`/api/v1/catalog?lab_id=${labId}`),
+        apiFetch(`/api/v1/panels?lab_id=${labId}`),
+      ]);
+      const tests = catData.tests || catData || [];
+      setAllTests(tests);
+      setAllPanels(panData.panels || panData || []);
+      // Also build by-section map for legacy use
+      const bySection = {};
+      for (const t of tests) {
+        const sec = t.category || 'Other';
+        if (!bySection[sec]) bySection[sec] = [];
+        bySection[sec].push(t);
+      }
+      setCatalog(bySection);
+    } catch { /* silently fail */ }
   }, [labId]);
 
   const loadSampleTypes = useCallback(async () => {
@@ -183,6 +194,7 @@ export function AddSampleTab({ labId, styles: s }) {
           patient_id:    foundPatient.id    || null,
           patient_name:  foundPatient.name  || null,
           tests:         selectedTests,
+          panels:        selectedPanels,
           priority,
           clinical_notes: [clinicalNotes, requester ? `Requested by: ${requester}` : null].filter(Boolean).join(' | ') || null,
         }),
@@ -220,12 +232,6 @@ export function AddSampleTab({ labId, styles: s }) {
     }
   };
 
-  // ── All tests flat list for search ───────────────────────────────────────────
-  const allTests = Object.values(catalog).flat();
-  const filteredCatalog = testSearch.trim()
-    ? { 'Search Results': allTests.filter(t => t.test_name?.toLowerCase().includes(testSearch.toLowerCase()) || t.test_code?.toLowerCase().includes(testSearch.toLowerCase())) }
-    : catalog;
-
   const priorityColor = PRIORITIES.find(p => p.value === priority)?.color || '#64748b';
 
   return (
@@ -238,7 +244,7 @@ export function AddSampleTab({ labId, styles: s }) {
       </div>
 
       {/* ── 1. Patient ── */}
-      <Section title="1. Patient *" open={openSections.patient} onToggle={() => toggleSection('patient')}>
+      <Section title="1. Patient *" open={openSections.patient} onToggle={() => toggleSection('patient')} zIndex={50}>
         <PatientAutocomplete value={foundPatient} onChange={p => { setFoundPatient(p); }} placeholder="Type patient name or UHID…" styles={s} />
         {foundPatient && (
           <div className={`${s.alert} ${s.alertSuccess}`} style={{ marginTop: 8, fontSize: 12 }}>
@@ -385,36 +391,16 @@ export function AddSampleTab({ labId, styles: s }) {
       </Section>
 
       {/* ── 5. Tests Ordered ── */}
-      <Section title="5. Tests Ordered" badge={selectedTests.length || null} open={openSections.tests} onToggle={() => toggleSection('tests')}>
-        <input className={s.input} value={testSearch} onChange={e => setTestSearch(e.target.value)} placeholder="Search test name or code…" style={{ marginBottom: 10 }} />
-        {Object.entries(filteredCatalog).map(([section, tests]) => (
-          tests.length === 0 ? null :
-          <div key={section} style={{ marginBottom: 8 }}>
-            <div
-              onClick={() => setExpandedSections(p => ({ ...p, [section]: !p[section] }))}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-2)', cursor: 'pointer', padding: '4px 0', userSelect: 'none' }}>
-              {expandedSections[section] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              {section}
-              <span style={{ fontSize: 11, background: '#f1f5f9', color: '#64748b', padding: '0 6px', borderRadius: 8 }}>{tests.length}</span>
-            </div>
-            {(expandedSections[section] || testSearch.trim()) && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 18, paddingTop: 4 }}>
-                {tests.map(t => {
-                  const sel = selectedTests.includes(t.id);
-                  return (
-                    <button key={t.id} onClick={() => toggleTest(t.id)}
-                      className={`${s.btn} ${s.btnSm}`}
-                      style={{ fontSize: 12, background: sel ? 'var(--color-primary)' : 'white', color: sel ? 'white' : 'var(--color-text)', border: `1px solid ${sel ? 'var(--color-primary)' : 'var(--color-border)'}`, fontWeight: sel ? 600 : 400 }}>
-                      {sel && '✓ '}{t.test_name}
-                      {t.price ? <span style={{ marginLeft: 4, opacity: 0.7 }}>₹{t.price}</span> : null}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
-        {selectedTests.length === 0 && <div style={{ fontSize: 13, color: 'var(--color-text-2)', marginTop: 4 }}>No tests selected yet. Expand a department above to select tests.</div>}
+      <Section title="5. Tests Ordered" badge={(selectedTests.length + selectedPanels.length) || null} open={openSections.tests} onToggle={() => toggleSection('tests')}>
+        <TestsAutocomplete
+          allTests={allTests}
+          allPanels={allPanels}
+          selectedTestIds={selectedTests}
+          selectedPanelIds={selectedPanels}
+          onChangeTests={setSelectedTests}
+          onChangePanels={setSelectedPanels}
+          styles={s}
+        />
       </Section>
 
       {/* Saved order confirmation */}
