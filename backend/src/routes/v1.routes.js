@@ -33,6 +33,9 @@ router.use('/', analyticsRoutes);
 // Test catalog and panels (routes prefixed /catalog and /panels internally)
 router.use('/', catalogRoutes);
 
+// QA Events / Non-Conformity
+router.use('/', require('./labs/qaRoutes'));
+
 // Doctor-facing lab results
 router.use('/doctors', labResultRoutes);
 
