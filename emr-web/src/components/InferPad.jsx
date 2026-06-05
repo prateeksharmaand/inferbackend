@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 import { Plus, ChevronDown, Settings2, X, Search, GripVertical } from 'lucide-react';
 import styles from './InferPad.module.css';
 import AutocompleteInput from './AutocompleteInput';
@@ -319,7 +319,7 @@ function EyeRow({ label, fields, prefix, ophtho, setOphtho, styles: s }) {
         <span style={{ fontSize: 11, color: '#94a3b8' }} />
         {fields.map(f => <span key={f} style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center' }}>{f}</span>)}
         {['RE','LE'].map(eye => (
-          <React.Fragment key={eye}>
+          <Fragment key={eye}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>{eye}</span>
             {fields.map(f => (
               <input key={f} className={s.cellInput} placeholder="—"
@@ -328,7 +328,7 @@ function EyeRow({ label, fields, prefix, ophtho, setOphtho, styles: s }) {
                 style={{ textAlign: 'center' }}
               />
             ))}
-          </React.Fragment>
+          </Fragment>
         ))}
       </div>
     </div>
