@@ -167,7 +167,7 @@ export default function ScribePanel({
           if (blob.size < 500) continue;
           setPending(n => n + 1);
           try {
-            const text = await sendChunk(blob, language, spec, drugs);
+            const text = await sendChunk(blob, 'auto', spec, drugs);
             if (text) setTranscript(t => t ? t + ' ' + text : text);
           } catch (err) {
             console.warn('[scribe] chunk failed:', err.message);
@@ -351,17 +351,6 @@ export default function ScribePanel({
       {!minimized && <>
       <div className={styles.controls}>
         <div className={styles.controlsRow2}>
-          <select
-            className={styles.langSelect}
-            value={language}
-            onChange={e => setLanguage(e.target.value)}
-            disabled={status === 'recording'}
-          >
-            {LANGUAGES.map(l => (
-              <option key={l.code} value={l.code}>{l.label}</option>
-            ))}
-          </select>
-
           <div className={styles.templateRow}>
             <select
               className={styles.templateSelect}

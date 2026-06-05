@@ -309,6 +309,31 @@ function NumberUnitInput({ value, onChange, placeholder, className }) {
   );
 }
 
+// ── Ophthalmology eye-row grid ────────────────────────────────────────────────
+function EyeRow({ label, fields, prefix, ophtho, setOphtho, styles: s }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontWeight: 600, fontSize: 12, color: '#64748b', marginBottom: 4 }}>{label}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${fields.length}, 1fr)`, gap: 4, alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: '#94a3b8' }} />
+        {fields.map(f => <span key={f} style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center' }}>{f}</span>)}
+        {['RE','LE'].map(eye => (
+          <React.Fragment key={eye}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>{eye}</span>
+            {fields.map(f => (
+              <input key={f} className={s.cellInput} placeholder="—"
+                value={ophtho[`${prefix}_${eye}_${f}`] || ''}
+                onChange={e => setOphtho(`${prefix}_${eye}_${f}`, e.target.value)}
+                style={{ textAlign: 'center' }}
+              />
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Collapsible card ─────────────────────────────────────────────────────────
 
 function ICard({ title, icon, badge, color = '#6366f1', defaultOpen = true, action, children }) {
@@ -473,6 +498,10 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const updateCustom = (id, k, v) =>
     set('custom_sections', customSections.map(s => s.id === id ? { ...s, [k]: v } : s));
   const removeCustom = (id) => set('custom_sections', customSections.filter(s => s.id !== id));
+
+  const ophtho    = form.ophtho || {};
+  const setOphtho = (field, val) => set('ophtho', { ...ophtho, [field]: val });
+  const eyeRowProps = { ophtho, setOphtho, styles };
 
   return (
     <div className={styles.wrap}>
@@ -741,58 +770,31 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
             <textarea rows={4} placeholder="Dental observations, tooth-wise findings, treatment plan…" value={form.dental_chart || ''} onChange={e => set('dental_chart', e.target.value)} />
           </ICard>
         );
-        // ── Ophthalmology helpers ──────────────────────────────────────────────
-        const setOphtho = (field, val) => set('ophtho', { ...(form.ophtho||{}), [field]: val });
-        const ophtho = form.ophtho || {};
-        // RE/LE row helper: 2 eyes × N sub-fields
-        function EyeRow({ label, fields, prefix }) {
-          return (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontWeight: 600, fontSize: 12, color: '#64748b', marginBottom: 4 }}>{label}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${fields.length}, 1fr)`, gap: 4, alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: '#94a3b8' }} />
-                {fields.map(f => <span key={f} style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center' }}>{f}</span>)}
-                {['RE','LE'].map(eye => (
-                  <React.Fragment key={eye}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>{eye}</span>
-                    {fields.map(f => (
-                      <input key={f} className={styles.cellInput} placeholder="—"
-                        value={ophtho[`${prefix}_${eye}_${f}`] || ''}
-                        onChange={e => setOphtho(`${prefix}_${eye}_${f}`, e.target.value)}
-                        style={{ textAlign: 'center' }}
-                      />
-                    ))}
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-          );
-        }
         if (key === 'ophtho_visual_acuity') return (
           <ICard key="ophtho_visual_acuity" title="Ophthalmology - Visual Acuity Test" icon="👁️" color="#7c3aed">
-            <EyeRow label="Without Glasses" fields={['Distance','Near']} prefix="va_wog" />
-            <EyeRow label="With Glasses"    fields={['Distance','Near']} prefix="va_wg"  />
-            <EyeRow label="With Pinhole"    fields={['Distance','Near']} prefix="va_ph"  />
+            <EyeRow {...eyeRowProps} label="Without Glasses" fields={['Distance','Near']} prefix="va_wog" />
+            <EyeRow {...eyeRowProps} label="With Glasses"    fields={['Distance','Near']} prefix="va_wg"  />
+            <EyeRow {...eyeRowProps} label="With Pinhole"    fields={['Distance','Near']} prefix="va_ph"  />
           </ICard>
         );
         if (key === 'ophtho_subj_refraction') return (
           <ICard key="ophtho_subj_refraction" title="Ophthalmology - Subjective Refraction" icon="👁️" color="#7c3aed">
-            <EyeRow label="Subjective Refraction" fields={['SPH','CYL','AXIS','VA']} prefix="subj" />
+            <EyeRow {...eyeRowProps} label="Subjective Refraction" fields={['SPH','CYL','AXIS','VA']} prefix="subj" />
           </ICard>
         );
         if (key === 'ophtho_auto_refraction') return (
           <ICard key="ophtho_auto_refraction" title="Ophthalmology - Auto Refraction" icon="👁️" color="#7c3aed">
-            <EyeRow label="Auto Refraction" fields={['SPH','CYL','AXIS']} prefix="auto" />
+            <EyeRow {...eyeRowProps} label="Auto Refraction" fields={['SPH','CYL','AXIS']} prefix="auto" />
           </ICard>
         );
         if (key === 'ophtho_current_glass') return (
           <ICard key="ophtho_current_glass" title="Ophthalmology - Current Glass Prescription" icon="👓" color="#0891b2">
-            <EyeRow label="Current Glass Prescription" fields={['SPH','CYL','AXIS','ADD','VA']} prefix="cur_glass" />
+            <EyeRow {...eyeRowProps} label="Current Glass Prescription" fields={['SPH','CYL','AXIS','ADD','VA']} prefix="cur_glass" />
           </ICard>
         );
         if (key === 'ophtho_final_glass') return (
           <ICard key="ophtho_final_glass" title="Ophthalmology - Final Glass Prescription" icon="👓" color="#0891b2">
-            <EyeRow label="Final Glass Prescription" fields={['SPH','CYL','AXIS','ADD','VA']} prefix="fin_glass" />
+            <EyeRow {...eyeRowProps} label="Final Glass Prescription" fields={['SPH','CYL','AXIS','ADD','VA']} prefix="fin_glass" />
             <div style={{ marginTop: 8 }}>
               <label style={{ fontSize: 12, color: '#64748b' }}>Instructions</label>
               <input className={styles.cellInput} style={{ width: '100%', marginTop: 4 }} placeholder="e.g. For distance use, anti-glare" value={ophtho.fin_glass_notes || ''} onChange={e => setOphtho('fin_glass_notes', e.target.value)} />
@@ -801,12 +803,12 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         );
         if (key === 'ophtho_iop') return (
           <ICard key="ophtho_iop" title="Ophthalmology - IOP" icon="👁️" color="#7c3aed">
-            <EyeRow label="Intraocular Pressure" fields={['IOP (mmHg)','Method','Time']} prefix="iop" />
+            <EyeRow {...eyeRowProps} label="Intraocular Pressure" fields={['IOP (mmHg)','Method','Time']} prefix="iop" />
           </ICard>
         );
         if (key === 'ophtho_lacrimal') return (
           <ICard key="ophtho_lacrimal" title="Ophthalmology - Lacrimal Syringing" icon="👁️" color="#7c3aed">
-            <EyeRow label="Lacrimal Syringing" fields={['Result','Patent']} prefix="lacrimal" />
+            <EyeRow {...eyeRowProps} label="Lacrimal Syringing" fields={['Result','Patent']} prefix="lacrimal" />
             <div style={{ marginTop: 8 }}>
               <label style={{ fontSize: 12, color: '#64748b' }}>Notes</label>
               <textarea rows={2} placeholder="Lacrimal syringing observations…" value={ophtho.lacrimal_notes || ''} onChange={e => setOphtho('lacrimal_notes', e.target.value)} style={{ marginTop: 4 }} />
@@ -815,18 +817,18 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         );
         if (key === 'ophtho_color_vision') return (
           <ICard key="ophtho_color_vision" title="Ophthalmology - Color Vision" icon="👁️" color="#7c3aed">
-            <EyeRow label="Color Vision (Ishihara)" fields={['Plates Seen','Result']} prefix="color_vision" />
+            <EyeRow {...eyeRowProps} label="Color Vision (Ishihara)" fields={['Plates Seen','Result']} prefix="color_vision" />
           </ICard>
         );
         if (key === 'ophtho_pmt') return (
           <ICard key="ophtho_pmt" title="Ophthalmology - PMT" icon="👁️" color="#7c3aed">
-            <EyeRow label="Potential Macular Test" fields={['Result','Notes']} prefix="pmt" />
+            <EyeRow {...eyeRowProps} label="Potential Macular Test" fields={['Result','Notes']} prefix="pmt" />
           </ICard>
         );
         if (key === 'ophtho_k_reading') return (
           <ICard key="ophtho_k_reading" title="Ophthalmology - K Reading / Biometry" icon="👁️" color="#7c3aed">
-            <EyeRow label="Keratometry" fields={['K1','K2','Axis','Avg']} prefix="kread" />
-            <EyeRow label="Biometry (AL)" fields={['Axial Length','ACD','WTW']} prefix="biom" />
+            <EyeRow {...eyeRowProps} label="Keratometry" fields={['K1','K2','Axis','Avg']} prefix="kread" />
+            <EyeRow {...eyeRowProps} label="Biometry (AL)" fields={['Axial Length','ACD','WTW']} prefix="biom" />
           </ICard>
         );
         if (key === 'ophtho_eye_exam') return (
@@ -848,17 +850,17 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         );
         if (key === 'ophtho_pachymetry') return (
           <ICard key="ophtho_pachymetry" title="Ophthalmology - Pachymetry" icon="👁️" color="#7c3aed">
-            <EyeRow label="Corneal Thickness (µm)" fields={['Central','Thinnest','Location']} prefix="pachy" />
+            <EyeRow {...eyeRowProps} label="Corneal Thickness (µm)" fields={['Central','Thinnest','Location']} prefix="pachy" />
           </ICard>
         );
         if (key === 'ophtho_amsler') return (
           <ICard key="ophtho_amsler" title="Ophthalmology - Amsler Grid" icon="👁️" color="#7c3aed">
-            <EyeRow label="Amsler Grid" fields={['Result','Distortion','Scotoma']} prefix="amsler" />
+            <EyeRow {...eyeRowProps} label="Amsler Grid" fields={['Result','Distortion','Scotoma']} prefix="amsler" />
           </ICard>
         );
         if (key === 'ophtho_contact_lens') return (
           <ICard key="ophtho_contact_lens" title="Ophthalmology - Contact Lens" icon="👁️" color="#0891b2">
-            <EyeRow label="Contact Lens" fields={['SPH','CYL','AXIS','BC','DIA','Brand']} prefix="cl" />
+            <EyeRow {...eyeRowProps} label="Contact Lens" fields={['SPH','CYL','AXIS','BC','DIA','Brand']} prefix="cl" />
             <div style={{ marginTop: 8 }}>
               <label style={{ fontSize: 12, color: '#64748b' }}>Type / Instructions</label>
               <input className={styles.cellInput} style={{ width: '100%', marginTop: 4 }} placeholder="e.g. Daily disposable, monthly, toric…" value={ophtho.cl_notes || ''} onChange={e => setOphtho('cl_notes', e.target.value)} />
