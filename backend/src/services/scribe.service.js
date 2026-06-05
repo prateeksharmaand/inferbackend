@@ -2,11 +2,10 @@ const axios = require('axios');
 const FormData = require('form-data');
 const { spawn } = require('child_process');
 
-const GROQ_API_KEY   = process.env.GROQ_API_KEY;
-const GROQ_STT_MODEL = process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
-const GEMINI_KEY    = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL  = 'gemini-2.5-flash';
-const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// Read lazily so the server picks up .env changes without restart
+const groqKey   = () => process.env.GROQ_API_KEY;
+const groqModel = () => process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
+const GROQ_LLM_MODEL = process.env.GROQ_LLM_MODEL || 'llama-3.3-70b-versatile';
 
 // Short clinical hint for Whisper — keeps initial_prompt small for speed
 const WHISPER_PROMPT_BASE = 'Medical consultation. Doctor speaking with patient. Clinical terms, drug names, dosages.';
@@ -88,7 +87,9 @@ function isHallucination(text) {
 }
 
 async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en', specialization = 'general', drugFormulary = '') {
-  if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not set');
+  const apiKey = groqKey();
+  const model  = groqModel();
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured — add it to .env and restart');
 
   let audioBuffer = buffer;
   let audioMime   = mimetype;
@@ -103,20 +104,18 @@ async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en',
   }
 
   const form = new FormData();
-  form.append('file',   audioBuffer, { filename, contentType: audioMime });
-  form.append('model',  GROQ_STT_MODEL);
+  form.append('file',            audioBuffer, { filename, contentType: audioMime });
+  form.append('model',           model);
   form.append('response_format', 'json');
   if (language && language !== 'auto') form.append('language', language);
   form.append('prompt', WHISPER_PROMPT_BASE);
 
+  console.log('[scribe] calling groq model:', model);
   const res = await axios.post(
     'https://api.groq.com/openai/v1/audio/transcriptions',
     form,
     {
-      headers: {
-        ...form.getHeaders(),
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-      },
+      headers: { ...form.getHeaders(), Authorization: `Bearer ${apiKey}` },
       timeout: 30_000,
     }
   );
@@ -174,7 +173,7 @@ function buildPatientContext(ctx) {
     });
   }
 
-  // Inject specialization vocabulary so Gemini recognises domain-specific terms
+  // Inject specialization vocabulary so the LLM recognises domain-specific terms
   const specVocab = SPECIALIZATION_VOCAB[ctx.specialization?.toLowerCase()];
   if (specVocab) {
     lines.push(`SPECIALIZATION: ${ctx.specialization} — key terms: ${specVocab}`);
@@ -190,8 +189,7 @@ function buildPatientContext(ctx) {
     : '';
 }
 
-// Single-pass prompt: clean the transcript AND extract SOAP in one Gemini call.
-// This halves latency compared to two sequential calls.
+// Single-pass prompt: clean the transcript AND extract SOAP in one LLM call.
 const MERGED_PROMPT =
   'You are a medical scribe. Given a raw speech-to-text transcript, perform two tasks in one response:\n' +
   '1. CLEAN: Fix grammar and punctuation. Expand medical abbreviations (BP→blood pressure, SOB→shortness of breath, OD→once daily, BD→twice daily, TDS→three times daily, Hx→history, Rx→prescription). Correct obvious mis-transcriptions. Translate everything to English preserving all clinical meaning. Use patient context (if provided) only to resolve ambiguous terms.\n' +
@@ -221,18 +219,27 @@ const MERGED_PROMPT =
   '}\n\n' +
   'Raw transcript:\n';
 
-async function geminiGenerate(prompt, json = false) {
-  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY env var not set');
-  const body = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
+async function groqLLM(prompt) {
+  const apiKey = groqKey();
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+  const res = await axios.post(
+    'https://api.groq.com/openai/v1/chat/completions',
+    {
+      model: GROQ_LLM_MODEL,
       temperature: 0.1,
-      maxOutputTokens: json ? 8192 : 2048,
-      ...(json ? { responseMimeType: 'application/json' } : {}),
+      max_tokens: 8192,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: 'You are a medical scribe assistant. Always respond with valid JSON only.' },
+        { role: 'user',   content: prompt },
+      ],
     },
-  };
-  const res = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 60_000 });
-  return res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    {
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      timeout: 60_000,
+    }
+  );
+  return res.data?.choices?.[0]?.message?.content || '';
 }
 
 async function extractSOAP(transcript, ctx = null, focusPrompt = '') {
@@ -242,7 +249,7 @@ async function extractSOAP(transcript, ctx = null, focusPrompt = '') {
       focusPrompt.trim() + '\n---\n\n'
     : '';
   const prompt = MERGED_PROMPT + patientContext + templateSection + transcript;
-  const raw = await geminiGenerate(prompt, true);
+  const raw = await groqLLM(prompt);
   let parsed;
   try {
     parsed = JSON.parse(raw);
