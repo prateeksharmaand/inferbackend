@@ -506,8 +506,61 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const setOphtho = (field, val) => set('ophtho', { ...ophtho, [field]: val });
   const eyeRowProps = { ophtho, setOphtho, styles };
 
+  const fillSampleData = () => {
+    setVital('bp_systolic',      '124');
+    setVital('bp_diastolic',     '82');
+    setVital('pulse',            '76');
+    setVital('spo2',             '98');
+    setVital('temp',             '37.2');
+    setVital('respiratory_rate', '16');
+    setVital('height',           '168');
+    setVital('weight',           '72');
+    set('symptoms', [
+      { name: 'Fever', since: '3 days', severity: 'Moderate' },
+      { name: 'Headache', since: '2 days', severity: 'Mild' },
+      { name: 'Cough', since: '5 days', severity: 'Mild' },
+    ]);
+    set('diagnosis', [
+      { display: 'Viral Upper Respiratory Tract Infection', code: '54150009', system: 'http://snomed.info/sct', status: 'active' },
+      { display: 'Tension Headache', code: '398057008', system: 'http://snomed.info/sct', status: 'active' },
+    ]);
+    set('medications', [
+      { name: 'Paracetamol', dose: '500mg', frequency: 'TDS', duration: '5 days', timing: 'After meals', instructions: 'Take with warm water' },
+      { name: 'Cetirizine', dose: '10mg', frequency: 'OD', duration: '7 days', timing: 'At bedtime', instructions: '' },
+      { name: 'Azithromycin', dose: '500mg', frequency: 'OD', duration: '3 days', timing: 'Before meals', instructions: '' },
+    ]);
+    set('lab_investigations', [
+      { test: 'Complete Blood Count (CBC)', repeat_on: '1 week', remarks: 'Fasting preferred' },
+      { test: 'C-Reactive Protein (CRP)', repeat_on: '', remarks: '' },
+    ]);
+    set('lab_results', [
+      { test: 'Hemoglobin', result: '13.2', unit: 'g/dL', range: '12-16' },
+      { test: 'WBC', result: '9800', unit: 'cells/µL', range: '4000-11000' },
+      { test: 'Platelet Count', result: '210000', unit: '/µL', range: '150000-400000' },
+    ]);
+    set('examination_findings', 'Throat mildly congested. Bilateral tonsils Grade I. No lymphadenopathy. Chest clear on auscultation.');
+    set('advices', 'Take rest. Drink plenty of fluids (minimum 2–3 litres/day). Avoid cold food and drinks. Use steam inhalation twice daily. Wear a mask in public.');
+    set('refer_to', '');
+    set('next_visit_date', new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10));
+    set('next_visit_notes', 'Review CBC reports. Follow up if fever persists beyond 3 days.');
+    set('procedures', ['Throat Swab Culture', 'Nebulisation']);
+    set('injections', [
+      { name: 'Ondansetron', dose: '4mg', route: 'IV', frequency: 'SOS' },
+    ]);
+    set('notes', 'Patient is allergic to Penicillin. Advised COVID test if fever persists beyond 5 days.');
+  };
+
   return (
     <div className={styles.wrap}>
+
+      {/* ── Sample data button ── */}
+      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:4 }}>
+        <button onClick={fillSampleData}
+          style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px dashed #94a3b8',
+            background:'transparent', color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
+          🧪 Fill Sample Data
+        </button>
+      </div>
 
       {/* ── All sections rendered in saved order ── */}
       {sectionOrder.filter(key => !disabledSections.includes(key)).map(key => {
