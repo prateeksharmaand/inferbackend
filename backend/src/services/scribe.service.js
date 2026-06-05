@@ -2,8 +2,8 @@ const axios = require('axios');
 const FormData = require('form-data');
 const { spawn } = require('child_process');
 
-const WHISPER_BASE  = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
-const WHISPER_MODEL = process.env.WHISPER_MODEL    || 'small';
+const GROQ_API_KEY   = process.env.GROQ_API_KEY;
+const GROQ_STT_MODEL = process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
 const GEMINI_KEY    = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL  = 'gemini-2.5-flash';
 const GEMINI_BASE   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -88,31 +88,41 @@ function isHallucination(text) {
 }
 
 async function transcribeAudio(buffer, mimetype = 'audio/webm', language = 'en', specialization = 'general', drugFormulary = '') {
+  if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not set');
+
   let audioBuffer = buffer;
-  let audioMime = mimetype;
-  let filename = 'audio.webm';
+  let audioMime   = mimetype;
+  let filename    = 'audio.webm';
 
   try {
     audioBuffer = await cleanAudio(buffer);
-    audioMime = 'audio/wav';
-    filename = 'audio.wav';
+    audioMime   = 'audio/wav';
+    filename    = 'audio.wav';
   } catch (err) {
     console.warn('[scribe] ffmpeg preprocessing failed, sending raw audio:', err.message);
   }
 
-  const promptText = WHISPER_PROMPT_BASE;
-
   const form = new FormData();
-  form.append('audio_file', audioBuffer, { filename, contentType: audioMime });
+  form.append('file',   audioBuffer, { filename, contentType: audioMime });
+  form.append('model',  GROQ_STT_MODEL);
+  form.append('response_format', 'json');
+  if (language && language !== 'auto') form.append('language', language);
+  form.append('prompt', WHISPER_PROMPT_BASE);
 
-  const langParam = language === 'auto' ? '' : `&language=${language}`;
   const res = await axios.post(
-    `${WHISPER_BASE}/asr?task=transcribe${langParam}&output=json&vad_filter=false&initial_prompt=${encodeURIComponent(promptText)}&model=${WHISPER_MODEL}`,
+    'https://api.groq.com/openai/v1/audio/transcriptions',
     form,
-    { headers: form.getHeaders(), timeout: 60_000 }
+    {
+      headers: {
+        ...form.getHeaders(),
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+      },
+      timeout: 30_000,
+    }
   );
+
   const text = (res.data?.text || '').trim();
-  console.log('[scribe] whisper raw:', JSON.stringify(res.data), '| filtered:', isHallucination(text));
+  console.log('[scribe] groq raw:', JSON.stringify(res.data?.text?.slice(0, 80)), '| filtered:', isHallucination(text));
   return isHallucination(text) ? '' : text;
 }
 

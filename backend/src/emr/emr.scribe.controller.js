@@ -36,15 +36,20 @@ const extractSOAP = async (req, res) => {
   }
 };
 
-// GET /api/emr/scribe/status  — health check for whisper + gemini
+// GET /api/emr/scribe/status  — health check for groq + gemini
 const status = async (req, res) => {
   const axios = require('axios');
-  const WHISPER = process.env.WHISPER_BASE_URL || 'http://whisper:9000';
+  const GROQ_KEY   = process.env.GROQ_API_KEY;
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
-  const checkWhisper = async () => {
-    try { await axios.get(WHISPER, { timeout: 3000 }); return 'ok'; }
-    catch { return 'unavailable'; }
+  const checkGroq = async () => {
+    if (!GROQ_KEY) return 'no api key';
+    try {
+      await axios.get('https://api.groq.com/openai/v1/models', {
+        headers: { Authorization: `Bearer ${GROQ_KEY}` }, timeout: 5000,
+      });
+      return 'ok';
+    } catch { return 'unavailable'; }
   };
   const checkGemini = async () => {
     if (!GEMINI_KEY) return 'no api key';
@@ -57,8 +62,8 @@ const status = async (req, res) => {
     } catch { return 'unavailable'; }
   };
 
-  const [whisper, gemini] = await Promise.all([checkWhisper(), checkGemini()]);
-  res.json({ whisper, gemini });
+  const [groq, gemini] = await Promise.all([checkGroq(), checkGemini()]);
+  res.json({ groq, gemini });
 };
 
 module.exports = { transcribe, extractSOAP, status };
