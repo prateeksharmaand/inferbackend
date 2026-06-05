@@ -1,6 +1,53 @@
 import { useState, useRef, useEffect } from 'react';
 import { Trash2, Search, FlaskConical } from 'lucide-react';
 
+const SINCE_UNITS = ['day', 'week', 'month', 'year'];
+const SINCE_PRESETS = ['1 day', '2 days', '3 days', '1 week', '2 weeks', '1 month', '3 months', '6 months', '1 year'];
+
+function SinceInput({ value, onChange, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const num = parseFloat(value);
+  const unitSuggestions = !isNaN(num) && num > 0
+    ? SINCE_UNITS.map(u => `${num} ${u}${num !== 1 ? 's' : ''}`)
+    : [];
+  const showPresets = !value || value.length === 0;
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
+      <input value={value} onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder || 'e.g. 3 days'}
+        style={{ border: 'none', outline: 'none', fontSize: 12, flex: 1, background: 'transparent', minWidth: 0 }} />
+      <span style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0 }}>📅</span>
+      {open && (unitSuggestions.length > 0 || showPresets) && (
+        <div style={{ position: 'fixed', zIndex: 9999, background: 'white',
+          border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 8px 24px #0002',
+          minWidth: 140, overflow: 'hidden',
+          top: ref.current ? ref.current.getBoundingClientRect().bottom + 4 : 0,
+          left: ref.current ? ref.current.getBoundingClientRect().left : 0,
+        }}>
+          {(unitSuggestions.length > 0 ? unitSuggestions : SINCE_PRESETS).map(s => (
+            <div key={s} onMouseDown={e => { e.preventDefault(); onChange(s); setOpen(false); }}
+              style={{ padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#334155' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const UPPER = [18,17,16,15,14,13,12,11, 21,22,23,24,25,26,27,28];
 const LOWER = [48,47,46,45,44,43,42,41, 31,32,33,34,35,36,37,38];
 
@@ -256,12 +303,7 @@ function ToothCard({ cardId, toothNum, findings, surfaces, onAddFinding, onDelet
             {SURFACES.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
           {/* Since */}
-          <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-            <input value={f.since||''} onChange={e => onUpdateFinding(cardId, i, 'since', e.target.value)}
-              placeholder="Since 3 Days"
-              style={{ border:'none', outline:'none', fontSize:12, flex:1, background:'transparent' }} />
-            <span style={{ fontSize:11, color:'#94a3b8' }}>📅</span>
-          </div>
+          <SinceInput value={f.since||''} onChange={v => onUpdateFinding(cardId, i, 'since', v)} placeholder="Since 3 Days" />
           {/* Notes */}
           <input value={f.notes||''} onChange={e => onUpdateFinding(cardId, i, 'notes', e.target.value)}
             placeholder="Add notes here"
@@ -442,13 +484,11 @@ export default function DentalChart({ value, onChange }) {
             }} placeholder="visits"
               style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', fontSize:12, outline:'none', width:'70%' }} />
             {/* Date */}
-            <div style={{ display:'flex', alignItems:'center', gap:4, border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', width:'calc(100% - 16px)' }}>
-              <input type="text" value={p.date||''} onChange={e => {
-                const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), date:e.target.value};
+            <div style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', width:'calc(100% - 16px)' }}>
+              <SinceInput value={p.date||''} onChange={v => {
+                const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), date:v};
                 update({dental_procedures:next});
-              }} placeholder="After 3 Days"
-                style={{ border:'none', outline:'none', fontSize:12, flex:1, minWidth:0 }} />
-              <span style={{ fontSize:12, color:'#94a3b8' }}>📅</span>
+              }} placeholder="After 3 Days" />
             </div>
             {/* Notes */}
             <input value={p.notes||''} onChange={e => {
