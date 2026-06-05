@@ -334,27 +334,89 @@ export default function DentalChart({ value, onChange }) {
           onAddFinding={addFinding} onDeleteCard={deleteCard} onDeleteFinding={deleteFinding} />
       ))}
 
-      {/* Global dental procedures */}
+      {/* Dental Procedures table */}
       <div style={{ border:'1px solid #e2e8f0', borderRadius:10, overflow:'hidden', marginTop:4 }}>
-        <div style={{ background:'#6366f1', padding:'8px 14px' }}>
-          <span style={{ fontSize:12, fontWeight:800, color:'white', textTransform:'uppercase' }}>🔧 Dental Procedures</span>
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 14px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0' }}>
+          <span style={{ width:18, height:18, borderRadius:4, background:'#e11d48', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <span style={{ color:'white', fontSize:10, fontWeight:800 }}>⚕</span>
+          </span>
+          <span style={{ fontSize:13, fontWeight:700, color:'#0f172a' }}>Dental Procedures</span>
         </div>
-        <div style={{ padding:'10px 12px' }}>
-          {dentalProcs.length > 0 && (
-            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
-              {dentalProcs.map((p, i) => (
-                <span key={i} style={{ background:'#eef2ff', border:'1px solid #c7d2fe', color:'#4338ca',
-                  borderRadius:8, padding:'3px 10px', fontSize:12, fontWeight:500,
-                  display:'flex', alignItems:'center', gap:4 }}>
-                  {p}
-                  <button onClick={() => update({ dental_procedures: dentalProcs.filter((_,j)=>j!==i) })}
-                    style={{ background:'none', border:'none', cursor:'pointer', color:'#a5b4fc', padding:0 }}>✕</button>
-                </span>
-              ))}
+
+        {/* Column headers */}
+        <div style={{ display:'grid', gridTemplateColumns:'2fr 1.2fr 1.2fr 80px 130px 1.5fr 32px',
+          gap:0, padding:'6px 14px', background:'#f8fafc', borderBottom:'1px solid #e2e8f0',
+          fontSize:10, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+          <span>Procedure</span>
+          <span>Tooth</span>
+          <span>Area</span>
+          <span>Visits</span>
+          <span>Date</span>
+          <span>Additional Notes</span>
+          <span />
+        </div>
+
+        {/* Rows */}
+        {dentalProcs.map((p, i) => (
+          <div key={i} style={{ display:'grid', gridTemplateColumns:'2fr 1.2fr 1.2fr 80px 130px 1.5fr 32px',
+            gap:0, padding:'8px 14px', borderBottom:'1px solid #f1f5f9', alignItems:'center' }}>
+            {/* Procedure name */}
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <span style={{ color:'#cbd5e1', cursor:'grab', flexShrink:0 }}>≡</span>
+              <span style={{ fontSize:13, fontWeight:700, color:'#1e293b' }}>{p.name || p}</span>
             </div>
-          )}
-          <FindingSearch onAdd={text => update({ dental_procedures:[...dentalProcs,text] })}
-            placeholder="Search or type a procedure…" />
+            {/* Tooth */}
+            <input value={p.tooth || ''} onChange={e => {
+              const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), tooth:e.target.value};
+              update({dental_procedures:next});
+            }} placeholder="Select teeth"
+              style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', fontSize:12, outline:'none', width:'90%' }} />
+            {/* Area */}
+            <select value={p.area||''} onChange={e => {
+              const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), area:e.target.value};
+              update({dental_procedures:next});
+            }} style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', fontSize:12, outline:'none', color: p.area?'#1e293b':'#94a3b8', width:'90%' }}>
+              <option value="">Select area</option>
+              {['Buccal','Lingual','Mesial','Distal','Occlusal','Cervical','Root','Full Mouth'].map(a=>(
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+            {/* Visits */}
+            <input value={p.visits||''} onChange={e => {
+              const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), visits:e.target.value};
+              update({dental_procedures:next});
+            }} placeholder="visits"
+              style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', fontSize:12, outline:'none', width:'70%' }} />
+            {/* Date */}
+            <div style={{ display:'flex', alignItems:'center', gap:4, border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', width:'calc(100% - 16px)' }}>
+              <input type="text" value={p.date||''} onChange={e => {
+                const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), date:e.target.value};
+                update({dental_procedures:next});
+              }} placeholder="After 3 Days"
+                style={{ border:'none', outline:'none', fontSize:12, flex:1, minWidth:0 }} />
+              <span style={{ fontSize:12, color:'#94a3b8' }}>📅</span>
+            </div>
+            {/* Notes */}
+            <input value={p.notes||''} onChange={e => {
+              const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), notes:e.target.value};
+              update({dental_procedures:next});
+            }} placeholder="Add notes here"
+              style={{ border:'none', borderBottom:'1px solid #e2e8f0', padding:'4px 0', fontSize:12, outline:'none', width:'100%', background:'transparent' }} />
+            {/* Delete */}
+            <button onClick={() => update({dental_procedures:dentalProcs.filter((_,j)=>j!==i)})}
+              style={{ background:'none', border:'none', cursor:'pointer', color:'#cbd5e1', padding:0 }}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+
+        {/* Search to add */}
+        <div style={{ padding:'8px 12px' }}>
+          <FindingSearch
+            onAdd={text => update({ dental_procedures:[...dentalProcs, { name:text, tooth:'', area:'', visits:'', date:'', notes:'' }] })}
+            placeholder="Start typing a procedure…"
+          />
         </div>
       </div>
     </div>
