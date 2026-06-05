@@ -9,14 +9,15 @@ const transcribe = [
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'audio_file required' });
     try {
-      const language       = req.body.language       || 'en';
+      const language       = req.body.language       || 'auto';
       const specialization = req.body.specialization || 'general';
       const drugFormulary  = req.body.drugFormulary  || '';
       const text = await scribe.transcribeAudio(req.file.buffer, req.file.mimetype, language, specialization, drugFormulary);
       res.json({ text });
     } catch (err) {
       const detail = err.response?.data || err.message;
-      res.status(502).json({ error: 'Whisper transcription failed', detail });
+      console.error('[scribe] transcribe failed:', JSON.stringify(detail));
+      res.status(502).json({ error: 'Transcription failed', detail });
     }
   },
 ];
@@ -39,7 +40,7 @@ const extractSOAP = async (req, res) => {
 // GET /api/emr/scribe/status  — health check for groq + gemini
 const status = async (req, res) => {
   const axios = require('axios');
-  const GROQ_KEY   = process.env.GROQ_API_KEY;
+  const GROQ_KEY   = process.env.GROQ_API_KEY || '';
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
   const checkGroq = async () => {
