@@ -109,7 +109,7 @@ export function saveDisabledSections(clinicId, keys) {
 const DEFAULT_PRINT_SECTIONS = [
   'symptoms','diagnosis','medications','lab_investigations','lab_results',
   'examination_findings','advices','refer_to','follow_up','procedures','injections',
-  'notes',
+  'notes','dental_chart',
 ];
 export function getPrintSections(clinicId) {
   try {

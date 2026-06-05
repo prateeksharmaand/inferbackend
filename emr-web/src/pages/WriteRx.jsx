@@ -368,6 +368,47 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
         {inPrint('refer_to') && form.refer_to && <RxInlineRow label={t.REFERRED_TO} value={form.refer_to} />}
         {inPrint('follow_up') && (followupStr||form.next_visit_notes) && <RxInlineRow label={t.FOLLOWUP} value={[followupStr,form.next_visit_notes].filter(Boolean).join(' · ')} />}
         {inPrint('procedures') && proceduresStr && <RxInlineRow label={t.PROCEDURES} value={proceduresStr} />}
+        {inPrint('dental_chart') && (() => {
+          const dc = form.dental_chart;
+          if (!dc || typeof dc !== 'object') return null;
+          const cards = dc.cards || [];
+          const procs = dc.dental_procedures || [];
+          if (!cards.length && !procs.length) return null;
+          return (
+            <div className={styles.rxInlineRow}>
+              <span className={styles.rxInlineLabel}>DENTAL CHART :&nbsp;</span>
+              <span className={styles.rxInlineValue}>
+                {cards.map((card, i) => {
+                  const findings = (card.findings || []).filter(f => f.text);
+                  if (!findings.length) return null;
+                  return (
+                    <div key={i} style={{ marginBottom: 4 }}>
+                      <strong>T{card.toothNum}:</strong>{' '}
+                      {findings.map((f, j) => [
+                        f.text,
+                        f.area && `(${f.area})`,
+                        f.since && `since ${f.since}`,
+                        f.notes && `— ${f.notes}`,
+                      ].filter(Boolean).join(' ')).join('; ')}
+                    </div>
+                  );
+                })}
+                {procs.length > 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    <strong>Procedures:</strong>{' '}
+                    {procs.map((p, i) => [
+                      typeof p === 'string' ? p : p.name,
+                      p.tooth && `Tooth ${p.tooth}`,
+                      p.area,
+                      p.date && `(${p.date})`,
+                      p.notes,
+                    ].filter(Boolean).join(' ')).join('; ')}
+                  </div>
+                )}
+              </span>
+            </div>
+          );
+        })()}
         {(form.custom_sections||[]).filter(s=>s.content).map(s=><RxInlineRow key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}
         {form.vaccinations && Object.keys(form.vaccinations).length > 0 && (() => {
           const groups = { given: [], due: [], missed: [], refused: [] };
