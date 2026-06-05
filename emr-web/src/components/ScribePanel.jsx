@@ -276,6 +276,15 @@ export default function ScribePanel({
       if (v.pain_score)       setVital('pain_score',       String(v.pain_score));
       if (v.lmp)              setVital('lmp',              String(v.lmp));
     }
+    // Injections
+    if (soap.injections?.length) set('injections', soap.injections);
+    // Ophthalmology — merge non-null fields into form.ophtho
+    if (soap.ophtho && typeof soap.ophtho === 'object') {
+      const filtered = Object.fromEntries(
+        Object.entries(soap.ophtho).filter(([, v]) => v !== null && v !== undefined && v !== '')
+      );
+      if (Object.keys(filtered).length > 0) set('ophtho', filtered);
+    }
     onClose?.();
   }, [soap, set, setVital, onClose]);
 

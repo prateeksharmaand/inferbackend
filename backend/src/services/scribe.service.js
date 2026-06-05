@@ -215,7 +215,35 @@ const MERGED_PROMPT =
   '  "refer_to": "string or null",\n' +
   '  "advices": "string or null",\n' +
   '  "next_visit_date": "YYYY-MM-DD or null",\n' +
-  '  "next_visit_notes": "string or null"\n' +
+  '  "next_visit_notes": "string or null",\n' +
+  '  "injections": [{"name": "string", "dose": "string or null", "route": "string or null", "frequency": "string or null"}],\n' +
+  '  "ophtho": {\n' +
+  '    "va_wog_RE_Distance": null, "va_wog_RE_Near": null, "va_wog_LE_Distance": null, "va_wog_LE_Near": null,\n' +
+  '    "va_wg_RE_Distance": null, "va_wg_RE_Near": null, "va_wg_LE_Distance": null, "va_wg_LE_Near": null,\n' +
+  '    "va_ph_RE_Distance": null, "va_ph_RE_Near": null, "va_ph_LE_Distance": null, "va_ph_LE_Near": null,\n' +
+  '    "subj_RE_SPH": null, "subj_RE_CYL": null, "subj_RE_AXIS": null, "subj_RE_VA": null,\n' +
+  '    "subj_LE_SPH": null, "subj_LE_CYL": null, "subj_LE_AXIS": null, "subj_LE_VA": null,\n' +
+  '    "auto_RE_SPH": null, "auto_RE_CYL": null, "auto_RE_AXIS": null,\n' +
+  '    "auto_LE_SPH": null, "auto_LE_CYL": null, "auto_LE_AXIS": null,\n' +
+  '    "cur_glass_RE_SPH": null, "cur_glass_RE_CYL": null, "cur_glass_RE_AXIS": null, "cur_glass_RE_ADD": null, "cur_glass_RE_VA": null,\n' +
+  '    "cur_glass_LE_SPH": null, "cur_glass_LE_CYL": null, "cur_glass_LE_AXIS": null, "cur_glass_LE_ADD": null, "cur_glass_LE_VA": null,\n' +
+  '    "fin_glass_RE_SPH": null, "fin_glass_RE_CYL": null, "fin_glass_RE_AXIS": null, "fin_glass_RE_ADD": null, "fin_glass_RE_VA": null,\n' +
+  '    "fin_glass_LE_SPH": null, "fin_glass_LE_CYL": null, "fin_glass_LE_AXIS": null, "fin_glass_LE_ADD": null, "fin_glass_LE_VA": null,\n' +
+  '    "fin_glass_notes": null,\n' +
+  '    "iop_RE_IOP (mmHg)": null, "iop_RE_Method": null, "iop_LE_IOP (mmHg)": null, "iop_LE_Method": null,\n' +
+  '    "color_vision_RE_Plates Seen": null, "color_vision_RE_Result": null, "color_vision_LE_Plates Seen": null, "color_vision_LE_Result": null,\n' +
+  '    "eye_lids_RE": null, "eye_lids_LE": null, "eye_conjunctiva_RE": null, "eye_conjunctiva_LE": null,\n' +
+  '    "eye_cornea_RE": null, "eye_cornea_LE": null, "eye_ac_RE": null, "eye_ac_LE": null,\n' +
+  '    "eye_iris_RE": null, "eye_iris_LE": null, "eye_lens_RE": null, "eye_lens_LE": null,\n' +
+  '    "eye_vitreous_RE": null, "eye_vitreous_LE": null, "eye_fundus_RE": null, "eye_fundus_LE": null,\n' +
+  '    "eye_motility_RE": null, "eye_motility_LE": null,\n' +
+  '    "pachy_RE_Central": null, "pachy_RE_Thinnest": null, "pachy_LE_Central": null, "pachy_LE_Thinnest": null,\n' +
+  '    "kread_RE_K1": null, "kread_RE_K2": null, "kread_RE_Avg": null, "kread_LE_K1": null, "kread_LE_K2": null, "kread_LE_Avg": null,\n' +
+  '    "biom_RE_Axial Length": null, "biom_RE_ACD": null, "biom_LE_Axial Length": null, "biom_LE_ACD": null,\n' +
+  '    "amsler_RE_Result": null, "amsler_RE_Distortion": null, "amsler_LE_Result": null, "amsler_LE_Distortion": null,\n' +
+  '    "cl_RE_SPH": null, "cl_RE_CYL": null, "cl_RE_AXIS": null, "cl_RE_BC": null, "cl_RE_DIA": null,\n' +
+  '    "cl_LE_SPH": null, "cl_LE_CYL": null, "cl_LE_AXIS": null, "cl_LE_BC": null, "cl_LE_DIA": null, "cl_notes": null\n' +
+  '  }\n' +
   '}\n\n' +
   'Raw transcript:\n';
 
