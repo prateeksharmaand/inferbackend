@@ -5,7 +5,7 @@ import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
 import CalculatorsSection from './CalculatorsSection';
 import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
-import { getSectionOrder, getICD10Settings } from '../pages/settings/InferPadSettings';
+import { getSectionOrder, getICD10Settings, getDisabledSections } from '../pages/settings/InferPadSettings';
 import GrowthChart from './GrowthChart';
 import s2 from './GrowthChart.module.css';
 import DentalChart from './DentalChart';
@@ -377,7 +377,8 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const [showVitalsCfg, setShowVitalsCfg] = useState(false);
   const [vitalsOrder,   setVitalsOrder]   = useState(() => getVitalsPrefs(clinicId));
   const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
-  const [sectionOrder,  setSectionOrder]  = useState(() => getSectionOrder(clinicId));
+  const [sectionOrder,     setSectionOrder]     = useState(() => getSectionOrder(clinicId));
+  const [disabledSections, setDisabledSections] = useState(() => getDisabledSections(clinicId));
   const [showGrowth,    setShowGrowth]    = useState(false);
   const [icd10,         setIcd10]         = useState(() => getICD10Settings(clinicId));
   const [growthEnabled, setGrowthEnabled] = useState(
@@ -392,6 +393,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   useEffect(() => {
     const handler = () => {
       setSectionOrder(getSectionOrder(clinicId));
+      setDisabledSections(getDisabledSections(clinicId));
       setGrowthEnabled(localStorage.getItem(`rx_growth_chart_${clinicId}`) === 'true');
       setIcd10(getICD10Settings(clinicId));
     };
@@ -508,7 +510,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
     <div className={styles.wrap}>
 
       {/* ── All sections rendered in saved order ── */}
-      {sectionOrder.map(key => {
+      {sectionOrder.filter(key => !disabledSections.includes(key)).map(key => {
         if (key === 'vitals') return (
           <ICard key="vitals" title="Vitals" icon="🩺" color="#3b82f6"
             action={

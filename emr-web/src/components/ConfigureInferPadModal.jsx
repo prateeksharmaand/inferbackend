@@ -6,6 +6,8 @@ import {
   INFERPAD_SECTIONS, MANDATORY_FIELDS,
   getSectionOrder, saveSectionOrder,
   getMandatoryFields, getICD10Settings,
+  getDisabledSections, saveDisabledSections,
+  getPrintSections, savePrintSections,
 } from '../pages/settings/InferPadSettings';
 import styles from './ConfigureInferPadModal.module.css';
 
@@ -87,8 +89,10 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   };
 
   // ── Pad order state ──
-  const [sectionOrder,    setSectionOrder]    = useState(() => getSectionOrder(cid));
-  const [mandatoryFields, setMandatoryFields] = useState(() => getMandatoryFields(cid));
+  const [sectionOrder,     setSectionOrder]    = useState(() => getSectionOrder(cid));
+  const [mandatoryFields,  setMandatoryFields] = useState(() => getMandatoryFields(cid));
+  const [disabledSections, setDisabledSections] = useState(() => getDisabledSections(cid));
+  const [printSections,    setPrintSections]   = useState(() => getPrintSections(cid));
   const dragIndexRef = useRef(null);
   const dragCounter  = useRef(0);
   const [dragOverIdx, setDragOverIdx]         = useState(null);
@@ -114,6 +118,22 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
     setMandatoryFields(next);
     localStorage.setItem(`rx_mandatory_fields_${cid}`, JSON.stringify(next));
     window.dispatchEvent(new Event('storage'));
+  };
+
+  const toggleEnabled = k => {
+    const next = disabledSections.includes(k)
+      ? disabledSections.filter(f => f !== k)
+      : [...disabledSections, k];
+    setDisabledSections(next);
+    saveDisabledSections(cid, next);
+  };
+
+  const togglePrint = k => {
+    const next = printSections.includes(k)
+      ? printSections.filter(f => f !== k)
+      : [...printSections, k];
+    setPrintSections(next);
+    savePrintSections(cid, next);
   };
 
   // ── Appearance state ──
@@ -165,18 +185,23 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
           {/* ── Pad Order ── */}
           {activeTab === 'Pad Order' && (
             <div className={styles.section}>
-              <div className={styles.sectionHint}>Drag to reorder sections. Toggle to require before finishing.</div>
+              <div className={styles.sectionHint}>Drag to reorder · Enable/Disable sections · Toggle Copy to Pad to include in print</div>
               <div className={styles.sectionTable}>
                 <div className={styles.sectionTableHeader}>
                   <span style={{ flex: 1 }}>SECTION</span>
-                  <span className={styles.sectionTableCol}>MANDATORY</span>
+                  <span className={styles.sectionTableCol} style={{ minWidth: 64, textAlign: 'center' }}>ENABLE</span>
+                  <span className={styles.sectionTableCol} style={{ minWidth: 90, textAlign: 'center' }}>COPY TO PAD</span>
+                  <span className={styles.sectionTableCol} style={{ minWidth: 80, textAlign: 'center' }}>MANDATORY</span>
                 </div>
                 {sectionOrder.map((k, idx) => {
                   const sec = INFERPAD_SECTIONS.find(s => s.key === k);
                   if (!sec) return null;
+                  const enabled = !disabledSections.includes(k);
+                  const inPrint = printSections.includes(k);
                   return (
                     <div key={k} draggable
                       className={`${styles.sectionRow} ${dragOverIdx === idx ? styles.sectionRowOver : ''}`}
+                      style={{ opacity: enabled ? 1 : 0.45 }}
                       onDragStart={() => onDragStart(idx)}
                       onDragEnter={() => onDragEnter(idx)}
                       onDragLeave={onDragLeave}
@@ -188,9 +213,24 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
                       <span className={styles.sectionIcon}>{sec.icon}</span>
                       <span className={styles.sectionLabel}>{sec.label}</span>
                       <span className={styles.sectionPos}>{idx + 1}</span>
-                      <div className={styles.sectionTableCol}>
+                      {/* Enable toggle */}
+                      <div className={styles.sectionTableCol} style={{ minWidth: 64, justifyContent: 'center' }}>
+                        <label className={styles.toggle} title={enabled ? 'Disable section' : 'Enable section'}>
+                          <input type="checkbox" checked={enabled} onChange={() => toggleEnabled(k)} />
+                          <span className={styles.toggleSlider} style={{ background: enabled ? '#22c55e' : undefined }} />
+                        </label>
+                      </div>
+                      {/* Copy to Pad toggle */}
+                      <div className={styles.sectionTableCol} style={{ minWidth: 90, justifyContent: 'center' }}>
+                        <label className={styles.toggle} title={inPrint ? 'Remove from print' : 'Include in print'}>
+                          <input type="checkbox" checked={inPrint} disabled={!enabled} onChange={() => togglePrint(k)} />
+                          <span className={styles.toggleSlider} style={{ background: inPrint && enabled ? '#6366f1' : undefined }} />
+                        </label>
+                      </div>
+                      {/* Mandatory toggle */}
+                      <div className={styles.sectionTableCol} style={{ minWidth: 80, justifyContent: 'center' }}>
                         <label className={styles.toggle}>
-                          <input type="checkbox" checked={mandatoryFields.includes(k)} onChange={() => toggleMandatory(k)} />
+                          <input type="checkbox" checked={mandatoryFields.includes(k)} disabled={!enabled} onChange={() => toggleMandatory(k)} />
                           <span className={styles.toggleSlider} />
                         </label>
                       </div>

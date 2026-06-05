@@ -93,6 +93,36 @@ export function saveSectionOrder(clinicId, order) {
   window.dispatchEvent(new Event('storage'));
 }
 
+// ── Section enabled/disabled ──────────────────────────────────────────────────
+// Default: all enabled. Stores only the disabled ones.
+export function getDisabledSections(clinicId) {
+  try { return JSON.parse(localStorage.getItem(`rx_disabled_sections_${clinicId}`) || '[]'); }
+  catch { return []; }
+}
+export function saveDisabledSections(clinicId, keys) {
+  localStorage.setItem(`rx_disabled_sections_${clinicId}`, JSON.stringify(keys));
+  window.dispatchEvent(new Event('storage'));
+}
+
+// ── Copy-to-pad (print) settings ─────────────────────────────────────────────
+// Stores keys that are enabled for print. Default: core clinical sections.
+const DEFAULT_PRINT_SECTIONS = [
+  'symptoms','diagnosis','medications','lab_investigations','lab_results',
+  'examination_findings','advices','refer_to','follow_up','procedures','injections',
+  'notes',
+];
+export function getPrintSections(clinicId) {
+  try {
+    const stored = localStorage.getItem(`rx_print_sections_${clinicId}`);
+    if (!stored) return DEFAULT_PRINT_SECTIONS;
+    return JSON.parse(stored);
+  } catch { return DEFAULT_PRINT_SECTIONS; }
+}
+export function savePrintSections(clinicId, keys) {
+  localStorage.setItem(`rx_print_sections_${clinicId}`, JSON.stringify(keys));
+  window.dispatchEvent(new Event('storage'));
+}
+
 // All fields that can be made mandatory
 export const MANDATORY_FIELDS = [
   { key: 'growth_chart',         label: 'Growth Chart [WHO/IAP]',hint: 'Growth chart must be viewed before finishing (for patients under 15).' },

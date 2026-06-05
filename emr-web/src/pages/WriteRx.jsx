@@ -20,7 +20,7 @@ import { CALCULATORS } from '../data/calculators';
 import ScribePanel from '../components/ScribePanel';
 import PatientContextPanel from '../components/PatientContextPanel';
 import AssessmentPanel from '../components/AssessmentPanel';
-import { getMandatoryFields, MANDATORY_FIELDS } from './settings/InferPadSettings';
+import { getMandatoryFields, MANDATORY_FIELDS, getPrintSections } from './settings/InferPadSettings';
 import styles from './WriteRx.module.css';
 
 // ── Language picker (bottom bar) ─────────────────────────────────────────────
@@ -233,6 +233,9 @@ function RxInlineRow({ label, value }) {
 function RxDocumentBody({ form, appt, user, rxImages = {} }) {
   const lang = form.rx_language || 'en';
   const t    = getLang(lang);
+  const cid  = user?.clinic_id || 'default';
+  const printSecs = getPrintSections(cid);
+  const inPrint = key => printSecs.includes(key);
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
   const dateStr  = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -286,12 +289,12 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
       <hr className={styles.rxHr} />
 
       <div className={styles.rxBody}>
-        {vitalsStr   && <RxInlineRow label={t.VITALS}   value={vitalsStr} />}
-        {histStr     && <RxInlineRow label={t.HISTORY}  value={histStr} />}
-        {symptomsStr && <RxInlineRow label={t.SYMPTOMS} value={symptomsStr} />}
-        {diagStr     && <RxInlineRow label={t.DIAGNOSIS} value={diagStr} />}
+        {inPrint('vitals')          && vitalsStr   && <RxInlineRow label={t.VITALS}   value={vitalsStr} />}
+        {inPrint('medical_history') && histStr     && <RxInlineRow label={t.HISTORY}  value={histStr} />}
+        {inPrint('symptoms')        && symptomsStr && <RxInlineRow label={t.SYMPTOMS} value={symptomsStr} />}
+        {inPrint('diagnosis')       && diagStr     && <RxInlineRow label={t.DIAGNOSIS} value={diagStr} />}
 
-        {form.medications.length > 0 && (
+        {inPrint('medications') && form.medications.length > 0 && (
           <div className={styles.rxMedSection}>
             <div className={styles.rxPrescriptionHeading}>
               <span className={styles.rxPrescriptionLine} />{t.PRESCRIPTION_HEADING}<span className={styles.rxPrescriptionLine} />
@@ -320,8 +323,8 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
           </div>
         )}
 
-        {labInvLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>{t.LAB_TESTS} :&nbsp;</span><span className={styles.rxInlineValue}>{labInvLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
-        {form.lab_results.length > 0 && (
+        {inPrint('lab_investigations') && labInvLines.length>0 && <div className={styles.rxInlineRow}><span className={styles.rxInlineLabel}>{t.LAB_TESTS} :&nbsp;</span><span className={styles.rxInlineValue}>{labInvLines.map((l,i)=><div key={i}>{l}</div>)}</span></div>}
+        {inPrint('lab_results') && form.lab_results.length > 0 && (
           <div className={styles.rxInlineRow}>
             <span className={styles.rxInlineLabel}>{t.LAB_RESULTS} :&nbsp;</span>
             <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 'inherit', marginTop: 2 }}>
@@ -359,12 +362,12 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
             </table>
           </div>
         )}
-        {form.examination_findings && <RxInlineRow label={t.EXAM_FINDINGS} value={form.examination_findings} />}
-        {form.notes    && <RxInlineRow label={t.NOTES}       value={form.notes} />}
-        {form.advices  && <RxInlineRow label={t.ADVICES}     value={form.advices} />}
-        {form.refer_to && <RxInlineRow label={t.REFERRED_TO} value={form.refer_to} />}
-        {(followupStr||form.next_visit_notes) && <RxInlineRow label={t.FOLLOWUP} value={[followupStr,form.next_visit_notes].filter(Boolean).join(' · ')} />}
-        {proceduresStr && <RxInlineRow label={t.PROCEDURES} value={proceduresStr} />}
+        {inPrint('examination_findings') && form.examination_findings && <RxInlineRow label={t.EXAM_FINDINGS} value={form.examination_findings} />}
+        {inPrint('notes')    && form.notes    && <RxInlineRow label={t.NOTES}       value={form.notes} />}
+        {inPrint('advices')  && form.advices  && <RxInlineRow label={t.ADVICES}     value={form.advices} />}
+        {inPrint('refer_to') && form.refer_to && <RxInlineRow label={t.REFERRED_TO} value={form.refer_to} />}
+        {inPrint('follow_up') && (followupStr||form.next_visit_notes) && <RxInlineRow label={t.FOLLOWUP} value={[followupStr,form.next_visit_notes].filter(Boolean).join(' · ')} />}
+        {inPrint('procedures') && proceduresStr && <RxInlineRow label={t.PROCEDURES} value={proceduresStr} />}
         {(form.custom_sections||[]).filter(s=>s.content).map(s=><RxInlineRow key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}
         {form.vaccinations && Object.keys(form.vaccinations).length > 0 && (() => {
           const groups = { given: [], due: [], missed: [], refused: [] };
