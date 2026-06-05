@@ -206,37 +206,77 @@ function ToothCell({ num, isUpper, surfaces, hasCard, onSelect, onToggleSurface 
 }
 
 // Per-tooth finding card
-function ToothCard({ cardId, toothNum, findings, surfaces, onAddFinding, onDeleteCard, onDeleteFinding }) {
+function ToothCard({ cardId, toothNum, findings, surfaces, onAddFinding, onDeleteCard, onDeleteFinding, onUpdateFinding }) {
   const activeSurfs = SURFACES.filter(s => surfaces?.[s]);
   return (
-    <div style={{ border:'1px solid #d1fae5', borderRadius:10, overflow:'hidden',
-      marginBottom:8, background:'#f0fdf4' }}>
+    <div style={{ border:'1px solid #d1fae5', borderRadius:10, overflow:'hidden', marginBottom:8, background:'#f0fdf4' }}>
+      {/* Header row */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'8px 14px', background:'#dcfce7', borderBottom:'1px solid #bbf7d0' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-          <FlaskConical size={13} color="#16a34a" />
+        padding:'8px 14px', background:'#e8fdf1', borderBottom:'1px solid #bbf7d0' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ color:'#a7f3d0', fontSize:14 }}>⚡</span>
           <span style={{ fontWeight:800, fontSize:13, background:'#22c55e', color:'white',
-            padding:'2px 10px', borderRadius:6 }}>T{toothNum}</span>
-          {activeSurfs.length > 0 && activeSurfs.map(s => (
+            padding:'2px 12px', borderRadius:6 }}>T{toothNum}</span>
+          {activeSurfs.map(s => (
             <span key={s} style={{ fontSize:10, padding:'1px 7px', borderRadius:5, fontWeight:700,
-              background: SC[s]+'22', color:SC[s], border:`1px solid ${SC[s]}55` }}>{s}</span>
-          ))}
-          {findings.map((f, i) => (
-            <span key={i} style={{ fontSize:11, background:'white', color:'#166534',
-              padding:'1px 8px', borderRadius:6, border:'1px solid #bbf7d0',
-              display:'flex', alignItems:'center', gap:4 }}>
-              {f.text}
-              <button onClick={() => onDeleteFinding(cardId, i)}
-                style={{ background:'none', border:'none', cursor:'pointer', color:'#86efac', padding:0, lineHeight:1 }}>×</button>
-            </span>
+              background:SC[s]+'22', color:SC[s], border:`1px solid ${SC[s]}55` }}>{s}</span>
           ))}
         </div>
         <button onClick={() => onDeleteCard(cardId)}
-          style={{ background:'none', border:'none', cursor:'pointer', color:'#86efac', padding:2, flexShrink:0 }}>
+          style={{ background:'none', border:'none', cursor:'pointer', color:'#86efac', padding:2 }}>
           <Trash2 size={14} />
         </button>
       </div>
-      <div style={{ padding:'8px 14px' }}>
+
+      {/* Column headers */}
+      <div style={{ display:'grid', gridTemplateColumns:'2fr 1.5fr 1fr 1.5fr 32px',
+        padding:'5px 14px', background:'#f0fdf4', borderBottom:'1px solid #d1fae5',
+        fontSize:10, fontWeight:700, color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+        <span>Examination Finding / Past Procedure</span>
+        <span>Area</span>
+        <span>Since</span>
+        <span>Additional Notes</span>
+        <span />
+      </div>
+
+      {/* Finding rows */}
+      {findings.map((f, i) => (
+        <div key={i} style={{ display:'grid', gridTemplateColumns:'2fr 1.5fr 1fr 1.5fr 32px',
+          padding:'7px 14px', borderBottom:'1px solid #ecfdf5', alignItems:'center', background:'white' }}>
+          {/* Finding name */}
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <span style={{ color:'#cbd5e1', cursor:'grab', flexShrink:0 }}>≡</span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#dc2626' }}>{f.text}</span>
+          </div>
+          {/* Area */}
+          <select value={f.area||''} onChange={e => onUpdateFinding(cardId, i, 'area', e.target.value)}
+            style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', fontSize:12,
+              outline:'none', color: f.area?'#1e293b':'#94a3b8', width:'90%' }}>
+            <option value="">Select area</option>
+            {SURFACES.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+          {/* Since */}
+          <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+            <input value={f.since||''} onChange={e => onUpdateFinding(cardId, i, 'since', e.target.value)}
+              placeholder="Since 3 Days"
+              style={{ border:'none', outline:'none', fontSize:12, flex:1, background:'transparent' }} />
+            <span style={{ fontSize:11, color:'#94a3b8' }}>📅</span>
+          </div>
+          {/* Notes */}
+          <input value={f.notes||''} onChange={e => onUpdateFinding(cardId, i, 'notes', e.target.value)}
+            placeholder="Add notes here"
+            style={{ border:'none', borderBottom:'1px solid #e2e8f0', padding:'2px 0',
+              fontSize:12, outline:'none', background:'transparent', width:'100%' }} />
+          {/* Delete */}
+          <button onClick={() => onDeleteFinding(cardId, i)}
+            style={{ background:'none', border:'none', cursor:'pointer', color:'#cbd5e1', padding:0 }}>
+            <Trash2 size={13} />
+          </button>
+        </div>
+      ))}
+
+      {/* Search */}
+      <div style={{ padding:'8px 12px', background:'white', borderTop: findings.length ? '1px solid #ecfdf5' : 'none' }}>
         <FindingSearch onAdd={text => onAddFinding(cardId, text)}
           placeholder="Start typing an examination or past procedure…" />
       </div>
@@ -264,8 +304,13 @@ export default function DentalChart({ value, onChange }) {
   };
 
   const deleteCard    = id   => update({ cards: cards.filter(c => c.id !== id) });
-  const addFinding    = (id, text) => update({ cards: cards.map(c => c.id===id ? {...c, findings:[...c.findings,{text}]} : c) });
+  const addFinding    = (id, text) => update({ cards: cards.map(c => c.id===id ? {...c, findings:[...c.findings,{text, area:'', since:'', notes:''}]} : c) });
   const deleteFinding = (id, idx)  => update({ cards: cards.map(c => c.id===id ? {...c, findings:c.findings.filter((_,i)=>i!==idx)} : c) });
+  const updateFinding = (id, idx, field, val) => update({ cards: cards.map(c => {
+    if (c.id !== id) return c;
+    const next = [...c.findings]; next[idx] = {...next[idx], [field]: val};
+    return {...c, findings: next};
+  })});
 
   const toothHasCard = num => cards.some(c => c.toothNum === num);
 
@@ -331,7 +376,7 @@ export default function DentalChart({ value, onChange }) {
       {cards.map(card => (
         <ToothCard key={card.id} cardId={card.id} toothNum={card.toothNum}
           findings={card.findings} surfaces={toothSurfaces[card.toothNum]}
-          onAddFinding={addFinding} onDeleteCard={deleteCard} onDeleteFinding={deleteFinding} />
+          onAddFinding={addFinding} onDeleteCard={deleteCard} onDeleteFinding={deleteFinding} onUpdateFinding={updateFinding} />
       ))}
 
       {/* Dental Procedures table */}
