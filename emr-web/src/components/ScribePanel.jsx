@@ -116,10 +116,10 @@ export default function ScribePanel({
     return () => clearInterval(timerRef.current);
   }, [status]);
 
-  // Auto-collapse live transcript when cleaned transcript appears
+  // Only auto-collapse transcript after recording stops and cleaned text appears
   useEffect(() => {
-    if (cleaned) setShowTranscript(false);
-  }, [cleaned]);
+    if (cleaned && status !== 'recording') setShowTranscript(false);
+  }, [cleaned, status]);
 
   useEffect(() => {
     api.get('/scribe/templates')
@@ -473,7 +473,9 @@ export default function ScribePanel({
               )}
             </div>
             <div className={styles.transcriptBox} ref={txAreaRef}>
-              {transcript || <span className={styles.placeholder}>Transcript will appear here as you speak…</span>}
+              {transcript
+                ? <>{transcript}{status === 'recording' && <span className={styles.listeningDots}><span>.</span><span>.</span><span>.</span></span>}</>
+                : <span className={styles.placeholder}>Transcript will appear here as you speak…</span>}
             </div>
           </div>
         </div>
