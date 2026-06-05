@@ -199,7 +199,11 @@ export default function ScribePanel({
       const specialization = user?.specialization || '';
       const data = await api.post('/scribe/soap', { transcript: tx, context: { ...context, specialization }, focusPrompt });
       setCleaned(data.cleaned || '');
-      setSoap(data.soap || data);
+      const rawSoap = data.soap || data;
+      const cleanSoap = Object.fromEntries(
+        Object.entries(rawSoap).map(([k, v]) => [k, (v === 'null' || v === 'undefined' || v === '') ? null : v])
+      );
+      setSoap(cleanSoap);
       setStatus('done');
     } catch (err) {
       setErrMsg('SOAP extraction failed: ' + err.message);
