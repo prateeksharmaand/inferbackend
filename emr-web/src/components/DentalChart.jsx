@@ -1,6 +1,64 @@
 import { useState, useRef, useEffect } from 'react';
 import { Trash2, Search, FlaskConical } from 'lucide-react';
 
+const ALL_TEETH = [
+  ...Array.from({length:8},(_,i)=>18-i),   // 18-11
+  ...Array.from({length:8},(_,i)=>21+i),   // 21-28
+  ...Array.from({length:8},(_,i)=>31+i),   // 31-38
+  ...Array.from({length:8},(_,i)=>48-i),   // 48-41
+];
+
+function ToothSelect({ value, onChange, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value || '');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    setQuery(value || '');
+  }, [value]);
+
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const filtered = query
+    ? ALL_TEETH.filter(n => String(n).includes(query))
+    : ALL_TEETH;
+
+  const select = n => { onChange(String(n)); setQuery(String(n)); setOpen(false); };
+
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+      <input value={query}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder || 'Select teeth'}
+        style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: '4px 8px',
+          fontSize: 12, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+      {open && filtered.length > 0 && (
+        <div style={{ position: 'fixed', zIndex: 9999, background: 'white',
+          border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 8px 24px #0002',
+          display: 'flex', flexWrap: 'wrap', gap: 4, padding: 8, maxWidth: 260,
+          top: ref.current ? ref.current.getBoundingClientRect().bottom + 4 : 0,
+          left: ref.current ? ref.current.getBoundingClientRect().left : 0,
+        }}>
+          {filtered.map(n => (
+            <span key={n} onMouseDown={e => { e.preventDefault(); select(n); }}
+              style={{ padding: '3px 8px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                fontWeight: 600, background: String(n) === value ? '#22c55e' : '#f1f5f9',
+                color: String(n) === value ? 'white' : '#334155',
+                border: `1px solid ${String(n) === value ? '#22c55e' : '#e2e8f0'}` }}>
+              {n}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SINCE_UNITS = ['day', 'week', 'month', 'year'];
 const SINCE_PRESETS = ['1 day', '2 days', '3 days', '1 week', '2 weeks', '1 month', '3 months', '6 months', '1 year'];
 
@@ -462,11 +520,10 @@ export default function DentalChart({ value, onChange }) {
               <span style={{ fontSize:13, fontWeight:700, color:'#1e293b' }}>{p.name || p}</span>
             </div>
             {/* Tooth */}
-            <input value={p.tooth || ''} onChange={e => {
-              const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), tooth:e.target.value};
+            <ToothSelect value={p.tooth || ''} onChange={v => {
+              const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), tooth:v};
               update({dental_procedures:next});
-            }} placeholder="Select teeth"
-              style={{ border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 8px', fontSize:12, outline:'none', width:'90%' }} />
+            }} />
             {/* Area */}
             <select value={p.area||''} onChange={e => {
               const next=[...dentalProcs]; next[i]={...(typeof p==='string'?{name:p}:p), area:e.target.value};
