@@ -213,12 +213,12 @@ const deleteFoodGroup = async (req, res) => {
 
 const axios = require('axios');
 
-const GEMINI_AI_MODEL = 'gemini-2.5-flash';
-const GEMINI_BASE  = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_AI_MODEL}:generateContent`;
+const GROQ_MODEL    = 'llama-3.3-70b-versatile';
+const GROQ_BASE     = 'https://api.groq.com/openai/v1/chat/completions';
 
 const generateAIMealPlan = async (req, res) => {
-  const GEMINI_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
+  const GROQ_KEY = process.env.GROQ_API_KEY;
+  if (!GROQ_KEY) return res.status(500).json({ error: 'GROQ_API_KEY not set' });
 
   const {
     preference = 'vegetarian',
@@ -277,16 +277,18 @@ Fill ALL meals with appropriate Indian foods for the patient's conditions. Repla
 
   try {
     const body = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 8192,
-      },
+      model: GROQ_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.1,
+      max_tokens: 8192,
     };
-    const geminiRes = await axios.post(`${GEMINI_BASE}?key=${GEMINI_KEY}`, body, { timeout: 60_000 });
-    const raw = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+    const groqRes = await axios.post(GROQ_BASE, body, {
+      headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
+      timeout: 60_000,
+    });
+    const raw = groqRes.data?.choices?.[0]?.message?.content || '[]';
 
-    console.log('[diet] raw gemini response (first 800):', raw.slice(0, 800));
+    console.log('[diet] raw groq response (first 800):', raw.slice(0, 800));
 
     // Extract JSON regardless of preamble/fences
     function extractJSON(text) {
@@ -340,7 +342,7 @@ Fill ALL meals with appropriate Indian foods for the patient's conditions. Repla
   } catch (err) {
     const status = err.response?.status;
     const detail = err.response?.data || err.message;
-    console.error('[diet] AI meal plan failed — status:', status, '| detail:', JSON.stringify(detail));
+    console.error('[diet] Groq meal plan failed — status:', status, '| detail:', JSON.stringify(detail));
     res.status(502).json({ error: 'AI meal plan generation failed', detail, status });
   }
 };
