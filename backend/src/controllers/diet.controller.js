@@ -242,7 +242,7 @@ const generateAIMealPlan = async (req, res) => {
     : preference === 'eggetarian' ? 'vegetarian + eggs OK — NO meat or fish'
     : 'non-vegetarian — include chicken/fish/eggs, NO beef/pork';
 
-  const numDays = 1; // keep to 1 day to stay within token budget; doctors can duplicate
+  const numDays = Math.min(Math.max(parseInt(days) || 1, 1), 14);
 
   const prompt = `You are a clinical dietitian creating an Indian diet plan.
 
@@ -280,7 +280,7 @@ Fill ALL meals with appropriate Indian foods for the patient's conditions. Repla
       model: GROQ_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.1,
-      max_tokens: 8192,
+      max_tokens: Math.min(8192, 1500 + numDays * 1200),
     };
     const groqRes = await axios.post(GROQ_BASE, body, {
       headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
