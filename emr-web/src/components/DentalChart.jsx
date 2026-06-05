@@ -293,9 +293,13 @@ export default function DentalChart({ value, onChange }) {
 
   const update = patch => onChange({ ...data, ...patch });
 
+  // Track last clicked surface per tooth num so new findings auto-fill area
+  const [lastSurface, setLastSurface] = useState({});
+
   const toggleSurface = (num, surface) => {
     const cur = toothSurfaces[num] || {};
     update({ tooth_surfaces: { ...toothSurfaces, [num]: { ...cur, [surface]: !cur[surface] } } });
+    setLastSurface(prev => ({ ...prev, [num]: surface }));
   };
 
   const openCard = num => {
@@ -303,8 +307,12 @@ export default function DentalChart({ value, onChange }) {
     update({ cards: [...cards, { id: Date.now(), toothNum: num, findings: [] }] });
   };
 
-  const deleteCard    = id   => update({ cards: cards.filter(c => c.id !== id) });
-  const addFinding    = (id, text) => update({ cards: cards.map(c => c.id===id ? {...c, findings:[...c.findings,{text, area:'', since:'', notes:''}]} : c) });
+  const deleteCard = id => update({ cards: cards.filter(c => c.id !== id) });
+  const addFinding = (id, text) => {
+    const card = cards.find(c => c.id === id);
+    const area = card ? (lastSurface[card.toothNum] || '') : '';
+    update({ cards: cards.map(c => c.id===id ? {...c, findings:[...c.findings,{text, area, since:'', notes:''}]} : c) });
+  };
   const deleteFinding = (id, idx)  => update({ cards: cards.map(c => c.id===id ? {...c, findings:c.findings.filter((_,i)=>i!==idx)} : c) });
   const updateFinding = (id, idx, field, val) => update({ cards: cards.map(c => {
     if (c.id !== id) return c;
