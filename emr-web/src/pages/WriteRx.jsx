@@ -409,6 +409,58 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
             </div>
           );
         })()}
+        {/* Injections */}
+        {inPrint('injections') && (form.injections||[]).length > 0 && (
+          <div className={styles.rxInlineRow}>
+            <span className={styles.rxInlineLabel}>INJECTIONS :&nbsp;</span>
+            <span className={styles.rxInlineValue}>
+              {(form.injections||[]).map((inj,i) => [
+                inj.name, inj.dose, inj.route, inj.frequency
+              ].filter(Boolean).join(' · ')).join('; ')}
+            </span>
+          </div>
+        )}
+
+        {/* Ophthalmology sections */}
+        {(() => {
+          const o = form.ophtho || {};
+          const hasVal = (...keys) => keys.some(k => o[k]);
+          const eyeRow = (prefix, fields) => {
+            const re = fields.map(f => o[`${prefix}_RE_${f}`]).filter(Boolean).join(' / ');
+            const le = fields.map(f => o[`${prefix}_LE_${f}`]).filter(Boolean).join(' / ');
+            return [re && `RE: ${re}`, le && `LE: ${le}`].filter(Boolean).join('  |  ');
+          };
+          const sections = [
+            { key:'ophtho_visual_acuity',    label:'VISUAL ACUITY',
+              val: [
+                hasVal('va_wog_RE_Distance','va_wog_LE_Distance') && `W/O Glasses: ${eyeRow('va_wog',['Distance','Near'])}`,
+                hasVal('va_wg_RE_Distance','va_wg_LE_Distance')   && `W/ Glasses: ${eyeRow('va_wg',['Distance','Near'])}`,
+                hasVal('va_ph_RE_Distance','va_ph_LE_Distance')   && `Pinhole: ${eyeRow('va_ph',['Distance','Near'])}`,
+              ].filter(Boolean).join('  ') },
+            { key:'ophtho_subj_refraction',  label:'SUBJECTIVE REFRACTION',  val: eyeRow('subj',['SPH','CYL','AXIS','VA']) },
+            { key:'ophtho_auto_refraction',  label:'AUTO REFRACTION',         val: eyeRow('auto',['SPH','CYL','AXIS']) },
+            { key:'ophtho_current_glass',    label:'CURRENT GLASS Rx',        val: eyeRow('cur_glass',['SPH','CYL','AXIS','ADD','VA']) },
+            { key:'ophtho_final_glass',      label:'FINAL GLASS Rx',          val: [eyeRow('fin_glass',['SPH','CYL','AXIS','ADD','VA']), o.fin_glass_notes].filter(Boolean).join('  ') },
+            { key:'ophtho_iop',              label:'IOP',                     val: eyeRow('iop',['IOP (mmHg)','Method','Time']) },
+            { key:'ophtho_lacrimal',         label:'LACRIMAL SYRINGING',      val: [eyeRow('lacrimal',['Result','Patent']), o.lacrimal_notes].filter(Boolean).join('  ') },
+            { key:'ophtho_color_vision',     label:'COLOR VISION',            val: eyeRow('color_vision',['Plates Seen','Result']) },
+            { key:'ophtho_pmt',              label:'PMT',                     val: eyeRow('pmt',['Result','Notes']) },
+            { key:'ophtho_k_reading',        label:'K READING / BIOMETRY',    val: [eyeRow('kread',['K1','K2','Axis','Avg']), eyeRow('biom',['Axial Length','ACD','WTW'])].filter(Boolean).join('  ') },
+            { key:'ophtho_eye_exam',         label:'EYE EXAMINATION',
+              val: ['lids','conjunctiva','cornea','ac','iris','lens','vitreous','fundus','motility']
+                .map(f => { const re=o[`eye_${f}_RE`], le=o[`eye_${f}_LE`]; return (re||le) ? `${f.toUpperCase()}: RE: ${re||'—'} LE: ${le||'—'}` : null; })
+                .filter(Boolean).join('  ') },
+            { key:'ophtho_pachymetry',       label:'PACHYMETRY',              val: eyeRow('pachy',['Central','Thinnest','Location']) },
+            { key:'ophtho_amsler',           label:'AMSLER GRID',             val: eyeRow('amsler',['Result','Distortion','Scotoma']) },
+            { key:'ophtho_contact_lens',     label:'CONTACT LENS',            val: [eyeRow('cl',['SPH','CYL','AXIS','BC','DIA','Brand']), o.cl_notes].filter(Boolean).join('  ') },
+          ];
+          return sections.map(sec =>
+            inPrint(sec.key) && sec.val
+              ? <RxInlineRow key={sec.key} label={sec.label} value={sec.val} />
+              : null
+          );
+        })()}
+
         {(form.custom_sections||[]).filter(s=>s.content).map(s=><RxInlineRow key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}
         {form.vaccinations && Object.keys(form.vaccinations).length > 0 && (() => {
           const groups = { given: [], due: [], missed: [], refused: [] };

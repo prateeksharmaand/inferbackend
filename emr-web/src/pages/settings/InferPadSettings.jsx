@@ -110,6 +110,10 @@ const DEFAULT_PRINT_SECTIONS = [
   'symptoms','diagnosis','medications','lab_investigations','lab_results',
   'examination_findings','advices','refer_to','follow_up','procedures','injections',
   'notes','dental_chart',
+  'ophtho_visual_acuity','ophtho_subj_refraction','ophtho_auto_refraction',
+  'ophtho_current_glass','ophtho_final_glass','ophtho_iop','ophtho_lacrimal',
+  'ophtho_color_vision','ophtho_pmt','ophtho_k_reading','ophtho_eye_exam',
+  'ophtho_pachymetry','ophtho_amsler','ophtho_contact_lens',
 ];
 export function getPrintSections(clinicId) {
   try {
