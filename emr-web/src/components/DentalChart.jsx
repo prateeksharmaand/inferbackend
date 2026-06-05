@@ -41,15 +41,22 @@ function SuggestionItem({ text, color, onClick }) {
 }
 
 function FindingSearch({ onAdd, placeholder }) {
-  const [query, setQuery] = useState('');
-  const [open,  setOpen]  = useState(false);
-  const ref = useRef(null);
+  const [query,  setQuery]  = useState('');
+  const [open,   setOpen]   = useState(false);
+  const [rect,   setRect]   = useState(null);
+  const ref    = useRef(null);
+  const wrapRef = useRef(null);
 
   useEffect(() => {
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const h = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
+
+  const openDropdown = () => {
+    if (ref.current) setRect(ref.current.getBoundingClientRect());
+    setOpen(true);
+  };
 
   const q = query.toLowerCase();
   const exams = EXAMINATIONS.filter(e => !q || e.toLowerCase().includes(q));
@@ -57,21 +64,26 @@ function FindingSearch({ onAdd, placeholder }) {
   const select = text => { onAdd(text); setQuery(''); setOpen(false); };
 
   return (
-    <div ref={ref} style={{ position:'relative' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px',
+    <div ref={wrapRef}>
+      <div ref={ref} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px',
         border:'1px solid #e2e8f0', borderRadius:8, background:'white' }}>
         <Search size={12} color="#94a3b8" />
-        <input value={query} onChange={e => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
+        <input value={query} onChange={e => { setQuery(e.target.value); openDropdown(); }}
+          onFocus={openDropdown}
           onKeyDown={e => e.key==='Enter' && query.trim() && select(query.trim())}
           placeholder={placeholder || 'Start typing an examination or past procedure…'}
           style={{ border:'none', outline:'none', fontSize:12, flex:1, background:'transparent' }} />
       </div>
-      {open && (exams.length > 0 || procs.length > 0) && (
-        <div style={{ position:'absolute', left:0, right:0, top:'100%', marginTop:4,
+      {open && rect && (exams.length > 0 || procs.length > 0) && (
+        <div style={{
+          position:'fixed',
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: Math.max(rect.width, 520),
           background:'white', border:'1px solid #e2e8f0', borderRadius:10,
-          boxShadow:'0 8px 32px #0003', zIndex:500,
-          display:'grid', gridTemplateColumns:'1fr 1fr', maxHeight:300, overflowY:'auto' }}>
+          boxShadow:'0 8px 32px #0003', zIndex:9999,
+          display:'grid', gridTemplateColumns:'1fr 1fr', maxHeight:300, overflowY:'auto',
+        }}>
           <div>
             <div style={{ padding:'5px 12px', fontSize:10, fontWeight:800, color:'white',
               background:'#22c55e', textTransform:'uppercase', letterSpacing:'0.07em',
