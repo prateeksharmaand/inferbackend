@@ -751,7 +751,7 @@ function DietChartEditor({ chart: initialChart, patientMobile, doctorId, onSave,
   const [showTemplate, setShowTemplate] = useState(false);
   const [saving, setSaving]         = useState(false);
 
-  const totals = calcNutrition(chart.day_plans);
+  const totals = calcNutrition([chart.day_plans[activeDay] || chart.day_plans[0]]);
   const targets = chart.nutrition_targets || {};
 
   function setField(k, v) { setChart(c => ({ ...c, [k]: v })); }
