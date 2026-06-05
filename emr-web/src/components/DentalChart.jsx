@@ -103,33 +103,29 @@ function FindingSearch({ onAdd, placeholder }) {
 }
 
 // 5-zone SVG odontogram
-function Odontogram({ surfaces, onToggle, num }) {
+function Odontogram({ surfaces, onToggle, onSelect, num }) {
   const sz = 34, cx = 17, cy = 17, r = 14;
   const stop = e => e.stopPropagation();
   const act = surfaces || {};
+  const hit = (e, surface) => { stop(e); onToggle(num, surface); onSelect(num); };
   return (
     <svg width={sz} height={sz} style={{ display:'block', cursor:'pointer', flexShrink:0 }}>
       <circle cx={cx} cy={cy} r={r} fill="#f8fafc" stroke="#e2e8f0" strokeWidth="1" />
-      {/* Buccal top */}
       <polygon points={`${cx},${cy} ${cx-r*0.6},${cy-r} ${cx+r*0.6},${cy-r}`}
         fill={act.Buccal ? SC.Buccal : 'transparent'} stroke={act.Buccal ? SC.Buccal : '#e2e8f0'} strokeWidth="0.5"
-        onClick={e => { stop(e); onToggle(num,'Buccal'); }}><title>Buccal</title></polygon>
-      {/* Lingual bottom */}
+        onClick={e => hit(e,'Buccal')}><title>Buccal</title></polygon>
       <polygon points={`${cx},${cy} ${cx-r*0.6},${cy+r} ${cx+r*0.6},${cy+r}`}
         fill={act.Lingual ? SC.Lingual : 'transparent'} stroke={act.Lingual ? SC.Lingual : '#e2e8f0'} strokeWidth="0.5"
-        onClick={e => { stop(e); onToggle(num,'Lingual'); }}><title>Lingual</title></polygon>
-      {/* Mesial left */}
+        onClick={e => hit(e,'Lingual')}><title>Lingual</title></polygon>
       <polygon points={`${cx},${cy} ${cx-r},${cy-r*0.6} ${cx-r},${cy+r*0.6}`}
         fill={act.Mesial ? SC.Mesial : 'transparent'} stroke={act.Mesial ? SC.Mesial : '#e2e8f0'} strokeWidth="0.5"
-        onClick={e => { stop(e); onToggle(num,'Mesial'); }}><title>Mesial</title></polygon>
-      {/* Distal right */}
+        onClick={e => hit(e,'Mesial')}><title>Mesial</title></polygon>
       <polygon points={`${cx},${cy} ${cx+r},${cy-r*0.6} ${cx+r},${cy+r*0.6}`}
         fill={act.Distal ? SC.Distal : 'transparent'} stroke={act.Distal ? SC.Distal : '#e2e8f0'} strokeWidth="0.5"
-        onClick={e => { stop(e); onToggle(num,'Distal'); }}><title>Distal</title></polygon>
-      {/* Occlusal centre */}
+        onClick={e => hit(e,'Distal')}><title>Distal</title></polygon>
       <circle cx={cx} cy={cy} r={r*0.36}
         fill={act.Occlusal ? SC.Occlusal : '#f1f5f9'} stroke={act.Occlusal ? '#059669':'#cbd5e1'} strokeWidth="1"
-        onClick={e => { stop(e); onToggle(num,'Occlusal'); }}><title>Occlusal</title></circle>
+        onClick={e => hit(e,'Occlusal')}><title>Occlusal</title></circle>
       <line x1={cx} y1={3} x2={cx} y2={sz-3} stroke="#e2e8f0" strokeWidth="0.5" />
       <line x1={3} y1={cy} x2={sz-3} y2={cy} stroke="#e2e8f0" strokeWidth="0.5" />
     </svg>
@@ -143,7 +139,7 @@ function ToothCell({ num, isUpper, surfaces, hasCard, onSelect, onToggleSurface 
   const stop = e => e.stopPropagation();
 
   const rootEl = (
-    <div title="Root" onClick={e => { stop(e); onToggleSurface(num,'Root'); }}
+    <div title="Root" onClick={e => { stop(e); onToggleSurface(num,'Root'); onSelect(num); }}
       style={{ width:10, height:14, borderRadius: isUpper ? '0 0 5px 5px' : '5px 5px 0 0',
         background: act.Root ? SC.Root : '#e2e8f0',
         border:`1px solid ${act.Root ? '#475569':'#cbd5e1'}`,
@@ -151,7 +147,7 @@ function ToothCell({ num, isUpper, surfaces, hasCard, onSelect, onToggleSurface 
   );
 
   const cervEl = (
-    <div title="Cervical" onClick={e => { stop(e); onToggleSurface(num,'Cervical'); }}
+    <div title="Cervical" onClick={e => { stop(e); onToggleSurface(num,'Cervical'); onSelect(num); }}
       style={{ width:34, height:5, borderRadius:3,
         background: act.Cervical ? SC.Cervical : '#e2e8f0',
         border:`1px solid ${act.Cervical ? '#be185d':'#cbd5e1'}`,
@@ -170,7 +166,7 @@ function ToothCell({ num, isUpper, surfaces, hasCard, onSelect, onToggleSurface 
     </div>
   );
 
-  const odoEl = <Odontogram surfaces={act} onToggle={onToggleSurface} num={num} />;
+  const odoEl = <Odontogram surfaces={act} onToggle={onToggleSurface} onSelect={onSelect} num={num} />;
 
   const numEl = (
     <span onClick={() => onSelect(num)} style={{
