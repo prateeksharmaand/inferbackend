@@ -548,6 +548,51 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
       { name: 'Ondansetron', dose: '4mg', route: 'IV', frequency: 'SOS' },
     ]);
     set('notes', 'Patient is allergic to Penicillin. Advised COVID test if fever persists beyond 5 days.');
+    // Ophthalmology sample data
+    set('ophtho', {
+      // Visual Acuity
+      va_wog_RE_Distance: '6/18', va_wog_RE_Near: 'N10',
+      va_wog_LE_Distance: '6/12', va_wog_LE_Near: 'N8',
+      va_wg_RE_Distance:  '6/6',  va_wg_RE_Near:  'N6',
+      va_wg_LE_Distance:  '6/6',  va_wg_LE_Near:  'N6',
+      // Subjective Refraction
+      subj_RE_SPH: '-1.50', subj_RE_CYL: '-0.75', subj_RE_AXIS: '180', subj_RE_VA: '6/6',
+      subj_LE_SPH: '-1.00', subj_LE_CYL: '-0.50', subj_LE_AXIS: '175', subj_LE_VA: '6/6',
+      // Auto Refraction
+      auto_RE_SPH: '-1.75', auto_RE_CYL: '-0.75', auto_RE_AXIS: '180',
+      auto_LE_SPH: '-1.25', auto_LE_CYL: '-0.50', auto_LE_AXIS: '170',
+      // Current Glass
+      cur_glass_RE_SPH: '-1.00', cur_glass_RE_CYL: '-0.50', cur_glass_RE_AXIS: '180', cur_glass_RE_ADD: '+2.00', cur_glass_RE_VA: '6/9',
+      cur_glass_LE_SPH: '-0.75', cur_glass_LE_CYL: '-0.25', cur_glass_LE_AXIS: '175', cur_glass_LE_ADD: '+2.00', cur_glass_LE_VA: '6/9',
+      // Final Glass
+      fin_glass_RE_SPH: '-1.50', fin_glass_RE_CYL: '-0.75', fin_glass_RE_AXIS: '180', fin_glass_RE_ADD: '+2.25', fin_glass_RE_VA: '6/6',
+      fin_glass_LE_SPH: '-1.00', fin_glass_LE_CYL: '-0.50', fin_glass_LE_AXIS: '175', fin_glass_LE_ADD: '+2.25', fin_glass_LE_VA: '6/6',
+      fin_glass_notes: 'Anti-glare coating recommended. Bifocal lens.',
+      // IOP
+      'iop_RE_IOP (mmHg)': '14', iop_RE_Method: 'NCT', iop_RE_Time: '10:00 AM',
+      'iop_LE_IOP (mmHg)': '16', iop_LE_Method: 'NCT', iop_LE_Time: '10:00 AM',
+      // Color Vision
+      'color_vision_RE_Plates Seen': '14/14', color_vision_RE_Result: 'Normal',
+      'color_vision_LE_Plates Seen': '14/14', color_vision_LE_Result: 'Normal',
+      // Eye Examination
+      eye_lids_RE: 'Normal', eye_lids_LE: 'Normal',
+      eye_conjunctiva_RE: 'Clear', eye_conjunctiva_LE: 'Clear',
+      eye_cornea_RE: 'Clear', eye_cornea_LE: 'Clear',
+      eye_ac_RE: 'Deep & quiet', eye_ac_LE: 'Deep & quiet',
+      eye_iris_RE: 'Normal', eye_iris_LE: 'Normal',
+      eye_lens_RE: 'Clear', eye_lens_LE: 'Early NS Grade 1',
+      eye_vitreous_RE: 'Clear', eye_vitreous_LE: 'Clear',
+      eye_fundus_RE: 'DDDR, Macula normal', eye_fundus_LE: 'DDDR, Macula normal',
+      eye_motility_RE: 'Full', eye_motility_LE: 'Full',
+      // Pachymetry
+      pachy_RE_Central: '520', pachy_RE_Thinnest: '515', pachy_RE_Location: 'Central',
+      pachy_LE_Central: '525', pachy_LE_Thinnest: '518', pachy_LE_Location: 'Central',
+      // K Reading
+      kread_RE_K1: '43.50 @ 180', kread_RE_K2: '44.00 @ 90', kread_RE_Avg: '43.75',
+      kread_LE_K1: '43.25 @ 180', kread_LE_K2: '43.75 @ 90', kread_LE_Avg: '43.50',
+      'biom_RE_Axial Length': '23.45', biom_RE_ACD: '3.12', biom_RE_WTW: '11.8',
+      'biom_LE_Axial Length': '23.38', biom_LE_ACD: '3.10', biom_LE_WTW: '11.7',
+    });
   };
 
   return (

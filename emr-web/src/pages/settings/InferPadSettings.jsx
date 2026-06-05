@@ -119,7 +119,10 @@ export function getPrintSections(clinicId) {
   try {
     const stored = localStorage.getItem(`rx_print_sections_${clinicId}`);
     if (!stored) return DEFAULT_PRINT_SECTIONS;
-    return JSON.parse(stored);
+    const saved = JSON.parse(stored);
+    // Merge: include any new default keys not yet in saved list
+    const merged = [...saved, ...DEFAULT_PRINT_SECTIONS.filter(k => !saved.includes(k))];
+    return merged;
   } catch { return DEFAULT_PRINT_SECTIONS; }
 }
 export function savePrintSections(clinicId, keys) {
