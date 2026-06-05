@@ -1196,25 +1196,37 @@ export default function WriteRx() {
                 <div className={styles.summaryCardHeader}>
                   <span className={styles.summaryCardTitle}>Lab Results</span>
                 </div>
-                {form.lab_results.length === 0 ? (
+                {form.lab_results.length === 0 && labReports.length === 0 ? (
                   <div className={styles.summaryEmptyState}>
                     <span className={styles.summaryEmptyIcon}>🧪</span>
                     <span className={styles.summaryEmptyText}>No Lab Results Added!</span>
                   </div>
                 ) : (
-                  <div className={styles.labResultsTable}>
-                    <div className={styles.labResultsHead}>
-                      <span>Test Name</span><span>Result</span><span>Unit</span><span>Normal Range</span>
-                    </div>
-                    {form.lab_results.map((r, i) => (
-                      <div key={i} className={styles.labResultsRowDisplay}>
-                        <span>{r.test || '—'}</span>
-                        <span className={r.result ? styles.labResultValueFilled : ''}>{r.result || '—'}</span>
-                        <span>{r.unit || '—'}</span>
-                        <span>{r.range || '—'}</span>
+                  <>
+                    {form.lab_results.length > 0 && (
+                      <div className={styles.labResultsTable}>
+                        <div className={styles.labResultsHead}>
+                          <span>Test Name</span><span>Result</span><span>Unit</span><span>Normal Range</span>
+                        </div>
+                        {form.lab_results.map((r, i) => (
+                          <div key={i} className={styles.labResultsRowDisplay}>
+                            <span>{r.test || '—'}</span>
+                            <span className={r.result ? styles.labResultValueFilled : ''}>{r.result || '—'}</span>
+                            <span>{r.unit || '—'}</span>
+                            <span>{r.range || '—'}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                    {labReports.length > 0 && (
+                      <div style={{ padding: '0 4px' }}>
+                        {form.lab_results.length > 0 && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '10px 0 6px' }}>Lab Reports</div>
+                        )}
+                        <LabTestsTab reports={labReports} loading={labLoading} />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
