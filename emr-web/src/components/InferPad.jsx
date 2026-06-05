@@ -8,6 +8,7 @@ import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
 import { getSectionOrder, getICD10Settings } from '../pages/settings/InferPadSettings';
 import GrowthChart from './GrowthChart';
 import s2 from './GrowthChart.module.css';
+import DentalChart from './DentalChart';
 
 const NLM = 'https://clinicaltables.nlm.nih.gov/api';
 
@@ -767,7 +768,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         );
         if (key === 'dental_chart') return (
           <ICard key="dental_chart" title="Dental Chart" icon="🦷" color="#0e7490">
-            <textarea rows={4} placeholder="Dental observations, tooth-wise findings, treatment plan…" value={form.dental_chart || ''} onChange={e => set('dental_chart', e.target.value)} />
+            <DentalChart value={form.dental_chart || {}} onChange={v => set('dental_chart', v)} />
           </ICard>
         );
         if (key === 'ophtho_visual_acuity') return (
