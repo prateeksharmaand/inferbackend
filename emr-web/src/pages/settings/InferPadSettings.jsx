@@ -59,6 +59,22 @@ export const INFERPAD_SECTIONS = [
   { key: 'follow_up',            label: 'Follow Up',             icon: '📅' },
   { key: 'advices',              label: 'Advices',               icon: '💡' },
   { key: 'procedures',           label: 'Procedures',            icon: '⚕️' },
+  { key: 'injections',           label: 'Injections',            icon: '💉' },
+  { key: 'dental_chart',         label: 'Dental Chart',          icon: '🦷' },
+  { key: 'ophtho_visual_acuity', label: 'Ophthalmology - Visual Acuity Test',          icon: '👁️' },
+  { key: 'ophtho_subj_refraction',label: 'Ophthalmology - Subjective Refraction',     icon: '👁️' },
+  { key: 'ophtho_auto_refraction',label: 'Ophthalmology - Auto Refraction',           icon: '👁️' },
+  { key: 'ophtho_current_glass', label: 'Ophthalmology - Current Glass Prescription', icon: '👓' },
+  { key: 'ophtho_final_glass',   label: 'Ophthalmology - Final Glass Prescription',   icon: '👓' },
+  { key: 'ophtho_iop',           label: 'Ophthalmology - IOP',                        icon: '👁️' },
+  { key: 'ophtho_lacrimal',      label: 'Ophthalmology - Lacrimal Syringing',         icon: '👁️' },
+  { key: 'ophtho_color_vision',  label: 'Ophthalmology - Color Vision',               icon: '👁️' },
+  { key: 'ophtho_pmt',           label: 'Ophthalmology - PMT',                        icon: '👁️' },
+  { key: 'ophtho_k_reading',     label: 'Ophthalmology - K Reading / Biometry',       icon: '👁️' },
+  { key: 'ophtho_eye_exam',      label: 'Ophthalmology - Eye Examination / Motility', icon: '👁️' },
+  { key: 'ophtho_pachymetry',    label: 'Ophthalmology - Pachymetry',                 icon: '👁️' },
+  { key: 'ophtho_amsler',        label: 'Ophthalmology - Amsler Grid',                icon: '👁️' },
+  { key: 'ophtho_contact_lens',  label: 'Ophthalmology - Contact Lens',               icon: '👁️' },
 ];
 
 export function getSectionOrder(clinicId) {
