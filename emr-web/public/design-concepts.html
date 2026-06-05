@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EMR Design Concepts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; }
+
+  /* ── Nav ── */
+  .top-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: white; border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 8px; padding: 12px 24px;
+    box-shadow: 0 1px 8px #0001;
+  }
+  .top-nav h1 { font-size: 16px; font-weight: 800; color: #0f172a; flex: 1; }
+  .nav-btn {
+    padding: 6px 16px; border-radius: 8px; border: 1px solid #e2e8f0;
+    background: white; font-size: 12px; font-weight: 600; cursor: pointer; color: #334155;
+    transition: all 0.15s;
+  }
+  .nav-btn:hover, .nav-btn.active { background: #6366f1; color: white; border-color: #6366f1; }
+
+  /* ── Section headings ── */
+  .concept-header {
+    padding: 32px 24px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .concept-badge {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: white; flex-shrink: 0;
+  }
+  .concept-title { font-size: 20px; font-weight: 800; color: #0f172a; }
+  .concept-sub { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+  .concept-section { display: none; }
+  .concept-section.active { display: block; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     CONCEPT A — ICU Console (Dark)
+  ═══════════════════════════════════════════════════════════════ */
+  .a-wrap {
+    background: #0d1117; min-height: 100vh; color: white;
+    display: grid; grid-template-columns: 240px 1fr 280px; gap: 0;
+  }
+  .a-sidebar {
+    background: #161b22; border-right: 1px solid #21262d;
+    padding: 0;
+  }
+  .a-logo {
+    padding: 16px; border-bottom: 1px solid #21262d;
+    font-size: 18px; font-weight: 800; color: #58a6ff;
+    letter-spacing: -0.5px;
+  }
+  .a-search {
+    margin: 12px; padding: 8px 12px;
+    background: #21262d; border: 1px solid #30363d; border-radius: 8px;
+    color: #8b949e; font-size: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .a-patient-item {
+    padding: 12px 16px; border-left: 3px solid transparent;
+    cursor: pointer; transition: all 0.1s;
+  }
+  .a-patient-item.active { background: #1c2128; border-left-color: #58a6ff; }
+  .a-patient-item:hover { background: #1c2128; }
+  .a-pt-name { font-size: 13px; font-weight: 600; color: #e6edf3; }
+  .a-pt-meta { font-size: 11px; color: #8b949e; margin-top: 2px; }
+  .a-pt-badge {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    font-size: 10px; font-weight: 700; margin-top: 4px;
+  }
+  .a-badge-urgent { background: #ff000022; color: #ff7b72; border: 1px solid #ff7b7244; }
+  .a-badge-ok { background: #23863622; color: #3fb950; border: 1px solid #3fb95044; }
+  .a-badge-wait { background: #bb800022; color: #f0883e; border: 1px solid #f0883e44; }
+
+  .a-main { padding: 0; overflow: auto; }
+  .a-patient-header {
+    padding: 16px 20px; background: #161b22; border-bottom: 1px solid #21262d;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .a-avatar {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, #58a6ff, #388bfd);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800; color: white;
+  }
+  .a-pt-info-name { font-size: 16px; font-weight: 700; color: #e6edf3; }
+  .a-pt-info-meta { font-size: 12px; color: #8b949e; margin-top: 2px; }
+  .a-tabs {
+    display: flex; gap: 0; border-bottom: 1px solid #21262d;
+    background: #161b22; padding: 0 20px;
+  }
+  .a-tab {
+    padding: 10px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+    color: #8b949e; border-bottom: 2px solid transparent;
+  }
+  .a-tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+  .a-vitals-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    padding: 16px 20px;
+  }
+  .a-vital-card {
+    background: #161b22; border: 1px solid #21262d; border-radius: 12px;
+    padding: 14px; position: relative; overflow: hidden;
+  }
+  .a-vital-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .a-vital-card.bp::before { background: #ff7b72; }
+  .a-vital-card.pulse::before { background: #f0883e; }
+  .a-vital-card.spo2::before { background: #3fb950; }
+  .a-vital-card.temp::before { background: #58a6ff; }
+  .a-vital-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; }
+  .a-vital-val { font-size: 28px; font-weight: 800; color: #e6edf3; margin: 4px 0; line-height: 1; font-variant-numeric: tabular-nums; }
+  .a-vital-unit { font-size: 11px; color: #8b949e; }
+  .a-vital-trend { font-size: 10px; color: #3fb950; }
+
+  .a-section-title {
+    padding: 12px 20px 8px; font-size: 11px; font-weight: 700;
+    color: #8b949e; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .a-rx-table { margin: 0 20px 16px; }
+  .a-rx-head {
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+    padding: 6px 0; font-size: 10px; color: #8b949e; text-transform: uppercase;
+    border-bottom: 1px solid #21262d;
+  }
+  .a-rx-row {
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+    padding: 10px 0; border-bottom: 1px solid #161b22; align-items: center;
+  }
+  .a-rx-name { font-size: 13px; font-weight: 600; color: #58a6ff; }
+  .a-rx-meta { font-size: 12px; color: #8b949e; }
+  .a-rx-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: 10px; font-weight: 700;
+    background: #23863622; color: #3fb950; border: 1px solid #3fb95044;
+  }
+
+  .a-right { background: #161b22; border-left: 1px solid #21262d; padding: 0; }
+  .a-right-header {
+    padding: 14px 16px; border-bottom: 1px solid #21262d;
+    font-size: 12px; font-weight: 700; color: #8b949e; text-transform: uppercase;
+  }
+  .a-diag-item { padding: 10px 16px; border-bottom: 1px solid #21262d; }
+  .a-diag-name { font-size: 13px; font-weight: 600; color: #e6edf3; }
+  .a-diag-code { font-size: 10px; color: #58a6ff; margin-top: 2px; }
+  .a-sym-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+    border-bottom: 1px solid #21262d;
+  }
+  .a-sym-dot { width: 6px; height: 6px; border-radius: 50%; background: #f0883e; flex-shrink: 0; }
+  .a-sym-text { font-size: 12px; color: #e6edf3; }
+  .a-sym-since { font-size: 10px; color: #8b949e; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     CONCEPT B — Apple Health (Minimal White)
+  ═══════════════════════════════════════════════════════════════ */
+  .b-wrap { background: #f2f2f7; min-height: 100vh; }
+  .b-header {
+    background: rgba(255,255,255,0.8); backdrop-filter: blur(20px);
+    border-bottom: 1px solid #e5e5ea; padding: 16px 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .b-logo { font-size: 20px; font-weight: 800; color: #007aff; letter-spacing: -0.5px; }
+  .b-header-right { margin-left: auto; display: flex; gap: 8px; }
+  .b-btn {
+    padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer;
+  }
+  .b-btn-primary { background: #007aff; color: white; }
+  .b-btn-ghost { background: #f2f2f7; color: #007aff; }
+
+  .b-content { display: grid; grid-template-columns: 300px 1fr; gap: 0; min-height: calc(100vh - 57px); }
+  .b-sidebar { background: white; border-right: 1px solid #e5e5ea; }
+  .b-sidebar-search {
+    margin: 16px; padding: 10px 14px;
+    background: #f2f2f7; border-radius: 12px; border: none;
+    font-size: 14px; color: #1c1c1e; outline: none;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .b-pt-card {
+    padding: 16px; border-bottom: 1px solid #f2f2f7; cursor: pointer;
+    transition: background 0.1s;
+  }
+  .b-pt-card:hover, .b-pt-card.active { background: #f2f2f7; }
+  .b-pt-top { display: flex; align-items: center; gap: 10px; }
+  .b-pt-av {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #007aff, #5856d6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700; color: white; flex-shrink: 0;
+  }
+  .b-pt-av2 { background: linear-gradient(135deg, #34c759, #007aff); }
+  .b-pt-av3 { background: linear-gradient(135deg, #ff9500, #ff3b30); }
+  .b-pt-name2 { font-size: 15px; font-weight: 600; color: #1c1c1e; }
+  .b-pt-age { font-size: 13px; color: #8e8e93; }
+  .b-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 8px;
+    font-size: 11px; font-weight: 600; margin-top: 6px;
+  }
+  .b-tag-blue { background: #e3f2fd; color: #007aff; }
+  .b-tag-green { background: #e8f5e9; color: #34c759; }
+  .b-tag-orange { background: #fff3e0; color: #ff9500; }
+
+  .b-main { padding: 24px; overflow: auto; }
+  .b-patient-banner {
+    background: white; border-radius: 20px; padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+    box-shadow: 0 1px 3px #0000000a;
+  }
+  .b-big-av {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #007aff, #5856d6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 800; color: white;
+  }
+  .b-pname { font-size: 22px; font-weight: 700; color: #1c1c1e; }
+  .b-pmeta { font-size: 14px; color: #8e8e93; margin-top: 2px; }
+  .b-action-btns { margin-left: auto; display: flex; gap: 8px; }
+
+  .b-vitals-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+  .b-vcard {
+    background: white; border-radius: 16px; padding: 16px;
+    box-shadow: 0 1px 3px #0000000a; text-align: center;
+  }
+  .b-vicon { font-size: 24px; margin-bottom: 6px; }
+  .b-vval { font-size: 26px; font-weight: 700; color: #1c1c1e; }
+  .b-vunit { font-size: 12px; color: #8e8e93; }
+  .b-vlabel { font-size: 12px; color: #8e8e93; margin-top: 4px; }
+
+  .b-cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .b-card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 1px 3px #0000000a; }
+  .b-card-title { font-size: 13px; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+  .b-med-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f2f2f7; }
+  .b-med-dot { width: 8px; height: 8px; border-radius: 50%; background: #007aff; flex-shrink: 0; }
+  .b-med-name { font-size: 15px; font-weight: 600; color: #1c1c1e; }
+  .b-med-dose { font-size: 13px; color: #8e8e93; }
+  .b-sym-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 6px 12px; border-radius: 20px; margin: 4px;
+    background: #f2f2f7; font-size: 13px; font-weight: 500; color: #1c1c1e;
+  }
+  .b-sym-sev { font-size: 11px; color: #ff9500; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     CONCEPT C — Sidebar-First (Notion/Linear)
+  ═══════════════════════════════════════════════════════════════ */
+  .c-wrap { background: #ffffff; min-height: 100vh; display: grid; grid-template-columns: 220px 1fr 320px; }
+  .c-left { background: #f7f7f5; border-right: 1px solid #e9e9e7; padding: 0; }
+  .c-logo { padding: 16px; font-size: 16px; font-weight: 800; color: #191919; display: flex; align-items: center; gap: 6px; }
+  .c-logo-dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; }
+  .c-nav-section { padding: 4px 8px 2px; font-size: 10px; font-weight: 700; color: #9b9a97; text-transform: uppercase; letter-spacing: 0.08em; }
+  .c-nav-item {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px;
+    margin: 1px 6px; font-size: 14px; cursor: pointer; color: #37352f;
+  }
+  .c-nav-item:hover { background: #ebebea; }
+  .c-nav-item.active { background: #e8e8e5; font-weight: 600; }
+  .c-nav-icon { width: 20px; text-align: center; font-size: 14px; }
+  .c-pt-mini { padding: 6px 12px; margin: 1px 6px; border-radius: 6px; cursor: pointer; }
+  .c-pt-mini:hover { background: #ebebea; }
+  .c-pt-mini-name { font-size: 13px; color: #37352f; font-weight: 500; }
+  .c-pt-mini-sub { font-size: 11px; color: #9b9a97; }
+
+  .c-main { padding: 0; overflow: auto; }
+  .c-page-header {
+    padding: 24px 32px 16px; border-bottom: 1px solid #e9e9e7;
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .c-emoji { font-size: 36px; }
+  .c-page-title { font-size: 28px; font-weight: 700; color: #191919; line-height: 1.2; }
+  .c-page-meta { font-size: 14px; color: #9b9a97; margin-top: 4px; }
+  .c-props { padding: 12px 32px; border-bottom: 1px solid #e9e9e7; display: flex; flex-wrap: wrap; gap: 0; }
+  .c-prop { display: flex; align-items: center; gap: 8px; padding: 6px 0; margin-right: 24px; font-size: 14px; }
+  .c-prop-label { color: #9b9a97; min-width: 80px; }
+  .c-prop-val { color: #37352f; font-weight: 500; }
+  .c-prop-tag { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+
+  .c-body { padding: 24px 32px; }
+  .c-block { margin-bottom: 24px; }
+  .c-block-title {
+    font-size: 11px; font-weight: 700; color: #9b9a97; text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .c-toggle { width: 16px; height: 16px; background: #e9e9e7; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; }
+  .c-callout {
+    background: #fbfbfa; border: 1px solid #e9e9e7; border-radius: 8px;
+    padding: 12px 16px; display: flex; gap: 10px; margin-bottom: 8px;
+  }
+  .c-callout-icon { font-size: 18px; flex-shrink: 0; }
+  .c-callout-text { font-size: 14px; color: #37352f; line-height: 1.5; }
+  .c-table { width: 100%; border-collapse: collapse; }
+  .c-table th { text-align: left; padding: 6px 8px; font-size: 11px; font-weight: 700; color: #9b9a97; text-transform: uppercase; border-bottom: 1px solid #e9e9e7; }
+  .c-table td { padding: 8px 8px; font-size: 14px; color: #37352f; border-bottom: 1px solid #f7f7f5; }
+  .c-status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+
+  .c-right { background: #f7f7f5; border-left: 1px solid #e9e9e7; padding: 16px; }
+  .c-r-title { font-size: 12px; font-weight: 700; color: #9b9a97; text-transform: uppercase; margin-bottom: 12px; }
+  .c-note-box { background: white; border: 1px solid #e9e9e7; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+  .c-note-date { font-size: 11px; color: #9b9a97; margin-bottom: 4px; }
+  .c-note-text { font-size: 13px; color: #37352f; line-height: 1.4; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     CONCEPT D — Card Grid (Modern Dashboard)
+  ═══════════════════════════════════════════════════════════════ */
+  .d-wrap { background: #f8f9fe; min-height: 100vh; }
+  .d-header {
+    background: white; padding: 0 24px; display: flex; align-items: center;
+    border-bottom: 1px solid #eeeef5; height: 56px;
+  }
+  .d-logo { font-size: 18px; font-weight: 900; background: linear-gradient(135deg,#6366f1,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .d-header-mid { flex: 1; display: flex; justify-content: center; gap: 4px; }
+  .d-h-tab { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: #64748b; }
+  .d-h-tab.active { background: #6366f115; color: #6366f1; }
+  .d-header-right { display: flex; align-items: center; gap: 10px; }
+  .d-avatar-sm { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#6366f1,#8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; }
+
+  .d-layout { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 56px); }
+  .d-sidebar { background: white; border-right: 1px solid #eeeef5; padding: 16px 0; }
+  .d-sidebar-title { padding: 0 16px 8px; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+  .d-q-stat {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer;
+  }
+  .d-q-stat:hover { background: #f8f9fe; }
+  .d-q-num {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: #6366f115; color: #6366f1; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .d-q-num.red { background: #fee2e2; color: #ef4444; }
+  .d-q-num.green { background: #dcfce7; color: #22c55e; }
+  .d-q-name { font-size: 13px; font-weight: 600; color: #334155; }
+  .d-q-sub { font-size: 11px; color: #94a3b8; }
+  .d-q-status { margin-left: auto; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+  .d-q-status.in-progress { background: #fef3c7; color: #d97706; }
+  .d-q-status.waiting { background: #e0f2fe; color: #0284c7; }
+  .d-q-status.done { background: #dcfce7; color: #16a34a; }
+
+  .d-divider { height: 1px; background: #eeeef5; margin: 12px 0; }
+
+  .d-main { padding: 20px; overflow: auto; }
+  .d-pt-header {
+    background: white; border-radius: 16px; padding: 20px;
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+    box-shadow: 0 1px 4px #6366f108;
+  }
+  .d-big-av {
+    width: 56px; height: 56px; border-radius: 16px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800; color: white;
+  }
+  .d-pname { font-size: 20px; font-weight: 800; color: #0f172a; }
+  .d-pmeta { font-size: 13px; color: #64748b; margin-top: 2px; }
+  .d-ptags { display: flex; gap: 6px; margin-top: 6px; }
+  .d-ptag { padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .d-ptag-blue { background: #ede9fe; color: #7c3aed; }
+  .d-ptag-green { background: #dcfce7; color: #16a34a; }
+  .d-pt-header-btns { margin-left: auto; display: flex; gap: 8px; }
+  .d-act-btn {
+    padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer;
+  }
+  .d-act-btn-primary { background: #6366f1; color: white; }
+  .d-act-btn-ghost { background: #f1f5f9; color: #334155; }
+
+  .d-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .d-card { background: white; border-radius: 16px; padding: 18px; box-shadow: 0 1px 4px #6366f108; }
+  .d-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .d-card-icon {
+    width: 32px; height: 32px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+  }
+  .d-card-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+  .d-card-count { margin-left: auto; font-size: 11px; color: #94a3b8; }
+
+  .d-vital-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f8f9fe; }
+  .d-vital-name { font-size: 12px; color: #64748b; }
+  .d-vital-value { font-size: 14px; font-weight: 700; color: #0f172a; }
+  .d-vital-bar { height: 4px; background: #f1f5f9; border-radius: 2px; margin-top: 4px; }
+  .d-vital-fill { height: 4px; border-radius: 2px; background: #22c55e; }
+
+  .d-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; margin: 2px; font-size: 12px; font-weight: 600; }
+  .d-chip-sym { background: #fff7ed; color: #ea580c; }
+  .d-chip-diag { background: #fef3c7; color: #d97706; }
+  .d-chip-proc { background: #ede9fe; color: #7c3aed; }
+
+  .d-med-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f8f9fe; }
+  .d-med-ic { width: 28px; height: 28px; border-radius: 8px; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .d-med-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .d-med-dose { font-size: 11px; color: #64748b; }
+  .d-med-freq { margin-left: auto; padding: 2px 8px; border-radius: 6px; background: #ede9fe; color: #7c3aed; font-size: 11px; font-weight: 700; }
+
+  /* Responsive */
+  @media(max-width:900px) {
+    .a-wrap, .c-wrap, .d-layout { grid-template-columns: 1fr; }
+    .a-sidebar, .c-left, .c-right, .d-sidebar { display: none; }
+    .b-content { grid-template-columns: 1fr; }
+    .b-sidebar { display: none; }
+    .d-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<div class="top-nav">
+  <h1>🏥 InferEMR — Design Concepts</h1>
+  <button class="nav-btn active" onclick="show('a',this)">A · ICU Console</button>
+  <button class="nav-btn" onclick="show('b',this)">B · Apple Health</button>
+  <button class="nav-btn" onclick="show('c',this)">C · Notion/Linear</button>
+  <button class="nav-btn" onclick="show('d',this)">D · Card Dashboard</button>
+</div>
+
+<!-- ══════════════ CONCEPT A ══════════════ -->
+<div id="sec-a" class="concept-section active">
+  <div class="concept-header">
+    <div class="concept-badge" style="background:#58a6ff">A</div>
+    <div>
+      <div class="concept-title">ICU Console — Clinical Dark Mode</div>
+      <div class="concept-sub">Dense data · High contrast · Built for speed · Best for high-volume OPDs &amp; emergency</div>
+    </div>
+  </div>
+  <div class="a-wrap">
+    <!-- Sidebar -->
+    <div class="a-sidebar">
+      <div class="a-logo">⚕ Infer</div>
+      <div class="a-search">🔍 Search patients…</div>
+      <div style="padding:8px 0">
+        <div class="a-patient-item active">
+          <div class="a-pt-name">Priya Sharma</div>
+          <div class="a-pt-meta">F · 34y · #INFER1001</div>
+          <span class="a-pt-badge a-badge-urgent">Urgent</span>
+        </div>
+        <div class="a-patient-item">
+          <div class="a-pt-name">Ramesh Kumar</div>
+          <div class="a-pt-meta">M · 58y · #INFER1002</div>
+          <span class="a-pt-badge a-badge-wait">Waiting</span>
+        </div>
+        <div class="a-patient-item">
+          <div class="a-pt-name">Anita Patel</div>
+          <div class="a-pt-meta">F · 42y · #INFER1003</div>
+          <span class="a-pt-badge a-badge-ok">Done</span>
+        </div>
+        <div class="a-patient-item">
+          <div class="a-pt-name">Suresh Nair</div>
+          <div class="a-pt-meta">M · 67y · #INFER1004</div>
+          <span class="a-pt-badge a-badge-wait">Waiting</span>
+        </div>
+      </div>
+    </div>
+    <!-- Main -->
+    <div class="a-main">
+      <div class="a-patient-header">
+        <div class="a-avatar">PS</div>
+        <div>
+          <div class="a-pt-info-name">Priya Sharma</div>
+          <div class="a-pt-info-meta">F · 34y · 60kg · UHID: INFER1001 · Allergic to Penicillin ⚠</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button style="padding:6px 14px;border-radius:8px;border:1px solid #30363d;background:transparent;color:#58a6ff;font-size:12px;font-weight:600;cursor:pointer">🎤 Scribe</button>
+          <button style="padding:6px 14px;border-radius:8px;border:none;background:#238636;color:white;font-size:12px;font-weight:600;cursor:pointer">Finish Rx</button>
+        </div>
+      </div>
+      <div class="a-tabs">
+        <div class="a-tab active">InferPad</div>
+        <div class="a-tab">Lab Results</div>
+        <div class="a-tab">History</div>
+        <div class="a-tab">Imaging</div>
+        <div class="a-tab">Preview</div>
+      </div>
+      <div class="a-vitals-grid">
+        <div class="a-vital-card bp">
+          <div class="a-vital-label">Blood Pressure</div>
+          <div class="a-vital-val">124<span style="font-size:16px;color:#8b949e">/82</span></div>
+          <div class="a-vital-unit">mmHg · Systolic/Diastolic</div>
+          <div class="a-vital-trend">↓ 4 from last visit</div>
+        </div>
+        <div class="a-vital-card pulse">
+          <div class="a-vital-label">Pulse Rate</div>
+          <div class="a-vital-val">88</div>
+          <div class="a-vital-unit">bpm</div>
+          <div class="a-vital-trend" style="color:#f0883e">↑ slightly elevated</div>
+        </div>
+        <div class="a-vital-card spo2">
+          <div class="a-vital-label">SpO₂</div>
+          <div class="a-vital-val">98<span style="font-size:16px;color:#8b949e">%</span></div>
+          <div class="a-vital-unit">Oxygen Saturation</div>
+          <div class="a-vital-trend">→ Normal range</div>
+        </div>
+        <div class="a-vital-card temp">
+          <div class="a-vital-label">Temperature</div>
+          <div class="a-vital-val">37.8</div>
+          <div class="a-vital-unit">°C · Low-grade fever</div>
+          <div class="a-vital-trend" style="color:#f0883e">↑ Above normal</div>
+        </div>
+      </div>
+      <div class="a-section-title">Medications</div>
+      <div class="a-rx-table">
+        <div class="a-rx-head"><span>Drug Name</span><span>Dose</span><span>Frequency</span><span>Status</span></div>
+        <div class="a-rx-row">
+          <span class="a-rx-name">Paracetamol</span>
+          <span class="a-rx-meta">500mg</span>
+          <span class="a-rx-meta">TDS × 5 days</span>
+          <span class="a-rx-badge">Active</span>
+        </div>
+        <div class="a-rx-row">
+          <span class="a-rx-name">Azithromycin</span>
+          <span class="a-rx-meta">500mg</span>
+          <span class="a-rx-meta">OD × 3 days</span>
+          <span class="a-rx-badge">Active</span>
+        </div>
+        <div class="a-rx-row">
+          <span class="a-rx-name">Cetirizine</span>
+          <span class="a-rx-meta">10mg</span>
+          <span class="a-rx-meta">OD at bedtime</span>
+          <span class="a-rx-badge">Active</span>
+        </div>
+      </div>
+    </div>
+    <!-- Right Panel -->
+    <div class="a-right">
+      <div class="a-right-header">Diagnosis</div>
+      <div class="a-diag-item">
+        <div class="a-diag-name">Viral URTI</div>
+        <div class="a-diag-code">SNOMED: 54150009</div>
+      </div>
+      <div class="a-diag-item">
+        <div class="a-diag-name">Tension Headache</div>
+        <div class="a-diag-code">SNOMED: 398057008</div>
+      </div>
+      <div class="a-right-header" style="margin-top:8px">Symptoms</div>
+      <div class="a-sym-item">
+        <div class="a-sym-dot"></div>
+        <div><div class="a-sym-text">Fever</div><div class="a-sym-since">3 days · Moderate</div></div>
+      </div>
+      <div class="a-sym-item">
+        <div class="a-sym-dot" style="background:#58a6ff"></div>
+        <div><div class="a-sym-text">Headache</div><div class="a-sym-since">2 days · Mild</div></div>
+      </div>
+      <div class="a-sym-item">
+        <div class="a-sym-dot" style="background:#3fb950"></div>
+        <div><div class="a-sym-text">Cough</div><div class="a-sym-since">5 days · Mild</div></div>
+      </div>
+      <div class="a-right-header" style="margin-top:8px">Advice</div>
+      <div style="padding:12px 16px;font-size:12px;color:#8b949e;line-height:1.6">
+        Rest. Plenty of fluids. Avoid cold food. Steam inhalation BD. Wear mask in public.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CONCEPT B ══════════════ -->
+<div id="sec-b" class="concept-section">
+  <div class="concept-header">
+    <div class="concept-badge" style="background:#007aff">B</div>
+    <div>
+      <div class="concept-title">Apple Health — Minimal White</div>
+      <div class="concept-sub">Generous whitespace · Soft cards · Large typography · Best for specialist clinics</div>
+    </div>
+  </div>
+  <div class="b-wrap">
+    <div class="b-header">
+      <div class="b-logo">Infer</div>
+      <div style="margin-left:24px;display:flex;gap:4px">
+        <button class="b-btn b-btn-primary" style="font-size:12px">Write Rx</button>
+        <button class="b-btn b-btn-ghost" style="font-size:12px">Lab Tests</button>
+        <button class="b-btn b-btn-ghost" style="font-size:12px">History</button>
+      </div>
+      <div class="b-header-right">
+        <button class="b-btn b-btn-primary">🎤 Scribe</button>
+        <button class="b-btn b-btn-primary" style="background:#34c759">✓ Finish</button>
+      </div>
+    </div>
+    <div class="b-content">
+      <div class="b-sidebar">
+        <div style="padding:16px">
+          <div class="b-sidebar-search">🔍 <span style="color:#8e8e93;font-size:14px">Search</span></div>
+        </div>
+        <div class="b-pt-card active">
+          <div class="b-pt-top">
+            <div class="b-pt-av">PS</div>
+            <div><div class="b-pt-name2">Priya Sharma</div><div class="b-pt-age">F · 34y</div></div>
+          </div>
+          <span class="b-tag b-tag-orange">Fever · 3 days</span>
+        </div>
+        <div class="b-pt-card">
+          <div class="b-pt-top">
+            <div class="b-pt-av b-pt-av2">RK</div>
+            <div><div class="b-pt-name2">Ramesh Kumar</div><div class="b-pt-age">M · 58y</div></div>
+          </div>
+          <span class="b-tag b-tag-blue">Hypertension</span>
+        </div>
+        <div class="b-pt-card">
+          <div class="b-pt-top">
+            <div class="b-pt-av b-pt-av3">AN</div>
+            <div><div class="b-pt-name2">Anita Nair</div><div class="b-pt-age">F · 42y</div></div>
+          </div>
+          <span class="b-tag b-tag-green">Follow-up</span>
+        </div>
+      </div>
+      <div class="b-main">
+        <div class="b-patient-banner">
+          <div class="b-big-av">PS</div>
+          <div>
+            <div class="b-pname">Priya Sharma</div>
+            <div class="b-pmeta">Female · 34 years · 60 kg · UHID: INFER1001</div>
+          </div>
+          <div class="b-action-btns">
+            <button class="b-btn b-btn-ghost">Preview Rx</button>
+            <button class="b-btn b-btn-primary" style="background:#007aff">Finish Prescription</button>
+          </div>
+        </div>
+        <div class="b-vitals-row">
+          <div class="b-vcard">
+            <div class="b-vicon">❤️</div>
+            <div class="b-vval" style="color:#ff3b30">124<span style="font-size:14px;color:#8e8e93">/82</span></div>
+            <div class="b-vunit">mmHg</div>
+            <div class="b-vlabel">Blood Pressure</div>
+          </div>
+          <div class="b-vcard">
+            <div class="b-vicon">💓</div>
+            <div class="b-vval" style="color:#ff9500">88</div>
+            <div class="b-vunit">bpm</div>
+            <div class="b-vlabel">Pulse</div>
+          </div>
+          <div class="b-vcard">
+            <div class="b-vicon">🌡️</div>
+            <div class="b-vval" style="color:#ff9500">37.8</div>
+            <div class="b-vunit">°C</div>
+            <div class="b-vlabel">Temperature</div>
+          </div>
+          <div class="b-vcard">
+            <div class="b-vicon">🩸</div>
+            <div class="b-vval" style="color:#34c759">98</div>
+            <div class="b-vunit">%</div>
+            <div class="b-vlabel">SpO₂</div>
+          </div>
+        </div>
+        <div class="b-cards-row">
+          <div class="b-card">
+            <div class="b-card-title">💊 Medications</div>
+            <div class="b-med-item"><div class="b-med-dot"></div><div><div class="b-med-name">Paracetamol</div><div class="b-med-dose">500mg · TDS · 5 days · After meals</div></div></div>
+            <div class="b-med-item"><div class="b-med-dot" style="background:#5856d6"></div><div><div class="b-med-name">Azithromycin</div><div class="b-med-dose">500mg · OD · 3 days · Before meals</div></div></div>
+            <div class="b-med-item"><div class="b-med-dot" style="background:#34c759"></div><div><div class="b-med-name">Cetirizine</div><div class="b-med-dose">10mg · OD · At bedtime</div></div></div>
+          </div>
+          <div class="b-card">
+            <div class="b-card-title">🤒 Symptoms &amp; Diagnosis</div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:#8e8e93;margin-bottom:6px">SYMPTOMS</div>
+              <span class="b-sym-chip">🌡 Fever <span class="b-sym-sev">Moderate</span></span>
+              <span class="b-sym-chip">🤕 Headache</span>
+              <span class="b-sym-chip">😮‍💨 Cough</span>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#8e8e93;margin-bottom:6px">DIAGNOSIS</div>
+              <span class="b-sym-chip" style="background:#fff3e0;color:#e65100">Viral URTI</span>
+              <span class="b-sym-chip" style="background:#fff3e0;color:#e65100">Tension Headache</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CONCEPT C ══════════════ -->
+<div id="sec-c" class="concept-section">
+  <div class="concept-header">
+    <div class="concept-badge" style="background:#37352f">C</div>
+    <div>
+      <div class="concept-title">Notion / Linear — Sidebar-First</div>
+      <div class="concept-sub">Document-style · No tabs · Everything scrollable · Best for detail-oriented workflows</div>
+    </div>
+  </div>
+  <div class="c-wrap">
+    <div class="c-left">
+      <div class="c-logo"><div class="c-logo-dot"></div> Infer EMR</div>
+      <div style="padding:8px">
+        <div class="c-nav-section">Workspace</div>
+        <div class="c-nav-item active"><div class="c-nav-icon">📋</div> Write Rx</div>
+        <div class="c-nav-item"><div class="c-nav-icon">🧪</div> Lab Portal</div>
+        <div class="c-nav-item"><div class="c-nav-icon">📊</div> Analytics</div>
+        <div class="c-nav-item"><div class="c-nav-icon">⚙️</div> Settings</div>
+        <div style="height:12px"></div>
+        <div class="c-nav-section">Today's Queue</div>
+        <div class="c-pt-mini">
+          <div class="c-pt-mini-name">📍 Priya Sharma</div>
+          <div class="c-pt-mini-sub">34y · In consultation</div>
+        </div>
+        <div class="c-pt-mini">
+          <div class="c-pt-mini-name">⏳ Ramesh Kumar</div>
+          <div class="c-pt-mini-sub">58y · Waiting</div>
+        </div>
+        <div class="c-pt-mini">
+          <div class="c-pt-mini-name">⏳ Anita Nair</div>
+          <div class="c-pt-mini-sub">42y · Waiting</div>
+        </div>
+        <div class="c-pt-mini">
+          <div class="c-pt-mini-name">✅ Suresh Menon</div>
+          <div class="c-pt-mini-sub">67y · Done</div>
+        </div>
+      </div>
+    </div>
+    <div class="c-main">
+      <div class="c-page-header">
+        <div class="c-emoji">🏥</div>
+        <div>
+          <div class="c-page-title">Priya Sharma</div>
+          <div class="c-page-meta">Prescription · June 5, 2026</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button style="padding:6px 14px;border-radius:6px;border:1px solid #e9e9e7;background:white;font-size:13px;cursor:pointer">🎤 Scribe</button>
+          <button style="padding:6px 14px;border-radius:6px;border:none;background:#6366f1;color:white;font-size:13px;font-weight:600;cursor:pointer">Finish Rx</button>
+        </div>
+      </div>
+      <div class="c-props">
+        <div class="c-prop"><span class="c-prop-label">Patient</span><span class="c-prop-val">Priya Sharma · F · 34y</span></div>
+        <div class="c-prop"><span class="c-prop-label">UHID</span><span class="c-prop-val">INFER1001</span></div>
+        <div class="c-prop"><span class="c-prop-label">Status</span><span class="c-prop-tag" style="background:#fef3c7;color:#d97706">In Progress</span></div>
+        <div class="c-prop"><span class="c-prop-label">Doctor</span><span class="c-prop-val">Dr. Anil Kapoor</span></div>
+      </div>
+      <div class="c-body">
+        <div class="c-block">
+          <div class="c-block-title"><div class="c-toggle">▼</div> 🩺 Vitals</div>
+          <div class="c-callout">
+            <div class="c-callout-icon">📊</div>
+            <div class="c-callout-text">
+              BP: <strong>124/82 mmHg</strong> &nbsp;·&nbsp; Pulse: <strong>88 bpm</strong> &nbsp;·&nbsp;
+              SpO₂: <strong>98%</strong> &nbsp;·&nbsp; Temp: <strong>37.8°C</strong> &nbsp;·&nbsp;
+              Weight: <strong>60 kg</strong> &nbsp;·&nbsp; Height: <strong>162 cm</strong>
+            </div>
+          </div>
+        </div>
+        <div class="c-block">
+          <div class="c-block-title"><div class="c-toggle">▼</div> 🤒 Symptoms</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            <span style="padding:4px 12px;border-radius:6px;font-size:13px;font-weight:500;background:#fff7ed;color:#ea580c;border:1px solid #fed7aa">Fever · 3 days · Moderate</span>
+            <span style="padding:4px 12px;border-radius:6px;font-size:13px;font-weight:500;background:#fef9c3;color:#a16207;border:1px solid #fde68a">Headache · 2 days · Mild</span>
+            <span style="padding:4px 12px;border-radius:6px;font-size:13px;font-weight:500;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0">Cough · 5 days · Mild</span>
+          </div>
+        </div>
+        <div class="c-block">
+          <div class="c-block-title"><div class="c-toggle">▼</div> 💊 Medications</div>
+          <table class="c-table">
+            <tr><th>Drug</th><th>Dose</th><th>Frequency</th><th>Duration</th><th>Timing</th></tr>
+            <tr><td>Paracetamol</td><td>500mg</td><td>TDS</td><td>5 days</td><td>After meals</td></tr>
+            <tr><td>Azithromycin</td><td>500mg</td><td>OD</td><td>3 days</td><td>Before meals</td></tr>
+            <tr><td>Cetirizine</td><td>10mg</td><td>OD</td><td>7 days</td><td>At bedtime</td></tr>
+          </table>
+        </div>
+        <div class="c-block">
+          <div class="c-block-title"><div class="c-toggle">▼</div> 🔬 Diagnosis</div>
+          <div class="c-callout">
+            <div class="c-callout-icon">1.</div>
+            <div class="c-callout-text">Viral Upper Respiratory Tract Infection <span style="color:#9b9a97;font-size:12px">(SNOMED: 54150009)</span></div>
+          </div>
+          <div class="c-callout">
+            <div class="c-callout-icon">2.</div>
+            <div class="c-callout-text">Tension Headache <span style="color:#9b9a97;font-size:12px">(SNOMED: 398057008)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="c-right">
+      <div class="c-r-title">Past Visits</div>
+      <div class="c-note-box">
+        <div class="c-note-date">May 10, 2026 · Dr. Kapoor</div>
+        <div class="c-note-text">Chronic sinusitis follow-up. Responded well to Amoxiclav. Advised nasal rinse BD.</div>
+      </div>
+      <div class="c-note-box">
+        <div class="c-note-date">Feb 3, 2026 · Dr. Kapoor</div>
+        <div class="c-note-text">Allergic rhinitis. Started on Montelukast + Loratadine. SpO₂ 97%.</div>
+      </div>
+      <div style="height:16px"></div>
+      <div class="c-r-title">Lab Orders</div>
+      <div class="c-note-box">
+        <div class="c-note-date">Today · Pending</div>
+        <div class="c-note-text">CBC, CRP, Dengue NS1 Antigen</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CONCEPT D ══════════════ -->
+<div id="sec-d" class="concept-section">
+  <div class="concept-header">
+    <div class="concept-badge" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">D</div>
+    <div>
+      <div class="concept-title">Card Dashboard — Modern &amp; Colorful</div>
+      <div class="concept-sub">Floating color-coded cards · Queue sidebar · Pastel palette · Best for general physicians</div>
+    </div>
+  </div>
+  <div class="d-wrap">
+    <div class="d-header">
+      <div class="d-logo">⚕ Infer</div>
+      <div class="d-header-mid">
+        <div class="d-h-tab active">Write Rx</div>
+        <div class="d-h-tab">Lab Tests</div>
+        <div class="d-h-tab">Records</div>
+        <div class="d-h-tab">Analytics</div>
+      </div>
+      <div class="d-header-right">
+        <button style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:white;font-size:12px;font-weight:600;cursor:pointer;color:#6366f1">🎤 Scribe</button>
+        <div class="d-avatar-sm">AK</div>
+      </div>
+    </div>
+    <div class="d-layout">
+      <div class="d-sidebar">
+        <div style="padding:16px 0 8px">
+          <div class="d-sidebar-title">Today's Queue — 12 patients</div>
+          <div class="d-q-stat">
+            <div class="d-q-num">1</div>
+            <div><div class="d-q-name">Priya Sharma</div><div class="d-q-sub">F · 34y · Fever</div></div>
+            <div class="d-q-status in-progress">In Consult</div>
+          </div>
+          <div class="d-q-stat">
+            <div class="d-q-num red">2</div>
+            <div><div class="d-q-name">Ramesh Kumar</div><div class="d-q-sub">M · 58y · Chest pain</div></div>
+            <div class="d-q-status waiting">Waiting</div>
+          </div>
+          <div class="d-q-stat">
+            <div class="d-q-num">3</div>
+            <div><div class="d-q-name">Anita Nair</div><div class="d-q-sub">F · 42y · Diabetes</div></div>
+            <div class="d-q-status waiting">Waiting</div>
+          </div>
+          <div class="d-q-stat">
+            <div class="d-q-num green">4</div>
+            <div><div class="d-q-name">Suresh Menon</div><div class="d-q-sub">M · 67y · Follow-up</div></div>
+            <div class="d-q-status done">Done</div>
+          </div>
+          <div class="d-divider"></div>
+          <div style="padding:8px 16px;font-size:12px;color:#64748b">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Waiting</span><strong style="color:#0284c7">8</strong></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Done</span><strong style="color:#16a34a">3</strong></div>
+            <div style="display:flex;justify-content:space-between"><span>Urgent</span><strong style="color:#dc2626">1</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="d-main">
+        <div class="d-pt-header">
+          <div class="d-big-av">PS</div>
+          <div>
+            <div class="d-pname">Priya Sharma</div>
+            <div class="d-pmeta">Female · 34 years · 60 kg · UHID: INFER1001</div>
+            <div class="d-ptags">
+              <span class="d-ptag d-ptag-blue">Allergic: Penicillin</span>
+              <span class="d-ptag d-ptag-green">1st Visit</span>
+            </div>
+          </div>
+          <div class="d-pt-header-btns">
+            <button class="d-act-btn d-act-btn-ghost">👁 Preview</button>
+            <button class="d-act-btn d-act-btn-primary">✓ Finish Prescription</button>
+          </div>
+        </div>
+        <div class="d-grid">
+          <!-- Vitals -->
+          <div class="d-card">
+            <div class="d-card-head">
+              <div class="d-card-icon" style="background:#dbeafe">🩺</div>
+              <div class="d-card-title">Vitals</div>
+            </div>
+            <div class="d-vital-row"><span class="d-vital-name">Blood Pressure</span><span class="d-vital-value" style="color:#ef4444">124/82 <span style="font-size:11px;color:#94a3b8">mmHg</span></span></div>
+            <div class="d-vital-bar"><div class="d-vital-fill" style="width:62%;background:#ef4444"></div></div>
+            <div class="d-vital-row"><span class="d-vital-name">Pulse</span><span class="d-vital-value" style="color:#f59e0b">88 <span style="font-size:11px;color:#94a3b8">bpm</span></span></div>
+            <div class="d-vital-bar"><div class="d-vital-fill" style="width:55%;background:#f59e0b"></div></div>
+            <div class="d-vital-row"><span class="d-vital-name">SpO₂</span><span class="d-vital-value" style="color:#22c55e">98 <span style="font-size:11px;color:#94a3b8">%</span></span></div>
+            <div class="d-vital-bar"><div class="d-vital-fill" style="width:98%"></div></div>
+            <div class="d-vital-row"><span class="d-vital-name">Temperature</span><span class="d-vital-value" style="color:#f59e0b">37.8 <span style="font-size:11px;color:#94a3b8">°C</span></span></div>
+            <div class="d-vital-bar"><div class="d-vital-fill" style="width:48%;background:#f59e0b"></div></div>
+          </div>
+          <!-- Symptoms + Diagnosis -->
+          <div class="d-card">
+            <div class="d-card-head">
+              <div class="d-card-icon" style="background:#fff7ed">🤒</div>
+              <div class="d-card-title">Symptoms</div>
+              <div class="d-card-count">3 symptoms</div>
+            </div>
+            <div style="margin-bottom:12px">
+              <span class="d-chip d-chip-sym">🌡 Fever · 3d</span>
+              <span class="d-chip d-chip-sym">🤕 Headache · 2d</span>
+              <span class="d-chip d-chip-sym">😮‍💨 Cough · 5d</span>
+            </div>
+            <div class="d-card-head" style="margin-top:8px">
+              <div class="d-card-icon" style="background:#fef9c3">🔬</div>
+              <div class="d-card-title">Diagnosis</div>
+            </div>
+            <span class="d-chip d-chip-diag">Viral URTI</span>
+            <span class="d-chip d-chip-diag">Tension Headache</span>
+          </div>
+          <!-- Medications -->
+          <div class="d-card">
+            <div class="d-card-head">
+              <div class="d-card-icon" style="background:#ede9fe">💊</div>
+              <div class="d-card-title">Medications</div>
+              <div class="d-card-count">3 drugs</div>
+            </div>
+            <div class="d-med-row">
+              <div class="d-med-ic">💊</div>
+              <div><div class="d-med-name">Paracetamol</div><div class="d-med-dose">500mg · After meals</div></div>
+              <div class="d-med-freq">TDS</div>
+            </div>
+            <div class="d-med-row">
+              <div class="d-med-ic">💉</div>
+              <div><div class="d-med-name">Azithromycin</div><div class="d-med-dose">500mg · Before meals</div></div>
+              <div class="d-med-freq">OD</div>
+            </div>
+            <div class="d-med-row">
+              <div class="d-med-ic">💊</div>
+              <div><div class="d-med-name">Cetirizine</div><div class="d-med-dose">10mg · At bedtime</div></div>
+              <div class="d-med-freq">OD</div>
+            </div>
+          </div>
+          <!-- Lab -->
+          <div class="d-card">
+            <div class="d-card-head">
+              <div class="d-card-icon" style="background:#dcfce7">🧪</div>
+              <div class="d-card-title">Lab Investigations</div>
+            </div>
+            <span class="d-chip" style="background:#dcfce7;color:#15803d">CBC</span>
+            <span class="d-chip" style="background:#dcfce7;color:#15803d">CRP</span>
+            <span class="d-chip" style="background:#dcfce7;color:#15803d">Dengue NS1</span>
+          </div>
+          <!-- Advice -->
+          <div class="d-card">
+            <div class="d-card-head">
+              <div class="d-card-icon" style="background:#fef3c7">💡</div>
+              <div class="d-card-title">Advice</div>
+            </div>
+            <div style="font-size:13px;color:#334155;line-height:1.6">
+              Rest and adequate hydration. Drink 2–3 litres of water daily.
+              Avoid cold food and beverages. Steam inhalation twice daily.
+              Wear a mask in public places.
+            </div>
+          </div>
+          <!-- Follow-up -->
+          <div class="d-card">
+            <div class="d-card-head">
+              <div class="d-card-icon" style="background:#f0fdf4">📅</div>
+              <div class="d-card-title">Follow Up</div>
+            </div>
+            <div style="font-size:24px;font-weight:800;color:#0f172a;margin-bottom:4px">June 12, 2026</div>
+            <div style="font-size:13px;color:#64748b">Review CBC reports. Follow up if fever persists beyond 3 days.</div>
+            <div style="margin-top:12px">
+              <span class="d-chip d-chip-proc">Throat Swab</span>
+              <span class="d-chip d-chip-proc">Nebulisation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.concept-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
