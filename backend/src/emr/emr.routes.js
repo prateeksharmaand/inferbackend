@@ -17,6 +17,7 @@ const assessment  = require('../controllers/assessment.controller');
 const inbound     = require('./inbound/inbound.routes');
 const analytics   = require('./emr.analytics.controller');
 const docassist   = require('./emr.docassist.controller');
+const rxpublic    = require('./emr.rxpublic.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -31,10 +32,14 @@ router.get('/autocomplete/ping',    ac.ping);
 // Scribe health — public so ops can check without a token
 router.get('/scribe/status', scribe.status);
 
+// Public prescription view — no auth, token-verified via HMAC
+router.get('/public/rx/:apptId', rxpublic.getPublicRx);
+
 // ── Protected (all routes below require EMR JWT) ───────────────────────────
 router.use(emrAuth);
 router.post  ('/docassist',            docassist.chat);
 router.post  ('/docassist/document',   docassist.generateDocument);
+router.get   ('/appointments/:id/rx-token', rxpublic.getRxToken);
 router.post  ('/scribe/transcribe',    ...scribe.transcribe);
 router.post  ('/scribe/soap',              scribe.extractSOAP);
 router.post  ('/assessment/questions',    assessment.generateQuestions);

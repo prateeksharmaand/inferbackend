@@ -17,6 +17,7 @@ import LabLogin from './components/laboratory/LabLogin';
 import LabPortal from './components/laboratory/LabPortal';
 import LabResultViewer from './components/laboratory/LabResultViewer';
 import AdminDashboard from './components/laboratory/AdminDashboard';
+import RxPublicView from './pages/RxPublicView';
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -57,6 +58,9 @@ export default function App() {
             {/* Admin: Manage laboratories (inside clinic layout) */}
             <Route path="admin/laboratories" element={<AdminDashboard />} />
           </Route>
+
+          {/* Public prescription view — no auth required */}
+          <Route path="/rx-view/:apptId" element={<RxPublicView />} />
 
           {/* Lab Routes (standalone, no clinic layout) */}
           <Route path="/lab-login" element={<LabLogin />} />

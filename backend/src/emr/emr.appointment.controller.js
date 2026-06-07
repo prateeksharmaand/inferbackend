@@ -322,6 +322,22 @@ const listPatientHistory = async (req, res) => {
      LEFT JOIN emr_doctors    d ON d.id = a.doctor_id
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
      WHERE a.clinic_id = $1 AND ${condition}
+       AND (
+         e.id IS NULL
+         OR (
+           (e.symptoms         IS NOT NULL AND jsonb_array_length(e.symptoms::jsonb)         > 0)
+           OR (e.diagnosis     IS NOT NULL AND jsonb_array_length(e.diagnosis::jsonb)        > 0)
+           OR (e.medications   IS NOT NULL AND jsonb_array_length(e.medications::jsonb)      > 0)
+           OR (e.lab_investigations IS NOT NULL AND jsonb_array_length(e.lab_investigations::jsonb) > 0)
+           OR (e.lab_results   IS NOT NULL AND jsonb_array_length(e.lab_results::jsonb)      > 0)
+           OR (e.chief_complaint IS NOT NULL AND TRIM(e.chief_complaint) != '')
+           OR (e.advices       IS NOT NULL AND TRIM(e.advices)           != '')
+           OR (e.notes         IS NOT NULL AND TRIM(e.notes)             != '')
+           OR (e.refer_to      IS NOT NULL AND TRIM(e.refer_to)          != '')
+           OR (e.examination_findings IS NOT NULL AND TRIM(e.examination_findings) != '')
+           OR (e.vitals        IS NOT NULL AND e.vitals::text != '{}' AND e.vitals::text != 'null')
+         )
+       )
      ORDER BY a.appointment_date DESC, a.created_at DESC
      LIMIT 50`,
     [cid, param]

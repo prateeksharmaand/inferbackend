@@ -633,8 +633,12 @@ function DocsTab({ patientCtx }) {
         patient_context: patientCtx || null,
       });
       setGenerated(res.document || res.reply || '');
-    } catch {
-      setGenerated('Failed to generate document. Please try again.');
+    } catch (err) {
+      if (err?.status === 429 || err?.message?.includes('429')) {
+        setGenerated('⚠️ The AI service is temporarily busy (rate limit). Please wait 30 seconds and try again.');
+      } else {
+        setGenerated('Failed to generate document. Please try again.');
+      }
     } finally { setLoading(false); }
   };
 
@@ -725,21 +729,18 @@ export default function DocAssistAI() {
       {/* Backdrop */}
       {open && <div className={styles.backdrop} onClick={() => setOpen(false)} />}
 
-      {/* Floating button */}
-      <button
-        className={`${styles.fab} ${open ? styles.fabOpen : ''}`}
-        onClick={() => setOpen(v => !v)}
-        title="DocAssist AI"
-      >
-        {open
-          ? <X size={20} strokeWidth={2} />
-          : <>
-              <Bot size={18} strokeWidth={2} />
-              <span className={styles.fabLabel}>DocAssist AI</span>
-              <span className={styles.fabBadge}>Beta</span>
-            </>
-        }
-      </button>
+      {/* Floating button — hidden when drawer is open */}
+      {!open && (
+        <button
+          className={styles.fab}
+          onClick={() => setOpen(true)}
+          title="DocAssist AI"
+        >
+          <Bot size={18} strokeWidth={2} />
+          <span className={styles.fabLabel}>DocAssist AI</span>
+          <span className={styles.fabBadge}>Beta</span>
+        </button>
+      )}
 
       {/* Side Drawer */}
       {open && (

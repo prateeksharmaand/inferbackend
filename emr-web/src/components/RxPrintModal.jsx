@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Printer } from 'lucide-react';
+import { X, Printer, QrCode, Settings2 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { getICD10Settings } from '../pages/settings/InferPadSettings';
@@ -33,7 +34,7 @@ function getFlag(r) {
 }
 
 // ── Prescription document ─────────────────────────────────────────────────────
-function RxDoc({ data, user, dietCharts = [] }) {
+function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false }) {
   const cid      = user?.clinic_id || 'default';
   const icd10    = getICD10Settings(cid);
   const headerImg = localStorage.getItem(`rx_header_${cid}`) || '';
@@ -151,6 +152,16 @@ function RxDoc({ data, user, dietCharts = [] }) {
         )}
       </div>
 
+      {qrUrl && (
+        <div className={styles.qrSection}>
+          <QRCodeSVG value={qrUrl} size={80} level="M" includeMargin={false} />
+          <div className={styles.qrLabel}>
+            <strong>Scan for digital copy</strong>
+            <span>View prescription &amp; book appointment</span>
+          </div>
+        </div>
+      )}
+
       <hr className={styles.hr} />
       {footerImg
         ? <div className={styles.imgBlock}><img src={footerImg} alt="Footer" className={styles.paperImg} /></div>
@@ -166,11 +177,19 @@ function RxDoc({ data, user, dietCharts = [] }) {
 }
 
 // ── Modal shell ───────────────────────────────────────────────────────────────
+const QR_KEY        = 'rx_qr_enabled';
+const HIDE_PHONE_KEY = 'rx_print_hide_phone';
+
 export default function RxPrintModal({ appt, onClose }) {
   const { user } = useAuth();
-  const [data,       setData]       = useState(null);
-  const [dietCharts, setDietCharts] = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const [data,        setData]        = useState(null);
+  const [dietCharts,  setDietCharts]  = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [qrEnabled,   setQrEnabled]   = useState(() => localStorage.getItem(QR_KEY) !== 'false');
+  const [qrUrl,       setQrUrl]       = useState('');
+  const [qrLoading,   setQrLoading]   = useState(false);
+  const [hidePhone,   setHidePhone]   = useState(() => localStorage.getItem(HIDE_PHONE_KEY) === 'true');
+  const [showSettings,setShowSettings]= useState(false);
 
   useEffect(() => {
     api.get(`/appointments/${appt.id}`)
@@ -182,12 +201,56 @@ export default function RxPrintModal({ appt, onClose }) {
     }
   }, [appt.id, appt.patient_mobile]);
 
+  // Fetch QR token when QR is enabled and data is loaded
+  useEffect(() => {
+    if (!qrEnabled || !data?.encounter_id) { setQrUrl(''); return; }
+    setQrLoading(true);
+    api.get(`/appointments/${appt.id}/rx-token`)
+      .then(r => setQrUrl(r.url || ''))
+      .catch(() => setQrUrl(''))
+      .finally(() => setQrLoading(false));
+  }, [qrEnabled, data?.encounter_id, appt.id]);
+
+  const toggleQr = () => {
+    const next = !qrEnabled;
+    setQrEnabled(next);
+    localStorage.setItem(QR_KEY, String(next));
+  };
+
+  const toggleHidePhone = () => {
+    const next = !hidePhone;
+    setHidePhone(next);
+    localStorage.setItem(HIDE_PHONE_KEY, String(next));
+  };
+
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal}>
         <div className={styles.toolbar}>
           <span className={styles.toolbarTitle}>Prescription — {appt.patient_name}</span>
-          <div style={{ display:'flex', gap:8 }}>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <div style={{ position:'relative' }}>
+              <button
+                className={`${styles.qrToggleBtn} ${showSettings ? styles.qrToggleBtnOn : ''}`}
+                onClick={() => setShowSettings(v => !v)}
+                title="Print settings"
+              >
+                <Settings2 size={13} strokeWidth={2} />
+                Settings
+              </button>
+              {showSettings && (
+                <div className={styles.printSettingsPanel}>
+                  <label className={styles.printSettingRow}>
+                    <input type="checkbox" checked={qrEnabled} onChange={toggleQr} />
+                    <QrCode size={12} strokeWidth={2} /> Add QR code
+                  </label>
+                  <label className={styles.printSettingRow}>
+                    <input type="checkbox" checked={!hidePhone} onChange={toggleHidePhone} />
+                    Show patient mobile
+                  </label>
+                </div>
+              )}
+            </div>
             <button className={styles.printBtn} onClick={() => window.print()} disabled={loading}>
               <Printer size={13} strokeWidth={2} /> Print
             </button>
@@ -197,7 +260,14 @@ export default function RxPrintModal({ appt, onClose }) {
         <div className={styles.body}>
           {loading && <div className={styles.empty}>Loading prescription…</div>}
           {!loading && !data?.encounter_id && <div className={styles.empty}>No prescription found for this appointment.</div>}
-          {!loading && data?.encounter_id && <RxDoc data={data} user={user} dietCharts={dietCharts} />}
+          {!loading && data?.encounter_id && (
+            <RxDoc
+              data={data}
+              user={user}
+              dietCharts={dietCharts}
+              qrUrl={qrEnabled && !qrLoading ? qrUrl : null}
+            />
+          )}
         </div>
       </div>
     </div>

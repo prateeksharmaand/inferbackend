@@ -4,6 +4,61 @@ import { useAuth } from '../../context/AuthContext';
 import SignaturePad from '../../components/SignaturePad';
 import styles from './InferPadSettings.module.css';
 
+// ── Clinic Logo ───────────────────────────────────────────────────────────────
+function ClinicLogoSection({ clinicId }) {
+  const key = `rx_logo_${clinicId}`;
+  const [logo, setLogo] = useState(() => localStorage.getItem(key) || '');
+  const inputRef = useRef(null);
+
+  const readFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const val = e.target.result;
+      setLogo(val);
+      localStorage.setItem(key, val);
+      window.dispatchEvent(new Event('storage'));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const remove = () => {
+    setLogo('');
+    localStorage.removeItem(key);
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>Clinic Logo</div>
+      <div className={styles.sectionHint}>
+        Shown on digital prescription view (scanned via QR). Recommended: square PNG, min 128×128px.
+      </div>
+      {logo ? (
+        <div className={styles.previewWrap}>
+          <img src={logo} alt="Clinic logo" style={{ width: 80, height: 80, objectFit: 'contain', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+          <button className={styles.removeBtn} onClick={remove}>
+            <Trash2 size={13} strokeWidth={2} /> Remove logo
+          </button>
+        </div>
+      ) : (
+        <div
+          className={styles.dropZone}
+          onDrop={e => { e.preventDefault(); readFile(e.dataTransfer.files[0]); }}
+          onDragOver={e => e.preventDefault()}
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload size={24} strokeWidth={1.5} className={styles.uploadIcon} />
+          <span className={styles.dropLabel}>Click to upload or drag &amp; drop</span>
+          <span className={styles.dropHintSub}>PNG / JPG · square logo recommended</span>
+        </div>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }}
+        onChange={e => readFile(e.target.files[0])} />
+    </div>
+  );
+}
+
 function ImageUploadSection({ title, hint, value, onChange }) {
   const inputRef = useRef(null);
 
@@ -159,15 +214,24 @@ export function getMandatoryFields(clinicId) {
 }
 
 export default function InferPadSettings() {
-  // All InferPad settings have moved into the "Configure your Pad" modal
-  // accessible from the Write Rx topbar. This page now shows a redirect notice.
+  const { user } = useAuth();
+  const cid = user?.clinic_id || 'default';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', gap: 16, textAlign: 'center' }}>
-      <div style={{ fontSize: 40 }}>⚙️</div>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: 0 }}>InferPad settings have moved</h2>
-      <p style={{ fontSize: 14, color: '#64748b', maxWidth: 360, margin: 0 }}>
-        All InferPad configuration — pad order, features, signature, header &amp; footer — is now available directly from the <strong>⚙ Configure your Pad</strong> button in the top-right of the Write Rx screen.
-      </p>
+    <div style={{ maxWidth: 560, padding: '24px 0' }}>
+      {/* Redirect notice */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#f8faff', border: '1px solid #e0e7ff', borderRadius: 12, padding: '14px 18px', marginBottom: 28 }}>
+        <span style={{ fontSize: 28 }}>⚙️</span>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>InferPad settings have moved</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+            Pad order, features, signature, header &amp; footer — available from <strong>⚙ Configure your Pad</strong> in the Write Rx screen.
+          </div>
+        </div>
+      </div>
+
+      {/* Clinic logo — managed here */}
+      <ClinicLogoSection clinicId={cid} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Upload, Download, Trash2, Loader } from 'lucide-react';
+import { X, Upload, Download, Trash2, Loader, FlaskConical } from 'lucide-react';
 import styles from './MedicalDocumentsModal.module.css';
 
 function getToken() { return localStorage.getItem('emr_token'); }
@@ -24,12 +24,22 @@ function DocIcon({ mime }) {
   return <span className={styles.typeDoc}>DOC</span>;
 }
 
-export default function MedicalDocumentsModal({ appt, onClose }) {
+const CATEGORY_LABELS = {
+  lab_report: 'Lab Report',
+  prescription: 'Prescription',
+  radiology: 'Radiology',
+  discharge: 'Discharge Summary',
+  other: 'Other',
+};
+
+export default function MedicalDocumentsModal({ appt, onClose, defaultCategory }) {
+  const isLabMode = defaultCategory === 'lab_report';
   const [docs,      setDocs]      = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragOver,  setDragOver]  = useState(false);
   const [error,     setError]     = useState('');
+  const [category,  setCategory]  = useState(defaultCategory || 'other');
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -37,7 +47,11 @@ export default function MedicalDocumentsModal({ appt, onClose }) {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
       .then(r => r.json())
-      .then(rows => { setDocs(rows); setLoading(false); })
+      .then(rows => {
+        // In lab mode, show all docs but highlight lab reports
+        setDocs(rows);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [appt.id]);
 
@@ -45,6 +59,7 @@ export default function MedicalDocumentsModal({ appt, onClose }) {
     setError(''); setUploading(true);
     const form = new FormData();
     form.append('file', file);
+    form.append('category', category);
     try {
       const res = await fetch(`/api/emr/appointments/${appt.id}/documents`, {
         method: 'POST',
@@ -81,16 +96,28 @@ export default function MedicalDocumentsModal({ appt, onClose }) {
       <div className={styles.modal}>
         <div className={styles.header}>
           <div>
-            <div className={styles.title}>Medical Documents</div>
+            <div className={styles.title}>
+              {isLabMode ? <><FlaskConical size={15} strokeWidth={2} style={{verticalAlign:'middle',marginRight:6}} />Upload Lab Report</> : 'Medical Documents'}
+            </div>
             <div className={styles.sub}>{appt.patient_name}</div>
           </div>
           <button className={styles.closeBtn} onClick={onClose}><X size={16} /></button>
         </div>
 
         <div className={styles.body}>
+          {/* Category selector */}
+          <div className={styles.categoryRow}>
+            <span className={styles.categoryLabel}>Document type:</span>
+            <select className={styles.categorySelect} value={category} onChange={e => setCategory(e.target.value)}>
+              {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Drop zone */}
           <div
-            className={`${styles.dropZone} ${dragOver ? styles.dropZoneActive : ''} ${uploading ? styles.dropZoneBusy : ''}`}
+            className={`${styles.dropZone} ${dragOver ? styles.dropZoneActive : ''} ${uploading ? styles.dropZoneBusy : ''} ${isLabMode ? styles.dropZoneLab : ''}`}
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
@@ -100,9 +127,9 @@ export default function MedicalDocumentsModal({ appt, onClose }) {
               ? <><Loader size={20} className={styles.spin} /><span>Uploading…</span></>
               : (
                 <>
-                  <Upload size={22} className={styles.uploadIcon} />
-                  <span className={styles.dropLabel}>Drop file or <u>click to browse</u></span>
-                  <span className={styles.dropHint}>PDF, JPG, PNG, DOCX · max 20 MB</span>
+                  {isLabMode ? <FlaskConical size={22} className={styles.uploadIcon} /> : <Upload size={22} className={styles.uploadIcon} />}
+                  <span className={styles.dropLabel}>Drop {isLabMode ? 'lab report' : 'file'} or <u>click to browse</u></span>
+                  <span className={styles.dropHint}>PDF, JPG, PNG · max 20 MB</span>
                 </>
               )
             }
@@ -128,7 +155,10 @@ export default function MedicalDocumentsModal({ appt, onClose }) {
                   <DocIcon mime={doc.mime_type} />
                   <div className={styles.info}>
                     <span className={styles.name}>{doc.original_name}</span>
-                    <span className={styles.meta}>{formatSize(doc.file_size)} · {formatDate(doc.created_at)}</span>
+                    <span className={styles.meta}>
+                      {doc.category && <span className={`${styles.catBadge} ${doc.category === 'lab_report' ? styles.catLab : ''}`}>{CATEGORY_LABELS[doc.category] || doc.category}</span>}
+                      {formatSize(doc.file_size)} · {formatDate(doc.created_at)}
+                    </span>
                   </div>
                   <div className={styles.acts}>
                     <a

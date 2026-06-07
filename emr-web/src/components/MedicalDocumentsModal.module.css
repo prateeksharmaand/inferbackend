@@ -69,3 +69,36 @@
 }
 .actBtn:hover    { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
 .actBtnDel:hover { background: #dc2626; border-color: #dc2626; color: #fff; }
+
+/* Lab mode drop zone */
+.dropZoneLab { border-color: #a78bfa; }
+.dropZoneLab:hover { border-color: #7c3aed; background: #f5f3ff; }
+
+/* Category selector */
+.categoryRow  { display: flex; align-items: center; gap: 10px; }
+.categoryLabel { font-size: 12px; font-weight: 600; color: var(--color-text-2); white-space: nowrap; }
+.categorySelect {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--color-text);
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+}
+.categorySelect:focus { border-color: var(--color-primary); }
+
+/* Category badge in doc list */
+.catBadge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+.catLab { background: #f5f3ff; color: #7c3aed; }

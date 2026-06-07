@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip } from 'lucide-react';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip, FlaskConical } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
@@ -94,6 +94,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const [receipts,       setReceipts]       = useState(null);
   const [showReceipts,   setShowReceipts]   = useState(false);
   const [showDocs,       setShowDocs]       = useState(false);
+  const [showLabUpload,  setShowLabUpload]  = useState(false);
   const [showSlip,       setShowSlip]       = useState(false);
   const [showMedDoc,     setShowMedDoc]     = useState(false);
   const moreRef = useRef(null);
@@ -282,6 +283,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               <button className={`${styles.actionBtn} ${styles.actionBtnReschedule}`} onClick={openReschedule}>
                 <CalendarClock size={11} strokeWidth={2} />Reschedule
               </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnLab}`}
+                onClick={e => { e.stopPropagation(); setShowLabUpload(true); }}
+                title="Upload Lab Report">
+                <FlaskConical size={12} strokeWidth={2} /> Lab
+              </button>
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
                   onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">
@@ -306,6 +312,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
                 onClick={e => { e.stopPropagation(); setShowSlip(true); }}>
                 <Printer size={12} strokeWidth={2} /> Slip
+              </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnLab}`}
+                onClick={e => { e.stopPropagation(); setShowLabUpload(true); }}
+                title="Upload Lab Report">
+                <FlaskConical size={12} strokeWidth={2} /> Lab
               </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnDoc}`}
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
@@ -333,6 +344,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               <button className={`${styles.actionBtn} ${styles.actionBtnVitals}`}
                 onClick={e => { e.stopPropagation(); onOpen('vitals'); }}>
                 <Activity size={12} strokeWidth={2} /> Add Vitals
+              </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnLab}`}
+                onClick={e => { e.stopPropagation(); setShowLabUpload(true); }}
+                title="Upload Lab Report">
+                <FlaskConical size={12} strokeWidth={2} /> Lab
               </button>
               <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
                 onClick={e => { e.stopPropagation(); onOpen('print'); }}>
@@ -365,6 +381,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
       {showDocs && (
         <MedicalDocumentsModal appt={appt} onClose={() => setShowDocs(false)} />
+      )}
+      {showLabUpload && (
+        <MedicalDocumentsModal appt={appt} onClose={() => setShowLabUpload(false)} defaultCategory="lab_report" />
       )}
       {showSlip && (
         <AppointmentSlipModal appt={appt} onClose={() => setShowSlip(false)} />

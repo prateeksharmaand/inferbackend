@@ -61,13 +61,31 @@ const TABS = [
   { key: 'Lab Reports',          icon: FlaskConical },
 ];
 
+function hasContent(h) {
+  if (!h.encounter_id) return true; // appointment with no encounter — show it
+  return (
+    (h.symptoms          || []).length > 0 ||
+    (h.diagnosis         || []).length > 0 ||
+    (h.medications       || []).length > 0 ||
+    (h.lab_investigations|| []).length > 0 ||
+    (h.lab_results       || []).length > 0 ||
+    (h.chief_complaint   || '').trim() !== '' ||
+    (h.advices           || '').trim() !== '' ||
+    (h.encounter_notes   || '').trim() !== '' ||
+    (h.refer_to          || '').trim() !== '' ||
+    (h.examination_findings || '').trim() !== '' ||
+    (h.vitals && Object.values(h.vitals).some(v => v))
+  );
+}
+
 // ── Past Visits ───────────────────────────────────────────────────────────────
 function PastVisits({ history, loading, currentId }) {
   if (loading) return <div className={styles.tabPad}><p className={styles.hint}>Loading…</p></div>;
-  if (!history.length) return <EmptyState text="No past visits on record." />;
+  const meaningful = history.filter(hasContent);
+  if (!meaningful.length) return <EmptyState text="No past visits on record." />;
   return (
     <div className={styles.visitList}>
-      {history.map(h => {
+      {meaningful.map(h => {
         const diags    = (h.diagnosis  || []).map(d => d.display || d).filter(Boolean).join(', ');
         const medCount = (h.medications|| []).length;
         const dur      = durationMins(h.checked_in_at, h.completed_at);
