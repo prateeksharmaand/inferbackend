@@ -33,8 +33,164 @@ function getFlag(r) {
   return val > hi ? 'High' : val < lo ? 'Low' : '';
 }
 
+// ── Vitals SVG Line Chart (print-safe — no canvas) ───────────────────────────
+function VitalsLineChart({ title, series, xLabels }) {
+  // series: [{ label, color, dashArray?, values: [number|null] }]
+  const W = 420, H = 170;
+  const PAD = { top: 28, right: 16, bottom: 34, left: 46 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+  const n = xLabels.length;
+
+  const allVals = series.flatMap(s => s.values).filter(v => v != null && !isNaN(v));
+  if (allVals.length < 2) return null;
+
+  const rawMin = Math.min(...allVals);
+  const rawMax = Math.max(...allVals);
+  const range  = rawMax - rawMin || 10;
+  const yMin   = Math.floor((rawMin - range * 0.15) / 5) * 5;
+  const yMax   = Math.ceil((rawMax  + range * 0.15) / 5) * 5;
+
+  const xOf = i => PAD.left + (n <= 1 ? cW / 2 : (i / (n - 1)) * cW);
+  const yOf = v => PAD.top  + cH - ((v - yMin) / (yMax - yMin)) * cH;
+
+  // Y-axis grid ticks (4 lines)
+  const ticks = Array.from({ length: 5 }, (_, i) => yMin + Math.round(((yMax - yMin) / 4) * i));
+
+  const pathFor = (values) => {
+    let d = '';
+    values.forEach((v, i) => {
+      if (v == null || isNaN(v)) return;
+      d += `${d === '' ? 'M' : 'L'} ${xOf(i).toFixed(1)} ${yOf(v).toFixed(1)} `;
+    });
+    return d.trim();
+  };
+
+  return (
+    <div style={{ margin: '10px 0', pageBreakInside: 'avoid' }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#334155', textAlign: 'center', marginBottom: 2, letterSpacing: 0.5 }}>
+        {title}
+      </div>
+      <svg
+        width={W} height={H}
+        style={{ display: 'block', margin: '0 auto', fontFamily: 'Times New Roman, serif' }}
+        viewBox={`0 0 ${W} ${H}`}
+      >
+        {/* Chart border */}
+        <rect x={PAD.left} y={PAD.top} width={cW} height={cH}
+          fill="#fff" stroke="#cbd5e1" strokeWidth={0.8} />
+
+        {/* Y-axis gridlines + labels */}
+        {ticks.map(t => (
+          <g key={t}>
+            <line x1={PAD.left} y1={yOf(t)} x2={PAD.left + cW} y2={yOf(t)}
+              stroke="#e2e8f0" strokeWidth={0.6} strokeDasharray="3,2" />
+            <text x={PAD.left - 4} y={yOf(t) + 3.5} textAnchor="end"
+              fontSize={8} fill="#64748b">{t}</text>
+          </g>
+        ))}
+
+        {/* X-axis labels */}
+        {xLabels.map((lbl, i) => (
+          <text key={i} x={xOf(i)} y={PAD.top + cH + 12}
+            textAnchor="middle" fontSize={8} fill="#475569">{lbl}</text>
+        ))}
+
+        {/* Y-axis title */}
+        <text
+          x={12} y={PAD.top + cH / 2}
+          textAnchor="middle" fontSize={8} fill="#64748b"
+          transform={`rotate(-90, 12, ${PAD.top + cH / 2})`}
+        >Blood Pressure</text>
+
+        {/* X-axis title */}
+        <text x={PAD.left + cW / 2} y={H - 4}
+          textAnchor="middle" fontSize={8} fill="#64748b">Observations</text>
+
+        {/* Lines */}
+        {series.map(s => (
+          <path key={s.label} d={pathFor(s.values)}
+            fill="none" stroke={s.color} strokeWidth={1.6}
+            strokeDasharray={s.dashArray || ''}
+            strokeLinejoin="round" strokeLinecap="round" />
+        ))}
+
+        {/* Data points + value labels */}
+        {series.map(s =>
+          s.values.map((v, i) => {
+            if (v == null || isNaN(v)) return null;
+            const x = xOf(i), y = yOf(v);
+            const isTop = s === series[0];
+            return (
+              <g key={`${s.label}-${i}`}>
+                <circle cx={x} cy={y} r={3} fill={s.color} stroke="#fff" strokeWidth={0.8} />
+                <text x={x} y={isTop ? y - 5 : y + 11}
+                  textAnchor="middle" fontSize={7.5} fill={s.color} fontWeight="600">
+                  {v}
+                </text>
+              </g>
+            );
+          })
+        )}
+
+        {/* Legend */}
+        {series.map((s, i) => (
+          <g key={s.label} transform={`translate(${PAD.left + cW - (series.length - i) * 90 + 10}, ${PAD.top - 14})`}>
+            <line x1={0} y1={5} x2={16} y2={5} stroke={s.color} strokeWidth={1.6} strokeDasharray={s.dashArray || ''} />
+            <circle cx={8} cy={5} r={2.5} fill={s.color} />
+            <text x={20} y={8.5} fontSize={8} fill="#334155">{s.label}</text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+// Build chart series from patient visit history
+function buildChartData(history, currentVitals, currentLabResults) {
+  // Take last 6 visits (oldest → newest) including current
+  const visits = [...history].reverse().slice(-5); // up to 5 past
+  const labels = [];
+  const bpSys  = [], bpDia = [], pulse = [], weight = [], glucose = [];
+
+  const extractGlucose = (labResults) => {
+    if (!labResults?.length) return null;
+    const g = labResults.find(r =>
+      /fasting|glucose|fbg|rbs|ppbs|sugar/i.test(r.test || '')
+    );
+    return g ? parseFloat(g.result) : null;
+  };
+
+  visits.forEach((v, i) => {
+    const vit = v.vitals || {};
+    const lr  = v.lab_results || [];
+    labels.push(`O${i + 1}`);
+    bpSys.push(parseFloat(vit.bp_systolic)  || null);
+    bpDia.push(parseFloat(vit.bp_diastolic) || null);
+    pulse.push(parseFloat(vit.pulse)         || null);
+    weight.push(parseFloat(vit.weight)       || null);
+    glucose.push(extractGlucose(lr));
+  });
+
+  // Add current visit
+  const curLabel = `O${labels.length + 1}`;
+  labels.push(curLabel);
+  bpSys.push(parseFloat(currentVitals?.bp_systolic)  || null);
+  bpDia.push(parseFloat(currentVitals?.bp_diastolic) || null);
+  pulse.push(parseFloat(currentVitals?.pulse)         || null);
+  weight.push(parseFloat(currentVitals?.weight)       || null);
+  glucose.push(extractGlucose(currentLabResults));
+
+  const hasBP     = bpSys.some(v => v)  && bpDia.some(v => v);
+  const hasPulse  = pulse.some(v => v)  && pulse.filter(Boolean).length >= 2;
+  const hasWeight = weight.some(v => v) && weight.filter(Boolean).length >= 2;
+  const hasGluc   = glucose.some(v => v)&& glucose.filter(Boolean).length >= 2;
+
+  return { labels, bpSys, bpDia, pulse, weight, glucose, hasBP, hasPulse, hasWeight, hasGluc };
+}
+
 // ── Prescription document ─────────────────────────────────────────────────────
-function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false }) {
+function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, vitalsHistory = [] }) {
   const cid      = user?.clinic_id || 'default';
   const icd10    = getICD10Settings(cid);
   const headerImg = localStorage.getItem(`rx_header_${cid}`) || '';
@@ -152,6 +308,46 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false })
         )}
       </div>
 
+      {vitalsHistory.length >= 1 && (() => {
+        const { labels, bpSys, bpDia, pulse, weight, glucose, hasBP, hasPulse, hasWeight, hasGluc } =
+          buildChartData(vitalsHistory, data.vitals, data.lab_results);
+        return (
+          <>
+            {hasBP && (
+              <VitalsLineChart
+                title="Blood Pressure Trend (mmHg)"
+                xLabels={labels}
+                series={[
+                  { label: 'Systolic BP',  color: '#2563eb', values: bpSys },
+                  { label: 'Diastolic BP', color: '#dc2626', dashArray: '4,2', values: bpDia },
+                ]}
+              />
+            )}
+            {hasGluc && (
+              <VitalsLineChart
+                title="Blood Glucose Trend (mg/dL)"
+                xLabels={labels}
+                series={[{ label: 'Glucose', color: '#7c3aed', values: glucose }]}
+              />
+            )}
+            {hasPulse && !hasBP && (
+              <VitalsLineChart
+                title="Pulse Rate Trend (bpm)"
+                xLabels={labels}
+                series={[{ label: 'Pulse', color: '#0891b2', values: pulse }]}
+              />
+            )}
+            {hasWeight && !hasBP && !hasPulse && (
+              <VitalsLineChart
+                title="Weight Trend (kg)"
+                xLabels={labels}
+                series={[{ label: 'Weight', color: '#059669', values: weight }]}
+              />
+            )}
+          </>
+        );
+      })()}
+
       {qrUrl && (
         <div className={styles.qrSection}>
           {qrUrl === 'loading'
@@ -180,8 +376,9 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false })
 }
 
 // ── Modal shell ───────────────────────────────────────────────────────────────
-const QR_KEY        = 'rx_qr_enabled';
-const HIDE_PHONE_KEY = 'rx_print_hide_phone';
+const QR_KEY            = 'rx_qr_enabled';
+const HIDE_PHONE_KEY     = 'rx_print_hide_phone';
+const SHOW_VITALS_GRAPH  = 'rx_vitals_graph';
 
 export default function RxPrintModal({ appt, onClose }) {
   const { user } = useAuth();
@@ -191,8 +388,10 @@ export default function RxPrintModal({ appt, onClose }) {
   const [qrEnabled,   setQrEnabled]   = useState(() => localStorage.getItem(QR_KEY) !== 'false');
   const [qrUrl,       setQrUrl]       = useState('');
   const [qrLoading,   setQrLoading]   = useState(false);
-  const [hidePhone,   setHidePhone]   = useState(() => localStorage.getItem(HIDE_PHONE_KEY) === 'true');
-  const [showSettings,setShowSettings]= useState(false);
+  const [hidePhone,     setHidePhone]     = useState(() => localStorage.getItem(HIDE_PHONE_KEY) === 'true');
+  const [showVitalsGraph,setShowVitalsGraph]= useState(() => localStorage.getItem(SHOW_VITALS_GRAPH) !== 'false');
+  const [vitalsHistory,  setVitalsHistory]  = useState([]);
+  const [showSettings,  setShowSettings]  = useState(false);
   const settingsRef = useRef(null);
 
   useEffect(() => {
@@ -202,6 +401,19 @@ export default function RxPrintModal({ appt, onClose }) {
     if (appt.patient_mobile) {
       api.get(`/diet/charts?patient_mobile=${appt.patient_mobile}`)
         .then(setDietCharts).catch(() => {});
+      // Fetch past visits for vitals graph
+      api.get(`/patients/history?mobile=${encodeURIComponent(appt.patient_mobile)}`)
+        .then(rows => {
+          // Exclude current appointment; keep visits with vitals or lab results
+          const hist = (rows || []).filter(r =>
+            r.id !== appt.id && (
+              (r.vitals && Object.values(r.vitals).some(v => v)) ||
+              r.lab_results?.length > 0
+            )
+          );
+          setVitalsHistory(hist);
+        })
+        .catch(() => {});
     }
   }, [appt.id, appt.patient_mobile]);
 
@@ -235,6 +447,12 @@ export default function RxPrintModal({ appt, onClose }) {
     localStorage.setItem(HIDE_PHONE_KEY, String(next));
   };
 
+  const toggleVitalsGraph = () => {
+    const next = !showVitalsGraph;
+    setShowVitalsGraph(next);
+    localStorage.setItem(SHOW_VITALS_GRAPH, String(next));
+  };
+
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal}>
@@ -260,6 +478,10 @@ export default function RxPrintModal({ appt, onClose }) {
                     <input type="checkbox" checked={!hidePhone} onChange={toggleHidePhone} />
                     Show patient mobile
                   </label>
+                  <label className={styles.printSettingRow}>
+                    <input type="checkbox" checked={showVitalsGraph} onChange={toggleVitalsGraph} />
+                    Show vitals graph
+                  </label>
                 </div>
               )}
             </div>
@@ -278,6 +500,7 @@ export default function RxPrintModal({ appt, onClose }) {
               user={user}
               dietCharts={dietCharts}
               qrUrl={qrEnabled ? (qrLoading ? 'loading' : qrUrl) : null}
+              vitalsHistory={showVitalsGraph ? vitalsHistory : []}
             />
           )}
         </div>
