@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import styles from './RxPublicView.module.css';
 
 const VLABEL = {
@@ -20,8 +20,6 @@ function fmtDate(d) {
 
 export default function RxPublicView() {
   const { apptId } = useParams();
-  const [params] = useSearchParams();
-  const token = params.get('t');
 
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,8 +29,8 @@ export default function RxPublicView() {
   const [form,    setForm]    = useState({ name: '', mobile: '', note: '' });
 
   useEffect(() => {
-    if (!apptId || !token) { setError('Invalid link.'); setLoading(false); return; }
-    fetch(`/api/emr/public/rx/${apptId}?t=${token}`)
+    if (!apptId) { setError('Invalid link.'); setLoading(false); return; }
+    fetch(`/api/emr/public/rx/${apptId}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) setError(d.error);

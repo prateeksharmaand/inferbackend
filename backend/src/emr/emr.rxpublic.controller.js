@@ -1,17 +1,11 @@
 /**
  * Public prescription endpoint — no auth required.
- * Token is HMAC-SHA256(apptId, QR_SECRET) to prevent enumeration.
+ * Security: appointment IDs are UUIDs (122 random bits) — unguessable without brute-force.
+ * The QR link contains only the UUID; no separate token needed.
  */
-const crypto = require('crypto');
 const { pool } = require('../config/database');
 
-const SECRET = process.env.QR_SECRET || 'infer_rx_qr_secret_2025';
-
-function makeToken(apptId) {
-  return crypto.createHmac('sha256', SECRET).update(String(apptId)).digest('hex').slice(0, 24);
-}
-
-// GET /api/emr/appointments/:id/rx-token  (protected — doctor fetches this)
+// GET /api/emr/appointments/:id/rx-token  (protected — doctor fetches QR URL)
 exports.getRxToken = async (req, res) => {
   const { id } = req.params;
 
@@ -22,20 +16,17 @@ exports.getRxToken = async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ error: 'Appointment not found' });
 
-  const token = makeToken(id);
   const baseUrl = process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
-  const url = `${baseUrl}/opd/rx-view/${id}?t=${token}`;
+  const url = `${baseUrl}/opd/rx-view/${id}`;
 
-  res.json({ token, url });
+  res.json({ url });
 };
 
-// GET /api/emr/public/rx/:apptId?t=token  (public — patient opens QR link)
+// GET /api/emr/public/rx/:apptId  (public — patient opens QR link)
 exports.getPublicRx = async (req, res) => {
   const { apptId } = req.params;
-  const { t } = req.query;
 
-  const expected = makeToken(apptId);
-  if (t !== expected) return res.status(403).json({ error: 'Invalid or expired QR link' });
+  // No token needed — UUID appointment IDs are cryptographically unguessable
 
   try {
     const { rows } = await pool.query(
