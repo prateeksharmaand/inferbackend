@@ -34,7 +34,7 @@ function getFlag(r) {
 }
 
 // ── Vitals SVG Line Chart (print-safe — no canvas) ───────────────────────────
-function VitalsLineChart({ title, series, xLabels }) {
+function VitalsLineChart({ title, yAxisLabel = 'Value', series, xLabels }) {
   // series: [{ label, color, dashArray?, values: [number|null] }]
   const W = 420, H = 170;
   const PAD = { top: 28, right: 16, bottom: 34, left: 46 };
@@ -101,7 +101,7 @@ function VitalsLineChart({ title, series, xLabels }) {
           x={12} y={PAD.top + cH / 2}
           textAnchor="middle" fontSize={8} fill="#64748b"
           transform={`rotate(-90, 12, ${PAD.top + cH / 2})`}
-        >Blood Pressure</text>
+        >{yAxisLabel}</text>
 
         {/* X-axis title */}
         <text x={PAD.left + cW / 2} y={H - 4}
@@ -316,9 +316,10 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, v
             {hasBP && (
               <VitalsLineChart
                 title="Blood Pressure Trend (mmHg)"
+                yAxisLabel="Blood Pressure"
                 xLabels={labels}
                 series={[
-                  { label: 'Systolic BP',  color: '#2563eb', values: bpSys },
+                  { label: 'Systolic BP',  color: '#1d4ed8', values: bpSys },
                   { label: 'Diastolic BP', color: '#dc2626', dashArray: '4,2', values: bpDia },
                 ]}
               />
@@ -326,6 +327,7 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, v
             {hasGluc && (
               <VitalsLineChart
                 title="Blood Glucose Trend (mg/dL)"
+                yAxisLabel="Glucose (mg/dL)"
                 xLabels={labels}
                 series={[{ label: 'Glucose', color: '#7c3aed', values: glucose }]}
               />
@@ -333,6 +335,7 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, v
             {hasPulse && !hasBP && (
               <VitalsLineChart
                 title="Pulse Rate Trend (bpm)"
+                yAxisLabel="Pulse (bpm)"
                 xLabels={labels}
                 series={[{ label: 'Pulse', color: '#0891b2', values: pulse }]}
               />
@@ -340,6 +343,7 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, v
             {hasWeight && !hasBP && !hasPulse && (
               <VitalsLineChart
                 title="Weight Trend (kg)"
+                yAxisLabel="Weight (kg)"
                 xLabels={labels}
                 series={[{ label: 'Weight', color: '#059669', values: weight }]}
               />
