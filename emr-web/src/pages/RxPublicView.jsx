@@ -77,6 +77,8 @@ export default function RxPublicView() {
   const meds     = data.medications || [];
   const diags    = (data.diagnosis  || []).map(d => d.display || d).filter(Boolean);
   const labs     = data.lab_investigations || [];
+  const labResults = data.lab_results || [];
+  const procs    = (data.procedures || []).filter(Boolean);
   const followup = data.next_visit_date
     ? `Follow up on ${fmtDate(data.next_visit_date)}${data.next_visit_notes ? ' — ' + data.next_visit_notes : ''}`
     : data.next_visit_notes || '';
@@ -187,11 +189,53 @@ export default function RxPublicView() {
         </div>
       )}
 
+      {/* Examination findings */}
+      {data.examination_findings && (
+        <div className={styles.card}>
+          <div className={styles.sectionTitle}>🩻 Examination Findings</div>
+          <p className={styles.adviceText}>{data.examination_findings}</p>
+        </div>
+      )}
+
+      {/* Lab results */}
+      {labResults.length > 0 && (
+        <div className={styles.card}>
+          <div className={styles.sectionTitle}>📊 Lab Results</div>
+          {labResults.map((r, i) => (
+            <div key={i} className={styles.diagItem}>
+              <span className={styles.diagDot} />
+              <span>{r.test}{r.result ? `: ${r.result}${r.unit ? ' ' + r.unit : ''}` : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Procedures */}
+      {procs.length > 0 && (
+        <div className={styles.card}>
+          <div className={styles.sectionTitle}>⚕️ Procedures</div>
+          {procs.map((p, i) => (
+            <div key={i} className={styles.diagItem}>
+              <span className={styles.diagDot} />{p}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Referral */}
+      {data.refer_to && (
+        <div className={styles.card}>
+          <div className={styles.sectionTitle}>🏥 Referred To</div>
+          <p className={styles.adviceText}>{data.refer_to}</p>
+        </div>
+      )}
+
       {/* Advice / Notes */}
-      {data.advices && (
+      {(data.advices || data.notes) && (
         <div className={styles.card}>
           <div className={styles.sectionTitle}>📝 Advice</div>
-          <p className={styles.adviceText}>{data.advices}</p>
+          {data.advices && <p className={styles.adviceText}>{data.advices}</p>}
+          {data.notes   && <p className={styles.adviceText} style={{marginTop: data.advices ? 6 : 0}}>{data.notes}</p>}
         </div>
       )}
 

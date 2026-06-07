@@ -39,45 +39,70 @@ exports.getPublicRx = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT a.*,
-              c.name  AS clinic_name,
-              c.address AS clinic_address,
-              c.phone   AS clinic_phone,
-              d.name  AS doctor_name,
-              d.specialization AS doctor_specialization
+      `SELECT a.id, a.appointment_date, a.patient_name, a.patient_age,
+              a.patient_gender, a.patient_dob, a.uhid,
+              c.name        AS clinic_name,
+              c.address     AS clinic_address,
+              c.phone       AS clinic_phone,
+              d.name        AS doctor_name,
+              d.specialization AS doctor_specialization,
+              e.id              AS encounter_id,
+              e.vitals,
+              e.symptoms,
+              e.diagnosis,
+              e.medications,
+              e.advices,
+              e.notes,
+              e.next_visit_date,
+              e.next_visit_notes,
+              e.lab_investigations,
+              e.lab_results,
+              e.examination_findings,
+              e.refer_to,
+              e.procedures
        FROM emr_appointments a
-       LEFT JOIN emr_clinics c  ON c.id = a.clinic_id
-       LEFT JOIN emr_doctors d  ON d.id = a.doctor_id
+       LEFT JOIN emr_clinics   c ON c.id = a.clinic_id
+       LEFT JOIN emr_doctors   d ON d.id = a.doctor_id
+       LEFT JOIN emr_encounters e ON e.appointment_id = a.id
        WHERE a.id = $1`,
       [apptId],
     );
     if (!rows.length) return res.status(404).json({ error: 'Prescription not found' });
 
-    const appt = rows[0];
+    const r = rows[0];
 
-    // Return only fields needed for the public view
+    // Derive age from dob if patient_age not stored
+    let age = r.patient_age;
+    if (!age && r.patient_dob) {
+      age = Math.floor((Date.now() - new Date(r.patient_dob)) / (365.25 * 24 * 60 * 60 * 1000));
+    }
+
     res.json({
-      id:                 appt.id,
-      appointment_date:   appt.appointment_date,
-      patient_name:       appt.patient_name,
-      patient_age:        appt.patient_age,
-      patient_gender:     appt.patient_gender,
-      uhid:               appt.uhid,
-      clinic_name:        appt.clinic_name || appt.clinic_id,
-      clinic_address:     appt.clinic_address || '',
-      clinic_phone:       appt.clinic_phone || '',
-      doctor_name:        appt.doctor_name || '',
-      doctor_specialization: appt.doctor_specialization || '',
-      vitals:             appt.vitals             || {},
-      diagnosis:          appt.diagnosis          || [],
-      medications:        appt.medications        || [],
-      symptoms:           appt.symptoms           || [],
-      advices:            appt.advices            || '',
-      notes:              appt.notes              || '',
-      next_visit_date:    appt.next_visit_date    || null,
-      next_visit_notes:   appt.next_visit_notes   || '',
-      lab_investigations: appt.lab_investigations || [],
-      encounter_id:       appt.encounter_id       || null,
+      id:                    r.id,
+      appointment_date:      r.appointment_date,
+      patient_name:          r.patient_name,
+      patient_age:           age || null,
+      patient_gender:        r.patient_gender,
+      uhid:                  r.uhid,
+      clinic_name:           r.clinic_name   || '',
+      clinic_address:        r.clinic_address || '',
+      clinic_phone:          r.clinic_phone   || '',
+      doctor_name:           r.doctor_name    || '',
+      doctor_specialization: r.doctor_specialization || '',
+      encounter_id:          r.encounter_id   || null,
+      vitals:                r.vitals             || {},
+      symptoms:              r.symptoms           || [],
+      diagnosis:             r.diagnosis          || [],
+      medications:           r.medications        || [],
+      advices:               r.advices            || '',
+      notes:                 r.notes              || '',
+      next_visit_date:       r.next_visit_date    || null,
+      next_visit_notes:      r.next_visit_notes   || '',
+      lab_investigations:    r.lab_investigations || [],
+      lab_results:           r.lab_results        || [],
+      examination_findings:  r.examination_findings || '',
+      refer_to:              r.refer_to           || '',
+      procedures:            r.procedures         || [],
     });
   } catch (err) {
     console.error('[rx-public]', err.message);
