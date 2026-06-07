@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Printer, QrCode, Settings2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
@@ -154,7 +154,10 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false })
 
       {qrUrl && (
         <div className={styles.qrSection}>
-          <QRCodeSVG value={qrUrl} size={80} level="M" includeMargin={false} />
+          {qrUrl === 'loading'
+            ? <div className={styles.qrPlaceholder}>⏳</div>
+            : <QRCodeSVG value={qrUrl} size={80} level="M" includeMargin={false} />
+          }
           <div className={styles.qrLabel}>
             <strong>Scan for digital copy</strong>
             <span>View prescription &amp; book appointment</span>
@@ -190,6 +193,7 @@ export default function RxPrintModal({ appt, onClose }) {
   const [qrLoading,   setQrLoading]   = useState(false);
   const [hidePhone,   setHidePhone]   = useState(() => localStorage.getItem(HIDE_PHONE_KEY) === 'true');
   const [showSettings,setShowSettings]= useState(false);
+  const settingsRef = useRef(null);
 
   useEffect(() => {
     api.get(`/appointments/${appt.id}`)
@@ -200,6 +204,14 @@ export default function RxPrintModal({ appt, onClose }) {
         .then(setDietCharts).catch(() => {});
     }
   }, [appt.id, appt.patient_mobile]);
+
+  // Close settings panel on click outside
+  useEffect(() => {
+    if (!showSettings) return;
+    const handler = (e) => { if (settingsRef.current && !settingsRef.current.contains(e.target)) setShowSettings(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSettings]);
 
   // Fetch QR token when QR is enabled and data is loaded
   useEffect(() => {
@@ -229,7 +241,7 @@ export default function RxPrintModal({ appt, onClose }) {
         <div className={styles.toolbar}>
           <span className={styles.toolbarTitle}>Prescription — {appt.patient_name}</span>
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-            <div style={{ position:'relative' }}>
+            <div style={{ position:'relative' }} ref={settingsRef}>
               <button
                 className={`${styles.qrToggleBtn} ${showSettings ? styles.qrToggleBtnOn : ''}`}
                 onClick={() => setShowSettings(v => !v)}
@@ -265,7 +277,7 @@ export default function RxPrintModal({ appt, onClose }) {
               data={data}
               user={user}
               dietCharts={dietCharts}
-              qrUrl={qrEnabled && !qrLoading ? qrUrl : null}
+              qrUrl={qrEnabled ? (qrLoading ? 'loading' : qrUrl) : null}
             />
           )}
         </div>

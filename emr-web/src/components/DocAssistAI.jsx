@@ -129,7 +129,7 @@ async function sendChunk(blob, language = 'en') {
   form.append('language', language);
   const token = localStorage.getItem('emr_token');
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 25000);
+  const t = setTimeout(() => ctrl.abort(), 30000);
   try {
     const res = await fetch('/api/emr/scribe/transcribe', {
       method: 'POST',
@@ -138,9 +138,15 @@ async function sendChunk(blob, language = 'en') {
       signal: ctrl.signal,
     });
     clearTimeout(t);
-    if (!res.ok) return '';
-    return (await res.json()).text || '';
-  } catch { clearTimeout(t); return ''; }
+    if (res.status === 503) throw new Error('groq_unavailable');
+    if (!res.ok) return { text: '', error: `Server error ${res.status}` };
+    return { text: (await res.json()).text || '', error: null };
+  } catch (e) {
+    clearTimeout(t);
+    if (e.name === 'AbortError') return { text: '', error: 'timeout' };
+    if (e.message === 'groq_unavailable') return { text: '', error: 'groq_unavailable' };
+    return { text: '', error: e.message };
+  }
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -207,8 +213,16 @@ function ChatTab({ patientCtx }) {
         patient_context: patientCtx || null,
       });
       setMessages(prev => [...prev, { role: 'ai', text: res.reply, ts: fmtTime(new Date()) }]);
-    } catch {
-      setMessages(prev => [...prev, { role: 'ai', text: 'Sorry, I could not get a response. Please try again.', ts: fmtTime(new Date()), error: true }]);
+    } catch (err) {
+      const is429 = err?.status === 429 || String(err?.message).includes('429');
+      setMessages(prev => [...prev, {
+        role: 'ai',
+        text: is429
+          ? '⚠️ AI service is busy (rate limit). Please wait 30 seconds and try again.'
+          : 'Sorry, I could not get a response. Please check your connection and try again.',
+        ts: fmtTime(new Date()),
+        error: true,
+      }]);
     } finally {
       setLoading(false);
     }
@@ -338,7 +352,14 @@ function DictateTab() {
           if (pausedRef.current) { await new Promise(r => setTimeout(r, 300)); continue; }
           const blob = await recordSegment(streamRef.current, SEGMENT_MS);
           if (stoppedRef.current) break;
-          const text = await sendChunk(blob);
+          const { text, error } = await sendChunk(blob);
+          if (error === 'groq_unavailable') {
+            setError('Transcription service unavailable. Check if GROQ_API_KEY is configured on the server.');
+            stoppedRef.current = true;
+            streamRef.current?.getTracks().forEach(t => t.stop());
+            setRecording(false); setPaused(false); stopWave();
+            break;
+          }
           if (text) setTranscript(prev => prev ? `${prev} ${text}` : text);
         }
       };
@@ -477,7 +498,7 @@ function PatientsTab({ onSetPatientCtx }) {
     if (!q.trim()) { setResults([]); return; }
     setSearching(true);
     try {
-      const data = await api.get(`/patients?search=${encodeURIComponent(q)}&limit=8`);
+      const data = await api.get(`/patients?q=${encodeURIComponent(q)}&limit=8`);
       setResults(Array.isArray(data) ? data : data.patients || data.data || []);
     } catch { setResults([]); }
     finally { setSearching(false); }
