@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  X, Send, Mic, MicOff, Bot, RotateCcw, Search, FileText,
-  MessageSquare, User, ChevronDown, ChevronUp, Copy, Check,
-  Sparkles, Activity, Pill, AlertTriangle, Clock, Stethoscope,
-  ClipboardList, Download, RefreshCw, Paperclip, Volume2,
+  X, Send, Mic, Bot, RotateCcw, Search, FileText,
+  MessageSquare, User, ChevronDown, Copy, Check,
+  Sparkles, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import ScribePanel from './ScribePanel';
 import styles from './DocAssistAI.module.css';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -112,42 +113,7 @@ function renderMarkdown(text) {
   return out;
 }
 
-async function recordSegment(stream, ms) {
-  return new Promise(resolve => {
-    const chunks = [];
-    const rec = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-    rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-    rec.onstop = () => resolve(new Blob(chunks, { type: 'audio/webm' }));
-    rec.start();
-    setTimeout(() => rec.stop(), ms);
-  });
-}
-
-async function sendChunk(blob, language = 'en') {
-  const form = new FormData();
-  form.append('audio_file', blob, 'chunk.webm');
-  form.append('language', language);
-  const token = localStorage.getItem('emr_token');
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 30000);
-  try {
-    const res = await fetch('/api/emr/scribe/transcribe', {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-      signal: ctrl.signal,
-    });
-    clearTimeout(t);
-    if (res.status === 503) throw new Error('groq_unavailable');
-    if (!res.ok) return { text: '', error: `Server error ${res.status}` };
-    return { text: (await res.json()).text || '', error: null };
-  } catch (e) {
-    clearTimeout(t);
-    if (e.name === 'AbortError') return { text: '', error: 'timeout' };
-    if (e.message === 'groq_unavailable') return { text: '', error: 'groq_unavailable' };
-    return { text: '', error: e.message };
-  }
-}
+const noop = () => {};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -304,180 +270,23 @@ function ChatTab({ patientCtx }) {
   );
 }
 
-// ── Dictate Tab ───────────────────────────────────────────────────────────────
+// ── Dictate Tab — uses the full ScribePanel (same as VoiceAI) ────────────────
 
 function DictateTab() {
-  const [recording,   setRecording]   = useState(false);
-  const [paused,      setPaused]      = useState(false);
-  const [transcript,  setTranscript]  = useState('');
-  const [soap,        setSoap]        = useState(null);
-  const [soapLoading, setSoapLoading] = useState(false);
-  const [bars,        setBars]        = useState(Array(20).fill(4));
-  const [error,       setError]       = useState('');
-  const [copied,      setCopied]      = useState(false);
-
-  const streamRef  = useRef(null);
-  const stoppedRef = useRef(false);
-  const pausedRef  = useRef(false);
-  const animRef    = useRef(null);
-
-  // waveform animation
-  const startWave = () => {
-    const tick = () => {
-      setBars(Array(20).fill(0).map(() => Math.max(4, Math.random() * 40)));
-      animRef.current = requestAnimationFrame(tick);
-    };
-    animRef.current = requestAnimationFrame(tick);
-  };
-  const stopWave = () => {
-    cancelAnimationFrame(animRef.current);
-    setBars(Array(20).fill(4));
-  };
-
-  const startRecording = async () => {
-    setError('');
-    setSoap(null);
-    setTranscript('');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      stoppedRef.current = false;
-      pausedRef.current  = false;
-      setRecording(true);
-      setPaused(false);
-      startWave();
-
-      const loop = async () => {
-        while (!stoppedRef.current) {
-          if (pausedRef.current) { await new Promise(r => setTimeout(r, 300)); continue; }
-          const blob = await recordSegment(streamRef.current, SEGMENT_MS);
-          if (stoppedRef.current) break;
-          const { text, error } = await sendChunk(blob);
-          if (error === 'groq_unavailable') {
-            setError('Transcription service unavailable. Check if GROQ_API_KEY is configured on the server.');
-            stoppedRef.current = true;
-            streamRef.current?.getTracks().forEach(t => t.stop());
-            setRecording(false); setPaused(false); stopWave();
-            break;
-          }
-          if (text) setTranscript(prev => prev ? `${prev} ${text}` : text);
-        }
-      };
-      loop();
-    } catch (e) {
-      setError('Microphone access denied. Please allow microphone permission.');
-    }
-  };
-
-  const stopRecording = () => {
-    stoppedRef.current = true;
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    setRecording(false);
-    setPaused(false);
-    stopWave();
-  };
-
-  const togglePause = () => {
-    const next = !pausedRef.current;
-    pausedRef.current = next;
-    setPaused(next);
-    next ? stopWave() : startWave();
-  };
-
-  const generateSOAP = async () => {
-    if (!transcript.trim()) return;
-    setSoapLoading(true);
-    setSoap(null);
-    try {
-      const res = await api.post('/scribe/soap', { transcript });
-      setSoap(res.soap || res.cleaned || JSON.stringify(res, null, 2));
-    } catch {
-      setSoap('Failed to generate SOAP note. Please try again.');
-    } finally {
-      setSoapLoading(false);
-    }
-  };
-
-  const copySOAP = () => {
-    if (!soap) return;
-    navigator.clipboard.writeText(soap).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    });
-  };
-
-  useEffect(() => () => { stoppedRef.current = true; stopWave(); streamRef.current?.getTracks().forEach(t => t.stop()); }, []);
-
+  const { user } = useAuth();
   return (
-    <div className={styles.tabPane}>
-      <div className={styles.dictateBody}>
-        {/* Mic area */}
-        <div className={styles.dictateCenter}>
-          <div className={`${styles.micRing} ${recording && !paused ? styles.micRingActive : ''}`}>
-            <button
-              className={`${styles.micBtn} ${recording ? (paused ? styles.micBtnPaused : styles.micBtnActive) : ''}`}
-              onClick={recording ? togglePause : startRecording}
-              title={recording ? (paused ? 'Resume' : 'Pause') : 'Start recording'}
-            >
-              {recording && !paused ? <Mic size={28} strokeWidth={2} /> : paused ? <Volume2 size={28} strokeWidth={2} /> : <Mic size={28} strokeWidth={2} />}
-            </button>
-          </div>
-
-          <p className={styles.dictateStatus}>
-            {recording ? (paused ? '⏸ Paused — tap to resume' : '🔴 Listening…') : '🎙 Tap to start dictation'}
-          </p>
-
-          {/* Waveform */}
-          <div className={styles.waveform}>
-            {bars.map((h, i) => (
-              <span key={i} className={`${styles.bar} ${recording && !paused ? styles.barActive : ''}`} style={{ height: `${h}px` }} />
-            ))}
-          </div>
-
-          {recording && (
-            <button className={styles.stopBtn} onClick={stopRecording}>
-              <MicOff size={14} strokeWidth={2} /> Stop
-            </button>
-          )}
-        </div>
-
-        {error && <div className={styles.dictateError}><AlertTriangle size={14} /> {error}</div>}
-
-        {/* Live transcript */}
-        {transcript && (
-          <div className={styles.transcriptBox}>
-            <div className={styles.transcriptLabel}>
-              <span>Live Transcript</span>
-              <CopyButton text={transcript} />
-            </div>
-            <p className={styles.transcriptText}>{transcript}</p>
-          </div>
-        )}
-
-        {/* Generate SOAP */}
-        {transcript && !recording && (
-          <button className={styles.generateBtn} onClick={generateSOAP} disabled={soapLoading}>
-            {soapLoading
-              ? <><RefreshCw size={14} className={styles.spin} /> Generating…</>
-              : <><Sparkles size={14} /> Generate SOAP Note</>
-            }
-          </button>
-        )}
-
-        {/* SOAP output */}
-        {soap && (
-          <div className={styles.soapCard}>
-            <div className={styles.soapHeader}>
-              <ClipboardList size={14} />
-              <span>SOAP Note</span>
-              <button className={styles.copyBtn} onClick={copySOAP} title="Copy">
-                {copied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} strokeWidth={2} />}
-              </button>
-            </div>
-            <div className={styles.soapBody}>{renderMarkdown(soap)}</div>
-          </div>
-        )}
-      </div>
+    <div className={styles.tabPane} style={{ overflow: 'hidden' }}>
+      <ScribePanel
+        set={noop}
+        setVital={noop}
+        onClose={null}
+        appt={null}
+        pastNotes={[]}
+        user={user}
+        form={null}
+        standalone
+        fullscreen
+      />
     </div>
   );
 }
