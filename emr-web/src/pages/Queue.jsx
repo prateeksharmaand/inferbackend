@@ -9,6 +9,7 @@ import RxPrintModal from '../components/RxPrintModal';
 import PatientProfilePanel from '../components/PatientProfilePanel';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
+import DocAssistAI from '../components/DocAssistAI';
 import styles from './Queue.module.css';
 
 const STATUS_TABS = ['Booked', 'Follow Ups', 'Others'];
@@ -501,6 +502,8 @@ export default function Queue() {
           onClose={() => setPrintAppt(null)}
         />
       )}
+      <DocAssistAI />
+
       {profileAppt && (
         <PatientProfilePanel
           appt={profileAppt}

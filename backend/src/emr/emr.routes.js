@@ -16,6 +16,7 @@ const tpl         = require('./emr.templates.controller');
 const assessment  = require('../controllers/assessment.controller');
 const inbound     = require('./inbound/inbound.routes');
 const analytics   = require('./emr.analytics.controller');
+const docassist   = require('./emr.docassist.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -32,6 +33,8 @@ router.get('/scribe/status', scribe.status);
 
 // ── Protected (all routes below require EMR JWT) ───────────────────────────
 router.use(emrAuth);
+router.post  ('/docassist',            docassist.chat);
+router.post  ('/docassist/document',   docassist.generateDocument);
 router.post  ('/scribe/transcribe',    ...scribe.transcribe);
 router.post  ('/scribe/soap',              scribe.extractSOAP);
 router.post  ('/assessment/questions',    assessment.generateQuestions);
