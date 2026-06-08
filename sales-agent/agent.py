@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from modules.scraper import scrape_leads, SPECIALTIES
-from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed
+from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed, log_whatsapp
 from modules.personalizer import personalize_email
 from modules.mailer import send_email
 from modules.scheduler import get_next_step, get_next_send_date, is_sequence_complete
@@ -120,7 +120,9 @@ def phase_outreach():
 
             # Also send WhatsApp on Day 4 and Day 14
             if next_step in (4, 14):
-                send_whatsapp(lead, next_step)
+                wa_sent = send_whatsapp(lead, next_step)
+                if wa_sent:
+                    log_whatsapp(row, next_step)
         else:
             mark_failed(row)
             failed += 1

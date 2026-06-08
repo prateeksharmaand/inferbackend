@@ -8,11 +8,12 @@ B: email
 C: specialty
 D: clinic
 E: city
-F: status          (new | active | replied | booked | unsubscribed)
-G: step            (0 = not started, 1/4/8/14 = last step sent)
-H: next_send_date  (YYYY-MM-DD)
-I: last_sent_date  (YYYY-MM-DD)
+F: status             (new | active | replied | booked | unsubscribed | failed)
+G: step               (0 = not started, 1/4/8/14 = last step sent)
+H: next_send_date     (YYYY-MM-DD)
+I: last_sent_date     (YYYY-MM-DD)
 J: notes
+K: whatsapp_log       (e.g. "Day 4: sent 2024-06-08 | Day 14: sent 2024-06-22")
 """
 
 import os
@@ -25,14 +26,14 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-SHEET_ID = os.environ["GOOGLE_SHEET_ID"]
+SHEET_ID   = os.environ["GOOGLE_SHEET_ID"]
 CREDS_FILE = os.environ.get("GOOGLE_CREDS_FILE", "google_creds.json")
 
 _client = None
-_sheet = None
+_sheet  = None
 
 HEADERS = ["name", "email", "specialty", "clinic", "city",
-           "status", "step", "next_send_date", "last_sent_date", "notes"]
+           "status", "step", "next_send_date", "last_sent_date", "notes", "whatsapp_log"]
 
 
 def _get_sheet():
@@ -40,30 +41,27 @@ def _get_sheet():
     if _sheet is None:
         creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
         _client = gspread.authorize(creds)
-        _sheet = _client.open_by_key(SHEET_ID).sheet1
+        _sheet  = _client.open_by_key(SHEET_ID).sheet1
     return _sheet
 
 
 def ensure_headers():
-    """Creates header row if sheet is empty."""
     sheet = _get_sheet()
     first_row = sheet.row_values(1)
     if not first_row:
         sheet.append_row(HEADERS)
+    elif len(first_row) < 11:
+        # Add whatsapp_log column if missing
+        sheet.update_cell(1, 11, "whatsapp_log")
 
 
 def get_existing_emails() -> set:
-    """Returns all emails already in the sheet to avoid duplicates."""
     sheet = _get_sheet()
     records = sheet.get_all_records()
     return {str(r.get("email", "")).strip().lower() for r in records if r.get("email")}
 
 
 def import_leads(leads: list[dict]) -> int:
-    """
-    Appends new leads to the sheet, skipping duplicates by email.
-    Returns count of leads actually added.
-    """
     sheet = _get_sheet()
     ensure_headers()
     existing = get_existing_emails()
@@ -88,6 +86,7 @@ def import_leads(leads: list[dict]) -> int:
             lead.get("next_send_date", ""),
             lead.get("last_sent_date", ""),
             lead.get("notes", ""),
+            "",  # whatsapp_log — empty initially
         ])
         existing.add(email)
 
@@ -98,15 +97,14 @@ def import_leads(leads: list[dict]) -> int:
 
 
 def get_leads_due_today() -> list[dict]:
-    """Returns all leads where next_send_date <= today and status is new or active."""
     sheet = _get_sheet()
-    rows = sheet.get_all_records()
+    rows  = sheet.get_all_records()
     today = date.today().isoformat()
 
     due = []
     for i, row in enumerate(rows, start=2):
-        status = str(row.get("status", "new")).strip().lower()
-        next_send = str(row.get("next_send_date", "")).strip()
+        status     = str(row.get("status", "new")).strip().lower()
+        next_send  = str(row.get("next_send_date", "")).strip()
 
         if status in ("unsubscribed", "replied", "booked", "completed", "failed"):
             continue
@@ -117,7 +115,6 @@ def get_leads_due_today() -> list[dict]:
 
 
 def update_lead(row_index: int, step: int, next_send_date: str, status: str = "active"):
-    """Updates the CRM row after an email is sent."""
     sheet = _get_sheet()
     today = date.today().isoformat()
     sheet.update_cell(row_index, 6, status)
@@ -126,12 +123,21 @@ def update_lead(row_index: int, step: int, next_send_date: str, status: str = "a
     sheet.update_cell(row_index, 9, today)
 
 
+def log_whatsapp(row_index: int, step: int):
+    """Appends a WhatsApp sent log entry to column K."""
+    sheet   = _get_sheet()
+    today   = date.today().isoformat()
+    current = sheet.cell(row_index, 11).value or ""
+    entry   = f"Day {step}: sent {today}"
+    updated = f"{current} | {entry}" if current else entry
+    sheet.update_cell(row_index, 11, updated)
+
+
 def mark_unsubscribed(row_index: int):
     _get_sheet().update_cell(row_index, 6, "unsubscribed")
 
 
 def mark_failed(row_index: int):
-    """Marks a lead as failed so it is never retried."""
     _get_sheet().update_cell(row_index, 6, "failed")
 
 
