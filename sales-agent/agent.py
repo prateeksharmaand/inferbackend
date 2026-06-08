@@ -101,7 +101,7 @@ def phase_outreach():
             failed += 1
             continue
 
-        success = send_email(to_email=email, subject=content["subject"], body=content["body"])
+        success = send_email(to_email=email, subject=content["subject"], body=content["body"], clinic_name=lead.get("clinic", ""))
 
         if success:
             next_date = get_next_send_date(next_step)

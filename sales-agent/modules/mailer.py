@@ -45,18 +45,22 @@ def _save_to_sent(msg_bytes: bytes):
         print(f"  ⚠ IMAP error: {e}")
 
 
-def send_email(to_email: str, subject: str, body: str) -> bool:
+def send_email(to_email: str, subject: str, body: str, clinic_name: str = "") -> bool:
     """
-    Sends plain-text email via Hostinger SMTP.
+    Sends branded HTML email via Hostinger SMTP.
     Saves copy to Sent folder via IMAP.
     Returns True on success, False on failure.
     """
+    from modules.email_template import render
+    html, plain = render(subject=subject, body_text=body, clinic_name=clinic_name)
+
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = f"{FROM_NAME} <{SMTP_FROM}>"
         msg["To"] = to_email
-        msg.attach(MIMEText(body, "plain"))
+        msg.attach(MIMEText(plain, "plain"))
+        msg.attach(MIMEText(html, "html"))
 
         msg_bytes = msg.as_bytes()
 
