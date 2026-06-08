@@ -203,6 +203,33 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
+// ── Pro-only feature gate ─────────────────────────────────────────────────────
+// Blocks access to AI features for non-pro (base) clinics.
+// Usage: router.post('/docassist', proOnlyCheck('ai_docassist'), handler)
+
+exports.proOnlyCheck = (feature) => async (req, res, next) => {
+  try {
+    const clinicId = req.emrUser?.clinic_id;
+    if (!clinicId) return next();
+
+    const sub = await getSubscription(clinicId);
+
+    // Allow if pro and active/not expired
+    if (sub?.plan_key === 'pro' && sub.status === 'active') {
+      if (!sub.expires_at || new Date(sub.expires_at) >= new Date()) return next();
+    }
+
+    return res.status(402).json({
+      error:    'pro_required',
+      feature,
+      message:  'This feature is available on Infer Pro only. Please upgrade your plan.',
+    });
+  } catch (err) {
+    logger.error('[pro-check] failed:', err.message);
+    next(); // fail open
+  }
+};
+
 // ── Subscription limit check middleware ───────────────────────────────────────
 // Usage: router.post('/patients', subscriptionCheck('patients'), ...)
 

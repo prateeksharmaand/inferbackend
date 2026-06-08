@@ -47,6 +47,12 @@ async function req(method, path, body) {
       err.limitMsg  = data.message;
       window.dispatchEvent(new CustomEvent('subscription:limit', { detail: data }));
     }
+    if (res.status === 402 && data.error === 'pro_required') {
+      err.proRequired = true;
+      window.dispatchEvent(new CustomEvent('subscription:limit', {
+        detail: { resource: data.feature, message: data.message },
+      }));
+    }
     throw err;
   }
   return data;

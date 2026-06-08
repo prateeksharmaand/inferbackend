@@ -38,8 +38,21 @@ router.get('/public/rx/:apptId', rxpublic.getPublicRx);
 
 // ── Protected (all routes below require EMR JWT) ───────────────────────────
 router.use(emrAuth);
-router.post  ('/docassist',            docassist.chat);
-router.post  ('/docassist/document',   docassist.generateDocument);
+
+const { proOnlyCheck } = subscription;
+
+// ── AI features — Pro plan only ───────────────────────────────────────────────
+router.post  ('/docassist',            proOnlyCheck('ai_docassist'), docassist.chat);
+router.post  ('/docassist/document',   proOnlyCheck('ai_docassist'), docassist.generateDocument);
+router.post  ('/scribe/transcribe',    proOnlyCheck('scribe'),       ...scribe.transcribe);
+router.post  ('/scribe/soap',          proOnlyCheck('scribe'),       scribe.extractSOAP);
+router.get   ('/scribe/templates',     proOnlyCheck('scribe'),       tpl.listTemplates);
+router.post  ('/scribe/templates',     proOnlyCheck('scribe'),       tpl.createTemplate);
+router.put   ('/scribe/templates/:id', proOnlyCheck('scribe'),       tpl.updateTemplate);
+router.delete('/scribe/templates/:id', proOnlyCheck('scribe'),       tpl.deleteTemplate);
+router.post  ('/assessment/questions', proOnlyCheck('ai_assessment'), assessment.generateQuestions);
+router.post  ('/assessment/analyze',   proOnlyCheck('ai_assessment'), assessment.analyzeAnswers);
+
 router.get   ('/appointments/:id/rx-token', rxpublic.getRxToken);
 
 // Subscription
@@ -47,14 +60,6 @@ router.get   ('/subscription',                   subscription.getSubscription);
 router.get   ('/subscription/plans',             subscription.getPlans);
 router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
-router.post  ('/scribe/transcribe',    ...scribe.transcribe);
-router.post  ('/scribe/soap',              scribe.extractSOAP);
-router.post  ('/assessment/questions',    assessment.generateQuestions);
-router.post  ('/assessment/analyze',      assessment.analyzeAnswers);
-router.get   ('/scribe/templates',     tpl.listTemplates);
-router.post  ('/scribe/templates',     tpl.createTemplate);
-router.put   ('/scribe/templates/:id', tpl.updateTemplate);
-router.delete('/scribe/templates/:id', tpl.deleteTemplate);
 
 // Auth helpers
 router.post  ('/auth/add-doctor',    auth.addDoctor);
