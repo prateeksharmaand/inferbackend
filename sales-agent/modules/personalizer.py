@@ -1,112 +1,68 @@
 """
-Groq-powered email personalizer.
-Uses llama-3.3-70b-versatile — fast and free tier available.
+Static email body personalizer — no AI API needed.
+Uses pre-written bodies per sequence step, personalized with
+clinic name, doctor name, and specialty via simple string substitution.
 """
 
-import os
-from groq import Groq
+STEP_BODIES = {
+    1: """I hope this message finds you well.
 
-client = Groq(api_key=os.environ["GROQ_API_KEY"])
+I'm Prateek from Infer EMR — an AI-native clinic management platform built specifically for Indian doctors and clinics like {clinic}.
 
-PRODUCT_CONTEXT = """
-You are a sales representative for Infer EMR — an AI-native Electronic Medical Records platform built for Indian clinics and doctors.
+Managing a busy practice means dealing with long queues, time-consuming prescriptions, and endless paperwork. Infer EMR eliminates all of that — smart queue management, AI voice scribe, ICD-10 coded prescriptions, ABHA integration, and billing — all in one place.
 
-Key facts about Infer:
-- Smart queue & appointment management (drag-drop, calendar view, real-time)
-- InferPad: clinical documentation with 40+ vitals, ICD-10, LOINC, RxTerms drug database
-- AI Voice Scribe: real-time voice-to-text for prescriptions
-- DocAssist AI: clinical copilot for drug interactions, SOAP notes, discharge summaries
-- Specialty modules: Ophthalmology (12-section eye exam), Dentistry (dental chart), Pediatrics (WHO/IAP growth charts)
-- ABHA integration, multi-language prescriptions, billing & receipts
-- WhatsApp/SMS/IVR AI appointment booking
-- Analytics: appointment trends, prescription patterns, real-time queue
+I'd love for you to take 2 minutes to watch our demo and see how it works.""",
 
-Pricing: Starts at ₹3,000–5,000/month per clinic.
-YouTube Demo: https://youtube.com/inferemr-demo  (replace with real link)
-Book a Demo: https://calendly.com/inferemr  (replace with real link)
-Landing Page: https://inferapp.online  (replace with real link)
-"""
+    4: """I wanted to follow up on my earlier message about Infer EMR.
 
-SEQUENCE_PROMPTS = {
-    1: """
-Write a cold outreach email (Day 1 of sequence).
-Goal: spark curiosity, share the YouTube demo link.
-Tone: warm, peer-to-peer, not salesy. Doctor to doctor feel.
-Keep it under 120 words. No bullet points. Plain text only.
-End with a soft CTA to watch the demo — NOT to book a call yet.
-""",
-    4: """
-Write a follow-up email (Day 4 of sequence). They haven't replied yet.
-Goal: highlight ONE specific feature that matters most for their specialty.
-Tone: helpful, not pushy.
-Keep it under 100 words. Plain text only.
-Reference their specialty naturally.
-End with a question to invite a reply.
-""",
-    8: """
-Write a follow-up email (Day 8 of sequence). Still no reply.
-Goal: build trust with a brief proof point, then invite a 15-min demo.
-Tone: confident but respectful of their time.
-Keep it under 100 words. Plain text only.
-Include the Calendly booking link naturally in the text.
-""",
-    14: """
-Write a final follow-up email (Day 14 — last in sequence).
-Goal: close the loop gracefully. Leave the door open.
-Tone: no pressure, genuine. Acknowledge they are busy.
-Keep it under 80 words. Plain text only.
-Include the Calendly link one last time.
-"""
+Since you specialize in {specialty}, I thought you'd appreciate knowing that Infer has a dedicated module built specifically for your practice — not a generic solution retrofitted for specialists.
+
+Everything from specialty-specific vitals to documentation, ICD-10 coding, and lab integrations is designed around how you actually work.
+
+Does this sound like something worth exploring for {clinic}?""",
+
+    8: """I'll keep this brief — I know your time is valuable.
+
+Clinics using Infer EMR are saving 2+ hours every day on documentation, completing prescriptions in under 3 minutes, and running their entire OPD without paper.
+
+A 15-minute demo is all it takes to see if Infer is the right fit for {clinic}. No commitment, no pressure — just a quick look at what's possible.""",
+
+    14: """This is my last message — I promise to respect your inbox after this.
+
+I know running {clinic} keeps you incredibly busy, and I completely understand if the timing hasn't been right.
+
+Whenever you're ready to explore how Infer EMR can save your team hours every day, I'm just a message or call away. The door is always open.
+
+Wishing you and your patients all the very best.""",
 }
+
+STEP_SUBJECTS = {
+    1:  "A smarter way to run {clinic}",
+    4:  "Built for {specialty}s — Infer EMR",
+    8:  "15 minutes to transform {clinic}",
+    14: "Leaving the door open — Infer EMR",
+}
+
+
+def _prefix_dr(name: str) -> str:
+    name = name.strip()
+    return name if name.lower().startswith("dr") else f"Dr. {name}"
 
 
 def personalize_email(lead: dict, step: int) -> dict:
     """
-    lead = {
-        "name": "Dr. Priya Sharma",
-        "specialty": "Ophthalmologist",
-        "clinic": "Sharma Eye Clinic",
-        "city": "Pune"
-    }
-    step = 1 | 4 | 8 | 14
-    Returns {"subject": "...", "body": "..."}
+    Returns personalized subject + body for the given step.
+    No API call — pure string substitution.
     """
-    sequence_instruction = SEQUENCE_PROMPTS.get(step, SEQUENCE_PROMPTS[1])
+    clinic    = lead.get("clinic") or "your clinic"
+    name      = _prefix_dr(lead.get("name") or "Doctor")
+    specialty = lead.get("specialty") or "General Physician"
 
-    prompt = f"""
-{PRODUCT_CONTEXT}
+    body    = STEP_BODIES.get(step, STEP_BODIES[1])
+    subject = STEP_SUBJECTS.get(step, STEP_SUBJECTS[1])
 
-Lead details:
-- Name: {lead.get('name', 'Doctor')}
-- Specialty: {lead.get('specialty', 'General Physician')}
-- Clinic: {lead.get('clinic', 'your clinic')}
-- City: {lead.get('city', '')}
-
-{sequence_instruction}
-
-Respond in this exact format:
-SUBJECT: <email subject line>
-BODY:
-<email body>
-"""
-
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        max_tokens=400,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    raw = response.choices[0].message.content.strip()
-
-    # Parse subject and body
-    subject = ""
-    body = ""
-    if "SUBJECT:" in raw and "BODY:" in raw:
-        parts = raw.split("BODY:", 1)
-        subject = parts[0].replace("SUBJECT:", "").strip()
-        body = parts[1].strip()
-    else:
-        subject = f"A better EMR for your {lead.get('specialty', 'clinic')}"
-        body = raw
+    for placeholder, value in {"{clinic}": clinic, "{name}": name, "{specialty}": specialty}.items():
+        body    = body.replace(placeholder, value)
+        subject = subject.replace(placeholder, value)
 
     return {"subject": subject, "body": body}

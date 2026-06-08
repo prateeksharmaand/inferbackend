@@ -85,7 +85,8 @@ def send_whatsapp(lead: dict, step: int) -> bool:
     if len(phone) == 10:
         phone = "91" + phone
 
-    doctor_name = lead.get("name") or "Doctor"
+    raw_name    = (lead.get("name") or "Doctor").strip()
+    doctor_name = raw_name if raw_name.lower().startswith("dr") else f"Dr. {raw_name}"
     clinic_name = lead.get("clinic") or "your clinic"
     specialty   = lead.get("specialty") or "General Physician"
 
