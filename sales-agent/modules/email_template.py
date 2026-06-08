@@ -4,8 +4,8 @@ Primary: #7B6EF6, Dark: #3A2ED4, BG: #F5F4FF
 Font: Poppins (fallback: Arial)
 """
 
-YOUTUBE_LINK   = "https://youtube.com/inferemr-demo"   # replace with real link
-CALENDLY_LINK  = "https://calendly.com/inferemr"        # replace with real link
+YOUTUBE_LINK   = "https://www.youtube.com/watch?v=dukqzJ1rh1Y&t=234s"
+CALENDLY_LINK  = "https://calendly.com/prateeksharmaand/30min"
 WEBSITE_LINK   = "https://inferapp.online"
 LOGO_TEXT      = "Infer"
 SUPPORT_EMAIL  = "support@inferapp.online"
