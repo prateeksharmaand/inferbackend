@@ -2,3 +2,4 @@ groq
 gspread
 google-auth
 python-dotenv
+requests
