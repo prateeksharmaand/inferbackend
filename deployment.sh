@@ -167,6 +167,49 @@ for SUBDOMAIN in "$OPD_DOMAIN" "$EMR_DOMAIN"; do
   fi
 done
 
+# ── Sales Agent: install deps + start ─────────────────────────────────────────
+log "Setting up sales agent..."
+AGENT_DIR="$(pwd)/sales-agent"
+
+if [ -d "$AGENT_DIR" ]; then
+  if ! command -v python3 >/dev/null 2>&1; then
+    warn "python3 not found — installing..."
+    apt-get install -y python3 python3-pip python3-venv >/dev/null 2>&1 || warn "Could not install python3 — install manually"
+  fi
+
+  if [ ! -d "$AGENT_DIR/venv" ]; then
+    info "Creating Python virtual environment..."
+    python3 -m venv "$AGENT_DIR/venv"
+  fi
+
+  info "Installing sales agent dependencies..."
+  "$AGENT_DIR/venv/bin/pip" install -q -r "$AGENT_DIR/requirements.txt"
+  info "Dependencies installed: ✓"
+
+  if [ ! -f "$AGENT_DIR/.env" ]; then
+    warn "sales-agent/.env not found — agent will not run"
+    warn "Copy sales-agent/.env.example to sales-agent/.env and fill in GROQ_API_KEY and GOOGLE_SHEET_ID"
+  else
+    info "sales-agent/.env: ✓"
+
+    # Install cron job if not already present (runs daily at 9am)
+    CRON_JOB="0 9 * * * cd $AGENT_DIR && ./venv/bin/python agent.py >> $AGENT_DIR/agent.log 2>&1"
+    if ! crontab -l 2>/dev/null | grep -qF "sales-agent"; then
+      (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
+      info "Cron job added: runs daily at 9:00 AM ✓"
+    else
+      info "Cron job already set up: ✓"
+    fi
+
+    # Run agent once now
+    info "Running sales agent (first run)..."
+    cd "$AGENT_DIR" && ./venv/bin/python agent.py && cd - > /dev/null
+    info "Sales agent run complete: ✓"
+  fi
+else
+  warn "sales-agent/ directory not found — skipping"
+fi
+
 # ── Tail recent logs ──────────────────────────────────────────────────────────
 log "Recent backend logs (last 30 lines):"
 echo "────────────────────────────────────────"
@@ -189,4 +232,6 @@ echo ""
 info "To watch live logs:  docker compose logs -f backend"
 info "To watch nginx logs: docker compose logs -f nginx"
 info "To rollback:         git revert HEAD && bash deployment.sh"
+info "Agent logs:          tail -f sales-agent/agent.log"
+info "Run agent manually:  cd sales-agent && ./venv/bin/python agent.py"
 echo ""
