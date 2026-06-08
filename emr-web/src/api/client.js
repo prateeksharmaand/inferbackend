@@ -23,8 +23,17 @@ async function req(method, path, body) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || `HTTP ${res.status}`);
-    err.detail = data.detail;
-    err.status = res.status;
+    err.detail  = data.detail;
+    err.status  = res.status;
+    // Subscription limit exceeded — fire global event so any component can show upgrade modal
+    if (res.status === 402 && data.error === 'subscription_limit') {
+      err.subscriptionLimit = true;
+      err.resource  = data.resource;
+      err.limit     = data.limit;
+      err.used      = data.used;
+      err.limitMsg  = data.message;
+      window.dispatchEvent(new CustomEvent('subscription:limit', { detail: data }));
+    }
     throw err;
   }
   return data;

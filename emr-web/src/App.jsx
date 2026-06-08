@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 import { QueueDateProvider } from './context/QueueDateContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -36,6 +37,7 @@ export default function App() {
   return (
     <QueueDateProvider>
     <AuthProvider>
+    <SubscriptionProvider>
       <Toaster />
       <BrowserRouter basename="/opd">
         <Routes>
@@ -67,6 +69,7 @@ export default function App() {
           <Route path="/lab-portal" element={<LabProtected><LabPortal /></LabProtected>} />
         </Routes>
       </BrowserRouter>
+    </SubscriptionProvider>
     </AuthProvider>
     </QueueDateProvider>
   );

@@ -18,6 +18,7 @@ const inbound     = require('./inbound/inbound.routes');
 const analytics   = require('./emr.analytics.controller');
 const docassist   = require('./emr.docassist.controller');
 const rxpublic    = require('./emr.rxpublic.controller');
+const subscription = require('./emr.subscription.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login',           auth.login);
@@ -40,6 +41,12 @@ router.use(emrAuth);
 router.post  ('/docassist',            docassist.chat);
 router.post  ('/docassist/document',   docassist.generateDocument);
 router.get   ('/appointments/:id/rx-token', rxpublic.getRxToken);
+
+// Subscription
+router.get   ('/subscription',                   subscription.getSubscription);
+router.get   ('/subscription/plans',             subscription.getPlans);
+router.post  ('/subscription/create-order',      subscription.createOrder);
+router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
 router.post  ('/scribe/transcribe',    ...scribe.transcribe);
 router.post  ('/scribe/soap',              scribe.extractSOAP);
 router.post  ('/assessment/questions',    assessment.generateQuestions);
@@ -63,7 +70,7 @@ router.delete('/labs/staff/:id',     labStaff.deleteStaff);
 
 // Patients (existing EMR patient store)
 router.get   ('/patients',                         emr.listPatients);
-router.post  ('/patients',                         emr.createPatient);
+router.post  ('/patients',                         subscription.subscriptionCheck('patients'), emr.createPatient);
 router.get   ('/patients/history',                 appt.listPatientHistory);
 router.get   ('/patients/:id',                     emr.getPatient);
 router.patch ('/patients/:id',                     emr.updatePatient);
@@ -92,10 +99,10 @@ router.delete('/queues/:id', queue.deleteQueue);
 
 // Appointments
 router.get  ('/appointments',                    appt.listAppointments);
-router.post ('/appointments',                    appt.createAppointment);
+router.post ('/appointments',                    subscription.subscriptionCheck('appointments'), appt.createAppointment);
 router.get  ('/appointments/:id',                appt.getAppointment);
 router.patch('/appointments/:id/status',         appt.updateStatus);
-router.post ('/appointments/:id/encounter',      appt.saveEncounter);
+router.post ('/appointments/:id/encounter',      subscription.subscriptionCheck('prescriptions'), appt.saveEncounter);
 router.post ('/appointments/:id/reminder',       appt.sendReminder);
 
 // Tags (Custom Attribute Values)

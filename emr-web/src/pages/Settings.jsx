@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, UserRound, LayoutList, FlaskConical } from 'lucide-react';
+import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, UserRound, LayoutList, FlaskConical, Zap } from 'lucide-react';
 import UhidSettings from './settings/UhidSettings';
 import CustomAttributes from './settings/CustomAttributes';
 import ServicesSettings from './settings/ServicesSettings';
@@ -7,20 +7,22 @@ import InferPadSettings from './settings/InferPadSettings';
 import DoctorsSettings from './settings/DoctorsSettings';
 import QueuesSettings from './settings/QueuesSettings';
 import LabStaffSettings from './settings/LabStaffSettings';
+import SubscriptionSettings from './settings/SubscriptionSettings';
 import styles from './Settings.module.css';
 
 const TABS = [
-  { key: 'queues',   Icon: LayoutList,     label: 'Queues' },
-  { key: 'doctors',  Icon: UserRound,      label: 'Doctors' },
-  { key: 'labstaff', Icon: FlaskConical,   label: 'Lab Staff' },
-  { key: 'uhid',     Icon: Hash,           label: 'UHID Settings' },
-  { key: 'tags',     Icon: Tag,            label: 'Custom Attributes' },
-  { key: 'services', Icon: Stethoscope,    label: 'Services' },
-  { key: 'inferpad', Icon: LayoutTemplate, label: 'InferPad' },
+  { key: 'subscription', Icon: Zap,           label: 'Subscription' },
+  { key: 'queues',       Icon: LayoutList,     label: 'Queues' },
+  { key: 'doctors',      Icon: UserRound,      label: 'Doctors' },
+  { key: 'labstaff',     Icon: FlaskConical,   label: 'Lab Staff' },
+  { key: 'uhid',         Icon: Hash,           label: 'UHID Settings' },
+  { key: 'tags',         Icon: Tag,            label: 'Custom Attributes' },
+  { key: 'services',     Icon: Stethoscope,    label: 'Services' },
+  { key: 'inferpad',     Icon: LayoutTemplate, label: 'InferPad' },
 ];
 
 export default function Settings() {
-  const [tab, setTab] = useState('queues');
+  const [tab, setTab] = useState('subscription');
 
   return (
     <div className={styles.page}>
@@ -46,13 +48,14 @@ export default function Settings() {
       </div>
 
       <div className={styles.content}>
-        {tab === 'queues'   && <QueuesSettings />}
-        {tab === 'doctors'  && <DoctorsSettings />}
-        {tab === 'labstaff' && <LabStaffSettings />}
-        {tab === 'uhid'     && <UhidSettings />}
-        {tab === 'tags'     && <CustomAttributes />}
-        {tab === 'services' && <ServicesSettings />}
-        {tab === 'inferpad' && <InferPadSettings />}
+        {tab === 'subscription' && <SubscriptionSettings />}
+        {tab === 'queues'       && <QueuesSettings />}
+        {tab === 'doctors'      && <DoctorsSettings />}
+        {tab === 'labstaff'     && <LabStaffSettings />}
+        {tab === 'uhid'         && <UhidSettings />}
+        {tab === 'tags'         && <CustomAttributes />}
+        {tab === 'services'     && <ServicesSettings />}
+        {tab === 'inferpad'     && <InferPadSettings />}
       </div>
     </div>
   );
