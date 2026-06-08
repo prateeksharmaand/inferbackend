@@ -172,14 +172,17 @@ log "Setting up sales agent..."
 AGENT_DIR="$(pwd)/sales-agent"
 
 if [ -d "$AGENT_DIR" ]; then
-  if ! command -v python3 >/dev/null 2>&1; then
-    warn "python3 not found — installing..."
-    apt-get install -y python3 python3-pip python3-venv >/dev/null 2>&1 || warn "Could not install python3 — install manually"
+  # Ensure python3-venv is installed (required on Ubuntu 22.04+)
+  if ! python3 -m venv --help >/dev/null 2>&1; then
+    info "Installing python3-venv..."
+    apt-get install -y python3-venv >/dev/null 2>&1 || warn "Could not install python3-venv — run: sudo apt install python3-venv"
   fi
 
   if [ ! -d "$AGENT_DIR/venv" ]; then
     info "Creating Python virtual environment..."
     python3 -m venv "$AGENT_DIR/venv"
+    # Upgrade pip inside venv to avoid stale pip issues
+    "$AGENT_DIR/venv/bin/pip" install -q --upgrade pip
   fi
 
   info "Installing sales agent dependencies..."
