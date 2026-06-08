@@ -190,6 +190,15 @@ if [ -d "$AGENT_DIR" ]; then
   "$AGENT_DIR/venv/bin/pip" install -q -r "$AGENT_DIR/requirements.txt"
   info "Dependencies installed: ✓"
 
+  # Install Playwright Chromium browser (needed for JustDial scraper)
+  if [ ! -d "$HOME/.cache/ms-playwright" ]; then
+    info "Installing Playwright Chromium browser..."
+    "$AGENT_DIR/venv/bin/playwright" install chromium --with-deps 2>&1 | tail -5
+    info "Playwright Chromium installed: ✓"
+  else
+    info "Playwright Chromium already installed: ✓"
+  fi
+
   if [ ! -f "$AGENT_DIR/.env" ]; then
     warn "sales-agent/.env not found — agent will not run"
     warn "Copy sales-agent/.env.example to sales-agent/.env and fill in GROQ_API_KEY and GOOGLE_SHEET_ID"
