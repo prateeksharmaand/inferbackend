@@ -277,7 +277,9 @@ export default function TopBar() {
           <div className={styles.userChip}>
             <span className={styles.userAvatar}>{user?.name?.[0] ?? 'D'}</span>
             <span>Dr {user?.name?.split(' ')[0] ?? ''}</span>
-            <span className={styles.badge}>Premium</span>
+            <span className={user?.plan === 'pro' ? styles.badgePro : styles.badgeBase}>
+              {user?.plan === 'pro' ? 'Premium' : 'Basic'}
+            </span>
           </div>
         </div>
       </header>
