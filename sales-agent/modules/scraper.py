@@ -34,6 +34,12 @@ CITIES = [
     "Chennai", "Ahmedabad", "Jaipur", "Surat", "Lucknow"
 ]
 
+# Test mode — override via env vars
+TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
+if TEST_MODE:
+    SPECIALTIES = [("General Physician", "general physician clinic")]
+    CITIES = ["Mumbai"]
+
 
 def search_places(query: str, city: str) -> list[dict]:
     """Text search using Places API (New)."""
