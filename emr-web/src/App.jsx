@@ -28,6 +28,7 @@ import SuperAdminDash    from './pages/admin/AdminDashboard';
 import AdminClinics      from './pages/admin/AdminClinics';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import AdminAudit        from './pages/admin/AdminAudit';
+import AdminClinicDetail from './pages/admin/AdminClinicDetail';
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -88,10 +89,11 @@ export default function App() {
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminProtected><AdminLayout /></AdminProtected>}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard"     element={<SuperAdminDash />} />
-            <Route path="clinics"       element={<AdminClinics />} />
-            <Route path="subscriptions" element={<AdminSubscriptions />} />
-            <Route path="audit"         element={<AdminAudit />} />
+            <Route path="dashboard"       element={<SuperAdminDash />} />
+            <Route path="clinics"         element={<AdminClinics />} />
+            <Route path="clinics/:id"     element={<AdminClinicDetail />} />
+            <Route path="subscriptions"   element={<AdminSubscriptions />} />
+            <Route path="audit"           element={<AdminAudit />} />
           </Route>
         </Routes>
       </BrowserRouter>
