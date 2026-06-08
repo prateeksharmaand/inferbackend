@@ -42,11 +42,15 @@ export const adminApi = {
   suspendClinic:  (id)  => request('PATCH', `/clinics/${id}/suspend`),
   activateClinic: (id)  => request('PATCH', `/clinics/${id}/activate`),
 
+  getCatalog: () => request('GET', '/subscription-catalog'),
+
   listSubscriptions: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
     return request('GET', `/subscriptions${qs ? `?${qs}` : ''}`);
   },
+  createSubscription: (body) => request('POST', '/subscriptions/create', body),
   updateSubscription: (clinicId, body) => request('PATCH', `/subscriptions/${clinicId}`, body),
+  getSubscriptionItems: (clinicId) => request('GET', `/subscriptions/${clinicId}/items`),
   getRevenue: () => request('GET', '/subscriptions/revenue'),
 
   getAuditLogs: () => request('GET', '/audit-logs'),
