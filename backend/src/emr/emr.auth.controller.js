@@ -28,6 +28,10 @@ const login = async (req, res) => {
   const ok   = await bcrypt.compare(password, user.password_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
+  if (user.status === 'suspended') {
+    return res.status(403).json({ error: 'Your clinic account has been suspended. Please contact support.' });
+  }
+
   const token = sign({ id: user.id, clinic_id: user.clinic_id, role, email });
   res.json({
     token,

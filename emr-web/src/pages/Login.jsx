@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import styles from './Login.module.css';
@@ -7,6 +7,8 @@ import styles from './Login.module.css';
 export default function Login() {
   const { login } = useAuth();
   const navigate  = useNavigate();
+  const [searchParams] = useSearchParams();
+  const suspended  = searchParams.get('suspended') === '1';
   const [role,     setRole]     = useState('staff');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +39,11 @@ export default function Login() {
             <span className={styles.logoSub}>Doctor Management</span>
           </div>
         </div>
+        {suspended && (
+          <div className={styles.suspendedBanner}>
+            Your clinic account has been suspended. Please contact support.
+          </div>
+        )}
         <h2 className={styles.title}>Sign in to your clinic</h2>
 
         <div className={styles.roleTabs}>

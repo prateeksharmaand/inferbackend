@@ -23,6 +23,16 @@ async function req(method, path, body) {
     return;
   }
 
+  if (res.status === 403) {
+    const body = await res.json().catch(() => ({}));
+    if (body.error === 'clinic_suspended') {
+      localStorage.removeItem('emr_token');
+      localStorage.removeItem('emr_user');
+      window.location.href = '/opd/login?suspended=1';
+      return;
+    }
+  }
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || `HTTP ${res.status}`);
