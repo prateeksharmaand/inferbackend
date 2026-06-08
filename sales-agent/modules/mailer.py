@@ -61,7 +61,8 @@ def is_blocked(email: str) -> bool:
     return False
 
 
-def send_email(to_email: str, subject: str, body: str, clinic_name: str = "") -> bool:
+def send_email(to_email: str, subject: str, body: str, clinic_name: str = "",
+               doctor_name: str = "", specialty: str = "", step: int = 1) -> bool:
     """
     Sends branded HTML email via Hostinger SMTP.
     Saves copy to Sent folder via IMAP.
@@ -72,7 +73,8 @@ def send_email(to_email: str, subject: str, body: str, clinic_name: str = "") ->
         return False
 
     from modules.email_template import render
-    html, plain = render(subject=subject, body_text=body, clinic_name=clinic_name)
+    html, plain = render(subject=subject, body_text=body, clinic_name=clinic_name,
+                         doctor_name=doctor_name, specialty=specialty, step=step)
 
     try:
         msg = MIMEMultipart("alternative")
