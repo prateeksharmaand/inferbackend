@@ -104,7 +104,7 @@ def get_leads_due_today() -> list[dict]:
         status = str(row.get("status", "new")).strip().lower()
         next_send = str(row.get("next_send_date", "")).strip()
 
-        if status in ("unsubscribed", "replied", "booked", "completed"):
+        if status in ("unsubscribed", "replied", "booked", "completed", "failed"):
             continue
         if not next_send or next_send <= today:
             due.append({**row, "_row": i})
@@ -124,6 +124,11 @@ def update_lead(row_index: int, step: int, next_send_date: str, status: str = "a
 
 def mark_unsubscribed(row_index: int):
     _get_sheet().update_cell(row_index, 6, "unsubscribed")
+
+
+def mark_failed(row_index: int):
+    """Marks a lead as failed so it is never retried."""
+    _get_sheet().update_cell(row_index, 6, "failed")
 
 
 def mark_replied(row_index: int, note: str = ""):

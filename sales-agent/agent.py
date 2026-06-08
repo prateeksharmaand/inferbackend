@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from modules.scraper import scrape_leads, SPECIALTIES
-from modules.sheets import import_leads, get_leads_due_today, update_lead
+from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed
 from modules.personalizer import personalize_email
 from modules.mailer import send_email
 from modules.scheduler import get_next_step, get_next_send_date, is_sequence_complete
@@ -109,6 +109,7 @@ def phase_outreach():
             update_lead(row_index=row, step=next_step, next_send_date=next_date or "", status=status)
             sent += 1
         else:
+            mark_failed(row)
             failed += 1
 
         if sent < len(leads):
