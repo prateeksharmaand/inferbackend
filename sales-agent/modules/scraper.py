@@ -107,8 +107,15 @@ def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
     if specialties is None:
         specialties = SPECIALTIES
 
+    # Load already-known emails from CRM to avoid re-scraping
+    try:
+        from modules.sheets import get_existing_emails
+        seen = get_existing_emails()
+        print(f"  Skipping {len(seen)} already-known emails from CRM.")
+    except Exception:
+        seen = set()
+
     all_leads = []
-    seen = set()
 
     for city in cities:
         for specialty_label, query in specialties:
@@ -119,11 +126,6 @@ def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
             for place in places:
                 if count >= max_per_combo:
                     break
-
-                place_id = place.get("id", "")
-                if place_id in seen:
-                    continue
-                seen.add(place_id)
 
                 clinic_name = place.get("displayName", {}).get("text", "")
                 address     = place.get("formattedAddress", "")
@@ -136,6 +138,12 @@ def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
 
                 if not email:
                     continue
+
+                # Skip if already in CRM
+                if email.lower() in seen:
+                    print(f"    ↷ Skipping duplicate: {clinic_name} ({email})")
+                    continue
+                seen.add(email.lower())
 
                 all_leads.append({
                     "name": "",
