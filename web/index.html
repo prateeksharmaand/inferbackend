@@ -134,7 +134,7 @@
     }
     .navbar.scrolled { box-shadow: 0 4px 24px rgba(123,110,246,0.1); }
     .navbar-inner {
-      display: flex; align-items: center; gap: 40px;
+      display: flex; align-items: center; gap: 16px;
       height: 68px;
     }
     .navbar-logo {
@@ -149,11 +149,11 @@
       box-shadow: 0 4px 12px rgba(123,110,246,0.3);
     }
     .navbar-logo-icon svg { width: 18px; height: 18px; }
-    .navbar-nav { display: flex; align-items: center; gap: 4px; flex: 1; }
+    .navbar-nav { display: flex; align-items: center; gap: 2px; flex: 1; }
     .nav-link {
-      padding: 8px 14px; border-radius: var(--radius-sm);
-      font-size: 14px; font-weight: 500; color: var(--text-secondary);
-      transition: all 0.2s;
+      padding: 7px 10px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500; color: var(--text-secondary);
+      white-space: nowrap; transition: all 0.2s;
     }
     .nav-link:hover { color: var(--primary); background: var(--primary-light); }
     .navbar-cta { margin-left: auto; }
@@ -904,12 +904,12 @@
         <a href="#demo"        class="nav-link" style="color:var(--primary);font-weight:600;">Book Demo</a>
       </nav>
       <div class="navbar-cta" style="display:flex;gap:8px;">
-        <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-outline" style="padding:10px 18px;font-size:13px;">
+        <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-outline" style="padding:8px 14px;font-size:12px;white-space:nowrap;">
           Launch InferPad
         </a>
-        <a href="#download" class="btn btn-primary" style="padding:10px 22px; font-size:14px;">
-          Get the App
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        <a href="#demo" class="btn btn-primary" style="padding:8px 16px;font-size:12px;white-space:nowrap;">
+          Book Demo
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
       <div class="hamburger" id="hamburger" onclick="toggleMenu()">
@@ -1109,173 +1109,6 @@
     </div>
   </div>
 </div>
-
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  FEATURES                                                -->
-<!-- ════════════════════════════════════════════════════════ -->
-<section class="section" id="features">
-  <div class="container">
-    <div class="reveal">
-      <div class="section-tag">Core Features</div>
-      <h2 class="section-title">Everything you need for<br/><span class="gradient-text">proactive health management</span></h2>
-      <p class="section-subtitle">A complete health intelligence platform with AI, smart tracking, and clinical-grade record keeping.</p>
-    </div>
-    <div class="features-grid">
-
-      <div class="feature-card reveal reveal-delay-1">
-        <div class="feature-icon-wrap" style="background:#EEEAFF;">📋</div>
-        <h3 class="feature-title">Health Records</h3>
-        <p class="feature-desc">Upload and manage lab reports, prescriptions, discharge summaries, and radiology reports in a secure, searchable vault.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Lab Reports</span>
-          <span class="feature-tag">Prescriptions</span>
-          <span class="feature-tag">AI Summary</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-2">
-        <div class="feature-icon-wrap" style="background:#FFF3EE;">📊</div>
-        <h3 class="feature-title">Vitals Tracking</h3>
-        <p class="feature-desc">Log and visualise blood pressure, heart rate, glucose, SpO2, temperature, and BMI with trend charts and LOINC-coded data.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Blood Pressure</span>
-          <span class="feature-tag">Heart Rate</span>
-          <span class="feature-tag">Glucose</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-3">
-        <div class="feature-icon-wrap" style="background:#E3F2FD;">🤖</div>
-        <h3 class="feature-title">AI Health Bot</h3>
-        <p class="feature-desc">Ask health questions, get document analysis, and receive personalised advice from a Gemini-powered AI that understands your history.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Gemini AI</span>
-          <span class="feature-tag">Contextual</span>
-          <span class="feature-tag">24 / 7</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-1">
-        <div class="feature-icon-wrap" style="background:#E8F5E9;">⚠️</div>
-        <h3 class="feature-title">Risk Prediction</h3>
-        <p class="feature-desc">AI-driven risk scores for diabetes, cardiovascular disease, and mental health based on your vitals and reported symptoms.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Diabetes</span>
-          <span class="feature-tag">Heart Health</span>
-          <span class="feature-tag">Mental Health</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-2">
-        <div class="feature-icon-wrap" style="background:#F3E5F5;">📅</div>
-        <h3 class="feature-title">Health Timeline</h3>
-        <p class="feature-desc">A chronological view of all your health events — vitals, documents, assessments, and consultations — in one unified timeline.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Events</span>
-          <span class="feature-tag">Documents</span>
-          <span class="feature-tag">Vitals</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-3">
-        <div class="feature-icon-wrap" style="background:#FFF9E6;">📝</div>
-        <h3 class="feature-title">Self Assessment</h3>
-        <p class="feature-desc">Answer AI-generated questionnaires across 15 health categories. Receive instant risk scores and personalised recommendations.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">15 Categories</span>
-          <span class="feature-tag">AI Analysis</span>
-          <span class="feature-tag">6 Questions</span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  AI SECTION                                              -->
-<!-- ════════════════════════════════════════════════════════ -->
-<section class="section ai-section" id="ai">
-  <!-- Orbs -->
-  <div class="orb" style="width:500px;height:500px;top:-180px;right:-120px;"></div>
-  <div class="orb" style="width:320px;height:320px;bottom:-80px;left:-60px;opacity:0.05;"></div>
-
-  <div class="container">
-    <div class="ai-grid">
-      <!-- Left: text -->
-      <div class="reveal">
-        <div class="ai-tag">✨ Gemini AI</div>
-        <h2 class="ai-title">Your AI health<br/>companion, always on</h2>
-        <p class="ai-sub">Built on Google Gemini, our AI analyses your complete health history to give you contextual, accurate health insights — not generic advice.</p>
-        <div class="ai-features">
-          <div class="ai-feature-row">
-            <div class="ai-feature-icon">💬</div>
-            <div>
-              <div class="ai-feature-title">Conversational Health Consultation</div>
-              <div class="ai-feature-desc">Ask anything — symptoms, medications, test results. The AI understands your personal health context.</div>
-            </div>
-          </div>
-          <div class="ai-feature-row">
-            <div class="ai-feature-icon">📄</div>
-            <div>
-              <div class="ai-feature-title">Smart Document Analysis</div>
-              <div class="ai-feature-desc">Upload a lab report and get a plain-English summary with highlighted abnormalities and follow-up steps.</div>
-            </div>
-          </div>
-          <div class="ai-feature-row">
-            <div class="ai-feature-icon">📈</div>
-            <div>
-              <div class="ai-feature-title">Risk Trend Detection</div>
-              <div class="ai-feature-desc">The AI monitors your vitals over time and flags early warning signs before they become problems.</div>
-            </div>
-          </div>
-        </div>
-        <a href="#download" class="btn btn-ghost" style="align-self: flex-start;">Try AI Health Bot →</a>
-      </div>
-
-      <!-- Right: Chat mockup -->
-      <div class="reveal reveal-delay-2">
-        <div class="chat-mockup">
-          <div class="chat-header">
-            <div class="chat-bot-avatar">🤖</div>
-            <div>
-              <div class="chat-bot-name">Infer AI</div>
-              <div class="chat-bot-status"><span class="chat-status-dot"></span>Online · Analysing your records</div>
-            </div>
-          </div>
-          <div class="chat-messages">
-            <div class="chat-msg user">
-              <div class="chat-mini-avatar">👤</div>
-              <div class="chat-bubble">My blood pressure has been high lately. Should I be worried?</div>
-            </div>
-            <div class="chat-msg bot">
-              <div class="chat-mini-avatar">🤖</div>
-              <div>
-                <div class="chat-bubble">Based on your last 5 readings, your systolic average is 138 mmHg — Stage 1 hypertension range. Here's what I found:</div>
-                <div class="chat-risk-badge" style="margin-top:8px;">
-                  <span class="chat-risk-icon">⚠️</span>
-                  <div>
-                    <div class="chat-risk-label">Cardiovascular Risk</div>
-                    <div class="chat-risk-val">Moderate · Needs attention</div>
-                  </div>
-                </div>
-                <div class="chat-bubble" style="margin-top:8px;">I recommend reducing sodium intake and scheduling a follow-up with your cardiologist. Want me to draft a summary for your doctor?</div>
-              </div>
-            </div>
-            <div class="chat-msg user">
-              <div class="chat-mini-avatar">👤</div>
-              <div class="chat-bubble">Yes, generate the summary please.</div>
-            </div>
-          </div>
-          <div class="chat-input-bar">
-            <div class="chat-input-field">Ask your health question…</div>
-            <div class="chat-send-btn">➤</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- ════════════════════════════════════════════════════════ -->
 <!--  INFERPAD FOR CLINICS                                    -->
@@ -1563,6 +1396,173 @@
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
         📝 Form 25 (Narcotic Drugs)
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  FEATURES                                                -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-tag">Patient App</div>
+      <h2 class="section-title">Everything you need for<br/><span class="gradient-text">proactive health management</span></h2>
+      <p class="section-subtitle">A complete health intelligence platform with AI, smart tracking, and clinical-grade record keeping.</p>
+    </div>
+    <div class="features-grid">
+
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon-wrap" style="background:#EEEAFF;">📋</div>
+        <h3 class="feature-title">Health Records</h3>
+        <p class="feature-desc">Upload and manage lab reports, prescriptions, discharge summaries, and radiology reports in a secure, searchable vault.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Lab Reports</span>
+          <span class="feature-tag">Prescriptions</span>
+          <span class="feature-tag">AI Summary</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon-wrap" style="background:#FFF3EE;">📊</div>
+        <h3 class="feature-title">Vitals Tracking</h3>
+        <p class="feature-desc">Log and visualise blood pressure, heart rate, glucose, SpO2, temperature, and BMI with trend charts and LOINC-coded data.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Blood Pressure</span>
+          <span class="feature-tag">Heart Rate</span>
+          <span class="feature-tag">Glucose</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon-wrap" style="background:#E3F2FD;">🤖</div>
+        <h3 class="feature-title">AI Health Bot</h3>
+        <p class="feature-desc">Ask health questions, get document analysis, and receive personalised advice from a Gemini-powered AI that understands your history.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Gemini AI</span>
+          <span class="feature-tag">Contextual</span>
+          <span class="feature-tag">24 / 7</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon-wrap" style="background:#E8F5E9;">⚠️</div>
+        <h3 class="feature-title">Risk Prediction</h3>
+        <p class="feature-desc">AI-driven risk scores for diabetes, cardiovascular disease, and mental health based on your vitals and reported symptoms.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Diabetes</span>
+          <span class="feature-tag">Heart Health</span>
+          <span class="feature-tag">Mental Health</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon-wrap" style="background:#F3E5F5;">📅</div>
+        <h3 class="feature-title">Health Timeline</h3>
+        <p class="feature-desc">A chronological view of all your health events — vitals, documents, assessments, and consultations — in one unified timeline.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Events</span>
+          <span class="feature-tag">Documents</span>
+          <span class="feature-tag">Vitals</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon-wrap" style="background:#FFF9E6;">📝</div>
+        <h3 class="feature-title">Self Assessment</h3>
+        <p class="feature-desc">Answer AI-generated questionnaires across 15 health categories. Receive instant risk scores and personalised recommendations.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">15 Categories</span>
+          <span class="feature-tag">AI Analysis</span>
+          <span class="feature-tag">6 Questions</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  AI SECTION                                              -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="section ai-section" id="ai">
+  <!-- Orbs -->
+  <div class="orb" style="width:500px;height:500px;top:-180px;right:-120px;"></div>
+  <div class="orb" style="width:320px;height:320px;bottom:-80px;left:-60px;opacity:0.05;"></div>
+
+  <div class="container">
+    <div class="ai-grid">
+      <!-- Left: text -->
+      <div class="reveal">
+        <div class="ai-tag">✨ Gemini AI</div>
+        <h2 class="ai-title">Your AI health<br/>companion, always on</h2>
+        <p class="ai-sub">Built on Google Gemini, our AI analyses your complete health history to give you contextual, accurate health insights — not generic advice.</p>
+        <div class="ai-features">
+          <div class="ai-feature-row">
+            <div class="ai-feature-icon">💬</div>
+            <div>
+              <div class="ai-feature-title">Conversational Health Consultation</div>
+              <div class="ai-feature-desc">Ask anything — symptoms, medications, test results. The AI understands your personal health context.</div>
+            </div>
+          </div>
+          <div class="ai-feature-row">
+            <div class="ai-feature-icon">📄</div>
+            <div>
+              <div class="ai-feature-title">Smart Document Analysis</div>
+              <div class="ai-feature-desc">Upload a lab report and get a plain-English summary with highlighted abnormalities and follow-up steps.</div>
+            </div>
+          </div>
+          <div class="ai-feature-row">
+            <div class="ai-feature-icon">📈</div>
+            <div>
+              <div class="ai-feature-title">Risk Trend Detection</div>
+              <div class="ai-feature-desc">The AI monitors your vitals over time and flags early warning signs before they become problems.</div>
+            </div>
+          </div>
+        </div>
+        <a href="#download" class="btn btn-ghost" style="align-self: flex-start;">Try AI Health Bot →</a>
+      </div>
+
+      <!-- Right: Chat mockup -->
+      <div class="reveal reveal-delay-2">
+        <div class="chat-mockup">
+          <div class="chat-header">
+            <div class="chat-bot-avatar">🤖</div>
+            <div>
+              <div class="chat-bot-name">Infer AI</div>
+              <div class="chat-bot-status"><span class="chat-status-dot"></span>Online · Analysing your records</div>
+            </div>
+          </div>
+          <div class="chat-messages">
+            <div class="chat-msg user">
+              <div class="chat-mini-avatar">👤</div>
+              <div class="chat-bubble">My blood pressure has been high lately. Should I be worried?</div>
+            </div>
+            <div class="chat-msg bot">
+              <div class="chat-mini-avatar">🤖</div>
+              <div>
+                <div class="chat-bubble">Based on your last 5 readings, your systolic average is 138 mmHg — Stage 1 hypertension range. Here's what I found:</div>
+                <div class="chat-risk-badge" style="margin-top:8px;">
+                  <span class="chat-risk-icon">⚠️</span>
+                  <div>
+                    <div class="chat-risk-label">Cardiovascular Risk</div>
+                    <div class="chat-risk-val">Moderate · Needs attention</div>
+                  </div>
+                </div>
+                <div class="chat-bubble" style="margin-top:8px;">I recommend reducing sodium intake and scheduling a follow-up with your cardiologist. Want me to draft a summary for your doctor?</div>
+              </div>
+            </div>
+            <div class="chat-msg user">
+              <div class="chat-mini-avatar">👤</div>
+              <div class="chat-bubble">Yes, generate the summary please.</div>
+            </div>
+          </div>
+          <div class="chat-input-bar">
+            <div class="chat-input-field">Ask your health question…</div>
+            <div class="chat-send-btn">➤</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
