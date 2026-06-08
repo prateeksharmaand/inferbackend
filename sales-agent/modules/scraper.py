@@ -1,10 +1,9 @@
 """
-Google Maps Places scraper.
-Finds clinics by specialty + city and returns structured lead data.
-Free tier: 10,000 requests/month (no billing needed under that limit).
+Google Maps Places API (New) scraper.
+Uses the new Places API v1 endpoints.
 
-Get your API key: https://console.cloud.google.com
-Enable: Places API
+Enable in Google Cloud Console: "Places API (New)"
+Get API key: https://console.cloud.google.com
 """
 
 import os
@@ -14,24 +13,22 @@ from modules.quota import consume, status as quota_status
 
 MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 
-PLACES_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-PLACES_DETAIL_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
+PLACES_DETAIL_URL = "https://places.googleapis.com/v1/places/{place_id}"
 
-# Specialties to search — maps to search query + InferPad specialty tag
 SPECIALTIES = [
-    ("General Physician", "general physician clinic"),
-    ("Pediatrician",      "pediatrician child specialist clinic"),
-    ("Ophthalmologist",   "eye specialist ophthalmologist clinic"),
-    ("Dentist",           "dental clinic dentist"),
-    ("Gynecologist",      "gynecologist obstetrician clinic"),
-    ("Dermatologist",     "dermatologist skin clinic"),
-    ("Orthopedic",        "orthopedic surgeon clinic"),
-    ("Cardiologist",      "cardiologist heart clinic"),
-    ("ENT",               "ENT ear nose throat specialist"),
-    ("Diabetologist",     "diabetologist diabetes clinic"),
+    ("General Physician",  "general physician clinic"),
+    ("Pediatrician",       "pediatrician child specialist clinic"),
+    ("Ophthalmologist",    "eye specialist ophthalmologist clinic"),
+    ("Dentist",            "dental clinic dentist"),
+    ("Gynecologist",       "gynecologist obstetrician clinic"),
+    ("Dermatologist",      "dermatologist skin clinic"),
+    ("Orthopedic",         "orthopedic surgeon clinic"),
+    ("Cardiologist",       "cardiologist heart clinic"),
+    ("ENT",                "ENT ear nose throat specialist"),
+    ("Diabetologist",      "diabetologist diabetes clinic"),
 ]
 
-# Target cities — add/remove as needed
 CITIES = [
     "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Pune",
     "Chennai", "Ahmedabad", "Jaipur", "Surat", "Lucknow"
@@ -39,72 +36,46 @@ CITIES = [
 
 
 def search_places(query: str, city: str) -> list[dict]:
-    """
-    Calls Google Places Text Search for a specialty + city combo.
-    Consumes 1 quota unit per API call.
-    """
-    results = []
-    params = {
-        "query": f"{query} in {city} India",
-        "key": MAPS_API_KEY,
-        "type": "doctor",
-        "region": "in",
+    """Text search using Places API (New)."""
+    if not consume(1):
+        return []
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": MAPS_API_KEY,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri",
+    }
+    body = {
+        "textQuery": f"{query} in {city} India",
+        "regionCode": "IN",
+        "maxResultCount": 20,
     }
 
-    while True:
-        if not consume(1):
-            break
-
-        resp = requests.get(PLACES_SEARCH_URL, params=params, timeout=10)
+    results = []
+    try:
+        resp = requests.post(PLACES_SEARCH_URL, json=body, headers=headers, timeout=10)
         data = resp.json()
-
-        if data.get("status") not in ("OK", "ZERO_RESULTS"):
-            print(f"  ⚠ Maps API error: {data.get('status')} — {data.get('error_message', '')}")
-            break
-
-        results.extend(data.get("results", []))
-
-        next_token = data.get("next_page_token")
-        if not next_token:
-            break
-
-        time.sleep(2)
-        params = {"pagetoken": next_token, "key": MAPS_API_KEY}
+        if "places" in data:
+            results = data["places"]
+        elif "error" in data:
+            print(f"  ⚠ Maps API error: {data['error'].get('message', data['error'])}")
+    except Exception as e:
+        print(f"  ⚠ Request error: {e}")
 
     return results
 
 
-def get_place_details(place_id: str) -> dict:
-    """
-    Fetches phone number and website for a place_id.
-    Consumes 1 quota unit.
-    """
-    if not consume(1):
-        return {}
-
-    params = {
-        "place_id": place_id,
-        "fields": "name,formatted_phone_number,website,formatted_address",
-        "key": MAPS_API_KEY,
-    }
-    resp = requests.get(PLACES_DETAIL_URL, params=params, timeout=10)
-    data = resp.json()
-    return data.get("result", {})
-
-
 def extract_email_from_website(website: str) -> str:
-    """
-    Tries to find a contact email from the clinic website.
-    Looks for mailto: links on the homepage.
-    """
     if not website:
         return ""
+    import re
     try:
         resp = requests.get(website, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
-        text = resp.text
-        # Find mailto: links
-        import re
-        emails = re.findall(r"mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})", text)
+        emails = re.findall(r"mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})", resp.text)
+        if emails:
+            return emails[0].lower()
+        emails = re.findall(r"\b([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})\b", resp.text)
+        emails = [e for e in emails if not any(x in e for x in ["example", "noreply", "sentry", ".png", ".jpg"])]
         if emails:
             return emails[0].lower()
     except Exception:
@@ -112,43 +83,26 @@ def extract_email_from_website(website: str) -> str:
     return ""
 
 
-def guess_email(place_name: str, website: str) -> str:
-    """
-    If no email found, guess common patterns from website domain.
-    e.g. website=cityeyeclinic.com → info@cityeyeclinic.com
-    """
+def guess_email(website: str) -> str:
     if not website:
         return ""
     try:
         from urllib.parse import urlparse
         domain = urlparse(website).netloc.replace("www.", "")
-        if domain:
-            return f"info@{domain}"
+        return f"info@{domain}" if domain else ""
     except Exception:
-        pass
-    return ""
+        return ""
 
 
 def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
                  max_per_combo: int = 20) -> list[dict]:
-    """
-    Main scraper. Returns list of lead dicts ready for Google Sheets.
-
-    lead = {
-        "name": "Dr. Sharma",
-        "email": "info@sharmaeye.com",
-        "specialty": "Ophthalmologist",
-        "clinic": "Sharma Eye Clinic",
-        "city": "Pune"
-    }
-    """
     if cities is None:
         cities = CITIES
     if specialties is None:
         specialties = SPECIALTIES
 
     all_leads = []
-    seen_place_ids = set()
+    seen = set()
 
     for city in cities:
         for specialty_label, query in specialties:
@@ -160,30 +114,25 @@ def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
                 if count >= max_per_combo:
                     break
 
-                place_id = place.get("place_id", "")
-                if place_id in seen_place_ids:
+                place_id = place.get("id", "")
+                if place_id in seen:
                     continue
-                seen_place_ids.add(place_id)
+                seen.add(place_id)
 
-                clinic_name = place.get("name", "")
-                address = place.get("formatted_address", "")
+                clinic_name = place.get("displayName", {}).get("text", "")
+                address     = place.get("formattedAddress", "")
+                phone       = place.get("nationalPhoneNumber", "")
+                website     = place.get("websiteUri", "")
 
-                # Get phone + website from details API
-                details = get_place_details(place_id)
-                phone = details.get("formatted_phone_number", "")
-                website = details.get("website", "")
-
-                # Try to find email
                 email = extract_email_from_website(website)
                 if not email:
-                    email = guess_email(clinic_name, website)
+                    email = guess_email(website)
 
-                # Skip if no email at all — can't email them
                 if not email:
                     continue
 
-                lead = {
-                    "name": "",           # Will be filled as clinic contact (unknown from Maps)
+                all_leads.append({
+                    "name": "",
                     "email": email,
                     "specialty": specialty_label,
                     "clinic": clinic_name,
@@ -192,15 +141,12 @@ def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
                     "step": 0,
                     "next_send_date": "",
                     "last_sent_date": "",
-                    "notes": f"Phone: {phone} | {address}"
-                }
-
-                all_leads.append(lead)
+                    "notes": f"Phone: {phone} | {address}",
+                })
                 count += 1
                 print(f"    ✓ {clinic_name} — {email}")
 
-                # Be polite to the API
-                time.sleep(0.5)
+                time.sleep(0.3)
 
     print(f"\n  Total leads found: {len(all_leads)}")
     return all_leads
