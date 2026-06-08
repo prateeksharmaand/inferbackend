@@ -122,10 +122,15 @@ def render(subject: str, body_text: str, clinic_name: str = "") -> tuple[str, st
                 <tr>
                   <td>
                     <p style="margin:0 0 4px 0;font-size:13px;font-weight:600;color:#1C1B1F;">Infer EMR</p>
-                    <p style="margin:0;font-size:12px;color:#938F99;">
+                    <p style="margin:0 0 2px 0;font-size:12px;color:#938F99;">
                       <a href="{WEBSITE_LINK}" style="color:#7B6EF6;text-decoration:none;">{WEBSITE_LINK}</a>
                       &nbsp;·&nbsp;
                       <a href="mailto:{SUPPORT_EMAIL}" style="color:#7B6EF6;text-decoration:none;">{SUPPORT_EMAIL}</a>
+                    </p>
+                    <p style="margin:0;font-size:12px;color:#938F99;">
+                      📞 <a href="tel:+919650269758" style="color:#7B6EF6;text-decoration:none;">+91 96502 69758</a>
+                      &nbsp;·&nbsp;
+                      <a href="https://wa.me/919650269758" style="color:#25D366;text-decoration:none;">💬 WhatsApp</a>
                     </p>
                   </td>
                   <td align="right">
