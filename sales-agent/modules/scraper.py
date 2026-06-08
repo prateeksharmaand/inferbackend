@@ -41,32 +41,53 @@ if TEST_MODE:
     CITIES = ["Mumbai"]
 
 
-def search_places(query: str, city: str) -> list[dict]:
-    """Text search using Places API (New)."""
-    if not consume(1):
-        return []
-
+def search_places(query: str, city: str, max_results: int = 60) -> list[dict]:
+    """
+    Text search using Places API (New) with pagination via nextPageToken.
+    Fetches up to max_results places (20 per page, max 3 pages).
+    """
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": MAPS_API_KEY,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri",
-    }
-    body = {
-        "textQuery": f"{query} in {city} India",
-        "regionCode": "IN",
-        "maxResultCount": 20,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,nextPageToken",
     }
 
     results = []
-    try:
-        resp = requests.post(PLACES_SEARCH_URL, json=body, headers=headers, timeout=10)
-        data = resp.json()
-        if "places" in data:
-            results = data["places"]
-        elif "error" in data:
-            print(f"  ⚠ Maps API error: {data['error'].get('message', data['error'])}")
-    except Exception as e:
-        print(f"  ⚠ Request error: {e}")
+    page_token = None
+
+    while len(results) < max_results:
+        if not consume(1):
+            break
+
+        body = {
+            "textQuery": f"{query} in {city} India",
+            "regionCode": "IN",
+            "maxResultCount": 20,
+        }
+        if page_token:
+            body["pageToken"] = page_token
+
+        try:
+            resp = requests.post(PLACES_SEARCH_URL, json=body, headers=headers, timeout=10)
+            data = resp.json()
+
+            if "error" in data:
+                print(f"  ⚠ Maps API error: {data['error'].get('message', data['error'])}")
+                break
+
+            places = data.get("places", [])
+            results.extend(places)
+            print(f"    Page fetched: {len(places)} results (total so far: {len(results)})")
+
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+
+            time.sleep(2)  # required delay between paginated requests
+
+        except Exception as e:
+            print(f"  ⚠ Request error: {e}")
+            break
 
     return results
 
