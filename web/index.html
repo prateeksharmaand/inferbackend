@@ -865,6 +865,12 @@
       .privacy-grid { grid-template-columns: 1fr; }
       .footer-grid { grid-template-columns: 1fr; gap: 32px; }
       .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
+      #emr-features [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: 1fr !important; }
+      #demo [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; gap: 32px !important; }
+    }
+    @media (max-width: 1024px) {
+      #emr-features [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: repeat(2,1fr) !important; }
+      #demo [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; gap: 40px !important; }
     }
     @media (max-width: 480px) {
       .cat-grid { grid-template-columns: repeat(2, 1fr); }
@@ -892,8 +898,10 @@
         <a href="#features"    class="nav-link">Features</a>
         <a href="#ai"          class="nav-link">AI Health</a>
         <a href="#inferpad"    class="nav-link" style="color:var(--primary);font-weight:600;">For Clinics</a>
+        <a href="#emr-features" class="nav-link">EMR</a>
         <a href="#how"         class="nav-link">How It Works</a>
         <a href="#security"    class="nav-link">Security</a>
+        <a href="#demo"        class="nav-link" style="color:var(--primary);font-weight:600;">Book Demo</a>
       </nav>
       <div class="navbar-cta" style="display:flex;gap:8px;">
         <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-outline" style="padding:10px 18px;font-size:13px;">
@@ -913,11 +921,13 @@
 
 <!-- Mobile nav -->
 <div class="mobile-menu" id="mobileMenu">
-  <a href="#features"   class="nav-link" onclick="toggleMenu()">Features</a>
-  <a href="#ai"         class="nav-link" onclick="toggleMenu()">AI Health</a>
-  <a href="#inferpad"   class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">For Clinics</a>
-  <a href="#how"        class="nav-link" onclick="toggleMenu()">How It Works</a>
-  <a href="#security"   class="nav-link" onclick="toggleMenu()">Security</a>
+  <a href="#features"    class="nav-link" onclick="toggleMenu()">Features</a>
+  <a href="#ai"          class="nav-link" onclick="toggleMenu()">AI Health</a>
+  <a href="#inferpad"    class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">For Clinics</a>
+  <a href="#emr-features" class="nav-link" onclick="toggleMenu()">EMR</a>
+  <a href="#how"         class="nav-link" onclick="toggleMenu()">How It Works</a>
+  <a href="#security"    class="nav-link" onclick="toggleMenu()">Security</a>
+  <a href="#demo"        class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">Book Demo</a>
   <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-primary" style="margin-top:8px;justify-content:center;" onclick="toggleMenu()">Launch InferPad</a>
   <a href="#download" class="btn btn-outline" style="margin-top:6px;justify-content:center;" onclick="toggleMenu()">Get Patient App</a>
 </div>
@@ -1447,6 +1457,179 @@
 </section>
 
 <!-- ════════════════════════════════════════════════════════ -->
+<!--  EMR FEATURES                                            -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="section" id="emr-features" style="background:var(--surface-var);">
+  <div class="container">
+    <div style="text-align:center;" class="reveal">
+      <div class="section-tag" style="justify-content:center;">Full EMR Suite</div>
+      <h2 class="section-title">Everything a modern clinic needs,<br/><span class="gradient-text">in one platform</span></h2>
+      <p class="section-subtitle" style="margin:12px auto 0;text-align:center;">From OPD queue to lab reports, billing to analytics — InferPad is a complete clinic operating system.</p>
+    </div>
+
+    <!-- Row 1: Big feature cards -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:52px;">
+
+      <div class="feature-card reveal reveal-delay-1" style="background:var(--surface);">
+        <div class="feature-icon-wrap" style="background:#EEEAFF;">🗓️</div>
+        <h3 class="feature-title">Smart Queue & Appointments</h3>
+        <p class="feature-desc">Manage OPD token queues with real-time status, book appointment slots by date, and view a colour-coded calendar — all synced across devices.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Token Queue</span>
+          <span class="feature-tag">Slot Booking</span>
+          <span class="feature-tag">Calendar View</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-2" style="background:var(--surface);">
+        <div class="feature-icon-wrap" style="background:#E3F2FD;">🧪</div>
+        <h3 class="feature-title">Laboratory Portal</h3>
+        <p class="feature-desc">End-to-end lab management — order tests, track samples, enter results, generate reports, run quality control checks, and audit every step.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Sample Tracking</span>
+          <span class="feature-tag">Result Entry</span>
+          <span class="feature-tag">QC & Audit Trail</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-3" style="background:var(--surface);">
+        <div class="feature-icon-wrap" style="background:#E8F5E9;">📊</div>
+        <h3 class="feature-title">Analytics Dashboards</h3>
+        <p class="feature-desc">Real-time and historical dashboards for appointments, patients, prescriptions, and revenue — with filterable date ranges and exportable charts.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Realtime Report</span>
+          <span class="feature-tag">Prescription Analytics</span>
+          <span class="feature-tag">Patient Trends</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-1" style="background:var(--surface);">
+        <div class="feature-icon-wrap" style="background:#FFF3EE;">🧾</div>
+        <h3 class="feature-title">Billing & Receipts</h3>
+        <p class="feature-desc">Create itemised receipts with services, taxes, and discounts. View payment history per patient and generate printable bills in one click.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Digital Receipts</span>
+          <span class="feature-tag">Payment History</span>
+          <span class="feature-tag">Print Ready</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-2" style="background:var(--surface);">
+        <div class="feature-icon-wrap" style="background:#F3E5F5;">📞</div>
+        <h3 class="feature-title">Inbound Conversations</h3>
+        <p class="feature-desc">Receive patient messages via WhatsApp or voice, auto-book slots from inbound requests, view conversation analytics, and set availability windows.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">WhatsApp</span>
+          <span class="feature-tag">Voice AI</span>
+          <span class="feature-tag">Auto Slot Booking</span>
+        </div>
+      </div>
+
+      <div class="feature-card reveal reveal-delay-3" style="background:var(--surface);">
+        <div class="feature-icon-wrap" style="background:#FFF9E6;">👶</div>
+        <h3 class="feature-title">Pediatric & Specialty Tools</h3>
+        <p class="feature-desc">WHO growth charts, vaccination tracking, diet chart builder, dental chart with tooth-level annotations, and body-part drawing canvas for clinical notes.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Growth Charts</span>
+          <span class="feature-tag">Vaccination</span>
+          <span class="feature-tag">Dental Chart</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2: Compact highlight chips -->
+    <div style="margin-top:40px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;" class="reveal">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🏥 UHID Management
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🗂️ Custom Patient Attributes
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        📄 Medical Document Templates
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🏷️ Patient Tags
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        💊 Prescription Templates
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🔗 FHIR R4 Interoperability
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🧮 Clinical Calculators
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        📝 Form 25 (Narcotic Drugs)
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  BOOK A FREE DEMO                                        -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="section" id="demo" style="background:linear-gradient(135deg,var(--grad-start) 0%,var(--grad-mid) 60%,var(--grad-end) 100%);position:relative;overflow:hidden;">
+  <!-- Orbs -->
+  <div class="orb" style="width:500px;height:500px;top:-160px;right:-140px;"></div>
+  <div class="orb" style="width:300px;height:300px;bottom:-80px;left:-60px;opacity:0.06;"></div>
+
+  <div class="container" style="position:relative;z-index:1;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;">
+
+      <!-- Left: copy -->
+      <div class="reveal">
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.25);font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">
+          🎯 Free Demo
+        </div>
+        <h2 style="font-size:clamp(28px,3.5vw,44px);font-weight:800;color:#fff;line-height:1.2;letter-spacing:-0.5px;margin-bottom:16px;">
+          See InferPad live<br/>in your clinic
+        </h2>
+        <p style="font-size:16px;color:rgba(255,255,255,0.72);line-height:1.7;margin-bottom:32px;">
+          Book a free 30-minute personalised demo. We'll walk you through the full EMR — queue, scribe, lab, billing, and analytics — tailored to your specialty.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">⏱️</div>
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#fff;">30-minute session</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);">Live walkthrough with your actual patient workflow</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🏥</div>
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#fff;">Any specialty</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);">GP, Pediatrics, Dental, OB-GYN, and more</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">💸</div>
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#fff;">Completely free</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);">No credit card, no commitment required</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Calendly inline embed -->
+      <div class="reveal reveal-delay-2">
+        <div style="background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:var(--radius-2xl);padding:6px;backdrop-filter:blur(12px);box-shadow:0 24px 80px rgba(0,0,0,0.2);overflow:hidden;">
+          <div
+            class="calendly-inline-widget"
+            data-url="https://calendly.com/prateeksharmaand/30min"
+            style="min-width:280px;height:560px;border-radius:calc(var(--radius-2xl) - 6px);overflow:hidden;">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
 <!--  HOW IT WORKS                                            -->
 <!-- ════════════════════════════════════════════════════════ -->
 <section class="section" id="how">
@@ -1707,6 +1890,14 @@
       menu.classList.remove('open');
     }
   });
+
+  // Calendly inline widget
+  (function() {
+    var s = document.createElement('script');
+    s.src = 'https://assets.calendly.com/assets/external/widget.js';
+    s.async = true;
+    document.head.appendChild(s);
+  })();
 
   // Scroll reveal
   const revealEls = document.querySelectorAll('.reveal');
