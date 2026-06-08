@@ -80,14 +80,21 @@ function DoctorModal({ doctor, onSave, onClose }) {
 
 export default function DoctorsSettings() {
   const [doctors,    setDoctors]    = useState([]);
+  const [seatInfo,   setSeatInfo]   = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [showModal,  setShowModal]  = useState(false);
   const [editDoctor, setEditDoctor] = useState(null);
 
   const load = async () => {
     setLoading(true);
-    try { setDoctors(await api.get('/auth/doctors')); }
-    catch {}
+    try {
+      const [docs, seats] = await Promise.all([
+        api.get('/auth/doctors'),
+        api.get('/auth/seat-info'),
+      ]);
+      setDoctors(docs);
+      setSeatInfo(seats);
+    } catch {}
     finally { setLoading(false); }
   };
 
@@ -121,6 +128,12 @@ export default function DoctorsSettings() {
     setDoctors(d => d.filter(x => x.id !== doc.id));
   };
 
+  const activeDoctors = doctors.filter(d => d.is_active).length;
+  const pct = seatInfo && !seatInfo.unlimited && seatInfo.limit > 0
+    ? Math.min(100, Math.round((seatInfo.used / seatInfo.limit) * 100))
+    : 0;
+  const barColor = pct >= 100 ? 'var(--color-danger)' : pct >= 75 ? 'var(--color-warning)' : 'var(--color-primary)';
+
   return (
     <div className={styles.wrap}>
 
@@ -131,6 +144,32 @@ export default function DoctorsSettings() {
           <Plus size={14} strokeWidth={2.5} /> Add Doctor
         </button>
       </div>
+
+      {seatInfo && (
+        <div className={ds.seatBar}>
+          <div className={ds.seatBarTop}>
+            <span className={ds.seatBarLabel}>
+              <strong>{seatInfo.plan_name}</strong>
+              {' · '}
+              {seatInfo.unlimited
+                ? 'Unlimited doctor seats'
+                : `${seatInfo.used} of ${seatInfo.limit} seat${seatInfo.limit !== 1 ? 's' : ''} used`}
+            </span>
+            {!seatInfo.unlimited && (
+              <span className={ds.seatBarRight}>
+                {seatInfo.available > 0
+                  ? <span className={ds.available}>{seatInfo.available} available</span>
+                  : <span className={ds.full}>No seats available — upgrade to add more</span>}
+              </span>
+            )}
+          </div>
+          {!seatInfo.unlimited && (
+            <div className={ds.progressTrack}>
+              <div className={ds.progressFill} style={{ width: `${pct}%`, background: barColor }} />
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <p className={styles.emptyText}>Loading…</p>

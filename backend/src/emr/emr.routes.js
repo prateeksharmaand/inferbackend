@@ -62,6 +62,7 @@ router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
 
 // Auth helpers
+router.get   ('/auth/seat-info',     auth.getSeatInfo);
 router.post  ('/auth/add-doctor',    auth.addDoctor);
 router.get   ('/auth/doctors',       auth.listDoctors);
 router.patch ('/auth/doctors/:id',   auth.updateDoctor);

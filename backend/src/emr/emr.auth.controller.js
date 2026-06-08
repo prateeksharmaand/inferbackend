@@ -139,6 +139,53 @@ const addDoctor = async (req, res) => {
   res.status(201).json(rows[0]);
 };
 
+// GET /api/emr/auth/seat-info
+const getSeatInfo = async (req, res) => {
+  const clinic_id = req.emrUser.clinic_id;
+
+  const { rows: [sub] } = await pool.query(
+    `SELECT cs.status, sp.key AS plan_key, sp.display_name, sp.max_users
+     FROM clinic_subscriptions cs
+     JOIN subscription_plans sp ON sp.id = cs.plan_id
+     WHERE cs.clinic_id = $1`, [clinic_id]
+  );
+
+  const planKey = sub?.plan_key || 'base';
+  let   limit   = 1;
+  let   unlimited = false;
+
+  if (planKey === 'pro') {
+    const { rows: [seatRow] } = await pool.query(
+      `SELECT COALESCE(SUM(quantity), 0)::int AS total
+       FROM clinic_subscription_items
+       WHERE clinic_id = $1 AND item_type = 'seat' AND item_key IN ('premium','basic')`,
+      [clinic_id]
+    );
+    const purchased = seatRow?.total || 0;
+    if (purchased > 0) {
+      limit = purchased;
+    } else if (sub?.max_users === -1) {
+      unlimited = true;
+    } else {
+      limit = sub?.max_users ?? 1;
+    }
+  }
+
+  const { rows: [countRow] } = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM emr_doctors WHERE clinic_id = $1 AND is_active = true`,
+    [clinic_id]
+  );
+
+  res.json({
+    plan:      planKey,
+    plan_name: sub?.display_name || 'Base Plan',
+    used:      countRow.n,
+    limit:     unlimited ? null : limit,
+    unlimited,
+    available: unlimited ? null : Math.max(0, limit - countRow.n),
+  });
+};
+
 // GET /api/emr/auth/doctors
 const listDoctors = async (req, res) => {
   const { rows } = await pool.query(
@@ -187,4 +234,4 @@ const deleteDoctor = async (req, res) => {
   res.json({ ok: true });
 };
 
-module.exports = { login, registerClinic, addDoctor, listDoctors, updateDoctor, deleteDoctor };
+module.exports = { login, registerClinic, addDoctor, getSeatInfo, listDoctors, updateDoctor, deleteDoctor };
