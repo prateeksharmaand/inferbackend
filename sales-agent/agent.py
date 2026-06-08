@@ -24,6 +24,7 @@ from modules.personalizer import personalize_email
 from modules.mailer import send_email
 from modules.scheduler import get_next_step, get_next_send_date, is_sequence_complete
 from modules.quota import status as quota_status
+from modules.whatsapp import send_whatsapp
 
 MAX_EMAILS_PER_RUN   = int(os.environ.get("MAX_EMAILS_PER_RUN", 50))
 DELAY_BETWEEN_EMAILS = int(os.environ.get("DELAY_BETWEEN_EMAILS", 30))
@@ -116,6 +117,10 @@ def phase_outreach():
             status = "active" if next_date else "completed"
             update_lead(row_index=row, step=next_step, next_send_date=next_date or "", status=status)
             sent += 1
+
+            # Also send WhatsApp on Day 4 and Day 14
+            if next_step in (4, 14):
+                send_whatsapp(lead, next_step)
         else:
             mark_failed(row)
             failed += 1
