@@ -11,7 +11,7 @@ import os
 import time
 import requests
 
-MAPS_API_KEY = os.environ["GOOGLE_MAPS_API_KEY"]
+MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 
 PLACES_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
 PLACES_DETAIL_URL = "https://maps.googleapis.com/maps/api/place/details/json"
