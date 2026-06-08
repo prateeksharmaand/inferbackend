@@ -3,3 +3,5 @@ google_creds.json
 __pycache__/
 *.pyc
 logs/
+quota.json
+debug_html/

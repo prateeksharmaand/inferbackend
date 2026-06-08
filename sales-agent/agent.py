@@ -33,6 +33,8 @@ MAX_PER_COMBO        = int(os.environ.get("MAX_PER_COMBO", 10))
 
 def phase_scrape():
     print("\n── Phase 1: Scraping new leads ──────────────────────")
+    from modules.quota import status as quota_status
+    print(f"  Google Maps quota: {quota_status()}")
     cities = [c.strip() for c in SCRAPE_CITIES if c.strip()]
     specialty_labels = [s[0] for s in SPECIALTIES]
     all_leads = []

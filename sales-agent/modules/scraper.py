@@ -10,6 +10,7 @@ Enable: Places API
 import os
 import time
 import requests
+from modules.quota import consume, status as quota_status
 
 MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 
@@ -40,7 +41,7 @@ CITIES = [
 def search_places(query: str, city: str) -> list[dict]:
     """
     Calls Google Places Text Search for a specialty + city combo.
-    Returns list of raw place results.
+    Consumes 1 quota unit per API call.
     """
     results = []
     params = {
@@ -51,6 +52,9 @@ def search_places(query: str, city: str) -> list[dict]:
     }
 
     while True:
+        if not consume(1):
+            break
+
         resp = requests.get(PLACES_SEARCH_URL, params=params, timeout=10)
         data = resp.json()
 
@@ -64,7 +68,6 @@ def search_places(query: str, city: str) -> list[dict]:
         if not next_token:
             break
 
-        # Google requires a short delay before using next_page_token
         time.sleep(2)
         params = {"pagetoken": next_token, "key": MAPS_API_KEY}
 
@@ -74,7 +77,11 @@ def search_places(query: str, city: str) -> list[dict]:
 def get_place_details(place_id: str) -> dict:
     """
     Fetches phone number and website for a place_id.
+    Consumes 1 quota unit.
     """
+    if not consume(1):
+        return {}
+
     params = {
         "place_id": place_id,
         "fields": "name,formatted_phone_number,website,formatted_address",
