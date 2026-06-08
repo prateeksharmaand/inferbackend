@@ -68,10 +68,14 @@ def import_leads(leads: list[dict]) -> int:
     ensure_headers()
     existing = get_existing_emails()
 
+    from modules.mailer import is_blocked
     rows = []
     for lead in leads:
         email = str(lead.get("email", "")).strip().lower()
         if not email or email in existing:
+            continue
+        if is_blocked(email):
+            print(f"  ⛔ Skipping blocked email: {email}")
             continue
         rows.append([
             lead.get("name", ""),

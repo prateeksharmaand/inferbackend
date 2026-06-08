@@ -45,12 +45,32 @@ def _save_to_sent(msg_bytes: bytes):
         print(f"  ⚠ IMAP error: {e}")
 
 
+# Domains and emails to never send to
+BLOCKLIST = [
+    "eka.care", "practo.com", "lybrate.com", "justdial.com",
+    "1mg.com", "apollo247.com", "medanta.org", "fortishealthcare.com",
+    "manipalhospitals.com", "maxhealthcare.in", "narayanahealth.org",
+]
+
+
+def is_blocked(email: str) -> bool:
+    email = email.lower().strip()
+    for domain in BLOCKLIST:
+        if domain in email:
+            return True
+    return False
+
+
 def send_email(to_email: str, subject: str, body: str, clinic_name: str = "") -> bool:
     """
     Sends branded HTML email via Hostinger SMTP.
     Saves copy to Sent folder via IMAP.
     Returns True on success, False on failure.
     """
+    if is_blocked(to_email):
+        print(f"  ⛔ Blocked: {to_email} — domain is on blocklist")
+        return False
+
     from modules.email_template import render
     html, plain = render(subject=subject, body_text=body, clinic_name=clinic_name)
 
