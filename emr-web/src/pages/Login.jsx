@@ -41,7 +41,8 @@ export default function Login() {
         </div>
         {suspended && (
           <div className={styles.suspendedBanner}>
-            Your clinic account has been suspended. Please contact support.
+            Your clinic account has been suspended. Please contact support at{' '}
+            <a href="mailto:support@inferapp.online">support@inferapp.online</a>
           </div>
         )}
         <h2 className={styles.title}>Sign in to your clinic</h2>
