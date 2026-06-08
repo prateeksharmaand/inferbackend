@@ -66,7 +66,6 @@ def send_whatsapp(lead: dict, step: int) -> bool:
     phone = str(lead.get("phone", "")).strip()
     if not phone:
         # Try to extract from notes field
-        import re
         notes = lead.get("notes", "")
         match = re.search(r"Phone:\s*([\d\s\-\+]+)", notes)
         if match:
