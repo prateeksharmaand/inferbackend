@@ -4,6 +4,7 @@ Sends pre-approved template messages on Day 4 and Day 14.
 """
 
 import os
+import re
 import requests
 
 WA_API_URL     = "https://graph.facebook.com/v19.0/{phone_number_id}/messages"
