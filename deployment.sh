@@ -205,11 +205,11 @@ if [ -d "$AGENT_DIR" ]; then
   else
     info "sales-agent/.env: ✓"
 
-    # Install cron job if not already present (runs daily at 9am)
-    CRON_JOB="0 9 * * * cd $AGENT_DIR && ./venv/bin/python agent.py >> $AGENT_DIR/agent.log 2>&1"
+    # Install cron job if not already present (runs daily at 9:00 AM IST = 3:30 AM UTC)
+    CRON_JOB="30 3 * * * cd $AGENT_DIR && ./venv/bin/python agent.py >> $AGENT_DIR/agent.log 2>&1"
     if ! crontab -l 2>/dev/null | grep -qF "sales-agent"; then
       (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
-      info "Cron job added: runs daily at 9:00 AM ✓"
+      info "Cron job added: runs daily at 9:00 AM IST (3:30 AM UTC) ✓"
     else
       info "Cron job already set up: ✓"
     fi
