@@ -40,7 +40,11 @@ def _save_to_sent(msg_bytes: bytes):
                     sent_folder = name.split('"')[-2] if '"' in name else name.split()[-1]
 
             if not sent_folder:
-                sent_folder = "Sent"
+                sent_folder = "INBOX.Sent"
+
+            # Ensure INBOX. prefix for Hostinger
+            if not sent_folder.startswith("INBOX."):
+                sent_folder = f"INBOX.{sent_folder}"
 
             print(f"  [IMAP] Saving to folder: {sent_folder}")
             result = imap.append(
