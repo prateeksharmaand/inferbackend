@@ -26,17 +26,35 @@ def _save_to_sent(msg_bytes: bytes):
     try:
         with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as imap:
             imap.login(SMTP_USER, SMTP_PASS)
-            # Try common Sent folder names
-            for folder in ["Sent", "INBOX.Sent", "Sent Items", "Sent Messages"]:
-                result = imap.append(
-                    folder, "\\Seen",
-                    imaplib.Time2Internaldate(time.time()),
-                    msg_bytes
-                )
-                if result[0] == "OK":
-                    break
+
+            # List all folders so we find the exact Sent folder name
+            status, folders = imap.list()
+            print("  [IMAP] Available folders:")
+            sent_folder = None
+            for f in folders:
+                name = f.decode() if isinstance(f, bytes) else f
+                print(f"    {name}")
+                name_lower = name.lower()
+                if "sent" in name_lower and sent_folder is None:
+                    # Extract folder name from response
+                    sent_folder = name.split('"')[-2] if '"' in name else name.split()[-1]
+
+            if not sent_folder:
+                sent_folder = "Sent"
+
+            print(f"  [IMAP] Saving to folder: {sent_folder}")
+            result = imap.append(
+                sent_folder, "\\Seen",
+                imaplib.Time2Internaldate(time.time()),
+                msg_bytes
+            )
+            print(f"  [IMAP] Save result: {result}")
+            if result[0] == "OK":
+                print(f"  ✓ Saved to {sent_folder}")
+            else:
+                print(f"  ⚠ Save failed: {result}")
     except Exception as e:
-        print(f"  ⚠ Could not save to Sent folder: {e}")
+        print(f"  ⚠ IMAP error: {e}")
 
 
 def send_email(to_email: str, subject: str, body: str) -> bool:
