@@ -1095,6 +1095,13 @@ function AIMealPlanModal({ patientContext, onApply, onClose }) {
       setPlans(data.plans || []);
       if (data.plans?.length) setExpanded(0);
     } catch (e) {
+      if (e.proRequired) {
+        onClose();
+        window.dispatchEvent(new CustomEvent('subscription:limit', {
+          detail: { resource: 'ai_meal_plan', message: 'AI Meal Plan is available on Infer Pro only. Please upgrade your plan.' },
+        }));
+        return;
+      }
       setError(e.message + (e.detail ? ` — ${JSON.stringify(e.detail)}` : ''));
       console.error('[AI meal plan]', e);
     } finally { setLoading(false); }
