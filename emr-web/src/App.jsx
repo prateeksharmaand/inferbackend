@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { QueueDateProvider } from './context/QueueDateContext';
+import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Queue from './pages/Queue';
@@ -20,6 +21,14 @@ import LabResultViewer from './components/laboratory/LabResultViewer';
 import AdminDashboard from './components/laboratory/AdminDashboard';
 import RxPublicView from './pages/RxPublicView';
 
+// Super Admin Portal
+import AdminLogin        from './pages/admin/AdminLogin';
+import AdminLayout       from './pages/admin/AdminLayout';
+import SuperAdminDash    from './pages/admin/AdminDashboard';
+import AdminClinics      from './pages/admin/AdminClinics';
+import AdminSubscriptions from './pages/admin/AdminSubscriptions';
+import AdminAudit        from './pages/admin/AdminAudit';
+
 function Protected({ children }) {
   const { user, ready } = useAuth();
   if (!ready) return null;
@@ -33,11 +42,18 @@ function LabProtected({ children }) {
   return children;
 }
 
+function AdminProtected({ children }) {
+  const { admin, ready } = useAdminAuth();
+  if (!ready) return null;
+  return admin ? children : <Navigate to="/admin/login" replace />;
+}
+
 export default function App() {
   return (
     <QueueDateProvider>
     <AuthProvider>
     <SubscriptionProvider>
+    <AdminAuthProvider>
       <Toaster />
       <BrowserRouter basename="/opd">
         <Routes>
@@ -67,8 +83,19 @@ export default function App() {
           {/* Lab Routes (standalone, no clinic layout) */}
           <Route path="/lab-login" element={<LabLogin />} />
           <Route path="/lab-portal" element={<LabProtected><LabPortal /></LabProtected>} />
+
+          {/* Super Admin Portal */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<AdminProtected><AdminLayout /></AdminProtected>}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard"     element={<SuperAdminDash />} />
+            <Route path="clinics"       element={<AdminClinics />} />
+            <Route path="subscriptions" element={<AdminSubscriptions />} />
+            <Route path="audit"         element={<AdminAudit />} />
+          </Route>
         </Routes>
       </BrowserRouter>
+    </AdminAuthProvider>
     </SubscriptionProvider>
     </AuthProvider>
     </QueueDateProvider>

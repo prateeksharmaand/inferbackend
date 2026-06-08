@@ -1,0 +1,102 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.newBtn {
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.newBtn:hover { background: #6d28d9; }
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 36px;
+}
+
+.statCard {
+  background: #1a1a24;
+  border: 1px solid #2a2a38;
+  border-top: 3px solid transparent;
+  border-radius: 12px;
+  padding: 20px 18px;
+}
+
+.statValue {
+  font-size: 32px;
+  font-weight: 800;
+  color: #f1f5f9;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 6px;
+}
+
+.statSub {
+  font-size: 12px;
+  color: #475569;
+  margin-top: 4px;
+}
+
+.section { margin-top: 8px; }
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin: 0 0 14px;
+}
+
+.revenueTable {
+  background: #1a1a24;
+  border: 1px solid #2a2a38;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.revenueTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.revenueTable th {
+  background: #12121a;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.revenueTable td {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #cbd5e1;
+  border-top: 1px solid #2a2a38;
+}
+
+.revenueTable tr:hover td { background: #12121a; }

@@ -49,6 +49,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // EMR API routes (static UI served by nginx at emr.inferapp.online)
 app.use('/api/emr', require('./src/emr/emr.routes'));
 
+// Super Admin Portal API
+app.use('/api/admin', require('./src/emr/admin.routes'));
+
 // V1 API routes (OPD portal)
 app.use('/api/v1', require('./src/routes/v1.routes'));
 
@@ -128,6 +131,9 @@ async function start() {
   try {
     await initializeDatabase();
     logger.info('Database connected and initialized');
+    // Seed superadmin from env vars (no-op if already exists)
+    const { seedSuperadmin } = require('./src/emr/admin.auth.controller');
+    await seedSuperadmin();
     const server = http.createServer(app);
     const labSocket = LabSocketManager.initialize(server);
     workflowService.setSocketManager(labSocket);

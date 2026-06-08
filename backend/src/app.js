@@ -53,6 +53,9 @@ app.use('/api/notifications', require('./routes/notifications'));
 const v1Routes = require('./routes/v1.routes');
 app.use('/api/v1', v1Routes);
 
+// Super Admin Portal API
+app.use('/api/admin', require('./emr/admin.routes'));
+
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 
