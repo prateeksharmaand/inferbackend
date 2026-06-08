@@ -1002,67 +1002,64 @@
               </div>
             </div>
 
-            <div class="phone-shell">
-              <div class="phone-notch">
-                <div class="phone-notch-dot"></div>
-                <div class="phone-notch-dot"></div>
+            <!-- EMR browser mockup -->
+            <div style="background:#fff;border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.28),0 0 0 1px rgba(255,255,255,0.15);overflow:hidden;width:340px;">
+              <!-- Browser bar -->
+              <div style="background:#1e1e2e;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;gap:5px;">
+                  <div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div>
+                  <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;"></div>
+                  <div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div>
+                </div>
+                <div style="flex:1;background:rgba(255,255,255,0.08);border-radius:5px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.5);display:flex;align-items:center;gap:5px;">
+                  🔒 opd.inferapp.online
+                </div>
               </div>
-              <div class="phone-screen">
-                <div class="ps-header">
-                  <div>
-                    <div class="ps-greeting">Good morning 👋</div>
-                    <div class="ps-name">Prateek</div>
-                  </div>
-                  <div class="ps-avatar">👤</div>
+              <!-- App layout -->
+              <div style="display:flex;height:320px;">
+                <!-- Sidebar -->
+                <div style="width:44px;background:#1e1e2e;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:12px;">
+                  <div style="width:28px;height:28px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;">📋</div>
+                  <div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:12px;">👥</div>
+                  <div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:12px;">🧪</div>
+                  <div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:12px;">📊</div>
                 </div>
-                <div class="ps-score-card">
-                  <div class="ps-score-circle">
-                    <div class="ps-score-inner">78</div>
+                <!-- Main content -->
+                <div style="flex:1;background:#f8f9fb;display:flex;flex-direction:column;overflow:hidden;">
+                  <!-- Top bar -->
+                  <div style="background:#fff;padding:8px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                      <div style="font-size:11px;font-weight:700;color:#1e1e2e;">Rahul Sharma</div>
+                      <div style="font-size:9px;color:#888;">M · 42y · UHID-00389 · General OPD</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:4px;background:var(--primary);color:#fff;padding:4px 8px;border-radius:5px;font-size:9px;font-weight:700;">
+                      <span style="width:5px;height:5px;border-radius:50%;background:#ff4444;animation:pulse-dot 1s ease-in-out infinite;display:inline-block;"></span>
+                      Scribe · REC
+                    </div>
                   </div>
-                  <div>
-                    <div class="ps-score-label">Health Score</div>
-                    <div class="ps-score-val">Good</div>
+                  <!-- Fields -->
+                  <div style="padding:10px 12px;display:flex;flex-direction:column;gap:7px;flex:1;">
+                    <div style="background:#fff;border-radius:8px;padding:7px 10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+                      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);margin-bottom:3px;">Chief Complaint</div>
+                      <div style="font-size:10px;color:#1e1e2e;">Chest pain · 2 days · Shortness of breath on exertion</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:7px 10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+                      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);margin-bottom:3px;">Vitals</div>
+                      <div style="font-size:10px;color:#1e1e2e;">BP 142/88 · HR 96 bpm · SpO₂ 96% · Temp 37.1°C</div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:7px 10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+                      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);margin-bottom:3px;">Diagnosis</div>
+                      <div style="font-size:10px;"><span style="background:#FEF3C7;color:#92400e;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:600;">Unstable Angina [ICD: I20.0]</span></div>
+                    </div>
+                    <div style="background:#fff;border-radius:8px;padding:7px 10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+                      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);margin-bottom:3px;">Prescription</div>
+                      <div style="font-size:10px;color:#1e1e2e;">Aspirin 75mg · OD · 30d &nbsp;|&nbsp; Atorvastatin 40mg · HS · 30d</div>
+                    </div>
                   </div>
-                </div>
-                <div class="ps-vitals">
-                  <div class="ps-vital">
-                    <div class="ps-vital-icon">🩸</div>
-                    <div class="ps-vital-val">120<span class="ps-vital-unit">/80</span></div>
-                    <div class="ps-vital-label">Blood Pressure</div>
-                  </div>
-                  <div class="ps-vital">
-                    <div class="ps-vital-icon">💓</div>
-                    <div class="ps-vital-val">72</div>
-                    <div class="ps-vital-label">Heart Rate</div>
-                  </div>
-                  <div class="ps-vital">
-                    <div class="ps-vital-icon">🌡️</div>
-                    <div class="ps-vital-val">36.6<span class="ps-vital-unit">°C</span></div>
-                    <div class="ps-vital-label">Temperature</div>
-                  </div>
-                  <div class="ps-vital">
-                    <div class="ps-vital-icon">💧</div>
-                    <div class="ps-vital-val">98<span class="ps-vital-unit">%</span></div>
-                    <div class="ps-vital-label">SpO2</div>
-                  </div>
-                </div>
-                <div class="ps-ai">
-                  <div class="ps-ai-icon">✨</div>
-                  <div class="ps-ai-text">
-                    <div class="ps-ai-title">AI Health Bot</div>
-                    Your vitals look great today. Stay hydrated!
-                  </div>
-                </div>
-                <div class="ps-activity">
-                  <div class="ps-activity-label">Weekly Activity</div>
-                  <div class="ps-bars">
-                    <div class="ps-bar"><div class="ps-bar-fill" style="height:60%"></div></div>
-                    <div class="ps-bar"><div class="ps-bar-fill" style="height:80%"></div></div>
-                    <div class="ps-bar"><div class="ps-bar-fill" style="height:45%"></div></div>
-                    <div class="ps-bar"><div class="ps-bar-fill" style="height:90%"></div></div>
-                    <div class="ps-bar"><div class="ps-bar-fill" style="height:70%"></div></div>
-                    <div class="ps-bar"><div class="ps-bar-fill" style="height:55%"></div></div>
-                    <div class="ps-bar"><div class="ps-bar-fill" style="height:75%"></div></div>
+                  <!-- AI bar -->
+                  <div style="background:linear-gradient(90deg,#eff6ff,#f0fdf4);border-top:1px solid #bfdbfe;padding:6px 12px;display:flex;align-items:center;gap:6px;font-size:9px;font-weight:600;color:#1d4ed8;">
+                    🧠 AI extracted SOAP in 1.8s
+                    <div class="scribe-dot-anim" style="margin-left:4px;"><span></span><span></span><span></span></div>
                   </div>
                 </div>
               </div>
