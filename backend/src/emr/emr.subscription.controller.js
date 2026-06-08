@@ -10,6 +10,7 @@ const rzp = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
 // ── Helper ───────────────────────────────────────────────────────────────────
 
 async function getSubscription(clinicId) {
+  logger.info(`[subscription] getSubscription clinicId=${clinicId}`);
   const { rows } = await pool.query(
     `SELECT cs.*, sp.key AS plan_key, sp.display_name, sp.tagline,
             sp.max_users, sp.max_patients, sp.max_appointments,
@@ -20,20 +21,29 @@ async function getSubscription(clinicId) {
      WHERE cs.clinic_id = $1`,
     [clinicId],
   );
+  logger.info(`[subscription] getSubscription rows=${rows.length}`);
   if (!rows.length) return null;
   return rows[0];
 }
 
 async function getUsage(clinicId) {
+  logger.info(`[subscription] getUsage clinicId=${clinicId}`);
   const [patients, appts, rxs] = await Promise.all([
     pool.query(
       `SELECT COUNT(DISTINCT a.emr_patient_id)::int AS n
        FROM emr_appointments a WHERE a.clinic_id = $1`, [clinicId]
-    ),
-    pool.query(`SELECT COUNT(*)::int AS n FROM emr_appointments WHERE clinic_id = $1`, [clinicId]),
+    ).then(r => { logger.info('[subscription] patients ok'); return r; })
+     .catch(e => { logger.error('[subscription] patients failed:', e.message); throw e; }),
+
+    pool.query(
+      `SELECT COUNT(*)::int AS n FROM emr_appointments WHERE clinic_id = $1`, [clinicId]
+    ).then(r => { logger.info('[subscription] appts ok'); return r; })
+     .catch(e => { logger.error('[subscription] appts failed:', e.message); throw e; }),
+
     pool.query(
       `SELECT COUNT(*)::int AS n FROM emr_encounters WHERE clinic_id = $1`, [clinicId]
-    ),
+    ).then(r => { logger.info('[subscription] encounters ok'); return r; })
+     .catch(e => { logger.error('[subscription] encounters failed:', e.message); throw e; }),
   ]);
   return {
     patients:      patients.rows[0].n,
