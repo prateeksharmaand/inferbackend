@@ -186,6 +186,7 @@ if [ -d "$AGENT_DIR" ]; then
   fi
 
   info "Installing sales agent dependencies..."
+  "$AGENT_DIR/venv/bin/pip" install -q --upgrade pip
   "$AGENT_DIR/venv/bin/pip" install -q -r "$AGENT_DIR/requirements.txt"
   info "Dependencies installed: ✓"
 
