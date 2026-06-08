@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from modules.scraper import scrape_leads, SPECIALTIES
-from modules.justdial_scraper import scrape_justdial
+from modules.practo_scraper import scrape_practo
 from modules.sheets import import_leads, get_leads_due_today, update_lead
 from modules.personalizer import personalize_email
 from modules.mailer import send_email
@@ -37,18 +37,18 @@ def phase_scrape():
     specialty_labels = [s[0] for s in SPECIALTIES]
     all_leads = []
 
-    # Source 1: JustDial (no API key needed — India-first)
-    print("\n  [JustDial]")
+    # Source 1: Practo (India-first, no API key needed)
+    print("\n  [Practo]")
     try:
-        jd_leads = scrape_justdial(
+        practo_leads = scrape_practo(
             cities=cities,
             specialties=specialty_labels,
             max_pages=3,
             max_per_combo=MAX_PER_COMBO,
         )
-        all_leads.extend(jd_leads)
+        all_leads.extend(practo_leads)
     except Exception as e:
-        print(f"  ⚠ JustDial scraper error: {e}")
+        print(f"  ⚠ Practo scraper error: {e}")
 
     # Source 2: Google Maps (requires GOOGLE_MAPS_API_KEY in .env)
     if os.environ.get("GOOGLE_MAPS_API_KEY"):
