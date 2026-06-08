@@ -32,9 +32,7 @@ async function getUsage(clinicId) {
     ),
     pool.query(`SELECT COUNT(*)::int AS n FROM emr_appointments WHERE clinic_id = $1`, [clinicId]),
     pool.query(
-      `SELECT COUNT(*)::int AS n FROM emr_encounters e
-       JOIN emr_appointments a ON a.id = e.appointment_id
-       WHERE a.clinic_id = $1`, [clinicId]
+      `SELECT COUNT(*)::int AS n FROM emr_encounters WHERE clinic_id = $1`, [clinicId]
     ),
   ]);
   return {
