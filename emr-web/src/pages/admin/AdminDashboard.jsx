@@ -36,12 +36,12 @@ export default function AdminDashboard() {
       </div>
 
       <div className={styles.statGrid}>
-        <StatCard label="Total Clinics"    value={stats?.clinics?.total}           accent="#7c3aed" />
-        <StatCard label="Active Clinics"   value={stats?.clinics?.active}          accent="#10b981" />
-        <StatCard label="Suspended"        value={stats?.clinics?.suspended}       accent="#f59e0b" />
-        <StatCard label="New This Month"   value={stats?.clinics?.new_this_month}  accent="#3b82f6" />
-        <StatCard label="Total Patients"   value={stats?.total_patients}           accent="#8b5cf6" />
-        <StatCard label="Pro Clinics"      value={planMap['pro'] ?? 0}             accent="#ec4899" />
+        <StatCard label="Total Clinics"    value={stats?.clinics?.total}           accent="#2563eb" />
+        <StatCard label="Active Clinics"   value={stats?.clinics?.active}          accent="#16a34a" />
+        <StatCard label="Suspended"        value={stats?.clinics?.suspended}       accent="#d97706" />
+        <StatCard label="New This Month"   value={stats?.clinics?.new_this_month}  accent="#2563eb" />
+        <StatCard label="Total Patients"   value={stats?.total_patients}           accent="#2563eb" />
+        <StatCard label="Pro Clinics"      value={planMap['pro'] ?? 0}             accent="#16a34a" />
         <StatCard label="Base (Free)"      value={planMap['base'] ?? 0}            accent="#64748b" />
       </div>
 

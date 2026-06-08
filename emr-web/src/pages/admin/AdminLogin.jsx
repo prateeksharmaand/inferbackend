@@ -30,8 +30,11 @@ export default function AdminLogin() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <span className={styles.logoText}>Infer</span>
-          <span className={styles.logoSub}>Admin Portal</span>
+          <div className={styles.logoIcon}>I</div>
+          <div className={styles.logoTextWrap}>
+            <span className={styles.logoText}>Infer Admin</span>
+            <span className={styles.logoSub}>Super Admin Portal</span>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>

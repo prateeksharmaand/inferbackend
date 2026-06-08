@@ -1,17 +1,27 @@
-.title { font-size: 24px; font-weight: 700; color: #f1f5f9; margin: 0 0 24px; }
+.title { font-size: 22px; font-weight: 700; color: var(--color-text); margin: 0 0 20px; }
 
-.tableWrap { background: #1a1a24; border: 1px solid #2a2a38; border-radius: 12px; overflow: hidden; }
+.tableWrap {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow);
+}
 .table { width: 100%; border-collapse: collapse; }
 .table th {
-  background: #12121a; padding: 12px 16px; text-align: left;
-  font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;
+  background: var(--color-bg); padding: 10px 16px; text-align: left;
+  font-size: 11px; font-weight: 600; color: var(--color-text-2);
+  text-transform: uppercase; letter-spacing: .5px;
 }
-.table td { padding: 12px 16px; font-size: 13px; color: #cbd5e1; border-top: 1px solid #2a2a38; vertical-align: top; }
-.table tr:hover td { background: #12121a; }
+.table td {
+  padding: 11px 16px; font-size: 13px; color: var(--color-text);
+  border-top: 1px solid var(--color-border); vertical-align: top;
+}
+.table tr:hover td { background: var(--color-bg); }
 
-.time { color: #64748b; font-size: 12px; white-space: nowrap; }
-.muted { color: #64748b; }
-.action { font-size: 12px; color: #a78bfa; background: #2d1b69; padding: 2px 8px; border-radius: 4px; }
-.details { max-width: 300px; }
-.pre { font-size: 11px; color: #64748b; white-space: pre-wrap; margin: 0; }
-.empty { text-align: center; color: #475569; padding: 40px !important; }
+.time { color: var(--color-text-2); font-size: 12px; white-space: nowrap; }
+.muted { color: var(--color-text-2); }
+.action {
+  font-size: 11px; color: var(--color-badge-blue-text);
+  background: var(--color-badge-blue); padding: 2px 8px; border-radius: 4px;
+}
+.details { max-width: 280px; }
+.pre { font-size: 11px; color: var(--color-text-2); white-space: pre-wrap; margin: 0; }
+.empty { text-align: center; color: var(--color-text-3); padding: 40px !important; }
