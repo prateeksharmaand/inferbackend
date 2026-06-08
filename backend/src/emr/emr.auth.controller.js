@@ -87,6 +87,49 @@ const addDoctor = async (req, res) => {
   const { name, email, password, specialization, qualification, registration_no, google_review_link } = req.body;
   const clinic_id = req.emrUser.clinic_id;
   if (!name || !email || !password) return res.status(400).json({ error: 'name, email, password required' });
+
+  // ── Seat limit check ────────────────────────────────────────────────────────
+  const { rows: [sub] } = await pool.query(
+    `SELECT cs.status, sp.key AS plan_key, sp.max_users
+     FROM clinic_subscriptions cs
+     JOIN subscription_plans sp ON sp.id = cs.plan_id
+     WHERE cs.clinic_id = $1`, [clinic_id]
+  );
+
+  const planKey  = sub?.plan_key || 'base';
+  let   maxSeats = 1; // base plan default
+
+  if (planKey === 'pro') {
+    // Check purchased seats from clinic_subscription_items (premium + basic seats)
+    const { rows: [seatRow] } = await pool.query(
+      `SELECT COALESCE(SUM(quantity), 0)::int AS total
+       FROM clinic_subscription_items
+       WHERE clinic_id = $1 AND item_type = 'seat' AND item_key IN ('premium','basic')`,
+      [clinic_id]
+    );
+    const purchasedSeats = seatRow?.total || 0;
+    // Fall back to plan's max_users if no items configured (-1 = unlimited)
+    maxSeats = purchasedSeats > 0 ? purchasedSeats : (sub?.max_users ?? -1);
+  }
+
+  if (maxSeats !== -1) {
+    const { rows: [countRow] } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM emr_doctors WHERE clinic_id = $1 AND is_active = true`,
+      [clinic_id]
+    );
+    if (countRow.n >= maxSeats) {
+      return res.status(402).json({
+        error: 'seat_limit',
+        plan:  planKey,
+        used:  countRow.n,
+        limit: maxSeats,
+        message: planKey === 'base'
+          ? `Base plan allows only ${maxSeats} doctor. Upgrade to Infer Pro to add more.`
+          : `You have used all ${maxSeats} purchased seats. Contact support or upgrade your plan.`,
+      });
+    }
+  }
+
   const hash = await bcrypt.hash(password, 10);
   const { rows } = await pool.query(
     `INSERT INTO emr_doctors (clinic_id, name, email, password_hash, specialization, qualification, registration_no, google_review_link)

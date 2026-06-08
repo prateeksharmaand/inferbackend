@@ -53,6 +53,12 @@ async function req(method, path, body) {
         detail: { resource: data.feature, message: data.message },
       }));
     }
+    if (res.status === 402 && data.error === 'seat_limit') {
+      err.seatLimit = true;
+      window.dispatchEvent(new CustomEvent('subscription:limit', {
+        detail: { resource: 'doctors', message: data.message },
+      }));
+    }
     throw err;
   }
   return data;
