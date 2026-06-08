@@ -26,7 +26,10 @@ async function getSubscription(clinicId) {
 
 async function getUsage(clinicId) {
   const [patients, appts, rxs] = await Promise.all([
-    pool.query(`SELECT COUNT(*)::int AS n FROM emr_patients WHERE clinic_id = $1`, [clinicId]),
+    pool.query(
+      `SELECT COUNT(DISTINCT a.emr_patient_id)::int AS n
+       FROM emr_appointments a WHERE a.clinic_id = $1`, [clinicId]
+    ),
     pool.query(`SELECT COUNT(*)::int AS n FROM emr_appointments WHERE clinic_id = $1`, [clinicId]),
     pool.query(
       `SELECT COUNT(*)::int AS n FROM emr_encounters e
