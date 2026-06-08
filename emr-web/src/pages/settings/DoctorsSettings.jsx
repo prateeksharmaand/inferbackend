@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Pencil, Trash2, Check, UserRound } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, Check, UserRound, Zap } from 'lucide-react';
 import { api } from '../../api/client';
+import UpgradeModal from '../../components/UpgradeModal';
 import styles from './ServicesSettings.module.css';
 import ds from './DoctorsSettings.module.css';
 
@@ -79,11 +80,12 @@ function DoctorModal({ doctor, onSave, onClose }) {
 }
 
 export default function DoctorsSettings() {
-  const [doctors,    setDoctors]    = useState([]);
-  const [seatInfo,   setSeatInfo]   = useState(null);
-  const [loading,    setLoading]    = useState(true);
-  const [showModal,  setShowModal]  = useState(false);
-  const [editDoctor, setEditDoctor] = useState(null);
+  const [doctors,     setDoctors]     = useState([]);
+  const [seatInfo,    setSeatInfo]    = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [showModal,   setShowModal]   = useState(false);
+  const [editDoctor,  setEditDoctor]  = useState(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -128,7 +130,10 @@ export default function DoctorsSettings() {
     setDoctors(d => d.filter(x => x.id !== doc.id));
   };
 
-  const activeDoctors = doctors.filter(d => d.is_active).length;
+  const seatsAvailable = seatInfo
+    ? (seatInfo.unlimited || seatInfo.available > 0)
+    : true; // allow while loading
+
   const pct = seatInfo && !seatInfo.unlimited && seatInfo.limit > 0
     ? Math.min(100, Math.round((seatInfo.used / seatInfo.limit) * 100))
     : 0;
@@ -140,9 +145,15 @@ export default function DoctorsSettings() {
       <div className={styles.toolbar}>
         <span className={ds.count}>{doctors.length} doctor{doctors.length !== 1 ? 's' : ''}</span>
         <div style={{ flex: 1 }} />
-        <button className={styles.btnCreate} onClick={() => setShowModal(true)}>
-          <Plus size={14} strokeWidth={2.5} /> Add Doctor
-        </button>
+        {seatsAvailable ? (
+          <button className={styles.btnCreate} onClick={() => setShowModal(true)}>
+            <Plus size={14} strokeWidth={2.5} /> Add Doctor
+          </button>
+        ) : (
+          <button className={ds.upgradeBtn} onClick={() => setShowUpgrade(true)}>
+            <Zap size={13} strokeWidth={2.5} /> Upgrade Now
+          </button>
+        )}
       </div>
 
       {seatInfo && (
@@ -213,8 +224,9 @@ export default function DoctorsSettings() {
         </div>
       )}
 
-      {showModal  && <DoctorModal onSave={handleAdd}  onClose={() => setShowModal(false)} />}
-      {editDoctor && <DoctorModal doctor={editDoctor} onSave={handleEdit} onClose={() => setEditDoctor(null)} />}
+      {showModal   && <DoctorModal onSave={handleAdd}  onClose={() => setShowModal(false)} />}
+      {editDoctor  && <DoctorModal doctor={editDoctor} onSave={handleEdit} onClose={() => setEditDoctor(null)} />}
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
     </div>
   );
 }
