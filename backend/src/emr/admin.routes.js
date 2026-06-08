@@ -25,10 +25,10 @@ router.patch('/clinics/:id',        clinicsCtrl.updateClinic);
 router.patch('/clinics/:id/suspend',  clinicsCtrl.suspendClinic);
 router.patch('/clinics/:id/activate', clinicsCtrl.activateClinic);
 
-// Subscriptions
+// Subscriptions — revenue must be before /:clinic_id to avoid param capture
+router.get('/subscriptions/revenue',               subsCtrl.getRevenue);
 router.get('/subscriptions',                       subsCtrl.listSubscriptions);
 router.patch('/subscriptions/:clinic_id',          subsCtrl.updateSubscription);
-router.get('/subscriptions/revenue',               subsCtrl.getRevenue);
 
 // Audit logs
 router.get('/audit-logs', subsCtrl.getAuditLogs);

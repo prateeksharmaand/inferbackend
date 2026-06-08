@@ -238,12 +238,15 @@ exports.activateClinic = async (req, res) => {
 // ── GET /api/admin/stats ──────────────────────────────────────────────────────
 
 exports.getStats = async (req, res) => {
+  // Ensure status column exists before querying (idempotent)
+  await pool.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`);
+
   const [clinics, patients, subscriptions] = await Promise.all([
     pool.query(`SELECT
-      COUNT(*)::int                                                         AS total,
-      COUNT(*) FILTER (WHERE status = 'active')::int                       AS active,
-      COUNT(*) FILTER (WHERE status = 'suspended')::int                    AS suspended,
-      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS new_this_month
+      COUNT(*)::int                                                                          AS total,
+      COUNT(*) FILTER (WHERE COALESCE(status,'active') = 'active')::int                    AS active,
+      COUNT(*) FILTER (WHERE COALESCE(status,'active') = 'suspended')::int                 AS suspended,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int                AS new_this_month
     FROM emr_clinics`),
 
     pool.query(`SELECT COUNT(*)::int AS total FROM emr_patients`),
@@ -256,7 +259,7 @@ exports.getStats = async (req, res) => {
   ]);
 
   res.json({
-    clinics:       clinics.rows[0],
+    clinics:        clinics.rows[0],
     total_patients: patients.rows[0].total,
     subscriptions:  subscriptions.rows,
   });
