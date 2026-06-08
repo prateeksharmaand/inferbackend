@@ -9,6 +9,8 @@ export function SubscriptionProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    // Skip if no EMR token (e.g. on admin portal routes)
+    if (!localStorage.getItem('emr_token')) { setLoading(false); return; }
     try {
       const data = await api.get('/subscription');
       setSub(data.subscription);

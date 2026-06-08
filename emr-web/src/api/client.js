@@ -16,7 +16,10 @@ async function req(method, path, body) {
   if (res.status === 401) {
     localStorage.removeItem('emr_token');
     localStorage.removeItem('emr_user');
-    window.location.href = '/opd/login';
+    // Don't redirect if already on admin routes
+    if (!window.location.pathname.startsWith('/opd/admin')) {
+      window.location.href = '/opd/login';
+    }
     return;
   }
 
