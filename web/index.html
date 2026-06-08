@@ -867,10 +867,12 @@
       .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
       #emr-features [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: 1fr !important; }
       #demo [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; gap: 32px !important; }
+      #testimonials [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: 1fr !important; }
     }
     @media (max-width: 1024px) {
       #emr-features [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: repeat(2,1fr) !important; }
       #demo [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; gap: 40px !important; }
+      #testimonials [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: repeat(2,1fr) !important; }
     }
     @media (max-width: 480px) {
       .cat-grid { grid-template-columns: repeat(2, 1fr); }
@@ -899,7 +901,7 @@
         <a href="#ai"          class="nav-link">AI Health</a>
         <a href="#inferpad"    class="nav-link" style="color:var(--primary);font-weight:600;">For Clinics</a>
         <a href="#emr-features" class="nav-link">EMR</a>
-        <a href="#how"         class="nav-link">How It Works</a>
+        <a href="#testimonials" class="nav-link">Stories</a>
         <a href="#security"    class="nav-link">Security</a>
         <a href="#demo"        class="nav-link" style="color:var(--primary);font-weight:600;">Book Demo</a>
       </nav>
@@ -925,7 +927,7 @@
   <a href="#ai"          class="nav-link" onclick="toggleMenu()">AI Health</a>
   <a href="#inferpad"    class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">For Clinics</a>
   <a href="#emr-features" class="nav-link" onclick="toggleMenu()">EMR</a>
-  <a href="#how"         class="nav-link" onclick="toggleMenu()">How It Works</a>
+  <a href="#testimonials" class="nav-link" onclick="toggleMenu()">Stories</a>
   <a href="#security"    class="nav-link" onclick="toggleMenu()">Security</a>
   <a href="#demo"        class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">Book Demo</a>
   <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-primary" style="margin-top:8px;justify-content:center;" onclick="toggleMenu()">Launch InferPad</a>
@@ -950,44 +952,33 @@
         <div>
           <div class="hero-label">
             <div class="hero-label-dot"></div>
-            AI-Powered EMR · Free to start
+            Intelligent Documentation · Ambient AI · Built for India
           </div>
           <h1 class="hero-title">
-            <span>Doctor speaks.</span><br/>
-            InferPad writes.<br/>
-            <span style="font-size:0.75em; opacity:0.85;">Complete clinic OS, powered by AI</span>
+            The AI-Native<br/>
+            <span>Ambient EMR</span><br/>
+            <span style="font-size:0.72em; opacity:0.88;">for Decisions that Save Lives</span>
           </h1>
           <p class="hero-sub">
-            AI medical scribe, OPD queue, lab portal, billing, analytics, and inbound patient conversations — everything your clinic needs in one beautifully designed platform.
+            Dictate naturally in 15+ Indian languages. InferPad listens, transcribes, extracts SOAP notes, and fills every clinical field — so you can focus entirely on the patient.
           </p>
           <div class="hero-actions">
             <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-primary">
-              Launch InferPad Free
+              Start Free — No Setup
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
             <a href="#demo" class="btn btn-ghost">
-              Book a Demo
+              Get a Live Tour
             </a>
           </div>
           <div class="hero-pills">
-            <div class="hero-pill">
-              🎙️ AI Medical Scribe
-            </div>
-            <div class="hero-pill">
-              🗓️ OPD Queue
-            </div>
-            <div class="hero-pill">
-              🧪 Lab Portal
-            </div>
-            <div class="hero-pill">
-              🧾 Billing
-            </div>
-            <div class="hero-pill">
-              📊 Analytics
-            </div>
-            <div class="hero-pill">
-              📞 Inbound AI
-            </div>
+            <div class="hero-pill">🎙️ AI Scribe</div>
+            <div class="hero-pill">🗓️ OPD Queue</div>
+            <div class="hero-pill">🧪 Lab Portal</div>
+            <div class="hero-pill">🧾 Billing</div>
+            <div class="hero-pill">📊 Analytics</div>
+            <div class="hero-pill">📞 Inbound AI</div>
+            <div class="hero-pill">🔗 ABDM Ready</div>
           </div>
         </div>
 
@@ -1089,20 +1080,20 @@
   <div class="container">
     <div class="stats-inner">
       <div class="stat-item reveal">
-        <div class="stat-num">15+</div>
-        <div class="stat-label">Health Categories</div>
+        <div class="stat-num">12+</div>
+        <div class="stat-label">Hours Saved per Doctor / Week</div>
       </div>
       <div class="stat-item reveal reveal-delay-1">
-        <div class="stat-num">6</div>
-        <div class="stat-label">Vital Signs Tracked</div>
+        <div class="stat-num">15+</div>
+        <div class="stat-label">Indian Languages Supported</div>
       </div>
       <div class="stat-item reveal reveal-delay-2">
-        <div class="stat-num">AI</div>
-        <div class="stat-label">Powered by Gemini</div>
+        <div class="stat-num">1.8s</div>
+        <div class="stat-label">Avg. SOAP Extraction Time</div>
       </div>
       <div class="stat-item reveal reveal-delay-3">
         <div class="stat-num">100%</div>
-        <div class="stat-label">Private & Secure</div>
+        <div class="stat-label">ABDM & FHIR Compliant</div>
       </div>
     </div>
   </div>
@@ -1561,6 +1552,87 @@
             <div class="chat-send-btn">➤</div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  TESTIMONIALS                                            -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="section" id="testimonials" style="background:var(--surface-var);">
+  <div class="container">
+    <div style="text-align:center;" class="reveal">
+      <div class="section-tag" style="justify-content:center;">Real Stories</div>
+      <h2 class="section-title">Measurable impact.<br/><span class="gradient-text">From real clinics.</span></h2>
+      <p class="section-subtitle" style="margin:12px auto 0;text-align:center;">Join doctors who have transformed their practice with InferPad's AI-native EMR.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:52px;">
+
+      <div class="card reveal reveal-delay-1" style="padding:28px;border:1px solid var(--divider);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--secondary),var(--primary));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👨‍⚕️</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Dr. Arjun Mehta</div>
+            <div style="font-size:12px;color:var(--text-hint);">General Physician · Delhi</div>
+          </div>
+        </div>
+        <div style="font-size:22px;color:var(--primary);margin-bottom:10px;">"</div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">InferPad's AI scribe is the single best thing to happen to my OPD. I used to spend 3 hours on paperwork — now I finish the same notes in 20 minutes. The Hinglish recognition is spot-on.</p>
+        <div style="display:flex;gap:4px;margin-top:16px;">
+          <span style="color:#F59E0B;font-size:14px;">★★★★★</span>
+        </div>
+      </div>
+
+      <div class="card reveal reveal-delay-2" style="padding:28px;border:1px solid var(--divider);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#00BFA5,#1E88E5);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👩‍⚕️</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Dr. Sunita Rao</div>
+            <div style="font-size:12px;color:var(--text-hint);">Paediatrician · Bangalore</div>
+          </div>
+        </div>
+        <div style="font-size:22px;color:var(--primary);margin-bottom:10px;">"</div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">The growth charts, vaccination tracker, and WhatsApp prescription sharing have made my clinic paperless in weeks. Parents love getting everything on their phone. Highly recommend.</p>
+        <div style="display:flex;gap:4px;margin-top:16px;">
+          <span style="color:#F59E0B;font-size:14px;">★★★★★</span>
+        </div>
+      </div>
+
+      <div class="card reveal reveal-delay-3" style="padding:28px;border:1px solid var(--divider);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF7043,#F59E0B);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🦷</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Dr. Karan Verma</div>
+            <div style="font-size:12px;color:var(--text-hint);">Dental Surgeon · Mumbai</div>
+          </div>
+        </div>
+        <div style="font-size:22px;color:var(--primary);margin-bottom:10px;">"</div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">The dental chart with tooth-level annotations is exactly what I needed. Lab orders, billing, and follow-up reminders all from one screen. InferPad has digitalised my entire practice seamlessly.</p>
+        <div style="display:flex;gap:4px;margin-top:16px;">
+          <span style="color:#F59E0B;font-size:14px;">★★★★★</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Trust badges -->
+    <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:52px;" class="reveal">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🏛️ ABDM Compliant
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🔗 FHIR R4 Compliant
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🔐 100% Data Privacy
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        ☁️ AWS & Google Cloud
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
+        🤖 Gemini 2.5 Flash
       </div>
     </div>
   </div>
