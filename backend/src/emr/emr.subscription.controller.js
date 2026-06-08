@@ -46,22 +46,22 @@ async function getUsage(clinicId) {
 
 exports.getSubscription = async (req, res) => {
   try {
-    const sub = await getSubscription(req.emrUser.clinic_id);
+    const clinicId = req.emrUser.clinic_id;
+    const sub = await getSubscription(clinicId);
     if (!sub) {
-      // Auto-create base subscription for clinics that don't have one yet
       await pool.query(
         `INSERT INTO clinic_subscriptions (clinic_id, plan_id, billing_cycle, status)
          SELECT $1, id, 'free', 'active' FROM subscription_plans WHERE key = 'base'
          ON CONFLICT (clinic_id) DO NOTHING`,
-        [req.emrUser.clinic_id],
+        [clinicId],
       );
       return exports.getSubscription(req, res);
     }
-    const usage = await getUsage(req.emrUser.clinic_id);
+    const usage = await getUsage(clinicId);
     res.json({ subscription: sub, usage });
   } catch (err) {
-    logger.error('[subscription] get failed:', err.message);
-    res.status(500).json({ error: err.message });
+    logger.error('[subscription] get failed:', err.message, err.stack);
+    res.status(500).json({ error: err.message, detail: err.detail || err.stack });
   }
 };
 
