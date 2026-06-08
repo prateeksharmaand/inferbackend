@@ -18,7 +18,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from modules.scraper import scrape_leads, CITIES, SPECIALTIES
+from modules.scraper import scrape_leads, SPECIALTIES
+from modules.justdial_scraper import scrape_justdial
 from modules.sheets import import_leads, get_leads_due_today, update_lead
 from modules.personalizer import personalize_email
 from modules.mailer import send_email
@@ -33,12 +34,43 @@ MAX_PER_COMBO        = int(os.environ.get("MAX_PER_COMBO", 10))
 def phase_scrape():
     print("\n── Phase 1: Scraping new leads ──────────────────────")
     cities = [c.strip() for c in SCRAPE_CITIES if c.strip()]
-    leads = scrape_leads(cities=cities, specialties=SPECIALTIES, max_per_combo=MAX_PER_COMBO)
-    if not leads:
-        print("  No new leads found from Maps.")
+    specialty_labels = [s[0] for s in SPECIALTIES]
+    all_leads = []
+
+    # Source 1: JustDial (no API key needed — India-first)
+    print("\n  [JustDial]")
+    try:
+        jd_leads = scrape_justdial(
+            cities=cities,
+            specialties=specialty_labels,
+            max_pages=3,
+            max_per_combo=MAX_PER_COMBO,
+        )
+        all_leads.extend(jd_leads)
+    except Exception as e:
+        print(f"  ⚠ JustDial scraper error: {e}")
+
+    # Source 2: Google Maps (requires GOOGLE_MAPS_API_KEY in .env)
+    if os.environ.get("GOOGLE_MAPS_API_KEY"):
+        print("\n  [Google Maps]")
+        try:
+            maps_leads = scrape_leads(
+                cities=cities,
+                specialties=SPECIALTIES,
+                max_per_combo=MAX_PER_COMBO,
+            )
+            all_leads.extend(maps_leads)
+        except Exception as e:
+            print(f"  ⚠ Google Maps scraper error: {e}")
+    else:
+        print("\n  [Google Maps] Skipped — GOOGLE_MAPS_API_KEY not set")
+
+    if not all_leads:
+        print("  No new leads found.")
         return 0
-    added = import_leads(leads)
-    print(f"  Added {added} new leads to CRM (duplicates skipped).")
+
+    added = import_leads(all_leads)
+    print(f"\n  Added {added} new leads to CRM (duplicates skipped).")
     return added
 
 
