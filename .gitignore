@@ -12,8 +12,6 @@ backend/node_modules/
 backend/uploads/
 backend/logs/
 
-# Flutter — not needed on VPS, but keeping source out of server repo
-flutter_phr/
 
 # OS
 .DS_Store
