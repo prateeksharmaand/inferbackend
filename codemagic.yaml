@@ -1,0 +1,58 @@
+workflows:
+  ios-app-store:
+    name: Infer PHR — iOS App Store
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.infer.care
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd $CM_BUILD_DIR/flutter_phr
+          flutter pub get
+
+      - name: Install CocoaPods
+        script: |
+          cd $CM_BUILD_DIR/flutter_phr/ios
+          pod install
+
+      - name: Build iOS (release)
+        script: |
+          cd $CM_BUILD_DIR/flutter_phr
+          flutter build ios --release --no-codesign
+
+      - name: Archive & export IPA
+        script: |
+          xcode-project use-profiles
+          cd $CM_BUILD_DIR/flutter_phr/ios
+          xcodebuild \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath "$CM_BUILD_DIR/Runner.xcarchive" \
+            archive
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$CM_BUILD_DIR/Runner.xcarchive" \
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -exportPath "$CM_BUILD_DIR/output"
+
+    artifacts:
+      - $CM_BUILD_DIR/flutter_phr/build/ios/ipa/*.ipa
+      - $CM_BUILD_DIR/output/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
