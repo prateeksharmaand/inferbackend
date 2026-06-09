@@ -4,10 +4,14 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
 
+    working_directory: flutter_phr
+
     environment:
       flutter: stable
       xcode: latest
       cocoapods: default
+      vars:
+        BUNDLE_ID: com.infer.care
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.infer.care
@@ -15,23 +19,22 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: |
-          cd flutter_phr
           flutter pub get
 
       - name: Install CocoaPods
         script: |
-          cd flutter_phr/ios
+          cd ios
           pod install
 
       - name: Build iOS (release)
         script: |
-          cd flutter_phr
           flutter build ios --release --no-codesign
 
       - name: Archive & export IPA
         script: |
           xcode-project use-profiles
-          cd flutter_phr/ios
+
+          cd ios
           xcodebuild \
             -workspace Runner.xcworkspace \
             -scheme Runner \
@@ -46,7 +49,7 @@ workflows:
             -exportPath "$CM_BUILD_DIR/output"
 
     artifacts:
-      - flutter_phr/build/ios/ipa/*.ipa
+      - build/ios/ipa/*.ipa
       - $CM_BUILD_DIR/output/*.ipa
       - /tmp/xcodebuild_logs/*.log
 
