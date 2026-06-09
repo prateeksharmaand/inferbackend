@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "944331427196",
+    "project_id": "infer-339ba",
+    "storage_bucket": "infer-339ba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944331427196:android:2779413ab9ff23860ea8f9",
+        "android_client_info": {
+          "package_name": "com.infer.care"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAprB6yoVw-LQ7uqgeRC4FrCjhCV4EMRRE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

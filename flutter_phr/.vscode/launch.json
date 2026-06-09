@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "name": "flutter_phr (Flutter SM M356B)",
+            "program": "lib/main.dart",
+            "deviceId": "RZCX90XVNYZ",
+            "request": "launch",
+            "type": "dart"
+        }
+    ]
+}
