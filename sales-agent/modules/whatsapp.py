@@ -7,7 +7,7 @@ import os
 import re
 import requests
 
-WA_API_VERSION  = os.environ.get("WA_API_VERSION", "v21.0")
+WA_API_VERSION  = os.environ.get("WA_API_VERSION", "v23.0")
 WA_API_URL      = f"https://graph.facebook.com/{WA_API_VERSION}/{{phone_number_id}}/messages"
 PHONE_NUMBER_ID = os.environ.get("WA_PHONE_NUMBER_ID", "")
 ACCESS_TOKEN    = os.environ.get("WA_ACCESS_TOKEN", "")
