@@ -91,7 +91,12 @@ def import_leads(leads: list[dict]) -> int:
         existing.add(email)
 
     if rows:
-        sheet.append_rows(rows, value_input_option="RAW")
+        try:
+            sheet.append_rows(rows, value_input_option="RAW")
+            print(f"  ✓ Saved {len(rows)} leads to Google Sheet")
+        except Exception as e:
+            print(f"  ✗ Failed to save to Google Sheet: {e}")
+            return 0
 
     return len(rows)
 
