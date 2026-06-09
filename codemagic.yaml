@@ -11,10 +11,8 @@ workflows:
       vars:
         BUNDLE_ID: com.infer.care
       ios_signing:
-        provisioning_profiles:
-          - $INFER_PROFILE
-        certificates:
-          - $INFER_CERTIFICATE
+        distribution_type: app_store
+        bundle_identifier: com.infer.care
 
     scripts:
       - name: Get Flutter packages
