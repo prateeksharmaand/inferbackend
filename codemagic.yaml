@@ -8,9 +8,13 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
+      vars:
+        BUNDLE_ID: com.infer.care
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.infer.care
+        provisioning_profiles:
+          - $INFER_PROFILE
+        certificates:
+          - $INFER_CERTIFICATE
 
     scripts:
       - name: Get Flutter packages
