@@ -307,7 +307,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           {appt.status !== 'booked' && appt.status !== 'completed' && actions.length > 0 && (
             <div className={styles.actions} onClick={e => e.stopPropagation()}>
               {actions.map(a => (
-                <button key={a} className={styles.actionBtn} onClick={() => handleAction(a)}>{a}</button>
+                <button key={a} className={`${styles.actionBtn} ${a === 'Resume' ? styles.actionBtnResume : ''}`} onClick={() => handleAction(a)}>{a}</button>
               ))}
               <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
                 onClick={e => { e.stopPropagation(); setShowSlip(true); }}>

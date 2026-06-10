@@ -139,6 +139,9 @@
 .actionBtnAI  { border-color: #a5f3fc; color: #0891b2; background: #ecfeff; }
 .actionBtnAI:hover  { background: #0891b2; border-color: #0891b2; color: #fff; }
 
+.actionBtnResume  { border-color: #86efac; color: #16a34a; background: #f0fdf4; font-weight: 700; }
+.actionBtnResume:hover  { background: #16a34a; border-color: #16a34a; color: #fff; }
+
 /* 3-dots more menu */
 .moreWrap { position: relative; margin-left: auto; flex-shrink: 0; }
 .moreBtn {
