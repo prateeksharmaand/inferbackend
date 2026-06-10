@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infer PHR — Personal Health Records App for Patients</title>
+  <meta name="description" content="Infer PHR is your AI-powered personal health records app. Track vitals, manage documents, view prescriptions, and get AI health insights." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%239C8FFA'/%3E%3Cstop offset='1' stop-color='%237B6EF6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M20.5 8.5a5.5 5.5 0 0 0-7.78 0L12 9.17l-.72-.67a5.5 5.5 0 0 0-7.78 7.78L12 24.5l8.5-8.22 1.06-1.06a5.5 5.5 0 0 0-.06-6.72z' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18228011820"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'AW-18228011820');
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Poppins', sans-serif; background: #F5F4FF; color: #1C1B1F; line-height: 1.6; overflow-x: hidden; }
+    img { display: block; max-width: 100%; }
+    a { text-decoration: none; color: inherit; }
+
+    :root {
+      --primary:       #7B6EF6;
+      --primary-dark:  #5A4BD1;
+      --primary-light: #EEEAFF;
+      --secondary:     #9C8FFA;
+      --accent:        #B8AEFB;
+      --bg:            #F5F4FF;
+      --surface:       #FFFFFF;
+      --surface-var:   #F8F7FF;
+      --text-primary:  #1C1B1F;
+      --text-secondary:#49454F;
+      --text-hint:     #938F99;
+      --border:        #CAC4D0;
+      --divider:       #E7E0EC;
+      --grad-start:    #3A2ED4;
+      --grad-mid:      #6657E8;
+      --grad-end:      #9C8FFA;
+      --shadow-sm:     0 2px 8px rgba(123,110,246,0.08);
+      --shadow-md:     0 4px 20px rgba(123,110,246,0.12);
+      --shadow-lg:     0 8px 40px rgba(123,110,246,0.18);
+      --radius-sm:     8px;
+      --radius-md:     12px;
+      --radius-lg:     16px;
+      --radius-xl:     24px;
+      --radius-2xl:    32px;
+    }
+
+    .container { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+    .gradient-text { background: linear-gradient(135deg, var(--grad-start), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: var(--radius-lg); font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; border: none; transition: all 0.22s ease; }
+    .btn-primary { background: linear-gradient(135deg, var(--secondary), var(--primary)); color: #fff; box-shadow: 0 6px 24px rgba(123,110,246,0.35); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(123,110,246,0.45); }
+    .btn-ghost { background: rgba(255,255,255,0.12); color: #fff; border: 1.5px solid rgba(255,255,255,0.28); backdrop-filter: blur(10px); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.2); }
+    .section { padding: 96px 0; }
+    .section-sm { padding: 64px 0; }
+    .section-tag { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--primary); text-transform: uppercase; margin-bottom: 12px; }
+    .section-tag::before { content: ''; width: 24px; height: 2px; background: linear-gradient(90deg, var(--secondary), var(--primary)); border-radius: 2px; }
+    .section-title { font-size: clamp(28px, 4vw, 42px); font-weight: 700; line-height: 1.25; letter-spacing: -0.5px; }
+    .section-subtitle { font-size: 16px; color: var(--text-secondary); line-height: 1.7; margin-top: 12px; max-width: 540px; }
+    .orb { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.06); pointer-events: none; }
+
+    /* ── NAVBAR ─────────────────────────────────────────────── */
+    .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: rgba(245,244,255,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(202,196,208,0.4); transition: box-shadow 0.3s; }
+    .navbar.scrolled { box-shadow: 0 4px 24px rgba(123,110,246,0.1); }
+    .navbar-inner { display: flex; align-items: center; gap: 8px; height: 68px; }
+    .navbar-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
+    .navbar-logo-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--secondary), var(--primary)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(123,110,246,0.3); }
+    .navbar-logo-icon svg { width: 18px; height: 18px; }
+    .navbar-nav { display: flex; align-items: center; gap: 2px; flex: 1; margin-left: 16px; }
+    .nav-link { padding: 7px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; transition: all 0.2s; cursor: pointer; }
+    .nav-link:hover { color: var(--primary); background: var(--primary-light); }
+    .nav-dropdown { position: relative; }
+    .nav-dropdown-toggle { display: flex; align-items: center; gap: 5px; }
+    .nav-dropdown-toggle svg { transition: transform .2s; }
+    .nav-dropdown:hover .nav-dropdown-toggle svg { transform: rotate(180deg); }
+    .nav-dropdown-menu { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid var(--divider); border-radius: var(--radius-lg); box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 8px; min-width: 220px; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; transform: translateX(-50%) translateY(-6px); }
+    .nav-dropdown:hover .nav-dropdown-menu { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .dropdown-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); transition: background .15s; }
+    .dropdown-item:hover { background: var(--surface-var); }
+    .dropdown-item-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .dropdown-item-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .dropdown-item-sub { font-size: 11px; color: var(--text-hint); margin-top: 1px; }
+    .dropdown-divider { height: 1px; background: var(--divider); margin: 4px 0; }
+    .navbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .demo-link { padding: 8px 16px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; color: var(--primary); border: 1.5px solid var(--primary); transition: all .2s; white-space: nowrap; }
+    .demo-link:hover { background: var(--primary-light); }
+    .launch-btn { padding: 8px 18px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; background: linear-gradient(135deg, var(--secondary), var(--primary)); color: #fff; border: none; cursor: pointer; white-space: nowrap; transition: all .2s; display: inline-flex; align-items: center; gap: 6px; }
+    .launch-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(123,110,246,0.35); }
+    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; margin-left: auto; }
+    .hamburger span { display: block; width: 22px; height: 2px; border-radius: 2px; background: var(--text-primary); transition: all 0.3s; }
+    .mobile-menu { display: none; position: fixed; top: 68px; left: 0; right: 0; background: var(--surface); border-bottom: 1px solid var(--divider); padding: 16px 24px; flex-direction: column; gap: 4px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); z-index: 199; }
+    .mobile-menu.open { display: flex; }
+    .mobile-menu .nav-link { padding: 12px 14px; }
+
+    /* ── HERO ──────────────────────────────────────────────── */
+    .hero { min-height: 100vh; background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-mid) 55%, var(--grad-end) 100%); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+    .hero-spacer { height: 68px; flex-shrink: 0; }
+    .hero-body { flex: 1; display: flex; align-items: center; padding: 60px 0 80px; }
+    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+    .hero-label { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25); font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.9); letter-spacing: 0.3px; margin-bottom: 20px; }
+    .hero-label-dot { width: 6px; height: 6px; border-radius: 50%; background: #A5F3C7; animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.4); } }
+    .hero-title { font-size: clamp(36px, 5vw, 60px); font-weight: 800; line-height: 1.15; letter-spacing: -1px; color: #fff; margin-bottom: 20px; }
+    .hero-title span { background: linear-gradient(90deg, rgba(255,255,255,1), rgba(224,216,255,0.85)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-sub { font-size: 17px; color: rgba(255,255,255,0.72); line-height: 1.7; margin-bottom: 36px; max-width: 480px; }
+    .hero-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 48px; }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .hero-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.88); }
+    .hero-visual { display: flex; justify-content: center; align-items: center; position: relative; }
+    .phone-wrap { position: relative; animation: float 4s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-14px); } }
+    .phone-shell { width: 260px; height: 530px; background: linear-gradient(160deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%); border: 1.5px solid rgba(255,255,255,0.35); border-radius: 44px; backdrop-filter: blur(20px); box-shadow: 0 32px 80px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+    .phone-notch { width: 80px; height: 26px; margin: 10px auto 0; background: rgba(255,255,255,0.15); border-radius: 0 0 16px 16px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+    .phone-notch-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.5); }
+    .phone-screen { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .ps-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .ps-greeting { font-size: 10px; color: rgba(255,255,255,0.6); font-weight: 400; }
+    .ps-name { font-size: 13px; color: #fff; font-weight: 700; }
+    .ps-avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+    .ps-score-card { background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 12px; display: flex; align-items: center; gap: 10px; }
+    .ps-score-circle { width: 44px; height: 44px; border-radius: 50%; background: conic-gradient(#A5F3C7 0% 78%, rgba(255,255,255,0.15) 78% 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ps-score-inner { width: 34px; height: 34px; border-radius: 50%; background: rgba(30,20,100,0.4); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #A5F3C7; }
+    .ps-vitals { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .ps-vital { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 9px 10px; }
+    .ps-vital-val { font-size: 14px; font-weight: 700; color: #fff; line-height: 1; }
+    .ps-vital-unit { font-size: 9px; color: rgba(255,255,255,0.55); }
+    .ps-vital-label { font-size: 9px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+    .ps-ai { background: rgba(165,243,199,0.12); border: 1px solid rgba(165,243,199,0.25); border-radius: 12px; padding: 10px; display: flex; align-items: center; gap: 8px; }
+    .badge-float { position: absolute; background: #fff; border-radius: var(--radius-lg); padding: 10px 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-primary); white-space: nowrap; animation: float-badge 3s ease-in-out infinite; }
+    .badge-float-sub { font-size: 10px; color: var(--text-hint); font-weight: 400; }
+    .badge-1 { top: 60px; left: -60px; }
+    .badge-2 { bottom: 100px; right: -50px; animation-delay: 1.5s; }
+    @keyframes float-badge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+    /* ── FEATURES ──────────────────────────────────────────── */
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 52px; }
+    .feature-card { background: var(--surface); border-radius: var(--radius-xl); padding: 28px; border: 1px solid var(--divider); transition: all 0.28s ease; position: relative; overflow: hidden; }
+    .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--secondary), var(--primary)); opacity: 0; transition: opacity 0.28s; }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon-wrap { width: 52px; height: 52px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; font-size: 22px; }
+    .feature-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+    .feature-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+    .feature-tag { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; background: var(--surface-var); color: var(--text-hint); }
+
+    /* ── AI SECTION ────────────────────────────────────────── */
+    .ai-section { background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-mid) 60%, var(--grad-end) 100%); position: relative; overflow: hidden; }
+    .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; }
+    .ai-title { font-size: clamp(28px, 3.5vw, 42px); font-weight: 800; color: #fff; line-height: 1.2; letter-spacing: -0.5px; margin-bottom: 16px; }
+    .ai-sub { font-size: 16px; color: rgba(255,255,255,0.7); line-height: 1.7; margin-bottom: 32px; }
+    .ai-features { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
+    .ai-feature-row { display: flex; align-items: flex-start; gap: 14px; }
+    .ai-feature-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .ai-feature-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+    .ai-feature-desc { font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+    .chat-mockup { background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.2); border-radius: var(--radius-2xl); padding: 20px; backdrop-filter: blur(12px); }
+    .chat-header { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.15); margin-bottom: 14px; }
+    .chat-bot-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1)); border: 1.5px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .chat-bot-name { font-size: 13px; font-weight: 600; color: #fff; }
+    .chat-bot-status { font-size: 10px; color: rgba(165,243,199,0.8); display: flex; align-items: center; gap: 4px; }
+    .chat-status-dot { width: 5px; height: 5px; border-radius: 50%; background: #A5F3C7; }
+    .chat-messages { display: flex; flex-direction: column; gap: 10px; }
+    .chat-msg { display: flex; gap: 8px; max-width: 85%; }
+    .chat-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .chat-bubble { padding: 9px 13px; border-radius: 14px; font-size: 11px; line-height: 1.5; }
+    .chat-msg.bot .chat-bubble { background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.18); color: rgba(255,255,255,0.9); border-radius: 4px 14px 14px 14px; }
+    .chat-msg.user .chat-bubble { background: rgba(255,255,255,0.9); color: var(--text-primary); border-radius: 14px 4px 14px 14px; }
+    .chat-mini-avatar { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; align-self: flex-end; }
+    .chat-risk-badge { display: flex; align-items: center; gap: 8px; background: rgba(255,107,107,0.15); border: 1px solid rgba(255,107,107,0.3); border-radius: 10px; padding: 8px 10px; margin-top: 4px; }
+    .chat-input-bar { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12); }
+    .chat-input-field { flex: 1; padding: 8px 12px; border-radius: 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size: 11px; color: rgba(255,255,255,0.7); }
+    .chat-send-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+
+    /* ── HOW IT WORKS ──────────────────────────────────────── */
+    .how-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 52px; position: relative; }
+    .how-grid::before { content: ''; position: absolute; top: 28px; left: 14%; right: 14%; height: 2px; background: linear-gradient(90deg, var(--secondary), var(--primary)); opacity: 0.25; z-index: 0; }
+    .how-step { display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; z-index: 1; }
+    .how-step-num { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--secondary), var(--primary)); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #fff; box-shadow: 0 6px 20px rgba(123,110,246,0.35); margin-bottom: 18px; }
+    .how-step-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .how-step-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── CATEGORIES ────────────────────────────────────────── */
+    .categories-section { background: var(--surface-var); }
+    .cat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 48px; }
+    .cat-chip { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 12px; background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--divider); text-align: center; font-size: 12px; font-weight: 600; color: var(--text-secondary); transition: all 0.22s; cursor: default; }
+    .cat-chip:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); color: var(--primary); border-color: var(--accent); }
+    .cat-chip-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+    /* ── SECURITY ──────────────────────────────────────────── */
+    .privacy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 48px; }
+    .privacy-card { padding: 28px; border-radius: var(--radius-xl); border: 1px solid var(--divider); background: var(--surface); display: flex; flex-direction: column; gap: 12px; }
+    .privacy-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .privacy-title { font-size: 16px; font-weight: 700; }
+    .privacy-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+
+    /* ── CTA ───────────────────────────────────────────────── */
+    .store-btn { display: flex; align-items: center; gap: 10px; padding: 12px 22px; border-radius: var(--radius-lg); background: rgba(255,255,255,0.14); border: 1.5px solid rgba(255,255,255,0.28); color: #fff; transition: all 0.22s; }
+    .store-btn:hover { background: rgba(255,255,255,0.22); transform: translateY(-2px); }
+
+    /* ── FOOTER ────────────────────────────────────────────── */
+    footer { background: #0E0B1E; color: rgba(255,255,255,0.55); padding: 56px 0 28px; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 48px; }
+    .footer-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 14px; }
+    .footer-logo-icon { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--secondary), var(--primary)); display: flex; align-items: center; justify-content: center; }
+    .footer-desc { font-size: 13px; line-height: 1.7; max-width: 280px; }
+    .footer-social { display: flex; gap: 10px; margin-top: 18px; }
+    .footer-social-btn { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; }
+    .footer-social-btn:hover { background: rgba(123,110,246,0.3); border-color: rgba(123,110,246,0.5); }
+    .footer-col-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 14px; }
+    .footer-links { display: flex; flex-direction: column; gap: 9px; }
+    .footer-link { font-size: 13px; transition: color 0.2s; }
+    .footer-link:hover { color: var(--accent); }
+    .footer-bottom { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .footer-bottom-right { display: flex; gap: 20px; }
+
+    /* ── ANIMATIONS ────────────────────────────────────────── */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+
+    /* ── RESPONSIVE ────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+      .hero-visual { order: -1; }
+      .ai-grid { grid-template-columns: 1fr; gap: 40px; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .how-grid { grid-template-columns: repeat(2, 1fr); }
+      .how-grid::before { display: none; }
+      .cat-grid { grid-template-columns: repeat(4, 1fr); }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .privacy-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 768px) {
+      .section { padding: 64px 0; }
+      .navbar-nav, .navbar-actions { display: none; }
+      .hamburger { display: flex; }
+      .hero-visual { display: none; }
+      .features-grid { grid-template-columns: 1fr; }
+      .how-grid { grid-template-columns: 1fr; }
+      .cat-grid { grid-template-columns: repeat(3, 1fr); }
+      .privacy-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: 32px; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+    @media (max-width: 480px) {
+      .cat-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-actions { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ NAVBAR ════════════════ -->
+<nav class="navbar" id="navbar">
+  <div class="container">
+    <div class="navbar-inner">
+      <a href="index.html" class="navbar-logo">
+        <div class="navbar-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </div>
+        Infer Health
+      </a>
+
+      <nav class="navbar-nav">
+        <div class="nav-dropdown">
+          <span class="nav-link nav-dropdown-toggle">
+            Products
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+          <div class="nav-dropdown-menu">
+            <a href="index.html" class="dropdown-item">
+              <div class="dropdown-item-icon" style="background:#EEEAFF;">🖥️</div>
+              <div><div class="dropdown-item-title">Infer EMR</div><div class="dropdown-item-sub">AI clinic management</div></div>
+            </a>
+            <div class="dropdown-divider"></div>
+            <a href="phr.html" class="dropdown-item">
+              <div class="dropdown-item-icon" style="background:#E8F5E9;">📱</div>
+              <div><div class="dropdown-item-title">Infer PHR</div><div class="dropdown-item-sub">Patient health records app</div></div>
+            </a>
+          </div>
+        </div>
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#ai" class="nav-link">AI Health</a>
+        <a href="#assessment" class="nav-link">Self Assessment</a>
+      </nav>
+
+      <div class="navbar-actions">
+        <a href="index.html#demo" class="demo-link">Book a Demo</a>
+        <a href="#download" class="launch-btn">
+          Get App
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="hamburger" id="hamburger" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="index.html" class="nav-link" onclick="toggleMenu()">🖥️ Infer EMR</a>
+  <a href="phr.html" class="nav-link" onclick="toggleMenu()">📱 Infer PHR</a>
+  <a href="#features" class="nav-link" onclick="toggleMenu()">Features</a>
+  <a href="#ai" class="nav-link" onclick="toggleMenu()">AI Health</a>
+  <a href="#assessment" class="nav-link" onclick="toggleMenu()">Self Assessment</a>
+  <a href="#download" class="launch-btn" style="margin-top:8px;justify-content:center;" onclick="toggleMenu()">Get App</a>
+</div>
+
+<!-- ════════════════ HERO ════════════════ -->
+<section class="hero" id="home">
+  <div class="orb" style="width:600px;height:600px;top:-200px;left:-180px;"></div>
+  <div class="orb" style="width:420px;height:420px;bottom:-60px;right:-100px;opacity:0.07;"></div>
+  <div class="hero-spacer"></div>
+  <div class="hero-body">
+    <div class="container">
+      <div class="hero-grid">
+        <div>
+          <div class="hero-label">
+            <div class="hero-label-dot"></div>
+            AI-Powered · LOINC Vitals · Built for India
+          </div>
+          <h1 class="hero-title">
+            Your Personal<br/>
+            <span>Health Intelligence</span><br/>
+            <span style="font-size:0.72em;opacity:0.88;">in your pocket</span>
+          </h1>
+          <p class="hero-sub">Track vitals, manage health records, get AI-powered insights, and stay on top of your health — all in one personal health records app.</p>
+          <div class="hero-actions">
+            <a href="#download" class="btn btn-primary">
+              Download Free App
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+            <a href="#features" class="btn btn-ghost">See Features</a>
+          </div>
+          <div class="hero-pills">
+            <div class="hero-pill">❤️ Vitals Tracking</div>
+            <div class="hero-pill">📋 Health Records</div>
+            <div class="hero-pill">🤖 AI Health Bot</div>
+            <div class="hero-pill">📅 Appointments</div>
+            <div class="hero-pill">⚠️ Risk Prediction</div>
+            <div class="hero-pill">🔗 ABDM / ABHA</div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div style="position:relative;">
+            <div class="badge-float badge-1">
+              <span style="font-size:18px;">❤️</span>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#5A4BD1;">Health Score 78</div>
+                <div class="badge-float-sub">Good · Updated now</div>
+              </div>
+            </div>
+            <div class="badge-float badge-2">
+              <span style="font-size:18px;">🤖</span>
+              <div>
+                <div style="font-size:13px;font-weight:700;">AI Insight Ready</div>
+                <div class="badge-float-sub">BP trend improving</div>
+              </div>
+            </div>
+            <div class="phone-wrap">
+              <div class="phone-shell">
+                <div class="phone-notch"><div class="phone-notch-dot"></div><div class="phone-notch-dot"></div></div>
+                <div class="phone-screen">
+                  <div class="ps-header">
+                    <div><div class="ps-greeting">Good morning,</div><div class="ps-name">Priya Sharma</div></div>
+                    <div class="ps-avatar">👤</div>
+                  </div>
+                  <div class="ps-score-card">
+                    <div class="ps-score-circle"><div class="ps-score-inner">78</div></div>
+                    <div>
+                      <div style="font-size:10px;color:rgba(255,255,255,0.6);">Health Score</div>
+                      <div style="font-size:13px;color:#fff;font-weight:700;">Good</div>
+                      <div style="font-size:9px;color:#A5F3C7;">↑ 3 pts this week</div>
+                    </div>
+                  </div>
+                  <div class="ps-vitals">
+                    <div class="ps-vital">
+                      <div style="font-size:14px;margin-bottom:4px;">💓</div>
+                      <div class="ps-vital-val">118<span class="ps-vital-unit">/76</span></div>
+                      <div class="ps-vital-label">Blood Pressure</div>
+                    </div>
+                    <div class="ps-vital">
+                      <div style="font-size:14px;margin-bottom:4px;">🫀</div>
+                      <div class="ps-vital-val">72<span class="ps-vital-unit"> bpm</span></div>
+                      <div class="ps-vital-label">Heart Rate</div>
+                    </div>
+                    <div class="ps-vital">
+                      <div style="font-size:14px;margin-bottom:4px;">🩸</div>
+                      <div class="ps-vital-val">95<span class="ps-vital-unit"> mg/dL</span></div>
+                      <div class="ps-vital-label">Glucose</div>
+                    </div>
+                    <div class="ps-vital">
+                      <div style="font-size:14px;margin-bottom:4px;">💨</div>
+                      <div class="ps-vital-val">98<span class="ps-vital-unit">%</span></div>
+                      <div class="ps-vital-label">SpO₂</div>
+                    </div>
+                  </div>
+                  <div class="ps-ai">
+                    <span style="font-size:16px;">🤖</span>
+                    <div>
+                      <div style="font-size:10px;color:#fff;font-weight:600;margin-bottom:1px;">AI Insight</div>
+                      <div style="font-size:9px;color:rgba(255,255,255,0.75);line-height:1.4;">BP is stable this week. Keep monitoring daily.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FEATURES ════════════════ -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-tag">Patient App</div>
+      <h2 class="section-title">Everything you need for<br/><span class="gradient-text">proactive health management</span></h2>
+      <p class="section-subtitle">A complete health intelligence platform with AI, smart tracking, and clinical-grade record keeping.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon-wrap" style="background:#EEEAFF;">📋</div>
+        <h3 class="feature-title">Health Records</h3>
+        <p class="feature-desc">Upload and manage lab reports, prescriptions, discharge summaries, and radiology reports in a secure, searchable vault.</p>
+        <div class="feature-tags"><span class="feature-tag">Lab Reports</span><span class="feature-tag">Prescriptions</span><span class="feature-tag">AI Summary</span></div>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon-wrap" style="background:#FFF3EE;">📊</div>
+        <h3 class="feature-title">Vitals Tracking</h3>
+        <p class="feature-desc">Log and visualise blood pressure, heart rate, glucose, SpO2, temperature, and BMI with trend charts and LOINC-coded data.</p>
+        <div class="feature-tags"><span class="feature-tag">Blood Pressure</span><span class="feature-tag">Heart Rate</span><span class="feature-tag">Glucose</span></div>
+      </div>
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon-wrap" style="background:#E3F2FD;">🤖</div>
+        <h3 class="feature-title">AI Health Bot</h3>
+        <p class="feature-desc">Ask health questions, get document analysis, and receive personalised advice from a Gemini-powered AI that understands your history.</p>
+        <div class="feature-tags"><span class="feature-tag">Gemini AI</span><span class="feature-tag">Contextual</span><span class="feature-tag">24/7</span></div>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon-wrap" style="background:#E8F5E9;">⚠️</div>
+        <h3 class="feature-title">Risk Prediction</h3>
+        <p class="feature-desc">AI-driven risk scores for diabetes, cardiovascular disease, and mental health based on your vitals and reported symptoms.</p>
+        <div class="feature-tags"><span class="feature-tag">Diabetes</span><span class="feature-tag">Heart Health</span><span class="feature-tag">Mental Health</span></div>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon-wrap" style="background:#F3E5F5;">📅</div>
+        <h3 class="feature-title">Health Timeline</h3>
+        <p class="feature-desc">A chronological view of all your health events — vitals, documents, assessments, and consultations — in one unified timeline.</p>
+        <div class="feature-tags"><span class="feature-tag">Events</span><span class="feature-tag">Documents</span><span class="feature-tag">Vitals</span></div>
+      </div>
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon-wrap" style="background:#FFF9E6;">📝</div>
+        <h3 class="feature-title">Self Assessment</h3>
+        <p class="feature-desc">Answer AI-generated questionnaires across 15 health categories. Receive instant risk scores and personalised recommendations.</p>
+        <div class="feature-tags"><span class="feature-tag">15 Categories</span><span class="feature-tag">AI Analysis</span><span class="feature-tag">6 Questions</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ AI SECTION ════════════════ -->
+<section class="section ai-section" id="ai">
+  <div class="orb" style="width:500px;height:500px;top:-180px;right:-120px;"></div>
+  <div class="container">
+    <div class="ai-grid">
+      <div class="reveal">
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.25);font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">✨ Gemini AI</div>
+        <h2 class="ai-title">Your AI health<br/>companion, always on</h2>
+        <p class="ai-sub">Built on Google Gemini, our AI analyses your complete health history to give you contextual, accurate health insights — not generic advice.</p>
+        <div class="ai-features">
+          <div class="ai-feature-row">
+            <div class="ai-feature-icon">💬</div>
+            <div><div class="ai-feature-title">Conversational Health Consultation</div><div class="ai-feature-desc">Ask anything — symptoms, medications, test results. The AI understands your personal health context.</div></div>
+          </div>
+          <div class="ai-feature-row">
+            <div class="ai-feature-icon">📄</div>
+            <div><div class="ai-feature-title">Smart Document Analysis</div><div class="ai-feature-desc">Upload a lab report and get a plain-English summary with highlighted abnormalities and follow-up steps.</div></div>
+          </div>
+          <div class="ai-feature-row">
+            <div class="ai-feature-icon">📈</div>
+            <div><div class="ai-feature-title">Risk Trend Detection</div><div class="ai-feature-desc">The AI monitors your vitals over time and flags early warning signs before they become problems.</div></div>
+          </div>
+        </div>
+        <a href="#download" class="btn btn-ghost" style="align-self:flex-start;">Download App →</a>
+      </div>
+      <div class="reveal reveal-delay-2">
+        <div class="chat-mockup">
+          <div class="chat-header">
+            <div class="chat-bot-avatar">🤖</div>
+            <div><div class="chat-bot-name">Infer AI</div><div class="chat-bot-status"><span class="chat-status-dot"></span>Online · Analysing your records</div></div>
+          </div>
+          <div class="chat-messages">
+            <div class="chat-msg user">
+              <div class="chat-mini-avatar">👤</div>
+              <div class="chat-bubble">My blood pressure has been high lately. Should I be worried?</div>
+            </div>
+            <div class="chat-msg bot">
+              <div class="chat-mini-avatar">🤖</div>
+              <div>
+                <div class="chat-bubble">Based on your last 5 readings, your systolic average is 138 mmHg — Stage 1 hypertension range. Here's what I found:</div>
+                <div class="chat-risk-badge" style="margin-top:8px;">
+                  <span style="font-size:14px;">⚠️</span>
+                  <div><div style="font-size:10px;color:rgba(255,255,255,0.7);">Cardiovascular Risk</div><div style="font-size:12px;font-weight:700;color:#FFB3B3;">Moderate · Needs attention</div></div>
+                </div>
+                <div class="chat-bubble" style="margin-top:8px;">I recommend reducing sodium intake and scheduling a follow-up. Want me to draft a summary for your doctor?</div>
+              </div>
+            </div>
+            <div class="chat-msg user">
+              <div class="chat-mini-avatar">👤</div>
+              <div class="chat-bubble">Yes, generate the summary please.</div>
+            </div>
+          </div>
+          <div class="chat-input-bar">
+            <div class="chat-input-field">Ask your health question…</div>
+            <div class="chat-send-btn">➤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ HOW IT WORKS ════════════════ -->
+<section class="section" id="how">
+  <div class="container">
+    <div style="text-align:center;" class="reveal">
+      <div class="section-tag" style="justify-content:center;">How It Works</div>
+      <h2 class="section-title">Up and running in<br/><span class="gradient-text">under 2 minutes</span></h2>
+      <p class="section-subtitle" style="margin:12px auto 0;text-align:center;">No complicated setup. Download, create an account, and start taking control of your health.</p>
+    </div>
+    <div class="how-grid">
+      <div class="how-step reveal reveal-delay-1">
+        <div class="how-step-num">1</div>
+        <h3 class="how-step-title">Download & Sign Up</h3>
+        <p class="how-step-desc">Create your free account in seconds with email or Google sign-in.</p>
+      </div>
+      <div class="how-step reveal reveal-delay-2">
+        <div class="how-step-num">2</div>
+        <h3 class="how-step-title">Add Your Records</h3>
+        <p class="how-step-desc">Upload documents, log vitals, and fill in your health profile. Gmail auto-import available.</p>
+      </div>
+      <div class="how-step reveal reveal-delay-3">
+        <div class="how-step-num">3</div>
+        <h3 class="how-step-title">Get AI Insights</h3>
+        <p class="how-step-desc">The AI analyses your data and surfaces personalised risk assessments and health advice.</p>
+      </div>
+      <div class="how-step reveal" style="transition-delay:0.4s;">
+        <div class="how-step-num">4</div>
+        <h3 class="how-step-title">Stay Ahead</h3>
+        <p class="how-step-desc">Track trends over time, run self-assessments, and share summaries with your doctor.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SELF ASSESSMENT ════════════════ -->
+<section class="section-sm categories-section" id="assessment">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-tag">Self Assessment</div>
+      <h2 class="section-title">15 health categories,<br/><span class="gradient-text">AI-tailored questionnaires</span></h2>
+      <p class="section-subtitle">Select any category to get a personalised 6-question assessment generated in real-time by Gemini AI, with instant risk analysis.</p>
+    </div>
+    <div class="cat-grid">
+      <div class="cat-chip reveal reveal-delay-1"><div class="cat-chip-icon" style="background:#EEEAFF;">🏃</div>Lifestyle</div>
+      <div class="cat-chip reveal reveal-delay-1"><div class="cat-chip-icon" style="background:#FFF3EE;">💊</div>Chronic Disease</div>
+      <div class="cat-chip reveal reveal-delay-2"><div class="cat-chip-icon" style="background:#E3F2FD;">❤️</div>General Health</div>
+      <div class="cat-chip reveal reveal-delay-2"><div class="cat-chip-icon" style="background:#FCE4EC;">🩺</div>Male Health</div>
+      <div class="cat-chip reveal reveal-delay-3"><div class="cat-chip-icon" style="background:#F3E5F5;">✨</div>Skin & Hair</div>
+      <div class="cat-chip reveal reveal-delay-3"><div class="cat-chip-icon" style="background:#E8F5E9;">🫁</div>Digestive Health</div>
+      <div class="cat-chip reveal reveal-delay-1"><div class="cat-chip-icon" style="background:#E3F2FD;">👁️</div>Eye Problems</div>
+      <div class="cat-chip reveal reveal-delay-1"><div class="cat-chip-icon" style="background:#FFF3EE;">🫀</div>Kidney & Liver</div>
+      <div class="cat-chip reveal reveal-delay-2"><div class="cat-chip-icon" style="background:#FFEBEE;">🦠</div>Infectious Disease</div>
+      <div class="cat-chip reveal reveal-delay-2"><div class="cat-chip-icon" style="background:#EEEAFF;">💉</div>Diabetes</div>
+      <div class="cat-chip reveal reveal-delay-3"><div class="cat-chip-icon" style="background:#E8F5E9;">🦴</div>Bone Health</div>
+      <div class="cat-chip reveal reveal-delay-3"><div class="cat-chip-icon" style="background:#FCE4EC;">🌸</div>Female Health</div>
+      <div class="cat-chip reveal reveal-delay-1"><div class="cat-chip-icon" style="background:#F3E5F5;">🧠</div>Mental Health</div>
+      <div class="cat-chip reveal reveal-delay-2"><div class="cat-chip-icon" style="background:#E3F2FD;">👂</div>ENT</div>
+      <div class="cat-chip reveal reveal-delay-3"><div class="cat-chip-icon" style="background:#FFF9E6;">🦷</div>Oral Health</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SECURITY ════════════════ -->
+<section class="section" id="security">
+  <div class="container">
+    <div style="text-align:center;" class="reveal">
+      <div class="section-tag" style="justify-content:center;">Security & Privacy</div>
+      <h2 class="section-title">Your health data stays<br/><span class="gradient-text">private and protected</span></h2>
+      <p class="section-subtitle" style="margin:12px auto 0;text-align:center;">Clinical-grade security practices so you can store sensitive medical records with confidence.</p>
+    </div>
+    <div class="privacy-grid">
+      <div class="privacy-card reveal reveal-delay-1">
+        <div class="privacy-icon" style="background:#EEEAFF;">🔐</div>
+        <h3 class="privacy-title">End-to-End Encryption</h3>
+        <p class="privacy-desc">All health records and personal data are encrypted at rest and in transit using AES-256 and TLS 1.3.</p>
+      </div>
+      <div class="privacy-card reveal reveal-delay-2">
+        <div class="privacy-icon" style="background:#E8F5E9;">🛡️</div>
+        <h3 class="privacy-title">JWT Auth & Refresh Tokens</h3>
+        <p class="privacy-desc">Secure token-based authentication with short-lived access tokens and automatic refresh — no passwords stored in plain text.</p>
+      </div>
+      <div class="privacy-card reveal reveal-delay-3">
+        <div class="privacy-icon" style="background:#E3F2FD;">🔒</div>
+        <h3 class="privacy-title">You Own Your Data</h3>
+        <p class="privacy-desc">Export or delete your complete health record at any time. We never sell or share your data with third parties.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ DOWNLOAD CTA ════════════════ -->
+<section class="section" id="download" style="background:linear-gradient(135deg,var(--grad-start) 0%,var(--grad-mid) 55%,var(--grad-end) 100%);position:relative;overflow:hidden;text-align:center;">
+  <div class="orb" style="width:480px;height:480px;top:-150px;left:-120px;"></div>
+  <div class="orb" style="width:360px;height:360px;bottom:-100px;right:-80px;opacity:0.07;"></div>
+  <div class="container" style="position:relative;z-index:1;">
+    <div class="reveal">
+      <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.25);font-size:12px;font-weight:600;color:rgba(255,255,255,0.9);margin-bottom:20px;">❤️ Free Forever · No credit card needed</div>
+      <h2 style="font-size:clamp(28px,4vw,48px);font-weight:800;color:#fff;letter-spacing:-0.5px;margin-bottom:14px;">Take control of<br/>your health today</h2>
+      <p style="font-size:16px;color:rgba(255,255,255,0.7);margin-bottom:36px;">Download Infer PHR — free, AI-powered, built for India.</p>
+      <div style="display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;">
+        <a href="#" class="store-btn">
+          <span style="font-size:24px;">🤖</span>
+          <div><div style="font-size:10px;opacity:0.7;">Get it on</div><div style="font-size:15px;font-weight:700;">Google Play</div></div>
+        </a>
+        <a href="#" class="store-btn" style="opacity:0.55;cursor:not-allowed;">
+          <span style="font-size:24px;">🍎</span>
+          <div><div style="font-size:10px;opacity:0.7;">Coming soon</div><div style="font-size:15px;font-weight:700;">App Store</div></div>
+        </a>
+      </div>
+      <p style="margin-top:28px;font-size:13px;color:rgba(255,255,255,0.5);">Are you a doctor?
+        <a href="index.html" style="color:rgba(255,255,255,0.85);font-weight:600;text-decoration:underline;">Try Infer EMR →</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FOOTER ════════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-logo">
+          <div class="footer-logo-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </div>
+          Infer Health
+        </div>
+        <p class="footer-desc">Your personal health intelligence platform. Powered by AI, built for proactive care.</p>
+        <div class="footer-social">
+          <a href="#" class="footer-social-btn">𝕏</a>
+          <a href="#" class="footer-social-btn">in</a>
+          <a href="#" class="footer-social-btn">gh</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Products</div>
+        <div class="footer-links">
+          <a href="index.html" class="footer-link">Infer EMR</a>
+          <a href="phr.html" class="footer-link">Infer PHR</a>
+          <a href="index.html#demo" class="footer-link">Book a Demo</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">PHR App</div>
+        <div class="footer-links">
+          <a href="#features" class="footer-link">Features</a>
+          <a href="#ai" class="footer-link">AI Health Bot</a>
+          <a href="#assessment" class="footer-link">Self Assessment</a>
+          <a href="#download" class="footer-link">Download</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Company</div>
+        <div class="footer-links">
+          <a href="mailto:support@inferapp.online" class="footer-link">Contact</a>
+          <a href="#" class="footer-link">Privacy Policy</a>
+          <a href="#" class="footer-link">Terms of Use</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2025 Infer Health. All rights reserved.</div>
+      <div class="footer-bottom-right">
+        <a href="#" class="footer-link">Privacy</a>
+        <a href="#" class="footer-link">Terms</a>
+        <a href="mailto:support@inferapp.online" class="footer-link">support@inferapp.online</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 20); });
+  function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

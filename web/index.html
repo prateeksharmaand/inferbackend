@@ -3,27 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Infer Health — Your Personal Health Intelligence</title>
-  <meta name="description" content="Infer Health is your AI-powered personal health records platform. Track vitals, manage documents, get risk predictions, and consult with AI." />
+  <title>Infer EMR — AI-Native Clinic Management for India</title>
+  <meta name="description" content="InferPad is an AI-powered EMR for clinics. AI scribe, OPD queue, lab portal, billing, and analytics — built for Indian doctors." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%239C8FFA'/%3E%3Cstop offset='1' stop-color='%237B6EF6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M20.5 8.5a5.5 5.5 0 0 0-7.78 0L12 9.17l-.72-.67a5.5 5.5 0 0 0-7.78 7.78L12 24.5l8.5-8.22 1.06-1.06a5.5 5.5 0 0 0-.06-6.72z' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18228011820"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'AW-18228011820');
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
-    /* ─── Reset & Base ─────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: #F5F4FF;
-      color: #1C1B1F;
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
+    body { font-family: 'Poppins', sans-serif; background: #F5F4FF; color: #1C1B1F; line-height: 1.6; overflow-x: hidden; }
     img { display: block; max-width: 100%; }
     a { text-decoration: none; color: inherit; }
 
-    /* ─── Design Tokens ────────────────────────────────────── */
     :root {
       --primary:       #7B6EF6;
       --primary-dark:  #5A4BD1;
@@ -38,16 +38,12 @@
       --text-hint:     #938F99;
       --border:        #CAC4D0;
       --divider:       #E7E0EC;
-      --success:       #00BFA5;
-      --warning:       #FF7043;
-      --info:          #1E88E5;
       --grad-start:    #3A2ED4;
       --grad-mid:      #6657E8;
       --grad-end:      #9C8FFA;
       --shadow-sm:     0 2px 8px rgba(123,110,246,0.08);
       --shadow-md:     0 4px 20px rgba(123,110,246,0.12);
       --shadow-lg:     0 8px 40px rgba(123,110,246,0.18);
-      --shadow-xl:     0 16px 60px rgba(123,110,246,0.24);
       --radius-sm:     8px;
       --radius-md:     12px;
       --radius-lg:     16px;
@@ -55,841 +51,228 @@
       --radius-2xl:    32px;
     }
 
-    /* ─── Utilities ────────────────────────────────────────── */
     .container { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
-    .gradient-text {
-      background: linear-gradient(135deg, var(--grad-start), var(--primary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 12px; border-radius: 20px;
-      font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
-    }
-    .pill-primary { background: var(--primary-light); color: var(--primary); }
-    .pill-ghost { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.22); }
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 14px 28px; border-radius: var(--radius-lg);
-      font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600;
-      cursor: pointer; border: none; transition: all 0.22s ease;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--secondary), var(--primary));
-      color: #fff;
-      box-shadow: 0 6px 24px rgba(123,110,246,0.35);
-    }
+    .gradient-text { background: linear-gradient(135deg, var(--grad-start), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: var(--radius-lg); font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; border: none; transition: all 0.22s ease; }
+    .btn-primary { background: linear-gradient(135deg, var(--secondary), var(--primary)); color: #fff; box-shadow: 0 6px 24px rgba(123,110,246,0.35); }
     .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(123,110,246,0.45); }
-    .btn-ghost {
-      background: rgba(255,255,255,0.12);
-      color: #fff;
-      border: 1.5px solid rgba(255,255,255,0.28);
-      backdrop-filter: blur(10px);
-    }
+    .btn-ghost { background: rgba(255,255,255,0.12); color: #fff; border: 1.5px solid rgba(255,255,255,0.28); backdrop-filter: blur(10px); }
     .btn-ghost:hover { background: rgba(255,255,255,0.2); }
-    .btn-outline {
-      background: transparent;
-      color: var(--primary);
-      border: 1.5px solid var(--primary);
-    }
+    .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
     .btn-outline:hover { background: var(--primary-light); }
     .section { padding: 96px 0; }
     .section-sm { padding: 64px 0; }
-    .section-tag {
-      display: inline-flex; align-items: center; gap: 8px;
-      font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
-      color: var(--primary); text-transform: uppercase; margin-bottom: 12px;
-    }
-    .section-tag::before {
-      content: ''; width: 24px; height: 2px;
-      background: linear-gradient(90deg, var(--secondary), var(--primary));
-      border-radius: 2px;
-    }
+    .section-tag { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--primary); text-transform: uppercase; margin-bottom: 12px; }
+    .section-tag::before { content: ''; width: 24px; height: 2px; background: linear-gradient(90deg, var(--secondary), var(--primary)); border-radius: 2px; }
     .section-title { font-size: clamp(28px, 4vw, 42px); font-weight: 700; line-height: 1.25; letter-spacing: -0.5px; }
     .section-subtitle { font-size: 16px; color: var(--text-secondary); line-height: 1.7; margin-top: 12px; max-width: 540px; }
-    .card {
-      background: var(--surface);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-sm);
-    }
+    .orb { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.06); pointer-events: none; }
 
-    /* ─── Orbs (background decoration) ────────────────────── */
-    .orb {
-      position: absolute; border-radius: 50%;
-      background: rgba(255,255,255,0.06);
-      pointer-events: none;
-    }
-
-    /* ════════════════════════════════════════════════════════ */
-    /*  NAVBAR                                                  */
-    /* ════════════════════════════════════════════════════════ */
-    .navbar {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      background: rgba(245,244,255,0.82);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(202,196,208,0.4);
-      transition: box-shadow 0.3s;
-    }
+    /* ── NAVBAR ─────────────────────────────────────────────── */
+    .navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: rgba(245,244,255,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(202,196,208,0.4); transition: box-shadow 0.3s; }
     .navbar.scrolled { box-shadow: 0 4px 24px rgba(123,110,246,0.1); }
-    .navbar-inner {
-      display: flex; align-items: center; gap: 16px;
-      height: 68px;
-    }
-    .navbar-logo {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 18px; font-weight: 700; color: var(--text-primary);
-      flex-shrink: 0;
-    }
-    .navbar-logo-icon {
-      width: 36px; height: 36px; border-radius: 10px;
-      background: linear-gradient(135deg, var(--secondary), var(--primary));
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 12px rgba(123,110,246,0.3);
-    }
+    .navbar-inner { display: flex; align-items: center; gap: 8px; height: 68px; }
+    .navbar-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
+    .navbar-logo-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--secondary), var(--primary)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(123,110,246,0.3); }
     .navbar-logo-icon svg { width: 18px; height: 18px; }
-    .navbar-nav { display: flex; align-items: center; gap: 2px; flex: 1; }
-    .nav-link {
-      padding: 7px 10px; border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 500; color: var(--text-secondary);
-      white-space: nowrap; transition: all 0.2s;
-    }
+    .navbar-nav { display: flex; align-items: center; gap: 2px; flex: 1; margin-left: 16px; }
+    .nav-link { padding: 7px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; transition: all 0.2s; cursor: pointer; }
     .nav-link:hover { color: var(--primary); background: var(--primary-light); }
-    .navbar-cta { margin-left: auto; }
-    .hamburger {
-      display: none; flex-direction: column; gap: 5px;
-      cursor: pointer; padding: 4px; margin-left: auto;
-    }
-    .hamburger span {
-      display: block; width: 22px; height: 2px; border-radius: 2px;
-      background: var(--text-primary); transition: all 0.3s;
-    }
-    .mobile-menu {
-      display: none; position: fixed; top: 68px; left: 0; right: 0;
-      background: var(--surface); border-bottom: 1px solid var(--divider);
-      padding: 16px 24px; flex-direction: column; gap: 4px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
-    }
+    .nav-link.active { color: var(--primary); font-weight: 600; }
+
+    /* Products dropdown */
+    .nav-dropdown { position: relative; }
+    .nav-dropdown-toggle { display: flex; align-items: center; gap: 5px; }
+    .nav-dropdown-toggle svg { transition: transform .2s; }
+    .nav-dropdown:hover .nav-dropdown-toggle svg { transform: rotate(180deg); }
+    .nav-dropdown-menu { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid var(--divider); border-radius: var(--radius-lg); box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 8px; min-width: 220px; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; transform: translateX(-50%) translateY(-6px); }
+    .nav-dropdown:hover .nav-dropdown-menu { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .dropdown-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); transition: background .15s; }
+    .dropdown-item:hover { background: var(--surface-var); }
+    .dropdown-item-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .dropdown-item-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .dropdown-item-sub { font-size: 11px; color: var(--text-hint); margin-top: 1px; }
+    .dropdown-divider { height: 1px; background: var(--divider); margin: 4px 0; }
+
+    .navbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .demo-link { padding: 8px 16px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; color: var(--primary); border: 1.5px solid var(--primary); transition: all .2s; white-space: nowrap; }
+    .demo-link:hover { background: var(--primary-light); }
+    .launch-btn { padding: 8px 18px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; background: linear-gradient(135deg, var(--secondary), var(--primary)); color: #fff; border: none; cursor: pointer; white-space: nowrap; transition: all .2s; display: inline-flex; align-items: center; gap: 6px; }
+    .launch-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(123,110,246,0.35); }
+    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; margin-left: auto; }
+    .hamburger span { display: block; width: 22px; height: 2px; border-radius: 2px; background: var(--text-primary); transition: all 0.3s; }
+    .mobile-menu { display: none; position: fixed; top: 68px; left: 0; right: 0; background: var(--surface); border-bottom: 1px solid var(--divider); padding: 16px 24px; flex-direction: column; gap: 4px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); z-index: 199; }
     .mobile-menu.open { display: flex; }
     .mobile-menu .nav-link { padding: 12px 14px; }
 
-    /* ════════════════════════════════════════════════════════ */
-    /*  HERO                                                    */
-    /* ════════════════════════════════════════════════════════ */
-    .hero {
-      min-height: 100vh;
-      background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-mid) 55%, var(--grad-end) 100%);
-      position: relative; overflow: hidden;
-      display: flex; flex-direction: column;
-    }
+    /* ── HERO ──────────────────────────────────────────────── */
+    .hero { min-height: 100vh; background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-mid) 55%, var(--grad-end) 100%); position: relative; overflow: hidden; display: flex; flex-direction: column; }
     .hero-spacer { height: 68px; flex-shrink: 0; }
-    .hero-body {
-      flex: 1; display: flex; align-items: center;
-      padding: 60px 0 80px;
-    }
-    .hero-grid {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 60px; align-items: center;
-    }
-    .hero-label {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; border-radius: 20px;
-      background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25);
-      font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.9);
-      letter-spacing: 0.3px; margin-bottom: 20px;
-    }
-    .hero-label-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: #A5F3C7; animation: pulse-dot 2s ease-in-out infinite;
-    }
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.4); }
-    }
-    .hero-title {
-      font-size: clamp(36px, 5vw, 60px); font-weight: 800;
-      line-height: 1.15; letter-spacing: -1px; color: #fff;
-      margin-bottom: 20px;
-    }
-    .hero-title span {
-      background: linear-gradient(90deg, rgba(255,255,255,1), rgba(224,216,255,0.85));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .hero-sub {
-      font-size: 17px; color: rgba(255,255,255,0.72);
-      line-height: 1.7; margin-bottom: 36px; max-width: 480px;
-    }
+    .hero-body { flex: 1; display: flex; align-items: center; padding: 60px 0 80px; }
+    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+    .hero-label { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25); font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.9); letter-spacing: 0.3px; margin-bottom: 20px; }
+    .hero-label-dot { width: 6px; height: 6px; border-radius: 50%; background: #A5F3C7; animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.4); } }
+    .hero-title { font-size: clamp(36px, 5vw, 60px); font-weight: 800; line-height: 1.15; letter-spacing: -1px; color: #fff; margin-bottom: 20px; }
+    .hero-title span { background: linear-gradient(90deg, rgba(255,255,255,1), rgba(224,216,255,0.85)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-sub { font-size: 17px; color: rgba(255,255,255,0.72); line-height: 1.7; margin-bottom: 36px; max-width: 480px; }
     .hero-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 48px; }
-    .hero-pills {
-      display: flex; flex-wrap: wrap; gap: 8px;
-    }
-    .hero-pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 12px; border-radius: 20px;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.2);
-      font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.88);
-    }
-    .hero-pill svg { width: 13px; height: 13px; opacity: 0.85; }
-
-    /* Phone mockup */
-    .hero-visual {
-      display: flex; justify-content: center; align-items: center;
-      position: relative;
-    }
-    .phone-wrap {
-      position: relative;
-      animation: float 4s ease-in-out infinite;
-    }
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50%       { transform: translateY(-14px); }
-    }
-    .phone-shell {
-      width: 260px; height: 530px;
-      background: linear-gradient(160deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%);
-      border: 1.5px solid rgba(255,255,255,0.35);
-      border-radius: 44px;
-      backdrop-filter: blur(20px);
-      box-shadow: 0 32px 80px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
-      overflow: hidden; position: relative;
-      display: flex; flex-direction: column;
-    }
-    .phone-notch {
-      width: 80px; height: 26px; margin: 10px auto 0;
-      background: rgba(255,255,255,0.15);
-      border-radius: 0 0 16px 16px;
-      display: flex; align-items: center; justify-content: center;
-      gap: 5px;
-    }
-    .phone-notch-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.5); }
-    .phone-screen { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
-    /* Screen header */
-    .ps-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-    .ps-greeting { font-size: 10px; color: rgba(255,255,255,0.6); font-weight: 400; }
-    .ps-name { font-size: 13px; color: #fff; font-weight: 700; }
-    .ps-avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
-    /* Health score card */
-    .ps-score-card {
-      background: rgba(255,255,255,0.14);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 16px; padding: 12px;
-      display: flex; align-items: center; gap: 10px;
-    }
-    .ps-score-circle {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: conic-gradient(#A5F3C7 0% 78%, rgba(255,255,255,0.15) 78% 100%);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .ps-score-inner {
-      width: 34px; height: 34px; border-radius: 50%;
-      background: rgba(30,20,100,0.4);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700; color: #A5F3C7;
-    }
-    .ps-score-label { font-size: 10px; color: rgba(255,255,255,0.6); }
-    .ps-score-val { font-size: 13px; color: #fff; font-weight: 700; }
-    /* Vitals row */
-    .ps-vitals { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .ps-vital {
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 12px; padding: 9px 10px;
-    }
-    .ps-vital-icon { font-size: 14px; margin-bottom: 4px; }
-    .ps-vital-val { font-size: 14px; font-weight: 700; color: #fff; line-height: 1; }
-    .ps-vital-unit { font-size: 9px; color: rgba(255,255,255,0.55); font-weight: 400; }
-    .ps-vital-label { font-size: 9px; color: rgba(255,255,255,0.55); margin-top: 2px; }
-    /* AI card */
-    .ps-ai {
-      background: rgba(165,243,199,0.12);
-      border: 1px solid rgba(165,243,199,0.25);
-      border-radius: 12px; padding: 10px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .ps-ai-icon { font-size: 16px; }
-    .ps-ai-text { font-size: 9px; color: rgba(255,255,255,0.75); line-height: 1.4; }
-    .ps-ai-title { font-size: 10px; color: #fff; font-weight: 600; margin-bottom: 1px; }
-    /* Activity bar */
-    .ps-activity { margin-top: auto; }
-    .ps-activity-label { font-size: 9px; color: rgba(255,255,255,0.5); margin-bottom: 6px; }
-    .ps-bars { display: flex; align-items: flex-end; gap: 4px; height: 32px; }
-    .ps-bar {
-      flex: 1; border-radius: 3px;
-      background: rgba(255,255,255,0.15);
-      position: relative; overflow: hidden;
-    }
-    .ps-bar-fill {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      background: linear-gradient(180deg, rgba(165,243,199,0.7), rgba(165,243,199,0.3));
-      border-radius: 3px;
-    }
-
-    /* Floating badges */
-    .badge-float {
-      position: absolute;
-      background: #fff;
-      border-radius: var(--radius-lg);
-      padding: 10px 14px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; font-weight: 600; color: var(--text-primary);
-      white-space: nowrap;
-      animation: float-badge 3s ease-in-out infinite;
-    }
-    .badge-float-icon { font-size: 18px; }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .hero-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.88); }
+    .hero-visual { display: flex; justify-content: center; align-items: center; position: relative; }
+    .badge-float { position: absolute; background: #fff; border-radius: var(--radius-lg); padding: 10px 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-primary); white-space: nowrap; animation: float-badge 3s ease-in-out infinite; }
     .badge-float-sub { font-size: 10px; color: var(--text-hint); font-weight: 400; }
     .badge-1 { top: 60px; left: -60px; animation-delay: 0s; }
     .badge-2 { bottom: 100px; right: -50px; animation-delay: 1.5s; }
-    @keyframes float-badge {
-      0%, 100% { transform: translateY(0); }
-      50%       { transform: translateY(-8px); }
-    }
+    @keyframes float-badge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 
-    /* ════════════════════════════════════════════════════════ */
-    /*  STATS BAR                                               */
-    /* ════════════════════════════════════════════════════════ */
-    .stats-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--divider);
-      padding: 0;
-    }
-    .stats-inner {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      divide-x: 1px solid var(--divider);
-    }
-    .stat-item {
-      padding: 28px 24px;
-      border-right: 1px solid var(--divider);
-      text-align: center;
-    }
+    /* ── STATS ─────────────────────────────────────────────── */
+    .stats-bar { background: var(--surface); border-bottom: 1px solid var(--divider); }
+    .stats-inner { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .stat-item { padding: 28px 24px; border-right: 1px solid var(--divider); text-align: center; }
     .stat-item:last-child { border-right: none; }
-    .stat-num {
-      font-size: 32px; font-weight: 800; letter-spacing: -1px;
-      background: linear-gradient(135deg, var(--grad-start), var(--primary));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text; line-height: 1;
-    }
+    .stat-num { font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, var(--grad-start), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; }
     .stat-label { font-size: 13px; color: var(--text-hint); margin-top: 4px; }
 
-    /* ════════════════════════════════════════════════════════ */
-    /*  FEATURES                                                */
-    /* ════════════════════════════════════════════════════════ */
-    .features-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 20px; margin-top: 52px;
-    }
-    .feature-card {
-      background: var(--surface);
-      border-radius: var(--radius-xl);
-      padding: 28px;
-      border: 1px solid var(--divider);
-      transition: all 0.28s ease;
-      position: relative; overflow: hidden;
-    }
-    .feature-card::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      background: linear-gradient(90deg, var(--secondary), var(--primary));
-      opacity: 0; transition: opacity 0.28s;
-    }
+    /* ── PRODUCTS ──────────────────────────────────────────── */
+    .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 860px; margin: 40px auto 0; }
+    .product-card { display: flex; flex-direction: column; gap: 18px; background: #fff; border: 1.5px solid var(--divider); border-radius: 20px; padding: 28px; text-decoration: none; color: inherit; transition: all .2s; box-shadow: var(--shadow-sm); }
+    .product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .product-card.emr:hover { border-color: var(--primary); }
+    .product-card.phr:hover { border-color: var(--secondary); }
+    .product-card-header { display: flex; align-items: flex-start; justify-content: space-between; }
+    .product-card-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+    .product-card-badge { font-size: 11px; font-weight: 600; padding: 3px 12px; border-radius: 20px; }
+    .product-card-title { font-size: 20px; font-weight: 700; }
+    .product-card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .product-card-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .product-chip { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; background: var(--surface-var); color: var(--text-secondary); }
+    .product-card-cta { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--primary); }
+
+    /* ── INFERPAD SECTION ──────────────────────────────────── */
+    .inferpad-section { background: var(--surface-var); }
+    .inferpad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .inferpad-tag { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 20px; background: var(--primary-light); color: var(--primary); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+    .inferpad-title { font-size: clamp(28px,3.5vw,42px); font-weight: 800; line-height: 1.2; letter-spacing: -0.5px; margin-bottom: 14px; }
+    .inferpad-sub { font-size: 16px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 28px; max-width: 480px; }
+    .inferpad-features { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
+    .inferpad-feat { display: flex; align-items: flex-start; gap: 14px; padding: 16px; background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--divider); transition: box-shadow .2s; }
+    .inferpad-feat:hover { box-shadow: var(--shadow-md); }
+    .inferpad-feat-icon { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .inferpad-feat-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .inferpad-feat-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+    .browser-wrap { position: relative; }
+    .browser-shell { background: #fff; border-radius: var(--radius-xl); box-shadow: 0 24px 80px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06); overflow: hidden; }
+    .browser-bar { background: #f1f3f4; padding: 10px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e0e0e0; }
+    .browser-dots { display: flex; gap: 5px; }
+    .browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .browser-url { flex: 1; background: #fff; border-radius: 6px; padding: 5px 12px; font-size: 11px; color: #555; border: 1px solid #ddd; display: flex; align-items: center; gap: 6px; }
+    .browser-body { display: flex; height: 360px; }
+    .inferpad-mock-sidebar { width: 52px; background: #1e1e2e; display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 14px; flex-shrink: 0; }
+    .inferpad-mock-sidebar-dot { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+    .inferpad-mock-sidebar-dot.active { background: var(--primary); }
+    .inferpad-mock-main { flex: 1; display: flex; overflow: hidden; }
+    .inferpad-mock-content { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; background: #f8f9fb; }
+    .inferpad-mock-topbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .inferpad-mock-patient { font-size: 11px; font-weight: 700; color: #1e1e2e; }
+    .inferpad-mock-meta { font-size: 10px; color: #888; }
+    .inferpad-mock-scribe-btn { display: flex; align-items: center; gap: 5px; background: var(--primary); color: #fff; padding: 5px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; }
+    .inferpad-mock-scribe-btn span { width: 6px; height: 6px; border-radius: 50%; background: #ff4444; animation: pulse-dot 1s ease-in-out infinite; }
+    .inferpad-mock-fields { display: flex; flex-direction: column; gap: 7px; }
+    .inferpad-mock-field { background: #fff; border-radius: 8px; padding: 8px 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .inferpad-mock-field-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--primary); opacity: .8; margin-bottom: 3px; }
+    .inferpad-mock-field-val { font-size: 11px; color: #1e1e2e; }
+    .inferpad-mock-chip { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 500; margin-right: 4px; }
+    .inferpad-mock-scribe { width: 160px; flex-shrink: 0; background: #fff; border-left: 1px solid #e8e8e8; display: flex; flex-direction: column; overflow: hidden; }
+    .inferpad-mock-scribe-header { padding: 10px; background: #fafafa; border-bottom: 1px solid #eee; font-size: 10px; font-weight: 700; color: #1e1e2e; display: flex; align-items: center; gap: 5px; }
+    .inferpad-mock-ai-bar { display: flex; align-items: center; gap: 5px; padding: 5px 10px; font-size: 9px; font-weight: 600; background: linear-gradient(90deg,#eff6ff,#f0fdf4); color: #1d4ed8; border-bottom: 1px solid #bfdbfe; }
+    .inferpad-mock-tx { flex: 1; padding: 8px 10px; font-size: 9px; color: #444; line-height: 1.6; overflow: hidden; }
+    .inferpad-mock-soap-rows { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; }
+    .inferpad-mock-soap-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--primary); opacity: .8; }
+    .inferpad-mock-soap-val { font-size: 9px; color: #333; line-height: 1.4; }
+    .inferpad-mock-apply-btn { margin: 6px 10px; padding: 6px; border-radius: 6px; background: var(--primary); color: #fff; font-size: 9px; font-weight: 700; text-align: center; }
+    .inferpad-badge { position: absolute; top: -16px; right: -16px; background: #fff; border-radius: 14px; padding: 10px 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-primary); animation: float-badge 3s ease-in-out infinite; }
+    .inferpad-badge2 { position: absolute; bottom: -16px; left: -16px; background: var(--primary); border-radius: 14px; padding: 10px 14px; box-shadow: 0 8px 32px rgba(123,110,246,0.35); display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #fff; animation: float-badge 3s ease-in-out infinite; animation-delay: 1.5s; }
+    .scribe-dot-anim { display: flex; gap: 3px; align-items: center; }
+    .scribe-dot-anim span { width: 4px; height: 4px; border-radius: 50%; background: #6366f1; animation: dotBounce 1.2s ease-in-out infinite; }
+    .scribe-dot-anim span:nth-child(2) { animation-delay: 0.2s; }
+    .scribe-dot-anim span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotBounce { 0%,80%,100% { transform: scale(1); opacity:.6; } 40% { transform: scale(1.4); opacity:1; } }
+
+    /* ── EMR FEATURES ──────────────────────────────────────── */
+    .feature-card { background: var(--surface); border-radius: var(--radius-xl); padding: 28px; border: 1px solid var(--divider); transition: all 0.28s ease; position: relative; overflow: hidden; }
+    .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--secondary), var(--primary)); opacity: 0; transition: opacity 0.28s; }
     .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
     .feature-card:hover::before { opacity: 1; }
-    .feature-icon-wrap {
-      width: 52px; height: 52px; border-radius: var(--radius-md);
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 18px; font-size: 22px;
-    }
+    .feature-icon-wrap { width: 52px; height: 52px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; font-size: 22px; }
     .feature-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
     .feature-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
     .feature-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-    .feature-tag {
-      font-size: 11px; font-weight: 500; padding: 3px 10px;
-      border-radius: 20px; background: var(--surface-var); color: var(--text-hint);
-    }
+    .feature-tag { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; background: var(--surface-var); color: var(--text-hint); }
 
-    /* ════════════════════════════════════════════════════════ */
-    /*  AI SECTION                                              */
-    /* ════════════════════════════════════════════════════════ */
-    .ai-section {
-      background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-mid) 60%, var(--grad-end) 100%);
-      position: relative; overflow: hidden;
-    }
-    .ai-grid {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 70px; align-items: center;
-    }
-    .ai-tag {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; border-radius: 20px;
-      background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25);
-      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.9);
-      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;
-    }
-    .ai-title {
-      font-size: clamp(28px, 3.5vw, 42px); font-weight: 800;
-      color: #fff; line-height: 1.2; letter-spacing: -0.5px; margin-bottom: 16px;
-    }
-    .ai-sub { font-size: 16px; color: rgba(255,255,255,0.7); line-height: 1.7; margin-bottom: 32px; }
-    .ai-features { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
-    .ai-feature-row {
-      display: flex; align-items: flex-start; gap: 14px;
-    }
-    .ai-feature-icon {
-      width: 36px; height: 36px; border-radius: 10px;
-      background: rgba(255,255,255,0.14);
-      border: 1px solid rgba(255,255,255,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; flex-shrink: 0; margin-top: 1px;
-    }
-    .ai-feature-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 2px; }
-    .ai-feature-desc { font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+    /* ── TESTIMONIALS ──────────────────────────────────────── */
+    .card { background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); }
 
-    /* Chat mockup */
-    .chat-mockup {
-      background: rgba(255,255,255,0.1);
-      border: 1.5px solid rgba(255,255,255,0.2);
-      border-radius: var(--radius-2xl);
-      padding: 20px;
-      backdrop-filter: blur(12px);
-    }
-    .chat-header {
-      display: flex; align-items: center; gap: 10px;
-      padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.15);
-      margin-bottom: 14px;
-    }
-    .chat-bot-avatar {
-      width: 34px; height: 34px; border-radius: 50%;
-      background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
-      border: 1.5px solid rgba(255,255,255,0.3);
-      display: flex; align-items: center; justify-content: center; font-size: 16px;
-    }
-    .chat-bot-name { font-size: 13px; font-weight: 600; color: #fff; }
-    .chat-bot-status { font-size: 10px; color: rgba(165,243,199,0.8); display: flex; align-items: center; gap: 4px; }
-    .chat-status-dot { width: 5px; height: 5px; border-radius: 50%; background: #A5F3C7; }
-    .chat-messages { display: flex; flex-direction: column; gap: 10px; }
-    .chat-msg {
-      display: flex; gap: 8px; max-width: 85%;
-    }
-    .chat-msg.user { align-self: flex-end; flex-direction: row-reverse; }
-    .chat-bubble {
-      padding: 9px 13px; border-radius: 14px;
-      font-size: 11px; line-height: 1.5;
-    }
-    .chat-msg.bot .chat-bubble {
-      background: rgba(255,255,255,0.14);
-      border: 1px solid rgba(255,255,255,0.18);
-      color: rgba(255,255,255,0.9); border-radius: 4px 14px 14px 14px;
-    }
-    .chat-msg.user .chat-bubble {
-      background: rgba(255,255,255,0.9);
-      color: var(--text-primary); border-radius: 14px 4px 14px 14px;
-    }
-    .chat-mini-avatar {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: rgba(255,255,255,0.18);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 10px; flex-shrink: 0; align-self: flex-end;
-    }
-    .chat-risk-badge {
-      display: flex; align-items: center; gap: 8px;
-      background: rgba(255,107,107,0.15);
-      border: 1px solid rgba(255,107,107,0.3);
-      border-radius: 10px; padding: 8px 10px; margin-top: 4px;
-    }
-    .chat-risk-icon { font-size: 14px; }
-    .chat-risk-label { font-size: 10px; color: rgba(255,255,255,0.7); }
-    .chat-risk-val { font-size: 12px; font-weight: 700; color: #FFB3B3; }
-    .chat-input-bar {
-      display: flex; align-items: center; gap: 8px;
-      margin-top: 12px; padding-top: 12px;
-      border-top: 1px solid rgba(255,255,255,0.12);
-    }
-    .chat-input-field {
-      flex: 1; padding: 8px 12px; border-radius: 20px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      font-size: 11px; color: rgba(255,255,255,0.7);
-    }
-    .chat-send-btn {
-      width: 30px; height: 30px; border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px;
-    }
+    /* ── DEMO SECTION ──────────────────────────────────────── */
+    /* (gradient bg inline) */
 
-    /* ════════════════════════════════════════════════════════ */
-    /*  HOW IT WORKS                                            */
-    /* ════════════════════════════════════════════════════════ */
-    .how-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 24px; margin-top: 52px; position: relative;
-    }
-    .how-grid::before {
-      content: '';
-      position: absolute; top: 28px; left: 14%; right: 14%;
-      height: 2px;
-      background: linear-gradient(90deg, var(--secondary), var(--primary));
-      opacity: 0.25; z-index: 0;
-    }
-    .how-step {
-      display: flex; flex-direction: column; align-items: center;
-      text-align: center; position: relative; z-index: 1;
-    }
-    .how-step-num {
-      width: 56px; height: 56px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--secondary), var(--primary));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; font-weight: 800; color: #fff;
-      box-shadow: 0 6px 20px rgba(123,110,246,0.35);
-      margin-bottom: 18px;
-    }
-    .how-step-icon { font-size: 22px; }
-    .how-step-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-    .how-step-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
-
-    /* ════════════════════════════════════════════════════════ */
-    /*  CATEGORIES                                              */
-    /* ════════════════════════════════════════════════════════ */
-    .categories-section { background: var(--surface-var); }
-    .cat-grid {
-      display: grid; grid-template-columns: repeat(5, 1fr);
-      gap: 14px; margin-top: 48px;
-    }
-    .cat-chip {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 8px; padding: 20px 12px;
-      background: var(--surface); border-radius: var(--radius-lg);
-      border: 1px solid var(--divider); text-align: center;
-      font-size: 12px; font-weight: 600; color: var(--text-secondary);
-      transition: all 0.22s;
-      cursor: default;
-    }
-    .cat-chip:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); color: var(--primary); border-color: var(--accent); }
-    .cat-chip-icon {
-      width: 40px; height: 40px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
-    }
-
-    /* ════════════════════════════════════════════════════════ */
-    /*  PRIVACY                                                 */
-    /* ════════════════════════════════════════════════════════ */
-    .privacy-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 20px; margin-top: 48px;
-    }
-    .privacy-card {
-      padding: 28px; border-radius: var(--radius-xl);
-      border: 1px solid var(--divider); background: var(--surface);
-      display: flex; flex-direction: column; gap: 12px;
-    }
-    .privacy-icon {
-      width: 48px; height: 48px; border-radius: 14px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
-    }
-    .privacy-title { font-size: 16px; font-weight: 700; }
-    .privacy-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
-
-    /* ════════════════════════════════════════════════════════ */
-    /*  CTA SECTION                                             */
-    /* ════════════════════════════════════════════════════════ */
-    .cta-section {
-      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid), var(--grad-end));
-      position: relative; overflow: hidden; text-align: center;
-    }
-    .cta-title { font-size: clamp(28px, 4vw, 48px); font-weight: 800; color: #fff; letter-spacing: -0.5px; margin-bottom: 14px; }
-    .cta-sub { font-size: 16px; color: rgba(255,255,255,0.7); margin-bottom: 36px; }
-    .cta-actions { display: flex; justify-content: center; align-items: center; gap: 14px; flex-wrap: wrap; }
-    .store-btn {
-      display: flex; align-items: center; gap: 10px;
-      padding: 12px 22px; border-radius: var(--radius-lg);
-      background: rgba(255,255,255,0.14);
-      border: 1.5px solid rgba(255,255,255,0.28);
-      color: #fff; transition: all 0.22s;
-    }
-    .store-btn:hover { background: rgba(255,255,255,0.22); transform: translateY(-2px); }
-    .store-btn-icon { font-size: 24px; }
-    .store-btn-small { font-size: 10px; opacity: 0.7; }
-    .store-btn-large { font-size: 15px; font-weight: 700; }
-
-    /* ════════════════════════════════════════════════════════ */
-    /*  FOOTER                                                  */
-    /* ════════════════════════════════════════════════════════ */
-    footer {
-      background: #0E0B1E;
-      color: rgba(255,255,255,0.55);
-      padding: 56px 0 28px;
-    }
-    .footer-grid {
-      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
-      gap: 40px; margin-bottom: 48px;
-    }
-    .footer-logo {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 18px; font-weight: 700; color: #fff;
-      margin-bottom: 14px;
-    }
-    .footer-logo-icon {
-      width: 34px; height: 34px; border-radius: 9px;
-      background: linear-gradient(135deg, var(--secondary), var(--primary));
-      display: flex; align-items: center; justify-content: center;
-    }
+    /* ── FOOTER ────────────────────────────────────────────── */
+    footer { background: #0E0B1E; color: rgba(255,255,255,0.55); padding: 56px 0 28px; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 48px; }
+    .footer-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 14px; }
+    .footer-logo-icon { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--secondary), var(--primary)); display: flex; align-items: center; justify-content: center; }
     .footer-desc { font-size: 13px; line-height: 1.7; max-width: 280px; }
     .footer-social { display: flex; gap: 10px; margin-top: 18px; }
-    .footer-social-btn {
-      width: 34px; height: 34px; border-radius: 9px;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.1);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; transition: all 0.2s;
-    }
+    .footer-social-btn { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; }
     .footer-social-btn:hover { background: rgba(123,110,246,0.3); border-color: rgba(123,110,246,0.5); }
     .footer-col-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 14px; letter-spacing: 0.3px; }
     .footer-links { display: flex; flex-direction: column; gap: 9px; }
     .footer-link { font-size: 13px; transition: color 0.2s; }
     .footer-link:hover { color: var(--accent); }
-    .footer-bottom {
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding-top: 24px; text-align: center;
-      font-size: 12px; display: flex;
-      justify-content: space-between; align-items: center; flex-wrap: gap;
-    }
+    .footer-bottom { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; text-align: center; font-size: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
     .footer-bottom-right { display: flex; gap: 20px; }
 
-    /* ════════════════════════════════════════════════════════ */
-    /*  INFERPAD / CLINIC SECTION                               */
-    /* ════════════════════════════════════════════════════════ */
-    .inferpad-section { background: var(--surface-var); }
-    .inferpad-grid {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 64px; align-items: center;
-    }
-    .inferpad-tag {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 5px 14px; border-radius: 20px;
-      background: var(--primary-light); color: var(--primary);
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 1px; margin-bottom: 16px;
-    }
-    .inferpad-title { font-size: clamp(28px,3.5vw,42px); font-weight: 800; line-height: 1.2; letter-spacing: -0.5px; margin-bottom: 14px; }
-    .inferpad-sub { font-size: 16px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 28px; max-width: 480px; }
-    .inferpad-features { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
-    .inferpad-feat {
-      display: flex; align-items: flex-start; gap: 14px;
-      padding: 16px; background: var(--surface); border-radius: var(--radius-lg);
-      border: 1px solid var(--divider); transition: box-shadow .2s;
-    }
-    .inferpad-feat:hover { box-shadow: var(--shadow-md); }
-    .inferpad-feat-icon {
-      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; font-size: 18px;
-    }
-    .inferpad-feat-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
-    .inferpad-feat-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
-
-    /* Browser mockup */
-    .browser-wrap { position: relative; }
-    .browser-shell {
-      background: #fff; border-radius: var(--radius-xl);
-      box-shadow: 0 24px 80px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06);
-      overflow: hidden;
-    }
-    .browser-bar {
-      background: #f1f3f4; padding: 10px 16px;
-      display: flex; align-items: center; gap: 10px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    .browser-dots { display: flex; gap: 5px; }
-    .browser-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .browser-url {
-      flex: 1; background: #fff; border-radius: 6px;
-      padding: 5px 12px; font-size: 11px; color: #555;
-      border: 1px solid #ddd; display: flex; align-items: center; gap: 6px;
-    }
-    .browser-url-lock { opacity: .5; }
-    .browser-body { display: flex; height: 360px; }
-
-    /* Simulated InferPad inside browser */
-    .inferpad-mock-sidebar {
-      width: 52px; background: #1e1e2e; display: flex; flex-direction: column;
-      align-items: center; padding: 12px 0; gap: 14px; flex-shrink: 0;
-    }
-    .inferpad-mock-sidebar-dot {
-      width: 28px; height: 28px; border-radius: 8px;
-      background: rgba(255,255,255,0.08);
-      display: flex; align-items: center; justify-content: center; font-size: 13px;
-    }
-    .inferpad-mock-sidebar-dot.active { background: var(--primary); }
-    .inferpad-mock-main {
-      flex: 1; display: flex; overflow: hidden;
-    }
-    .inferpad-mock-content {
-      flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 10px;
-      overflow: hidden; background: #f8f9fb;
-    }
-    .inferpad-mock-topbar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 12px; background: #fff; border-radius: 10px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    }
-    .inferpad-mock-patient { font-size: 11px; font-weight: 700; color: #1e1e2e; }
-    .inferpad-mock-meta { font-size: 10px; color: #888; }
-    .inferpad-mock-scribe-btn {
-      display: flex; align-items: center; gap: 5px;
-      background: var(--primary); color: #fff;
-      padding: 5px 10px; border-radius: 6px; font-size: 10px; font-weight: 600;
-    }
-    .inferpad-mock-scribe-btn span { width: 6px; height: 6px; border-radius: 50%; background: #ff4444; animation: pulse-dot 1s ease-in-out infinite; }
-    .inferpad-mock-fields {
-      display: flex; flex-direction: column; gap: 7px;
-    }
-    .inferpad-mock-field {
-      background: #fff; border-radius: 8px; padding: 8px 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.05);
-    }
-    .inferpad-mock-field-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--primary); opacity: .8; margin-bottom: 3px; }
-    .inferpad-mock-field-val { font-size: 11px; color: #1e1e2e; }
-    .inferpad-mock-chip {
-      display: inline-block; padding: 2px 8px; border-radius: 20px;
-      font-size: 10px; font-weight: 500; margin-right: 4px;
-    }
-    /* Scribe panel mock */
-    .inferpad-mock-scribe {
-      width: 160px; flex-shrink: 0;
-      background: #fff; border-left: 1px solid #e8e8e8;
-      display: flex; flex-direction: column; overflow: hidden;
-    }
-    .inferpad-mock-scribe-header {
-      padding: 10px; background: #fafafa; border-bottom: 1px solid #eee;
-      font-size: 10px; font-weight: 700; color: #1e1e2e;
-      display: flex; align-items: center; gap: 5px;
-    }
-    .inferpad-mock-scribe-header svg { color: var(--primary); }
-    .inferpad-mock-ai-bar {
-      display: flex; align-items: center; gap: 5px;
-      padding: 5px 10px; font-size: 9px; font-weight: 600;
-      background: linear-gradient(90deg,#eff6ff,#f0fdf4);
-      color: #1d4ed8; border-bottom: 1px solid #bfdbfe;
-    }
-    .inferpad-mock-tx {
-      flex: 1; padding: 8px 10px;
-      font-size: 9px; color: #444; line-height: 1.6; overflow: hidden;
-    }
-    .inferpad-mock-soap-rows { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; }
-    .inferpad-mock-soap-row {}
-    .inferpad-mock-soap-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--primary); opacity: .8; }
-    .inferpad-mock-soap-val { font-size: 9px; color: #333; line-height: 1.4; }
-    .inferpad-mock-apply-btn {
-      margin: 6px 10px; padding: 6px; border-radius: 6px;
-      background: var(--primary); color: #fff;
-      font-size: 9px; font-weight: 700; text-align: center;
-    }
-    /* Floating accent badge */
-    .inferpad-badge {
-      position: absolute; top: -16px; right: -16px;
-      background: #fff; border-radius: 14px; padding: 10px 14px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; font-weight: 600; color: var(--text-primary);
-      animation: float-badge 3s ease-in-out infinite;
-    }
-    .inferpad-badge2 {
-      position: absolute; bottom: -16px; left: -16px;
-      background: var(--primary); border-radius: 14px; padding: 10px 14px;
-      box-shadow: 0 8px 32px rgba(123,110,246,0.35);
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; font-weight: 600; color: #fff;
-      animation: float-badge 3s ease-in-out infinite;
-      animation-delay: 1.5s;
-    }
-
-    /* Scribe dot animation inside mockup */
-    .scribe-dot-anim { display: flex; gap: 3px; align-items: center; }
-    .scribe-dot-anim span {
-      width: 4px; height: 4px; border-radius: 50%; background: #6366f1;
-      animation: dotBounce 1.2s ease-in-out infinite;
-    }
-    .scribe-dot-anim span:nth-child(2) { animation-delay: 0.2s; }
-    .scribe-dot-anim span:nth-child(3) { animation-delay: 0.4s; }
-
-    @media (max-width: 1024px) {
-      .inferpad-grid { grid-template-columns: 1fr; gap: 40px; }
-      .browser-wrap { order: -1; }
-    }
-    @media (max-width: 768px) {
-      .browser-wrap { display: none; }
-      .inferpad-badge, .inferpad-badge2 { display: none; }
-    }
-
-    /* ════════════════════════════════════════════════════════ */
-    /*  ANIMATIONS                                              */
-    /* ════════════════════════════════════════════════════════ */
+    /* ── ANIMATIONS ────────────────────────────────────────── */
     .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.6s ease, transform 0.6s ease; }
     .reveal.visible { opacity: 1; transform: translateY(0); }
     .reveal-delay-1 { transition-delay: 0.1s; }
     .reveal-delay-2 { transition-delay: 0.2s; }
     .reveal-delay-3 { transition-delay: 0.3s; }
-    .reveal-delay-4 { transition-delay: 0.4s; }
 
-    /* ════════════════════════════════════════════════════════ */
-    /*  RESPONSIVE                                              */
-    /* ════════════════════════════════════════════════════════ */
+    /* ── RESPONSIVE ────────────────────────────────────────── */
     @media (max-width: 1024px) {
       .hero-grid { grid-template-columns: 1fr; gap: 48px; }
       .hero-visual { order: -1; }
-      .phone-shell { width: 220px; height: 450px; }
-      .badge-1 { left: -20px; }
-      .badge-2 { right: -10px; }
-      .ai-grid { grid-template-columns: 1fr; gap: 40px; }
-      .features-grid { grid-template-columns: repeat(2, 1fr); }
-      .how-grid { grid-template-columns: repeat(2, 1fr); }
-      .how-grid::before { display: none; }
-      .cat-grid { grid-template-columns: repeat(4, 1fr); }
+      .inferpad-grid { grid-template-columns: 1fr; gap: 40px; }
+      .browser-wrap { order: -1; }
       .footer-grid { grid-template-columns: 1fr 1fr; }
+      .product-grid { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 768px) {
       .section { padding: 64px 0; }
-      .navbar-nav, .navbar-cta { display: none; }
+      .navbar-nav, .navbar-actions { display: none; }
       .hamburger { display: flex; }
       .hero-visual { display: none; }
       .stats-inner { grid-template-columns: repeat(2, 1fr); }
       .stat-item:nth-child(2) { border-right: none; }
-      .features-grid { grid-template-columns: 1fr; }
-      .how-grid { grid-template-columns: 1fr; }
-      .cat-grid { grid-template-columns: repeat(3, 1fr); }
-      .privacy-grid { grid-template-columns: 1fr; }
+      .product-grid { grid-template-columns: 1fr; }
       .footer-grid { grid-template-columns: 1fr; gap: 32px; }
-      .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
-      #emr-features [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: 1fr !important; }
-      #demo [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; gap: 32px !important; }
-      #testimonials [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: 1fr !important; }
-    }
-    @media (max-width: 1024px) {
-      #emr-features [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: repeat(2,1fr) !important; }
-      #demo [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; gap: 40px !important; }
-      #testimonials [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: repeat(2,1fr) !important; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+      .inferpad-badge, .inferpad-badge2 { display: none; }
+      .browser-wrap { display: none; }
     }
     @media (max-width: 480px) {
-      .cat-grid { grid-template-columns: repeat(2, 1fr); }
       .hero-actions { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  NAVBAR                                                  -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ NAVBAR ════════════════ -->
 <nav class="navbar" id="navbar">
   <div class="container">
     <div class="navbar-inner">
-      <a href="#" class="navbar-logo">
+      <a href="index.html" class="navbar-logo">
         <div class="navbar-logo-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -897,24 +280,45 @@
         </div>
         Infer Health
       </a>
+
       <nav class="navbar-nav">
-        <a href="#features"    class="nav-link">Features</a>
-        <a href="#ai"          class="nav-link">AI Health</a>
-        <a href="#inferpad"    class="nav-link" style="color:var(--primary);font-weight:600;">For Clinics</a>
-        <a href="#emr-features" class="nav-link">EMR</a>
+        <!-- Products dropdown -->
+        <div class="nav-dropdown">
+          <span class="nav-link nav-dropdown-toggle">
+            Products
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+          <div class="nav-dropdown-menu">
+            <a href="index.html" class="dropdown-item">
+              <div class="dropdown-item-icon" style="background:#EEEAFF;">🖥️</div>
+              <div>
+                <div class="dropdown-item-title">Infer EMR</div>
+                <div class="dropdown-item-sub">AI clinic management</div>
+              </div>
+            </a>
+            <div class="dropdown-divider"></div>
+            <a href="phr.html" class="dropdown-item">
+              <div class="dropdown-item-icon" style="background:#E8F5E9;">📱</div>
+              <div>
+                <div class="dropdown-item-title">Infer PHR</div>
+                <div class="dropdown-item-sub">Patient health records app</div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <a href="#emr-features" class="nav-link">Features</a>
         <a href="#testimonials" class="nav-link">Stories</a>
-        <a href="#security"    class="nav-link">Security</a>
-        <a href="#demo"        class="nav-link" style="color:var(--primary);font-weight:600;">Book Demo</a>
       </nav>
-      <div class="navbar-cta" style="display:flex;gap:8px;">
-        <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-outline" style="padding:8px 14px;font-size:12px;white-space:nowrap;">
-          Launch InferPad
-        </a>
-        <a href="#demo" class="btn btn-primary" style="padding:8px 16px;font-size:12px;white-space:nowrap;">
-          Book Demo
+
+      <div class="navbar-actions">
+        <a href="#demo" class="demo-link">Book a Demo</a>
+        <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="launch-btn">
+          Launch EMR
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
+
       <div class="hamburger" id="hamburger" onclick="toggleMenu()">
         <span></span><span></span><span></span>
       </div>
@@ -924,32 +328,22 @@
 
 <!-- Mobile nav -->
 <div class="mobile-menu" id="mobileMenu">
-  <a href="#features"    class="nav-link" onclick="toggleMenu()">Features</a>
-  <a href="#ai"          class="nav-link" onclick="toggleMenu()">AI Health</a>
-  <a href="#inferpad"    class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">For Clinics</a>
-  <a href="#emr-features" class="nav-link" onclick="toggleMenu()">EMR</a>
+  <a href="index.html" class="nav-link" onclick="toggleMenu()">🖥️ Infer EMR</a>
+  <a href="phr.html" class="nav-link" onclick="toggleMenu()">📱 Infer PHR</a>
+  <a href="#emr-features" class="nav-link" onclick="toggleMenu()">Features</a>
   <a href="#testimonials" class="nav-link" onclick="toggleMenu()">Stories</a>
-  <a href="#security"    class="nav-link" onclick="toggleMenu()">Security</a>
-  <a href="#demo"        class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">Book Demo</a>
-  <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-primary" style="margin-top:8px;justify-content:center;" onclick="toggleMenu()">Launch InferPad</a>
-  <a href="#download" class="btn btn-outline" style="margin-top:6px;justify-content:center;" onclick="toggleMenu()">Get Patient App</a>
+  <a href="#demo" class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">Book a Demo</a>
+  <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="launch-btn" style="margin-top:8px;justify-content:center;" onclick="toggleMenu()">Launch EMR</a>
 </div>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  HERO                                                    -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ HERO ════════════════ -->
 <section class="hero" id="home">
-  <!-- Orbs -->
   <div class="orb" style="width:600px;height:600px;top:-200px;left:-180px;"></div>
   <div class="orb" style="width:420px;height:420px;bottom:-60px;right:-100px;opacity:0.07;"></div>
-  <div class="orb" style="width:260px;height:260px;top:30%;right:5%;opacity:0.04;"></div>
-  <div class="orb" style="width:160px;height:160px;top:15%;left:48%;opacity:0.045;"></div>
-
   <div class="hero-spacer"></div>
   <div class="hero-body">
     <div class="container">
       <div class="hero-grid">
-        <!-- Left content -->
         <div>
           <div class="hero-label">
             <div class="hero-label-dot"></div>
@@ -958,19 +352,15 @@
           <h1 class="hero-title">
             The AI-Native<br/>
             <span>Ambient EMR</span><br/>
-            <span style="font-size:0.72em; opacity:0.88;">for Decisions that Save Lives</span>
+            <span style="font-size:0.72em;opacity:0.88;">for Decisions that Save Lives</span>
           </h1>
-          <p class="hero-sub">
-            Dictate naturally in 15+ Indian languages. InferPad listens, transcribes, extracts SOAP notes, and fills every clinical field — so you can focus entirely on the patient.
-          </p>
+          <p class="hero-sub">Dictate naturally in 15+ Indian languages. InferPad listens, transcribes, extracts SOAP notes, and fills every clinical field — so you can focus entirely on the patient.</p>
           <div class="hero-actions">
             <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-primary">
               Start Free — No Setup
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
-            <a href="#demo" class="btn btn-ghost">
-              Get a Live Tour
-            </a>
+            <a href="#demo" class="btn btn-ghost">Get a Live Tour</a>
           </div>
           <div class="hero-pills">
             <div class="hero-pill">🎙️ AI Scribe</div>
@@ -982,51 +372,39 @@
             <div class="hero-pill">🔗 ABDM Ready</div>
           </div>
         </div>
-
-        <!-- Right: Phone mockup -->
         <div class="hero-visual">
-          <div class="phone-wrap">
-            <!-- Floating badges -->
+          <div style="position:relative;">
             <div class="badge-float badge-1">
-              <span class="badge-float-icon">🎙️</span>
+              <span style="font-size:18px;">🎙️</span>
               <div>
-                <div style="font-size:13px; font-weight:700; color:#5A4BD1;">SOAP extracted</div>
+                <div style="font-size:13px;font-weight:700;color:#5A4BD1;">SOAP extracted</div>
                 <div class="badge-float-sub">AI Scribe · 1.8s</div>
               </div>
             </div>
             <div class="badge-float badge-2">
-              <span class="badge-float-icon">🧪</span>
+              <span style="font-size:18px;">🧪</span>
               <div>
-                <div style="font-size:13px; font-weight:700;">Lab Report Ready</div>
+                <div style="font-size:13px;font-weight:700;">Lab Report Ready</div>
                 <div class="badge-float-sub">12 patients in queue</div>
               </div>
             </div>
-
-            <!-- EMR browser mockup -->
             <div style="background:#fff;border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.28),0 0 0 1px rgba(255,255,255,0.15);overflow:hidden;width:340px;">
-              <!-- Browser bar -->
               <div style="background:#1e1e2e;padding:10px 14px;display:flex;align-items:center;gap:8px;">
                 <div style="display:flex;gap:5px;">
                   <div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div>
                   <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;"></div>
                   <div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div>
                 </div>
-                <div style="flex:1;background:rgba(255,255,255,0.08);border-radius:5px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.5);display:flex;align-items:center;gap:5px;">
-                  🔒 opd.inferapp.online
-                </div>
+                <div style="flex:1;background:rgba(255,255,255,0.08);border-radius:5px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.5);display:flex;align-items:center;gap:5px;">🔒 opd.inferapp.online</div>
               </div>
-              <!-- App layout -->
               <div style="display:flex;height:320px;">
-                <!-- Sidebar -->
                 <div style="width:44px;background:#1e1e2e;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:12px;">
                   <div style="width:28px;height:28px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;">📋</div>
                   <div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:12px;">👥</div>
                   <div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:12px;">🧪</div>
                   <div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:12px;">📊</div>
                 </div>
-                <!-- Main content -->
                 <div style="flex:1;background:#f8f9fb;display:flex;flex-direction:column;overflow:hidden;">
-                  <!-- Top bar -->
                   <div style="background:#fff;padding:8px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">
                     <div>
                       <div style="font-size:11px;font-weight:700;color:#1e1e2e;">Rahul Sharma</div>
@@ -1037,7 +415,6 @@
                       Scribe · REC
                     </div>
                   </div>
-                  <!-- Fields -->
                   <div style="padding:10px 12px;display:flex;flex-direction:column;gap:7px;flex:1;">
                     <div style="background:#fff;border-radius:8px;padding:7px 10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
                       <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);margin-bottom:3px;">Chief Complaint</div>
@@ -1056,7 +433,6 @@
                       <div style="font-size:10px;color:#1e1e2e;">Aspirin 75mg · OD · 30d &nbsp;|&nbsp; Atorvastatin 40mg · HS · 30d</div>
                     </div>
                   </div>
-                  <!-- AI bar -->
                   <div style="background:linear-gradient(90deg,#eff6ff,#f0fdf4);border-top:1px solid #bfdbfe;padding:6px 12px;display:flex;align-items:center;gap:6px;font-size:9px;font-weight:600;color:#1d4ed8;">
                     🧠 AI extracted SOAP in 1.8s
                     <div class="scribe-dot-anim" style="margin-left:4px;"><span></span><span></span><span></span></div>
@@ -1071,119 +447,81 @@
   </div>
 </section>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  STATS BAR                                               -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ STATS ════════════════ -->
 <div class="stats-bar">
   <div class="container">
     <div class="stats-inner">
-      <div class="stat-item reveal">
-        <div class="stat-num">12+</div>
-        <div class="stat-label">Hours Saved per Doctor / Week</div>
-      </div>
-      <div class="stat-item reveal reveal-delay-1">
-        <div class="stat-num">15+</div>
-        <div class="stat-label">Indian Languages Supported</div>
-      </div>
-      <div class="stat-item reveal reveal-delay-2">
-        <div class="stat-num">1.8s</div>
-        <div class="stat-label">Avg. SOAP Extraction Time</div>
-      </div>
-      <div class="stat-item reveal reveal-delay-3">
-        <div class="stat-num">100%</div>
-        <div class="stat-label">ABDM & FHIR Compliant</div>
-      </div>
+      <div class="stat-item reveal"><div class="stat-num">12+</div><div class="stat-label">Hours Saved per Doctor / Week</div></div>
+      <div class="stat-item reveal reveal-delay-1"><div class="stat-num">15+</div><div class="stat-label">Indian Languages Supported</div></div>
+      <div class="stat-item reveal reveal-delay-2"><div class="stat-num">1.8s</div><div class="stat-label">Avg. SOAP Extraction Time</div></div>
+      <div class="stat-item reveal reveal-delay-3"><div class="stat-num">100%</div><div class="stat-label">ABDM & FHIR Compliant</div></div>
     </div>
   </div>
 </div>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  PRODUCTS                                                -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ PRODUCTS ════════════════ -->
 <section class="section-sm" id="products" style="background:var(--surface);">
   <div class="container">
-    <div style="text-align:center;margin-bottom:36px;" class="reveal">
+    <div style="text-align:center;" class="reveal">
       <div class="section-tag" style="justify-content:center;">Our Products</div>
       <h2 class="section-title">Two powerful platforms,<br/><span class="gradient-text">one health ecosystem</span></h2>
       <p class="section-subtitle" style="margin:12px auto 0;text-align:center;">For clinics and patients — built to work together seamlessly.</p>
     </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:860px;margin:0 auto;" class="reveal">
-
-      <!-- Infer EMR -->
-      <a href="https://opd.inferapp.online/opd/queue" target="_blank" style="display:flex;flex-direction:column;gap:18px;background:#fff;border:1.5px solid var(--divider);border-radius:20px;padding:28px;text-decoration:none;color:inherit;transition:all .2s;box-shadow:var(--shadow-sm);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 40px rgba(123,110,246,0.15)';this.style.borderColor='var(--primary)';" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)';this.style.borderColor='var(--divider)';">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;">
-          <div style="width:56px;height:56px;border-radius:16px;background:#EEEAFF;display:flex;align-items:center;justify-content:center;font-size:26px;">🖥️</div>
-          <span style="font-size:11px;font-weight:600;padding:3px 12px;border-radius:20px;background:#EEEAFF;color:var(--primary);">Clinic</span>
+    <div class="product-grid reveal">
+      <a href="index.html" class="product-card emr">
+        <div class="product-card-header">
+          <div class="product-card-icon" style="background:#EEEAFF;">🖥️</div>
+          <span class="product-card-badge" style="background:#EEEAFF;color:var(--primary);">Clinic</span>
         </div>
-        <div>
-          <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">Infer EMR</h3>
-          <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;">Complete AI-powered clinic management — OPD queues, AI scribe, lab portal, prescriptions, billing and analytics.</p>
+        <h3 class="product-card-title">Infer EMR</h3>
+        <p class="product-card-desc">Complete AI-powered clinic management — OPD queues, AI scribe, lab portal, prescriptions, billing and analytics.</p>
+        <div class="product-card-chips">
+          <span class="product-chip">🗓️ Queue & OPD</span>
+          <span class="product-chip">🎙️ AI Scribe</span>
+          <span class="product-chip">🧪 Lab Portal</span>
+          <span class="product-chip">📊 Analytics</span>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-          <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface-var);color:var(--text-secondary);">🗓️ Queue & OPD</span>
-          <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface-var);color:var(--text-secondary);">🎙️ AI Scribe</span>
-          <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface-var);color:var(--text-secondary);">🧪 Lab Portal</span>
-          <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface-var);color:var(--text-secondary);">📊 Analytics</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--primary);">
+        <div class="product-card-cta">
           Launch EMR
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>
       </a>
-
-      <!-- Infer PHR -->
-      <a href="#download" style="display:flex;flex-direction:column;gap:18px;background:#fff;border:1.5px solid var(--divider);border-radius:20px;padding:28px;text-decoration:none;color:inherit;transition:all .2s;box-shadow:var(--shadow-sm);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 40px rgba(123,110,246,0.15)';this.style.borderColor='#9C8FFA';" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow-sm)';this.style.borderColor='var(--divider)';">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;">
-          <div style="width:56px;height:56px;border-radius:16px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:26px;">📱</div>
-          <span style="font-size:11px;font-weight:600;padding:3px 12px;border-radius:20px;background:var(--primary-light);color:var(--primary);">Patient App</span>
+      <a href="phr.html" class="product-card phr">
+        <div class="product-card-header">
+          <div class="product-card-icon" style="background:#E8F5E9;">📱</div>
+          <span class="product-card-badge" style="background:#E8F5E9;color:#166534;">Patient App</span>
         </div>
-        <div>
-          <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">Infer PHR</h3>
-          <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;">Personal health records for patients — track vitals, view prescriptions, manage appointments and get AI health insights.</p>
+        <h3 class="product-card-title">Infer PHR</h3>
+        <p class="product-card-desc">Personal health records for patients — track vitals, view prescriptions, manage appointments and get AI health insights.</p>
+        <div class="product-card-chips">
+          <span class="product-chip">❤️ Vitals & Trends</span>
+          <span class="product-chip">📅 Appointments</span>
+          <span class="product-chip">💊 Prescriptions</span>
+          <span class="product-chip">🧠 AI Insights</span>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-          <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface-var);color:var(--text-secondary);">❤️ Vitals & Trends</span>
-          <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface-var);color:var(--text-secondary);">📅 Appointments</span>
-          <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface-var);color:var(--text-secondary);">💊 Prescriptions</span>
-          <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface-var);color:var(--text-secondary);">🧠 AI Insights</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--primary);">
-          Get Patient App
+        <div class="product-card-cta" style="color:#16a34a;">
+          Learn More
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>
       </a>
-
     </div>
   </div>
 </section>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  INFERPAD FOR CLINICS                                    -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ INFERPAD FOR CLINICS ════════════════ -->
 <section class="section inferpad-section" id="inferpad">
   <div class="container">
     <div class="inferpad-grid">
-
-      <!-- Left: text -->
       <div class="reveal">
         <div class="inferpad-tag">🏥 For Clinics &amp; Doctors</div>
-        <h2 class="inferpad-title">
-          Doctor speaks.<br/>
-          <span class="gradient-text">InferPad writes.</span>
-        </h2>
-        <p class="inferpad-sub">
-          InferPad is an AI-powered OPD prescription writer with a built-in medical scribe.
-          Just talk during the consultation — Whisper transcribes, Gemini extracts SOAP notes,
-          and every field fills itself automatically.
-        </p>
-
+        <h2 class="inferpad-title">Doctor speaks.<br/><span class="gradient-text">InferPad writes.</span></h2>
+        <p class="inferpad-sub">InferPad is an AI-powered OPD prescription writer with a built-in medical scribe. Just talk during the consultation — Whisper transcribes, Gemini extracts SOAP notes, and every field fills itself automatically.</p>
         <div class="inferpad-features">
           <div class="inferpad-feat reveal reveal-delay-1">
             <div class="inferpad-feat-icon" style="background:#EEEAFF;">🎙️</div>
             <div>
               <div class="inferpad-feat-title">AI Medical Scribe</div>
-              <div class="inferpad-feat-desc">Real-time Whisper transcription in 10 Indian languages. Gemini 2.5 Flash extracts chief complaint, symptoms, diagnosis, medications, vitals, lab orders, procedures, and follow-up — all at once.</div>
+              <div class="inferpad-feat-desc">Real-time Whisper transcription in 10 Indian languages. Gemini 2.5 Flash extracts chief complaint, symptoms, diagnosis, medications, vitals, lab orders, and follow-up — all at once.</div>
             </div>
           </div>
           <div class="inferpad-feat reveal reveal-delay-2">
@@ -1208,71 +546,42 @@
             </div>
           </div>
         </div>
-
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-primary">
             Launch InferPad Free
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>
-          <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-outline">
-            Watch Demo
-          </a>
+          <a href="#demo" class="btn btn-outline">Book a Demo</a>
         </div>
       </div>
-
-      <!-- Right: browser mockup -->
       <div class="browser-wrap reveal reveal-delay-2">
-        <div class="inferpad-badge">
-          <span style="font-size:18px;">🤖</span>
-          <div>
-            <div>Gemini 2.5 Flash</div>
-            <div style="font-size:10px;color:#888;font-weight:400;">SOAP extracted · 1.8s</div>
-          </div>
-        </div>
-        <div class="inferpad-badge2">
-          <span style="font-size:16px;">🎙️</span>
-          AI Scribe · Live
-        </div>
-
+        <div class="inferpad-badge"><span style="font-size:18px;">🤖</span><div><div>Gemini 2.5 Flash</div><div style="font-size:10px;color:#888;font-weight:400;">SOAP extracted · 1.8s</div></div></div>
+        <div class="inferpad-badge2"><span style="font-size:16px;">🎙️</span> AI Scribe · Live</div>
         <div class="browser-shell">
-          <!-- Browser chrome -->
           <div class="browser-bar">
             <div class="browser-dots">
               <div class="browser-dot" style="background:#ff5f57;"></div>
               <div class="browser-dot" style="background:#ffbd2e;"></div>
               <div class="browser-dot" style="background:#28c840;"></div>
             </div>
-            <div class="browser-url">
-              <span class="browser-url-lock">🔒</span>
-              opd.inferapp.online/opd/rx/42
-            </div>
+            <div class="browser-url"><span style="opacity:.5;">🔒</span> opd.inferapp.online/opd/rx/42</div>
           </div>
-
-          <!-- App body -->
           <div class="browser-body">
-            <!-- Sidebar -->
             <div class="inferpad-mock-sidebar">
               <div class="inferpad-mock-sidebar-dot active">📋</div>
               <div class="inferpad-mock-sidebar-dot">👥</div>
               <div class="inferpad-mock-sidebar-dot">💊</div>
               <div class="inferpad-mock-sidebar-dot">⚙️</div>
             </div>
-
-            <!-- Main -->
             <div class="inferpad-mock-main">
-              <!-- Content area -->
               <div class="inferpad-mock-content">
-                <!-- Top bar -->
                 <div class="inferpad-mock-topbar">
                   <div>
                     <div class="inferpad-mock-patient">Manisha Lamba</div>
                     <div class="inferpad-mock-meta">F · 38y · UHID-00142 · General OPD</div>
                   </div>
-                  <div class="inferpad-mock-scribe-btn">
-                    <span></span> Scribe · REC
-                  </div>
+                  <div class="inferpad-mock-scribe-btn"><span></span> Scribe · REC</div>
                 </div>
-                <!-- Fields -->
                 <div class="inferpad-mock-fields">
                   <div class="inferpad-mock-field">
                     <div class="inferpad-mock-field-label">Vitals</div>
@@ -1281,51 +590,36 @@
                   <div class="inferpad-mock-field">
                     <div class="inferpad-mock-field-label">Symptoms</div>
                     <div class="inferpad-mock-field-val">
-                      <span class="inferpad-mock-chip" style="background:#EEEAFF;color:#5a4bd1;">Fever · 3 days (Moderate)</span>
+                      <span class="inferpad-mock-chip" style="background:#EEEAFF;color:#5a4bd1;">Fever · 3 days</span>
                       <span class="inferpad-mock-chip" style="background:#FFF3EE;color:#c2410c;">Cough · 5 days</span>
-                      <span class="inferpad-mock-chip" style="background:#E8F5E9;color:#166534;">Fatigue</span>
                     </div>
                   </div>
                   <div class="inferpad-mock-field">
                     <div class="inferpad-mock-field-label">Diagnosis</div>
-                    <div class="inferpad-mock-field-val">
-                      <span class="inferpad-mock-chip" style="background:#FEF3C7;color:#92400e;">Acute Viral URTI [SNOMED: 54150009]</span>
-                    </div>
+                    <div class="inferpad-mock-field-val"><span class="inferpad-mock-chip" style="background:#FEF3C7;color:#92400e;">Acute Viral URTI [SNOMED: 54150009]</span></div>
                   </div>
                   <div class="inferpad-mock-field">
                     <div class="inferpad-mock-field-label">Prescription</div>
-                    <div class="inferpad-mock-field-val">Paracetamol 500mg · BD · 5 days &nbsp;|&nbsp; Cetirizine 10mg · OD · 5 days</div>
+                    <div class="inferpad-mock-field-val">Paracetamol 500mg · BD · 5 days &nbsp;|&nbsp; Cetirizine 10mg · OD</div>
                   </div>
                 </div>
+                <div style="background:linear-gradient(90deg,#eff6ff,#f0fdf4);border-top:1px solid #bfdbfe;padding:6px 12px;display:flex;align-items:center;gap:6px;font-size:9px;font-weight:600;color:#1d4ed8;margin-top:auto;">
+                  🧠 AI extracted SOAP in 1.8s
+                  <div class="scribe-dot-anim" style="margin-left:4px;"><span></span><span></span><span></span></div>
+                </div>
               </div>
-
-              <!-- Scribe panel -->
               <div class="inferpad-mock-scribe">
                 <div class="inferpad-mock-scribe-header">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
                   Medical Scribe
                 </div>
-                <div class="inferpad-mock-ai-bar">
-                  🧠 AI transcribing
-                  <div class="scribe-dot-anim"><span></span><span></span><span></span></div>
-                </div>
-                <div class="inferpad-mock-tx">
-                  "…patient has fever since 3 days, also complaining of dry cough and body ache. Temperature is 37.2, blood pressure 130 over 84, pulse 88…"
-                </div>
+                <div class="inferpad-mock-ai-bar">🧠 AI transcribing <div class="scribe-dot-anim"><span></span><span></span><span></span></div></div>
+                <div class="inferpad-mock-tx">"…patient has fever since 3 days, also complaining of dry cough and body ache. Temperature is 37.2, blood pressure 130 over 84…"</div>
                 <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#888;padding:4px 10px 2px;">Extracted SOAP</div>
                 <div class="inferpad-mock-soap-rows">
-                  <div class="inferpad-mock-soap-row">
-                    <div class="inferpad-mock-soap-label">Chief Complaint</div>
-                    <div class="inferpad-mock-soap-val">Fever with cough · 3 days</div>
-                  </div>
-                  <div class="inferpad-mock-soap-row">
-                    <div class="inferpad-mock-soap-label">Diagnosis</div>
-                    <div class="inferpad-mock-soap-val">Acute Viral URTI</div>
-                  </div>
-                  <div class="inferpad-mock-soap-row">
-                    <div class="inferpad-mock-soap-label">Medications</div>
-                    <div class="inferpad-mock-soap-val">Paracetamol 500mg BD · Cetirizine 10mg OD</div>
-                  </div>
+                  <div><div class="inferpad-mock-soap-label">Chief Complaint</div><div class="inferpad-mock-soap-val">Fever with cough · 3 days</div></div>
+                  <div><div class="inferpad-mock-soap-label">Diagnosis</div><div class="inferpad-mock-soap-val">Acute Viral URTI</div></div>
+                  <div><div class="inferpad-mock-soap-label">Medications</div><div class="inferpad-mock-soap-val">Paracetamol 500mg BD</div></div>
                 </div>
                 <div class="inferpad-mock-apply-btn">✓ Apply to InferPad</div>
               </div>
@@ -1337,9 +631,7 @@
   </div>
 </section>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  EMR FEATURES                                            -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ EMR FEATURES ════════════════ -->
 <section class="section" id="emr-features" style="background:var(--surface-var);">
   <div class="container">
     <div style="text-align:center;" class="reveal">
@@ -1347,612 +639,143 @@
       <h2 class="section-title">Everything a modern clinic needs,<br/><span class="gradient-text">in one platform</span></h2>
       <p class="section-subtitle" style="margin:12px auto 0;text-align:center;">From OPD queue to lab reports, billing to analytics — InferPad is a complete clinic operating system.</p>
     </div>
-
-    <!-- Row 1: Big feature cards -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:52px;">
-
       <div class="feature-card reveal reveal-delay-1" style="background:var(--surface);">
         <div class="feature-icon-wrap" style="background:#EEEAFF;">🗓️</div>
         <h3 class="feature-title">Smart Queue & Appointments</h3>
         <p class="feature-desc">Manage OPD token queues with real-time status, book appointment slots by date, and view a colour-coded calendar — all synced across devices.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Token Queue</span>
-          <span class="feature-tag">Slot Booking</span>
-          <span class="feature-tag">Calendar View</span>
-        </div>
+        <div class="feature-tags"><span class="feature-tag">Token Queue</span><span class="feature-tag">Slot Booking</span><span class="feature-tag">Calendar View</span></div>
       </div>
-
       <div class="feature-card reveal reveal-delay-2" style="background:var(--surface);">
         <div class="feature-icon-wrap" style="background:#E3F2FD;">🧪</div>
         <h3 class="feature-title">Laboratory Portal</h3>
         <p class="feature-desc">End-to-end lab management — order tests, track samples, enter results, generate reports, run quality control checks, and audit every step.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Sample Tracking</span>
-          <span class="feature-tag">Result Entry</span>
-          <span class="feature-tag">QC & Audit Trail</span>
-        </div>
+        <div class="feature-tags"><span class="feature-tag">Sample Tracking</span><span class="feature-tag">Result Entry</span><span class="feature-tag">QC & Audit Trail</span></div>
       </div>
-
       <div class="feature-card reveal reveal-delay-3" style="background:var(--surface);">
         <div class="feature-icon-wrap" style="background:#E8F5E9;">📊</div>
         <h3 class="feature-title">Analytics Dashboards</h3>
         <p class="feature-desc">Real-time and historical dashboards for appointments, patients, prescriptions, and revenue — with filterable date ranges and exportable charts.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Realtime Report</span>
-          <span class="feature-tag">Prescription Analytics</span>
-          <span class="feature-tag">Patient Trends</span>
-        </div>
+        <div class="feature-tags"><span class="feature-tag">Realtime Report</span><span class="feature-tag">Prescription Analytics</span><span class="feature-tag">Patient Trends</span></div>
       </div>
-
       <div class="feature-card reveal reveal-delay-1" style="background:var(--surface);">
         <div class="feature-icon-wrap" style="background:#FFF3EE;">🧾</div>
         <h3 class="feature-title">Billing & Receipts</h3>
         <p class="feature-desc">Create itemised receipts with services, taxes, and discounts. View payment history per patient and generate printable bills in one click.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Digital Receipts</span>
-          <span class="feature-tag">Payment History</span>
-          <span class="feature-tag">Print Ready</span>
-        </div>
+        <div class="feature-tags"><span class="feature-tag">Digital Receipts</span><span class="feature-tag">Payment History</span><span class="feature-tag">Print Ready</span></div>
       </div>
-
       <div class="feature-card reveal reveal-delay-2" style="background:var(--surface);">
         <div class="feature-icon-wrap" style="background:#F3E5F5;">📞</div>
         <h3 class="feature-title">Inbound Conversations</h3>
         <p class="feature-desc">Receive patient messages via WhatsApp or voice, auto-book slots from inbound requests, view conversation analytics, and set availability windows.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">WhatsApp</span>
-          <span class="feature-tag">Voice AI</span>
-          <span class="feature-tag">Auto Slot Booking</span>
-        </div>
+        <div class="feature-tags"><span class="feature-tag">WhatsApp</span><span class="feature-tag">Voice AI</span><span class="feature-tag">Auto Slot Booking</span></div>
       </div>
-
       <div class="feature-card reveal reveal-delay-3" style="background:var(--surface);">
         <div class="feature-icon-wrap" style="background:#FFF9E6;">👶</div>
         <h3 class="feature-title">Pediatric & Specialty Tools</h3>
         <p class="feature-desc">WHO growth charts, vaccination tracking, diet chart builder, dental chart with tooth-level annotations, and body-part drawing canvas for clinical notes.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Growth Charts</span>
-          <span class="feature-tag">Vaccination</span>
-          <span class="feature-tag">Dental Chart</span>
-        </div>
+        <div class="feature-tags"><span class="feature-tag">Growth Charts</span><span class="feature-tag">Vaccination</span><span class="feature-tag">Dental Chart</span></div>
       </div>
-
     </div>
-
-    <!-- Row 2: Compact highlight chips -->
     <div style="margin-top:40px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;" class="reveal">
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🏥 UHID Management
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🗂️ Custom Patient Attributes
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        📄 Medical Document Templates
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🏷️ Patient Tags
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        💊 Prescription Templates
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🔗 FHIR R4 Interoperability
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🧮 Clinical Calculators
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        📝 Form 25 (Narcotic Drugs)
-      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🏥 UHID Management</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🗂️ Custom Patient Attributes</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">📄 Medical Document Templates</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🏷️ Patient Tags</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">💊 Prescription Templates</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🔗 FHIR R4 Interoperability</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🧮 Clinical Calculators</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">📝 Form 25 (Narcotic Drugs)</div>
     </div>
   </div>
 </section>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  FEATURES                                                -->
-<!-- ════════════════════════════════════════════════════════ -->
-<section class="section" id="features">
-  <div class="container">
-    <div class="reveal">
-      <div class="section-tag">Patient App</div>
-      <h2 class="section-title">Everything you need for<br/><span class="gradient-text">proactive health management</span></h2>
-      <p class="section-subtitle">A complete health intelligence platform with AI, smart tracking, and clinical-grade record keeping.</p>
-    </div>
-    <div class="features-grid">
-
-      <div class="feature-card reveal reveal-delay-1">
-        <div class="feature-icon-wrap" style="background:#EEEAFF;">📋</div>
-        <h3 class="feature-title">Health Records</h3>
-        <p class="feature-desc">Upload and manage lab reports, prescriptions, discharge summaries, and radiology reports in a secure, searchable vault.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Lab Reports</span>
-          <span class="feature-tag">Prescriptions</span>
-          <span class="feature-tag">AI Summary</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-2">
-        <div class="feature-icon-wrap" style="background:#FFF3EE;">📊</div>
-        <h3 class="feature-title">Vitals Tracking</h3>
-        <p class="feature-desc">Log and visualise blood pressure, heart rate, glucose, SpO2, temperature, and BMI with trend charts and LOINC-coded data.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Blood Pressure</span>
-          <span class="feature-tag">Heart Rate</span>
-          <span class="feature-tag">Glucose</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-3">
-        <div class="feature-icon-wrap" style="background:#E3F2FD;">🤖</div>
-        <h3 class="feature-title">AI Health Bot</h3>
-        <p class="feature-desc">Ask health questions, get document analysis, and receive personalised advice from a Gemini-powered AI that understands your history.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Gemini AI</span>
-          <span class="feature-tag">Contextual</span>
-          <span class="feature-tag">24 / 7</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-1">
-        <div class="feature-icon-wrap" style="background:#E8F5E9;">⚠️</div>
-        <h3 class="feature-title">Risk Prediction</h3>
-        <p class="feature-desc">AI-driven risk scores for diabetes, cardiovascular disease, and mental health based on your vitals and reported symptoms.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Diabetes</span>
-          <span class="feature-tag">Heart Health</span>
-          <span class="feature-tag">Mental Health</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-2">
-        <div class="feature-icon-wrap" style="background:#F3E5F5;">📅</div>
-        <h3 class="feature-title">Health Timeline</h3>
-        <p class="feature-desc">A chronological view of all your health events — vitals, documents, assessments, and consultations — in one unified timeline.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">Events</span>
-          <span class="feature-tag">Documents</span>
-          <span class="feature-tag">Vitals</span>
-        </div>
-      </div>
-
-      <div class="feature-card reveal reveal-delay-3">
-        <div class="feature-icon-wrap" style="background:#FFF9E6;">📝</div>
-        <h3 class="feature-title">Self Assessment</h3>
-        <p class="feature-desc">Answer AI-generated questionnaires across 15 health categories. Receive instant risk scores and personalised recommendations.</p>
-        <div class="feature-tags">
-          <span class="feature-tag">15 Categories</span>
-          <span class="feature-tag">AI Analysis</span>
-          <span class="feature-tag">6 Questions</span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  AI SECTION                                              -->
-<!-- ════════════════════════════════════════════════════════ -->
-<section class="section ai-section" id="ai">
-  <!-- Orbs -->
-  <div class="orb" style="width:500px;height:500px;top:-180px;right:-120px;"></div>
-  <div class="orb" style="width:320px;height:320px;bottom:-80px;left:-60px;opacity:0.05;"></div>
-
-  <div class="container">
-    <div class="ai-grid">
-      <!-- Left: text -->
-      <div class="reveal">
-        <div class="ai-tag">✨ Gemini AI</div>
-        <h2 class="ai-title">Your AI health<br/>companion, always on</h2>
-        <p class="ai-sub">Built on Google Gemini, our AI analyses your complete health history to give you contextual, accurate health insights — not generic advice.</p>
-        <div class="ai-features">
-          <div class="ai-feature-row">
-            <div class="ai-feature-icon">💬</div>
-            <div>
-              <div class="ai-feature-title">Conversational Health Consultation</div>
-              <div class="ai-feature-desc">Ask anything — symptoms, medications, test results. The AI understands your personal health context.</div>
-            </div>
-          </div>
-          <div class="ai-feature-row">
-            <div class="ai-feature-icon">📄</div>
-            <div>
-              <div class="ai-feature-title">Smart Document Analysis</div>
-              <div class="ai-feature-desc">Upload a lab report and get a plain-English summary with highlighted abnormalities and follow-up steps.</div>
-            </div>
-          </div>
-          <div class="ai-feature-row">
-            <div class="ai-feature-icon">📈</div>
-            <div>
-              <div class="ai-feature-title">Risk Trend Detection</div>
-              <div class="ai-feature-desc">The AI monitors your vitals over time and flags early warning signs before they become problems.</div>
-            </div>
-          </div>
-        </div>
-        <a href="#download" class="btn btn-ghost" style="align-self: flex-start;">Try AI Health Bot →</a>
-      </div>
-
-      <!-- Right: Chat mockup -->
-      <div class="reveal reveal-delay-2">
-        <div class="chat-mockup">
-          <div class="chat-header">
-            <div class="chat-bot-avatar">🤖</div>
-            <div>
-              <div class="chat-bot-name">Infer AI</div>
-              <div class="chat-bot-status"><span class="chat-status-dot"></span>Online · Analysing your records</div>
-            </div>
-          </div>
-          <div class="chat-messages">
-            <div class="chat-msg user">
-              <div class="chat-mini-avatar">👤</div>
-              <div class="chat-bubble">My blood pressure has been high lately. Should I be worried?</div>
-            </div>
-            <div class="chat-msg bot">
-              <div class="chat-mini-avatar">🤖</div>
-              <div>
-                <div class="chat-bubble">Based on your last 5 readings, your systolic average is 138 mmHg — Stage 1 hypertension range. Here's what I found:</div>
-                <div class="chat-risk-badge" style="margin-top:8px;">
-                  <span class="chat-risk-icon">⚠️</span>
-                  <div>
-                    <div class="chat-risk-label">Cardiovascular Risk</div>
-                    <div class="chat-risk-val">Moderate · Needs attention</div>
-                  </div>
-                </div>
-                <div class="chat-bubble" style="margin-top:8px;">I recommend reducing sodium intake and scheduling a follow-up with your cardiologist. Want me to draft a summary for your doctor?</div>
-              </div>
-            </div>
-            <div class="chat-msg user">
-              <div class="chat-mini-avatar">👤</div>
-              <div class="chat-bubble">Yes, generate the summary please.</div>
-            </div>
-          </div>
-          <div class="chat-input-bar">
-            <div class="chat-input-field">Ask your health question…</div>
-            <div class="chat-send-btn">➤</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  TESTIMONIALS                                            -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ TESTIMONIALS ════════════════ -->
 <section class="section" id="testimonials" style="background:var(--surface-var);">
   <div class="container">
     <div style="text-align:center;" class="reveal">
       <div class="section-tag" style="justify-content:center;">Real Stories</div>
       <h2 class="section-title">Measurable impact.<br/><span class="gradient-text">From real clinics.</span></h2>
-      <p class="section-subtitle" style="margin:12px auto 0;text-align:center;">Join doctors who have transformed their practice with InferPad's AI-native EMR.</p>
     </div>
-
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:52px;">
-
       <div class="card reveal reveal-delay-1" style="padding:28px;border:1px solid var(--divider);">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
           <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--secondary),var(--primary));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👨‍⚕️</div>
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Dr. Arjun Mehta</div>
-            <div style="font-size:12px;color:var(--text-hint);">General Physician · Delhi</div>
-          </div>
+          <div><div style="font-size:14px;font-weight:700;">Dr. Arjun Mehta</div><div style="font-size:12px;color:var(--text-hint);">General Physician · Delhi</div></div>
         </div>
         <div style="font-size:22px;color:var(--primary);margin-bottom:10px;">"</div>
         <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">InferPad's AI scribe is the single best thing to happen to my OPD. I used to spend 3 hours on paperwork — now I finish the same notes in 20 minutes. The Hinglish recognition is spot-on.</p>
-        <div style="display:flex;gap:4px;margin-top:16px;">
-          <span style="color:#F59E0B;font-size:14px;">★★★★★</span>
-        </div>
+        <div style="margin-top:16px;color:#F59E0B;font-size:14px;">★★★★★</div>
       </div>
-
       <div class="card reveal reveal-delay-2" style="padding:28px;border:1px solid var(--divider);">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
           <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#00BFA5,#1E88E5);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👩‍⚕️</div>
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Dr. Sunita Rao</div>
-            <div style="font-size:12px;color:var(--text-hint);">Paediatrician · Bangalore</div>
-          </div>
+          <div><div style="font-size:14px;font-weight:700;">Dr. Sunita Rao</div><div style="font-size:12px;color:var(--text-hint);">Paediatrician · Bangalore</div></div>
         </div>
         <div style="font-size:22px;color:var(--primary);margin-bottom:10px;">"</div>
         <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">The growth charts, vaccination tracker, and WhatsApp prescription sharing have made my clinic paperless in weeks. Parents love getting everything on their phone. Highly recommend.</p>
-        <div style="display:flex;gap:4px;margin-top:16px;">
-          <span style="color:#F59E0B;font-size:14px;">★★★★★</span>
-        </div>
+        <div style="margin-top:16px;color:#F59E0B;font-size:14px;">★★★★★</div>
       </div>
-
       <div class="card reveal reveal-delay-3" style="padding:28px;border:1px solid var(--divider);">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
           <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF7043,#F59E0B);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🦷</div>
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text-primary);">Dr. Karan Verma</div>
-            <div style="font-size:12px;color:var(--text-hint);">Dental Surgeon · Mumbai</div>
-          </div>
+          <div><div style="font-size:14px;font-weight:700;">Dr. Karan Verma</div><div style="font-size:12px;color:var(--text-hint);">Dental Surgeon · Mumbai</div></div>
         </div>
         <div style="font-size:22px;color:var(--primary);margin-bottom:10px;">"</div>
         <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">The dental chart with tooth-level annotations is exactly what I needed. Lab orders, billing, and follow-up reminders all from one screen. InferPad has digitalised my entire practice seamlessly.</p>
-        <div style="display:flex;gap:4px;margin-top:16px;">
-          <span style="color:#F59E0B;font-size:14px;">★★★★★</span>
-        </div>
+        <div style="margin-top:16px;color:#F59E0B;font-size:14px;">★★★★★</div>
       </div>
-
     </div>
-
-    <!-- Trust badges -->
     <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:52px;" class="reveal">
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🏛️ ABDM Compliant
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🔗 FHIR R4 Compliant
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🔐 100% Data Privacy
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        ☁️ AWS & Google Cloud
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;color:var(--text-primary);">
-        🤖 Gemini 2.5 Flash
-      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🏛️ ABDM Compliant</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🔗 FHIR R4 Compliant</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🔐 100% Data Privacy</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius-lg);font-size:13px;font-weight:600;">🤖 Gemini 2.5 Flash</div>
     </div>
   </div>
 </section>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  BOOK A FREE DEMO                                        -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ BOOK A DEMO ════════════════ -->
 <section class="section" id="demo" style="background:linear-gradient(135deg,var(--grad-start) 0%,var(--grad-mid) 60%,var(--grad-end) 100%);position:relative;overflow:hidden;">
-  <!-- Orbs -->
   <div class="orb" style="width:500px;height:500px;top:-160px;right:-140px;"></div>
-  <div class="orb" style="width:300px;height:300px;bottom:-80px;left:-60px;opacity:0.06;"></div>
-
   <div class="container" style="position:relative;z-index:1;">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;">
-
-      <!-- Left: copy -->
       <div class="reveal">
-        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.25);font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">
-          🎯 Free Demo
-        </div>
-        <h2 style="font-size:clamp(28px,3.5vw,44px);font-weight:800;color:#fff;line-height:1.2;letter-spacing:-0.5px;margin-bottom:16px;">
-          See InferPad live<br/>in your clinic
-        </h2>
-        <p style="font-size:16px;color:rgba(255,255,255,0.72);line-height:1.7;margin-bottom:32px;">
-          Book a free 30-minute personalised demo. We'll walk you through the full EMR — queue, scribe, lab, billing, and analytics — tailored to your specialty.
-        </p>
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.25);font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">🎯 Free Demo</div>
+        <h2 style="font-size:clamp(28px,3.5vw,44px);font-weight:800;color:#fff;line-height:1.2;letter-spacing:-0.5px;margin-bottom:16px;">See InferPad live<br/>in your clinic</h2>
+        <p style="font-size:16px;color:rgba(255,255,255,0.72);line-height:1.7;margin-bottom:32px;">Book a free 30-minute personalised demo. We'll walk you through the full EMR — queue, scribe, lab, billing, and analytics — tailored to your specialty.</p>
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div style="display:flex;align-items:center;gap:12px;">
             <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">⏱️</div>
-            <div>
-              <div style="font-size:14px;font-weight:600;color:#fff;">30-minute session</div>
-              <div style="font-size:12px;color:rgba(255,255,255,0.6);">Live walkthrough with your actual patient workflow</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🏥</div>
-            <div>
-              <div style="font-size:14px;font-weight:600;color:#fff;">Any specialty</div>
-              <div style="font-size:12px;color:rgba(255,255,255,0.6);">GP, Pediatrics, Dental, OB-GYN, and more</div>
-            </div>
+            <div><div style="font-size:14px;font-weight:600;color:#fff;">30-minute session</div><div style="font-size:12px;color:rgba(255,255,255,0.6);">Live walkthrough with your actual patient workflow</div></div>
           </div>
           <div style="display:flex;align-items:center;gap:12px;">
             <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">💸</div>
-            <div>
-              <div style="font-size:14px;font-weight:600;color:#fff;">Completely free</div>
-              <div style="font-size:12px;color:rgba(255,255,255,0.6);">No credit card, no commitment required</div>
-            </div>
+            <div><div style="font-size:14px;font-weight:600;color:#fff;">Completely free</div><div style="font-size:12px;color:rgba(255,255,255,0.6);">No credit card, no commitment required</div></div>
           </div>
         </div>
       </div>
-
-      <!-- Right: Calendly inline embed -->
       <div class="reveal reveal-delay-2">
         <div style="background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:var(--radius-2xl);padding:6px;backdrop-filter:blur(12px);box-shadow:0 24px 80px rgba(0,0,0,0.2);overflow:hidden;">
-          <div
-            class="calendly-inline-widget"
-            data-url="https://calendly.com/prateeksharmaand/30min"
-            style="min-width:280px;height:560px;border-radius:calc(var(--radius-2xl) - 6px);overflow:hidden;">
-          </div>
+          <div class="calendly-inline-widget" data-url="https://calendly.com/prateeksharmaand/30min" style="min-width:280px;height:560px;border-radius:calc(var(--radius-2xl) - 6px);overflow:hidden;"></div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  HOW IT WORKS                                            -->
-<!-- ════════════════════════════════════════════════════════ -->
-<section class="section" id="how">
-  <div class="container">
-    <div style="text-align:center;" class="reveal">
-      <div class="section-tag" style="justify-content:center;">How It Works</div>
-      <h2 class="section-title">Up and running in<br/><span class="gradient-text">under 2 minutes</span></h2>
-      <p class="section-subtitle" style="margin:12px auto 0; text-align:center;">No complicated setup. Just download, create an account, and start taking control of your health.</p>
-    </div>
-    <div class="how-grid">
-      <div class="how-step reveal reveal-delay-1">
-        <div class="how-step-num">1</div>
-        <h3 class="how-step-title">Download & Sign Up</h3>
-        <p class="how-step-desc">Create your free account in seconds with email or Google sign-in.</p>
-      </div>
-      <div class="how-step reveal reveal-delay-2">
-        <div class="how-step-num">2</div>
-        <h3 class="how-step-title">Add Your Records</h3>
-        <p class="how-step-desc">Upload documents, log vitals, and fill in your health profile. Gmail auto-import available.</p>
-      </div>
-      <div class="how-step reveal reveal-delay-3">
-        <div class="how-step-num">3</div>
-        <h3 class="how-step-title">Get AI Insights</h3>
-        <p class="how-step-desc">The AI analyses your data and surfaces personalised risk assessments and health advice.</p>
-      </div>
-      <div class="how-step reveal reveal-delay-4">
-        <div class="how-step-num">4</div>
-        <h3 class="how-step-title">Stay Ahead</h3>
-        <p class="how-step-desc">Track trends over time, run self-assessments, and share summaries with your doctor.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  SELF ASSESSMENT CATEGORIES                             -->
-<!-- ════════════════════════════════════════════════════════ -->
-<section class="section-sm categories-section" id="assessment">
-  <div class="container">
-    <div class="reveal">
-      <div class="section-tag">Self Assessment</div>
-      <h2 class="section-title">15 health categories,<br/><span class="gradient-text">AI-tailored questionnaires</span></h2>
-      <p class="section-subtitle">Select any category to get a personalised 6-question assessment generated in real-time by Gemini AI, with instant risk analysis.</p>
-    </div>
-    <div class="cat-grid">
-      <div class="cat-chip reveal reveal-delay-1">
-        <div class="cat-chip-icon" style="background:#EEEAFF;">🏃</div>
-        Lifestyle
-      </div>
-      <div class="cat-chip reveal reveal-delay-1">
-        <div class="cat-chip-icon" style="background:#FFF3EE;">💊</div>
-        Chronic Disease
-      </div>
-      <div class="cat-chip reveal reveal-delay-2">
-        <div class="cat-chip-icon" style="background:#E3F2FD;">❤️</div>
-        General Health
-      </div>
-      <div class="cat-chip reveal reveal-delay-2">
-        <div class="cat-chip-icon" style="background:#FCE4EC;">🩺</div>
-        Male Health
-      </div>
-      <div class="cat-chip reveal reveal-delay-3">
-        <div class="cat-chip-icon" style="background:#F3E5F5;">✨</div>
-        Skin & Hair
-      </div>
-      <div class="cat-chip reveal reveal-delay-3">
-        <div class="cat-chip-icon" style="background:#E8F5E9;">🫁</div>
-        Digestive Health
-      </div>
-      <div class="cat-chip reveal reveal-delay-1">
-        <div class="cat-chip-icon" style="background:#E3F2FD;">👁️</div>
-        Eye Problems
-      </div>
-      <div class="cat-chip reveal reveal-delay-1">
-        <div class="cat-chip-icon" style="background:#FFF3EE;">🫀</div>
-        Kidney & Liver
-      </div>
-      <div class="cat-chip reveal reveal-delay-2">
-        <div class="cat-chip-icon" style="background:#FFEBEE;">🦠</div>
-        Infectious Disease
-      </div>
-      <div class="cat-chip reveal reveal-delay-2">
-        <div class="cat-chip-icon" style="background:#EEEAFF;">💉</div>
-        Diabetes
-      </div>
-      <div class="cat-chip reveal reveal-delay-3">
-        <div class="cat-chip-icon" style="background:#E8F5E9;">🦴</div>
-        Bone Health
-      </div>
-      <div class="cat-chip reveal reveal-delay-3">
-        <div class="cat-chip-icon" style="background:#FCE4EC;">🌸</div>
-        Female Health
-      </div>
-      <div class="cat-chip reveal reveal-delay-1">
-        <div class="cat-chip-icon" style="background:#F3E5F5;">🧠</div>
-        Mental Health
-      </div>
-      <div class="cat-chip reveal reveal-delay-2">
-        <div class="cat-chip-icon" style="background:#E3F2FD;">👂</div>
-        ENT
-      </div>
-      <div class="cat-chip reveal reveal-delay-3">
-        <div class="cat-chip-icon" style="background:#FFF9E6;">🦷</div>
-        Oral Health
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  SECURITY                                                -->
-<!-- ════════════════════════════════════════════════════════ -->
-<section class="section" id="security">
-  <div class="container">
-    <div style="text-align:center;" class="reveal">
-      <div class="section-tag" style="justify-content:center;">Security & Privacy</div>
-      <h2 class="section-title">Your health data stays<br/><span class="gradient-text">private and protected</span></h2>
-      <p class="section-subtitle" style="margin:12px auto 0; text-align:center;">We apply clinical-grade security practices so you can store sensitive medical records with confidence.</p>
-    </div>
-    <div class="privacy-grid">
-      <div class="privacy-card reveal reveal-delay-1">
-        <div class="privacy-icon" style="background:#EEEAFF;">🔐</div>
-        <h3 class="privacy-title">End-to-End Encryption</h3>
-        <p class="privacy-desc">All health records and personal data are encrypted at rest and in transit using AES-256 and TLS 1.3.</p>
-      </div>
-      <div class="privacy-card reveal reveal-delay-2">
-        <div class="privacy-icon" style="background:#E8F5E9;">🛡️</div>
-        <h3 class="privacy-title">JWT Auth & Refresh Tokens</h3>
-        <p class="privacy-desc">Secure token-based authentication with short-lived access tokens and automatic refresh — no passwords stored in plain text.</p>
-      </div>
-      <div class="privacy-card reveal reveal-delay-3">
-        <div class="privacy-icon" style="background:#E3F2FD;">🔒</div>
-        <h3 class="privacy-title">You Own Your Data</h3>
-        <p class="privacy-desc">Export or delete your complete health record at any time. We never sell or share your data with third parties.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  CTA                                                     -->
-<!-- ════════════════════════════════════════════════════════ -->
-<section class="section cta-section" id="download">
-  <!-- Orbs -->
-  <div class="orb" style="width:480px;height:480px;top:-150px;left:-120px;"></div>
-  <div class="orb" style="width:360px;height:360px;bottom:-100px;right:-80px;opacity:0.07;"></div>
-
-  <div class="container" style="position:relative; z-index:1;">
-    <div class="reveal">
-      <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.25);font-size:12px;font-weight:600;color:rgba(255,255,255,0.9);margin-bottom:20px;">
-        ❤️ Free Forever · No credit card needed
-      </div>
-      <h2 class="cta-title">One platform.<br/>Patients &amp; Clinics.</h2>
-      <p class="cta-sub">Infer Health for patients · InferPad for doctors.<br/>AI-powered, free to start, built for India.</p>
-      <div class="cta-actions">
-        <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn" style="background:rgba(255,255,255,0.95);color:var(--primary);font-weight:700;font-size:15px;padding:14px 28px;">
-          🏥 Launch InferPad
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
-        <a href="#" class="store-btn">
-          <span class="store-btn-icon">🤖</span>
-          <div>
-            <div class="store-btn-small">Patient app on</div>
-            <div class="store-btn-large">Google Play</div>
-          </div>
-        </a>
-        <a href="#" class="store-btn" style="opacity:0.55; cursor:not-allowed;">
-          <span class="store-btn-icon">🍎</span>
-          <div>
-            <div class="store-btn-small">Coming soon</div>
-            <div class="store-btn-large">App Store</div>
-          </div>
-        </a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  FOOTER                                                  -->
-<!-- ════════════════════════════════════════════════════════ -->
+<!-- ════════════════ FOOTER ════════════════ -->
 <footer>
   <div class="container">
     <div class="footer-grid">
       <div>
         <div class="footer-logo">
           <div class="footer-logo-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
           </div>
           Infer Health
         </div>
-        <p class="footer-desc">Your personal health intelligence platform. Powered by AI, built for proactive care.</p>
+        <p class="footer-desc">AI-powered health platform for clinics and patients — built for India.</p>
         <div class="footer-social">
           <a href="#" class="footer-social-btn">𝕏</a>
           <a href="#" class="footer-social-btn">in</a>
@@ -1960,30 +783,28 @@
         </div>
       </div>
       <div>
-        <div class="footer-col-title">Product</div>
+        <div class="footer-col-title">Products</div>
         <div class="footer-links">
-          <a href="#features"   class="footer-link">Features</a>
-          <a href="#ai"         class="footer-link">AI Health Bot</a>
-          <a href="#assessment" class="footer-link">Self Assessment</a>
-          <a href="#download"   class="footer-link">Download</a>
+          <a href="index.html" class="footer-link">Infer EMR</a>
+          <a href="phr.html" class="footer-link">Infer PHR</a>
+          <a href="#demo" class="footer-link">Book a Demo</a>
         </div>
       </div>
       <div>
-        <div class="footer-col-title">Health</div>
+        <div class="footer-col-title">EMR</div>
         <div class="footer-links">
-          <a href="#" class="footer-link">Vitals Guide</a>
-          <a href="#" class="footer-link">Risk Scores</a>
-          <a href="#" class="footer-link">Health Timeline</a>
-          <a href="#" class="footer-link">Document Vault</a>
+          <a href="#inferpad" class="footer-link">AI Scribe</a>
+          <a href="#emr-features" class="footer-link">Features</a>
+          <a href="#testimonials" class="footer-link">Stories</a>
+          <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="footer-link">Launch →</a>
         </div>
       </div>
       <div>
         <div class="footer-col-title">Company</div>
         <div class="footer-links">
-          <a href="#" class="footer-link">About</a>
+          <a href="mailto:support@inferapp.online" class="footer-link">Contact</a>
           <a href="#" class="footer-link">Privacy Policy</a>
-          <a href="#" class="footer-link">Terms of Service</a>
-          <a href="#" class="footer-link">Contact</a>
+          <a href="#" class="footer-link">Terms of Use</a>
         </div>
       </div>
     </div>
@@ -1992,50 +813,25 @@
       <div class="footer-bottom-right">
         <a href="#" class="footer-link">Privacy</a>
         <a href="#" class="footer-link">Terms</a>
-        <a href="#" class="footer-link">Cookies</a>
+        <a href="mailto:support@inferapp.online" class="footer-link">support@inferapp.online</a>
       </div>
     </div>
   </div>
 </footer>
 
-<!-- ════════════════════════════════════════════════════════ -->
-<!--  SCRIPTS                                                 -->
-<!-- ════════════════════════════════════════════════════════ -->
+<script async src="https://assets.calendly.com/assets/external/widget.js"></script>
 <script>
-  // Navbar scroll effect
   const navbar = document.getElementById('navbar');
-  window.addEventListener('scroll', () => {
-    navbar.classList.toggle('scrolled', window.scrollY > 20);
-  });
+  window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 20); });
 
-  // Mobile menu
   function toggleMenu() {
     document.getElementById('mobileMenu').classList.toggle('open');
   }
-  document.addEventListener('click', (e) => {
-    const menu = document.getElementById('mobileMenu');
-    const ham  = document.getElementById('hamburger');
-    if (!menu.contains(e.target) && !ham.contains(e.target)) {
-      menu.classList.remove('open');
-    }
-  });
 
-  // Calendly inline widget
-  (function() {
-    var s = document.createElement('script');
-    s.src = 'https://assets.calendly.com/assets/external/widget.js';
-    s.async = true;
-    document.head.appendChild(s);
-  })();
-
-  // Scroll reveal
-  const revealEls = document.querySelectorAll('.reveal');
   const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
-    });
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
   }, { threshold: 0.12 });
-  revealEls.forEach(el => observer.observe(el));
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 </script>
 </body>
 </html>
