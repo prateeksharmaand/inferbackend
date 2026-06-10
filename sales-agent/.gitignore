@@ -5,3 +5,4 @@ __pycache__/
 logs/
 quota.json
 debug_html/
+daily_email_count.json
