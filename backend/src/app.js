@@ -60,6 +60,7 @@ app.use('/api/admin', require('./emr/admin.routes'));
 const track = require('./emr/emr.track.controller');
 app.get('/api/track/open',          track.trackOpen);
 app.get('/api/track/opened-leads',  track.getOpenedLeads);
+app.get('/api/track/leads',         track.getLeads);
 app.post('/api/track/register',     track.registerLead);
 
 // 404 handler

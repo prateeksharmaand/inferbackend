@@ -34,9 +34,26 @@ exports.registerLead = async (req, res) => {
 exports.getOpenedLeads = async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT email FROM sales_leads WHERE email_opened = true`
+      `SELECT email FROM sales_leads
+       WHERE email_opened = true
+         AND email LIKE '%@%.%'`   // filter out non-email garbage
     );
     res.json({ opened: rows.map(r => r.email.toLowerCase()) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/track/leads — full lead data with open timestamps
+exports.getLeads = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT email, clinic, email_opened, email_opened_at, created_at
+       FROM sales_leads
+       WHERE email LIKE '%@%.%'
+       ORDER BY email_opened DESC, email_opened_at DESC NULLS LAST`
+    );
+    res.json({ total: rows.length, leads: rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
