@@ -120,20 +120,34 @@ const PATIENT_QUICK_ASK = [
 
 // ── Patient Context Panel ─────────────────────────────────────────────────────
 
+function buildApptContext(appt) {
+  if (!appt) return '';
+  const age = fmtAge(appt.patient_dob);
+  return [
+    `Patient: ${appt.patient_name || 'Unknown'}`,
+    age            ? `Age: ${age} years`                                                        : null,
+    appt.patient_gender === 'M' ? 'Gender: Male' : appt.patient_gender === 'F' ? 'Gender: Female' : null,
+    appt.patient_mobile        ? `Mobile: ${appt.patient_mobile}`                              : null,
+    appt.uhid                  ? `UHID: ${appt.uhid}`                                          : null,
+    appt.visit_type            ? `Visit type: ${appt.visit_type}`                              : null,
+  ].filter(Boolean).join('\n');
+}
+
 function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
   const [expanded,    setExpanded]    = useState(true);
   const [patientData, setPatientData] = useState(null);
   const [loading,     setLoading]     = useState(false);
 
+  // Always build at least basic context from the appointment
+  const baseContext = buildApptContext(appt);
+
   useEffect(() => {
-    if (!appt?.emr_patient_id) {
-      setPatientData(null);
-      return;
-    }
+    setPatientData(null);
+    if (!appt?.emr_patient_id) return;
     setLoading(true);
     api.get(`/docassist/patient-context/${appt.emr_patient_id}`)
       .then(d => setPatientData(d))
-      .catch(() => setPatientData(null))
+      .catch(() => {}) // fallback to baseContext — no error shown
       .finally(() => setLoading(false));
   }, [appt?.emr_patient_id]);
 
@@ -195,7 +209,7 @@ function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
               <button
                 key={i}
                 className={styles.patientQuickChip}
-                onClick={() => onQuickAsk(item.q, patientData?.context)}
+                onClick={() => onQuickAsk(item.q, patientData?.context || baseContext)}
               >
                 {item.icon} {item.label}
               </button>
@@ -218,9 +232,9 @@ function ChatTab({ appt, onClearPatient }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
 
-  // When appt changes, clear context so PatientContextPanel reloads
+  // Seed basic context from appointment when patient changes
   useEffect(() => {
-    if (!appt) setPatientCtx('');
+    setPatientCtx(appt ? buildApptContext(appt) : '');
   }, [appt?.id]);
 
   async function send(text, overrideCtx) {
@@ -255,8 +269,10 @@ function ChatTab({ appt, onClearPatient }) {
   }
 
   const handleQuickAsk = (q, ctx) => {
-    if (ctx) setPatientCtx(ctx);
-    send(q, ctx);
+    // Use the richest context available; always fall back to basic appt context
+    const effectiveCtx = ctx || patientCtx;
+    setPatientCtx(effectiveCtx);
+    send(q, effectiveCtx);
   };
 
   const isEmpty = messages.length === 0;
