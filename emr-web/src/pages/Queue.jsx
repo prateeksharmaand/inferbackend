@@ -367,7 +367,7 @@ export default function Queue() {
                   onTagUpdate={handleTagUpdate}
                   onDelete={handleDeleteAppointment}
                   onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
-                  onDocAssist={(appt) => setDocAssistAppt(appt)}
+                  onInferAssist={(appt) => setDocAssistAppt(appt)}
                 />
               ))}
             </div>
@@ -476,7 +476,7 @@ export default function Queue() {
                   onTagUpdate={handleTagUpdate}
                   onDelete={handleDeleteAppointment}
                   onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
-                  onDocAssist={(appt) => setDocAssistAppt(appt)}
+                  onInferAssist={(appt) => setDocAssistAppt(appt)}
                 />
               ))}
             </div>

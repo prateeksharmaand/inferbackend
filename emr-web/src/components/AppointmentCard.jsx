@@ -322,7 +322,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
-              {onInferAssist && appt.emr_patient_id && (
+              {onInferAssist && (
                 <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
                   onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
                   title="Ask InferAssist about this patient">
