@@ -14,6 +14,7 @@ Cron: 0 9 * * * cd /opt/infer/sales-agent && ./venv/bin/python agent.py >> agent
 
 import os
 import time
+import random
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,7 +28,10 @@ from modules.quota import status as quota_status
 from modules.whatsapp import send_whatsapp
 
 MAX_EMAILS_PER_RUN   = int(os.environ.get("MAX_DAILY_EMAILS", 300))
-DELAY_BETWEEN_EMAILS = int(os.environ.get("DELAY_BETWEEN_EMAILS", 30))
+DELAY_MIN            = int(os.environ.get("DELAY_MIN", 45))    # min seconds between emails
+DELAY_MAX            = int(os.environ.get("DELAY_MAX", 90))    # max seconds between emails
+BURST_EVERY          = int(os.environ.get("BURST_EVERY", 10))  # longer pause every N emails
+BURST_PAUSE          = int(os.environ.get("BURST_PAUSE", 180)) # seconds for burst pause (3 min)
 SCRAPE_CITIES        = os.environ.get("SCRAPE_CITIES", "Mumbai,Pune,Delhi,Bangalore").split(",")
 MAX_PER_COMBO        = int(os.environ.get("MAX_PER_COMBO", 10))
 
@@ -229,7 +233,15 @@ def phase_outreach():
             failed += 1
 
         if sent < len(leads):
-            time.sleep(DELAY_BETWEEN_EMAILS)
+            # Burst pause every BURST_EVERY emails — mimics human behaviour
+            if sent % BURST_EVERY == 0 and sent > 0:
+                print(f"  ⏸  Burst pause ({BURST_PAUSE}s) after {sent} emails…")
+                time.sleep(BURST_PAUSE)
+            else:
+                # Randomised delay — avoids pattern detection by spam filters
+                delay = random.randint(DELAY_MIN, DELAY_MAX)
+                print(f"  ⏳ Next email in {delay}s…")
+                time.sleep(delay)
 
     print(f"\n  Sent: {sent} | Skipped: {skipped} | Failed: {failed}")
 
