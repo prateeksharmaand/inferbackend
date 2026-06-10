@@ -4,7 +4,6 @@ Sends email via SMTP and saves a copy to Sent folder via IMAP.
 """
 
 import smtplib
-import imaplib
 import os
 import json
 import time
@@ -19,8 +18,6 @@ SMTP_PASS = os.environ.get("SMTP_PASS", "GPa1qL6UYHIWjF7d")
 SMTP_FROM = os.environ.get("SMTP_FROM", "support@inferapp.online")
 FROM_NAME = os.environ.get("FROM_NAME", "Infer EMR")
 
-IMAP_HOST = os.environ.get("IMAP_HOST", "imap.hostinger.com")
-IMAP_PORT = int(os.environ.get("IMAP_PORT", 993))
 
 MAX_DAILY_EMAILS = int(os.environ.get("MAX_DAILY_EMAILS", 300))
 DAILY_COUNT_FILE = os.path.join(os.path.dirname(__file__), "..", "daily_email_count.json")
@@ -44,28 +41,6 @@ def _increment_daily_count():
     return count
 
 
-def _save_to_sent(msg_bytes: bytes):
-    """Saves sent email to IMAP Sent folder."""
-    try:
-        with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as imap:
-            imap.login(SMTP_USER, SMTP_PASS)
-
-            # Hardcode INBOX.Sent — confirmed from folder listing
-            sent_folder = "INBOX.Sent"
-
-            print(f"  [IMAP] Saving to folder: {sent_folder}")
-            result = imap.append(
-                sent_folder, "\\Seen",
-                imaplib.Time2Internaldate(time.time()),
-                msg_bytes
-            )
-            print(f"  [IMAP] Save result: {result}")
-            if result[0] == "OK":
-                print(f"  ✓ Saved to {sent_folder}")
-            else:
-                print(f"  ⚠ Save failed: {result}")
-    except Exception as e:
-        print(f"  ⚠ IMAP error: {e}")
 
 
 # Domains and emails to never send to
@@ -144,8 +119,6 @@ def send_email(to_email: str, subject: str, body: str, clinic_name: str = "",
         except Exception:
             pass
 
-        # Save to Hostinger Sent folder
-        _save_to_sent(msg_bytes)
 
         return True
 
