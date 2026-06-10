@@ -131,7 +131,7 @@ async function bookSlot(clinicId, doctorId, dateStr, timeStr, patientData, chann
     ]
   );
 
-  logger.info(`[Slot] Appointment booked: #${appt.id} for ${patientData.patient_name} on ${dateStr} ${timeStr}`);
+  logger.info(`[Slot] Appointment booked: #${appt.id} for ${patientData.patient_name} on ${dateStr} ${timeStr} | queue_id=${queueId} doctor_id=${doctorId}`);
   return appt;
 }
 

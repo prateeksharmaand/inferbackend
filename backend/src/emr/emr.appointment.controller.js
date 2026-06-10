@@ -25,8 +25,9 @@ const listAppointments = async (req, res) => {
   let idx = 3;
 
   if (queue_id) {
-    // Show appointments for this queue OR inbound-booked appointments for the same clinic/date
-    sql += ` AND (a.queue_id = $${idx} OR (a.queue_id IS NULL AND a.channel IN ('whatsapp','sms','ivr','chat','online','follow_up')))`;
+    // Show appointments for this queue OR any inbound-channel appointment for this clinic+date
+    // (inbound may land in a different queue or no queue depending on config)
+    sql += ` AND (a.queue_id = $${idx} OR a.channel IN ('whatsapp','sms','ivr','chat','online'))`;
     params.push(queue_id); idx++;
   }
   if (doctor_id) { sql += ` AND a.doctor_id = $${idx++}`; params.push(doctor_id); }

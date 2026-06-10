@@ -155,6 +155,12 @@ export default function Queue() {
     return () => window.removeEventListener('appointment:created', handler);
   }, [fetchBoard]);
 
+  // Auto-refresh every 30s to pick up inbound-booked appointments
+  useEffect(() => {
+    const timer = setInterval(fetchBoard, 30000);
+    return () => clearInterval(timer);
+  }, [fetchBoard]);
+
   const handleStatusChange = async (apptId, status) => {
     await api.patch(`/appointments/${apptId}/status`, { status });
     fetchBoard();
