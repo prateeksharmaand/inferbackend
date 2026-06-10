@@ -62,6 +62,32 @@ def phase_scrape():
     return added
 
 
+def send_summary_notification(total_leads: int):
+    """Sends a daily summary email to Prateek before outreach starts."""
+    from modules.mailer import send_email as _send
+    _send(
+        to_email="prateeksharmaand@gmail.com",
+        subject=f"Infer Sales Agent — Starting outreach to {total_leads} leads today",
+        body=f"""Hi Prateek,
+
+The Infer Sales Agent is starting today's outreach run.
+
+Leads due today: {total_leads}
+Daily email cap: 300
+
+You will see emails going out from support@inferapp.online shortly.
+
+Check your Google Sheet for live updates.
+
+— Infer Sales Agent""",
+        clinic_name="",
+        doctor_name="Prateek",
+        specialty="",
+        step=1,
+    )
+    print("  ✓ Summary notification sent to prateeksharmaand@gmail.com")
+
+
 def phase_outreach():
     print("\n── Phase 2: Email outreach ──────────────────────────")
     leads = get_leads_due_today()
@@ -70,6 +96,9 @@ def phase_outreach():
     if not leads:
         print("  Nothing to send.")
         return
+
+    # Send summary notification first
+    send_summary_notification(len(leads))
 
     sent = skipped = failed = 0
 
