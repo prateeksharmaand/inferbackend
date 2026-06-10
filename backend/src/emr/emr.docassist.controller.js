@@ -267,17 +267,23 @@ exports.getPatientContext = async (req, res) => {
       patientUhid     ? `UHID: ${patientUhid}`                                                                 : null,
     ].filter(Boolean);
 
-    if (latestVitals && typeof latestVitals === 'object') {
-      const v = latestVitals;
+    if (latestVitals) {
+      const v = typeof latestVitals === 'string' ? JSON.parse(latestVitals) : latestVitals;
       const vStr = [
         v.bp_systolic && v.bp_diastolic ? `BP: ${v.bp_systolic}/${v.bp_diastolic} mmHg` : null,
-        v.pulse       ? `Pulse: ${v.pulse} bpm`                    : null,
-        v.temperature ? `Temp: ${v.temperature}°${v.temp_unit||''}`: null,
-        v.spo2        ? `SpO2: ${v.spo2}%`                         : null,
-        v.weight      ? `Weight: ${v.weight} kg`                   : null,
-        v.height      ? `Height: ${v.height} cm`                   : null,
-        v.bmi         ? `BMI: ${v.bmi}`                            : null,
-        v.rbs         ? `RBS: ${v.rbs} mg/dL`                      : null,
+        v.pulse            ? `Pulse: ${v.pulse}/min`                : null,
+        v.temp             ? `Temp: ${v.temp}°C`                    : null,
+        v.temp_f           ? `Temp: ${v.temp_f}°F`                  : null,
+        v.spo2             ? `SpO2: ${v.spo2}%`                     : null,
+        v.respiratory_rate ? `RR: ${v.respiratory_rate}/min`        : null,
+        v.weight           ? `Weight: ${v.weight} kg`               : null,
+        v.height           ? `Height: ${v.height} cm`               : null,
+        v.bmi              ? `BMI: ${v.bmi}`                        : null,
+        v.rbs              ? `RBS: ${v.rbs} mg/dL`                  : null,
+        v.fbs              ? `FBS: ${v.fbs} mg/dL`                  : null,
+        v.hba1c            ? `HbA1c: ${v.hba1c}%`                   : null,
+        v.hemoglobin       ? `Hb: ${v.hemoglobin} g/dL`             : null,
+        v.creatinine       ? `Creatinine: ${v.creatinine} mg/dL`    : null,
       ].filter(Boolean).join(', ');
       if (vStr) lines.push(`Latest Vitals: ${vStr}`);
     }
