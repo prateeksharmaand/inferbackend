@@ -269,6 +269,7 @@
 <body>
 
 <!-- ════════════════ LOADER ════════════════ -->
+<script>if(sessionStorage.getItem('infer_loaded')){document.write('<style>#infer-loader{display:none!important}</style>');}</script>
 <div id="infer-loader" style="
   position:fixed;inset:0;z-index:99999;
   background:#08071a;
@@ -519,6 +520,7 @@
   /* ── Hide loader when page is ready ── */
   function hideLoader(){
     clearInterval(tick);
+    sessionStorage.setItem('infer_loaded','1');
     if(barEl){ barEl.style.width='100%'; if(pctEl) pctEl.textContent='100%'; if(msgEl) msgEl.textContent='Ready!'; }
     setTimeout(()=>{
       const ldr=document.getElementById('infer-loader');
