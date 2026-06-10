@@ -133,6 +133,78 @@ function buildApptContext(appt) {
   ].filter(Boolean).join('\n');
 }
 
+function buildContextFromHistory(rows, appt) {
+  const first = rows[0];
+  const age   = fmtAge(first.patient_dob || appt?.patient_dob);
+  const gender = first.patient_gender || appt?.patient_gender;
+
+  const lines = [
+    `Patient: ${first.patient_name}`,
+    age    ? `Age: ${age} years`                                                                    : null,
+    gender ? `Gender: ${gender === 'M' ? 'Male' : gender === 'F' ? 'Female' : gender}`             : null,
+    first.patient_mobile ? `Mobile: ${first.patient_mobile}`                                        : null,
+    first.uhid           ? `UHID: ${first.uhid}`                                                    : null,
+  ].filter(Boolean);
+
+  // Latest vitals
+  const vitalsRow = rows.find(r => r.vitals && typeof r.vitals === 'object' && Object.keys(r.vitals).length > 0);
+  if (vitalsRow) {
+    const v = vitalsRow.vitals;
+    const vStr = [
+      v.bp_systolic && v.bp_diastolic ? `BP: ${v.bp_systolic}/${v.bp_diastolic} mmHg` : null,
+      v.pulse        ? `Pulse: ${v.pulse} bpm`                      : null,
+      v.temperature  ? `Temp: ${v.temperature}°${v.temp_unit || ''}`: null,
+      v.spo2         ? `SpO2: ${v.spo2}%`                           : null,
+      v.weight       ? `Weight: ${v.weight} kg`                     : null,
+      v.height       ? `Height: ${v.height} cm`                     : null,
+      v.bmi          ? `BMI: ${v.bmi}`                              : null,
+      v.rbs          ? `RBS: ${v.rbs} mg/dL`                        : null,
+    ].filter(Boolean).join(', ');
+    if (vStr) lines.push(`Latest Vitals: ${vStr}`);
+  }
+
+  const visits = rows.filter(r => r.diagnosis?.length || r.medications?.length || r.chief_complaint);
+  if (visits.length) {
+    lines.push(`\nPast ${visits.length} visit(s):`);
+    visits.forEach((r, i) => {
+      const dateStr = r.appointment_date
+        ? new Date(r.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : 'Unknown date';
+      const parts = [];
+      if (r.doctor_name)     parts.push(`Dr. ${r.doctor_name}`);
+      if (r.chief_complaint) parts.push(`CC: ${r.chief_complaint}`);
+      if (r.diagnosis?.length) {
+        const dx = Array.isArray(r.diagnosis)
+          ? r.diagnosis.map(d => d.name || d.text || d).filter(Boolean).join(', ')
+          : r.diagnosis;
+        if (dx) parts.push(`Dx: ${dx}`);
+      }
+      if (r.symptoms?.length) {
+        const sx = Array.isArray(r.symptoms)
+          ? r.symptoms.map(s => s.name || s.text || s).filter(Boolean).join(', ')
+          : r.symptoms;
+        if (sx) parts.push(`Sx: ${sx}`);
+      }
+      if (r.medications?.length) {
+        const meds = Array.isArray(r.medications)
+          ? r.medications.slice(0, 5).map(m => m.name || m.drug_name || m.generic_name || m).filter(Boolean).join(', ')
+          : r.medications;
+        if (meds) parts.push(`Meds: ${meds}`);
+      }
+      if (r.lab_investigations?.length) {
+        const labs = Array.isArray(r.lab_investigations)
+          ? r.lab_investigations.slice(0, 3).map(l => l.name || l.test || l).filter(Boolean).join(', ')
+          : r.lab_investigations;
+        if (labs) parts.push(`Labs: ${labs}`);
+      }
+      if (r.advices)         parts.push(`Advice: ${r.advices}`);
+      if (r.refer_to)        parts.push(`Referred to: ${r.refer_to}`);
+      lines.push(`  ${i + 1}. ${dateStr}${parts.length ? ' — ' + parts.join(' | ') : ''}`);
+    });
+  }
+  return lines.join('\n');
+}
+
 function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
   const [expanded,    setExpanded]    = useState(true);
   const [patientData, setPatientData] = useState(null);
@@ -143,13 +215,30 @@ function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
 
   useEffect(() => {
     setPatientData(null);
-    if (!appt?.emr_patient_id) return;
+    const mobile = appt?.patient_mobile;
+    const name   = appt?.patient_name;
+    if (!mobile && !name) return;
     setLoading(true);
-    api.get(`/docassist/patient-context/${appt.emr_patient_id}`)
-      .then(d => setPatientData(d))
-      .catch(() => {}) // fallback to baseContext — no error shown
+    const param = mobile ? `mobile=${encodeURIComponent(mobile)}` : `name=${encodeURIComponent(name)}`;
+    api.get(`/patients/history?${param}`)
+      .then(rows => {
+        if (!rows?.length) return;
+        const context = buildContextFromHistory(rows, appt);
+        const last = rows.find(r => r.appointment_date);
+        setPatientData({
+          context,
+          patient: {
+            name: rows[0].patient_name,
+            visit_count: rows.filter(r => r.diagnosis || r.medications || r.chief_complaint).length,
+            last_visit: last?.appointment_date || null,
+            allergies: [],
+            chronic_conditions: [],
+          },
+        });
+      })
+      .catch(() => {})
       .finally(() => setLoading(false));
-  }, [appt?.emr_patient_id]);
+  }, [appt?.id]);
 
   const name = appt?.patient_name || 'Patient';
   const age  = fmtAge(appt?.patient_dob);
