@@ -16,6 +16,7 @@ import VoiceAI    from './pages/VoiceAI';
 import Assessment from './pages/Assessment';
 import Inbound    from './pages/Inbound';
 import Analytics  from './pages/Analytics';
+import Payments   from './pages/Payments';
 import LabLogin from './components/laboratory/LabLogin';
 import LabPortal from './components/laboratory/LabPortal';
 import LabResultViewer from './components/laboratory/LabResultViewer';
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="settings"           element={<Settings />} />
             <Route path="inbound"            element={<Inbound />} />
             <Route path="analytics"          element={<Analytics />} />
+            <Route path="payments"           element={<Payments />} />
 
             {/* Doctor: View patient lab results (inside clinic layout) */}
             <Route path="patients/:patientId/lab-results" element={<LabResultViewer />} />

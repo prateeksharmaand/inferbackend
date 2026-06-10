@@ -26,11 +26,13 @@ const ensureTable = () => pool.query(`
 // GET /api/emr/receipts?appointment_id=
 const listReceipts = async (req, res) => {
   await ensureTable();
-  const { appointment_id, phone } = req.query;
+  const { appointment_id, phone, from, to } = req.query;
   let sql = `SELECT * FROM emr_receipts WHERE clinic_id=$1`;
   const params = [req.emrUser.clinic_id];
   if (appointment_id) { sql += ` AND appointment_id=$${params.length+1}`; params.push(appointment_id); }
   if (phone)          { sql += ` AND phone=$${params.length+1}`;          params.push(phone); }
+  if (from)           { sql += ` AND created_at::date >= $${params.length+1}`; params.push(from); }
+  if (to)             { sql += ` AND created_at::date <= $${params.length+1}`; params.push(to); }
   sql += ` ORDER BY created_at DESC`;
   const { rows } = await pool.query(sql, params);
   res.json(rows);
