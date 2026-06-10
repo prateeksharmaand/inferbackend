@@ -69,13 +69,38 @@ def sync_email_opens():
         print(f"  ⚠ Open sync failed: {e}")
 
 
+SCRAPE_DONE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scrape_done.json")
+
+
+def _scrape_done_today() -> bool:
+    import json as _j
+    from datetime import date as _d
+    today = _d.today().isoformat()
+    if os.path.exists(SCRAPE_DONE_FILE):
+        data = _j.load(open(SCRAPE_DONE_FILE))
+        return data.get("date") == today
+    return False
+
+
+def _mark_scrape_done():
+    import json as _j
+    from datetime import date as _d
+    with open(SCRAPE_DONE_FILE, "w") as f:
+        _j.dump({"date": _d.today().isoformat()}, f)
+
+
 def phase_scrape():
     print("\n── Phase 1: Scraping new leads (Google Maps) ────────")
+
+    if _scrape_done_today():
+        print("  ✓ Scraping already completed today — skipping to outreach.")
+        return 0
+
     print(f"  Quota: {quota_status()}")
 
     if not os.environ.get("GOOGLE_MAPS_API_KEY"):
         print("  ⚠ GOOGLE_MAPS_API_KEY not set in .env — skipping scrape.")
-        print("  Add it to .env to enable automatic lead discovery.")
+        _mark_scrape_done()
         return 0
 
     cities = [c.strip() for c in SCRAPE_CITIES if c.strip()]
@@ -92,10 +117,12 @@ def phase_scrape():
 
     if not leads:
         print("  No new leads found.")
+        _mark_scrape_done()
         return 0
 
     added = import_leads(leads)
     print(f"  Added {added} new leads to CRM (duplicates skipped).")
+    _mark_scrape_done()
     return added
 
 

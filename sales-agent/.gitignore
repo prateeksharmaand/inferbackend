@@ -6,3 +6,4 @@ logs/
 quota.json
 debug_html/
 daily_email_count.json
+scrape_done.json
