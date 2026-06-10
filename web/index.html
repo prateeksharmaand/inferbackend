@@ -270,7 +270,7 @@
 <body>
 
 <!-- ════════════════ LOADER ════════════════ -->
-<script>if(sessionStorage.getItem('infer_loaded')){document.write('<style>#infer-loader{display:none!important}</style>');}</script>
+<script>if(sessionStorage.getItem('infer_loaded')){document.write('<style>#infer-loader{display:none!important;visibility:hidden!important}</style>');}</script>
 <div id="infer-loader" style="
   position:fixed;inset:0;z-index:99999;
   background:#08071a;
@@ -449,8 +449,9 @@
 
 <script>
 (function(){
-  /* ── Grid ── */
+  /* Skip everything if loader is hidden (returning visitor) */
   const gc = document.getElementById('loaderGrid');
+  if (!gc) return;
   const gx = gc.getContext('2d');
   let gW, gH, gt = 0;
   function gResize(){ gW=gc.width=window.innerWidth; gH=gc.height=window.innerHeight; }
