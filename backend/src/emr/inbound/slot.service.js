@@ -70,11 +70,18 @@ async function bookSlot(clinicId, doctorId, dateStr, timeStr, patientData, chann
   const free = await isSlotAvailable(clinicId, doctorId, dateStr, timeStr);
   if (!free) throw new Error('Slot no longer available. Please choose another time.');
 
-  // Find default queue for this doctor
-  const { rows: [queue] } = await pool.query(
+  // Find default queue for this doctor; fallback to any active queue for the clinic
+  let { rows: [queue] } = await pool.query(
     `SELECT id FROM emr_queues WHERE clinic_id = $1 AND doctor_id = $2 AND is_active = TRUE LIMIT 1`,
     [clinicId, doctorId]
   );
+  if (!queue) {
+    const { rows: [anyQueue] } = await pool.query(
+      `SELECT id FROM emr_queues WHERE clinic_id = $1 AND is_active = TRUE ORDER BY id LIMIT 1`,
+      [clinicId]
+    );
+    queue = anyQueue;
+  }
 
   // Auto token number
   const queueId = queue?.id || null;

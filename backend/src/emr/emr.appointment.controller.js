@@ -24,7 +24,11 @@ const listAppointments = async (req, res) => {
   const params = [req.emrUser.clinic_id, apptDate];
   let idx = 3;
 
-  if (queue_id)  { sql += ` AND a.queue_id = $${idx++}`;  params.push(queue_id); }
+  if (queue_id) {
+    // Show appointments for this queue OR inbound-booked appointments for the same clinic/date
+    sql += ` AND (a.queue_id = $${idx} OR (a.queue_id IS NULL AND a.channel IN ('whatsapp','sms','ivr','chat','online','follow_up')))`;
+    params.push(queue_id); idx++;
+  }
   if (doctor_id) { sql += ` AND a.doctor_id = $${idx++}`; params.push(doctor_id); }
   if (status)    { sql += ` AND a.status = $${idx++}`;    params.push(status); }
 
