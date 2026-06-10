@@ -26,7 +26,7 @@ from modules.scheduler import get_next_step, get_next_send_date, is_sequence_com
 from modules.quota import status as quota_status
 from modules.whatsapp import send_whatsapp
 
-MAX_EMAILS_PER_RUN   = int(os.environ.get("MAX_EMAILS_PER_RUN", 50))
+MAX_EMAILS_PER_RUN   = int(os.environ.get("MAX_DAILY_EMAILS", 300))
 DELAY_BETWEEN_EMAILS = int(os.environ.get("DELAY_BETWEEN_EMAILS", 30))
 SCRAPE_CITIES        = os.environ.get("SCRAPE_CITIES", "Mumbai,Pune,Delhi,Bangalore").split(",")
 MAX_PER_COMBO        = int(os.environ.get("MAX_PER_COMBO", 10))
