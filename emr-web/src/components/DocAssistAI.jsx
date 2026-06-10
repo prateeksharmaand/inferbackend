@@ -163,7 +163,39 @@ function buildContextFromHistory(rows, appt) {
     if (vStr) lines.push(`Latest Vitals: ${vStr}`);
   }
 
-  const visits = rows.filter(r => r.diagnosis?.length || r.medications?.length || r.chief_complaint);
+  // Vaccinations — collect across all visits
+  const allVaccinations = [];
+  rows.forEach(r => {
+    if (!r.vaccinations) return;
+    const vacc = typeof r.vaccinations === 'string' ? JSON.parse(r.vaccinations) : r.vaccinations;
+    const visitDate = r.appointment_date
+      ? new Date(r.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+    if (Array.isArray(vacc)) {
+      vacc.forEach(v => {
+        const name = v.vaccine_name || v.name || v.vaccine || '';
+        const status = v.status || 'given';
+        const brand = v.brand_name || v.brand || '';
+        const batch = v.batch_number || v.batch || '';
+        if (name) allVaccinations.push(`${name}${brand ? ` (${brand})` : ''}${batch ? ` #${batch}` : ''} — ${status} on ${visitDate}`);
+      });
+    } else if (typeof vacc === 'object') {
+      // object keyed by vaccine name
+      Object.entries(vacc).forEach(([key, v]) => {
+        if (!v) return;
+        const name = v.vaccine_name || v.name || key || '';
+        const status = v.status || 'given';
+        const brand = v.brand_name || v.brand || '';
+        if (name) allVaccinations.push(`${name}${brand ? ` (${brand})` : ''} — ${status} on ${visitDate}`);
+      });
+    }
+  });
+  if (allVaccinations.length) {
+    lines.push(`\nVaccinations (${allVaccinations.length}):`);
+    allVaccinations.forEach(v => lines.push(`  • ${v}`));
+  }
+
+  const visits = rows.filter(r => r.diagnosis?.length || r.medications?.length || r.chief_complaint || r.symptoms?.length);
   if (visits.length) {
     lines.push(`\nPast ${visits.length} visit(s):`);
     visits.forEach((r, i) => {
@@ -197,8 +229,16 @@ function buildContextFromHistory(rows, appt) {
           : r.lab_investigations;
         if (labs) parts.push(`Labs: ${labs}`);
       }
-      if (r.advices)         parts.push(`Advice: ${r.advices}`);
-      if (r.refer_to)        parts.push(`Referred to: ${r.refer_to}`);
+      if (r.lab_results?.length) {
+        const results = Array.isArray(r.lab_results)
+          ? r.lab_results.slice(0, 3).map(l => `${l.test || l.name}: ${l.result || l.value}${l.unit ? ' ' + l.unit : ''}`).filter(Boolean).join(', ')
+          : '';
+        if (results) parts.push(`Lab Results: ${results}`);
+      }
+      if (r.examination_findings) parts.push(`Exam: ${r.examination_findings}`);
+      if (r.advices)              parts.push(`Advice: ${r.advices}`);
+      if (r.refer_to)             parts.push(`Referred to: ${r.refer_to}`);
+      if (r.next_visit_date)      parts.push(`Next visit: ${r.next_visit_date}`);
       lines.push(`  ${i + 1}. ${dateStr}${parts.length ? ' — ' + parts.join(' | ') : ''}`);
     });
   }
