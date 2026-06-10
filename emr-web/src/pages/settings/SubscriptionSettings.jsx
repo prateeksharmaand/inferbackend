@@ -102,7 +102,7 @@ export default function SubscriptionSettings() {
                 ['Appointments',        '150',     '∞'],
                 ['Prescriptions',       '150',     '∞'],
                 ['Data storage',        '250 MB',  '∞'],
-                ['AI DocAssist',        '—',       '✓'],
+                ['AI InferAssist',        '—',       '✓'],
                 ['Medical Scribe (AI)', '—',       '✓'],
                 ['Vitals graphs',       '—',       '✓'],
                 ['QR prescription',     '—',       '✓'],

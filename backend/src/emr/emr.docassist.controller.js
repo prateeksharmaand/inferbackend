@@ -6,7 +6,7 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
-const CHAT_SYSTEM_PROMPT = `You are DocAssist AI, an intelligent clinical decision-support copilot built for doctors in India. Always respond in English regardless of the language of the question.
+const CHAT_SYSTEM_PROMPT = `You are InferAssist, an intelligent clinical decision-support copilot built for doctors in India. Always respond in English regardless of the language of the question.
 
 You assist with:
 - Drug choices, dosages, interactions, contraindications, and therapeutic alternatives
@@ -267,7 +267,7 @@ exports.getPatientContext = async (req, res) => {
       context: contextStr,
     });
   } catch (e) {
-    logger.error('[DocAssist] getPatientContext error:', e.message);
+    logger.error('[InferAssist] getPatientContext error:', e.message);
     res.status(500).json({ error: 'Failed to load patient context' });
   }
 };
@@ -305,7 +305,7 @@ exports.chat = async (req, res) => {
     res.json({ reply });
   } catch (e) {
     if (e.response?.status === 429) return res.json({ reply: 'I am currently busy. Please try again in a moment.' });
-    logger.error('[DocAssist Chat] Groq error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
+    logger.error('[InferAssist Chat] Groq error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
     res.json({ reply: _chatFallback(message) });
   }
 };
@@ -339,7 +339,7 @@ exports.generateDocument = async (req, res) => {
     res.json({ document });
   } catch (e) {
     if (e.response?.status === 429) return res.status(429).json({ error: 'Rate limited. Please try again.' });
-    logger.error('[DocAssist Doc] Groq error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
+    logger.error('[InferAssist Doc] Groq error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
     res.json({ document: _docFallback(doc_type) });
   }
 };

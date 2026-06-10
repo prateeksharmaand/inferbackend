@@ -17,7 +17,7 @@ const PRO_FEATURES = [
   'Unlimited appointments',
   'Unlimited prescriptions',
   'Unlimited data storage',
-  'AI DocAssist (Chat, Docs, Patients)',
+  'AI InferAssist (Chat, Docs, Patients)',
   'Medical Scribe with Groq Whisper',
   'Vitals trend graphs on prescriptions',
   'QR code on prescriptions',

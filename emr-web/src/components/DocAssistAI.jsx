@@ -287,7 +287,7 @@ function ChatTab({ appt, onClearPatient }) {
             <div className={styles.logoLg}>
               <span className={styles.logoDot1} /><span className={styles.logoDot2} />
             </div>
-            <h2 className={styles.welcomeTitle}>DocAssist AI</h2>
+            <h2 className={styles.welcomeTitle}>InferAssist</h2>
             <p className={styles.welcomeSub}>
               {appt ? `Ask anything about ${appt.patient_name || 'this patient'}, or any clinical question.` : 'Your intelligent clinical copilot'}
             </p>
@@ -357,7 +357,7 @@ function ChatTab({ appt, onClearPatient }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function DocAssistAI({ appt: propAppt }) {
+export default function InferAssistAI({ appt: propAppt }) {
   const [open,        setOpen]        = useState(false);
   const [activeAppt,  setActiveAppt]  = useState(null);
 
@@ -377,9 +377,9 @@ export default function DocAssistAI({ appt: propAppt }) {
       {open && <div className={styles.backdrop} onClick={() => setOpen(false)} />}
 
       {!open && (
-        <button className={styles.fab} onClick={() => setOpen(true)} title="DocAssist AI">
+        <button className={styles.fab} onClick={() => setOpen(true)} title="InferAssist">
           <Bot size={18} strokeWidth={2} />
-          <span className={styles.fabLabel}>DocAssist AI</span>
+          <span className={styles.fabLabel}>InferAssist</span>
           <span className={styles.fabBadge}>Beta</span>
           {activeAppt && <span className={styles.fabPatientDot} title={activeAppt.patient_name} />}
         </button>
@@ -392,7 +392,7 @@ export default function DocAssistAI({ appt: propAppt }) {
               <span className={styles.logoDot1} /><span className={styles.logoDot2} />
             </div>
             <div className={styles.headerText}>
-              <span className={styles.headerTitle}>DocAssist AI</span>
+              <span className={styles.headerTitle}>InferAssist</span>
               <span className={styles.headerBadge}>Beta</span>
             </div>
             {activeAppt && (
