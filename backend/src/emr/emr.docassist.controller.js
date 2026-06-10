@@ -177,24 +177,30 @@ exports.getPatientContext = async (req, res) => {
   const clinic_id = req.emrUser.clinic_id;
 
   try {
-    // Basic patient info
+    // Basic patient info — try by UUID first, not fatal if missing
     const { rows: [p] } = await pool.query(
       `SELECT id, name, dob, gender, mobile, blood_type, allergies, chronic_conditions
        FROM emr_patients WHERE id=$1 AND clinic_id=$2`,
       [patientId, clinic_id]
-    );
-    if (!p) return res.status(404).json({ error: 'Patient not found' });
+    ).catch(() => ({ rows: [] }));
 
-    const age = p.dob ? Math.floor((Date.now() - new Date(p.dob)) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+    const age = p?.dob ? Math.floor((Date.now() - new Date(p.dob)) / (365.25 * 24 * 60 * 60 * 1000)) : null;
 
-    // Past encounters (last 10)
+    // Past encounters — search by emr_patient_id OR by uhid (covers walk-in appointments)
     const { rows: encounters } = await pool.query(
-      `SELECT a.appointment_date, a.appointment_time,
+      `SELECT a.appointment_date, a.appointment_time, a.uhid, a.patient_name,
+              a.patient_dob, a.patient_gender, a.patient_mobile,
               e.symptoms, e.diagnosis, e.medications, e.notes, e.advices,
               e.vitals, e.lab_investigations, e.examination_findings, e.refer_to
        FROM emr_appointments a
        LEFT JOIN emr_encounters e ON e.appointment_id = a.id
-       WHERE a.emr_patient_id=$1 AND a.clinic_id=$2
+       WHERE a.clinic_id=$2
+         AND (a.emr_patient_id=$1 OR (
+               a.uhid IS NOT NULL AND a.uhid = (
+                 SELECT MAX(uhid) FROM emr_appointments
+                 WHERE emr_patient_id=$1 AND clinic_id=$2 AND uhid IS NOT NULL
+               )
+             ))
          AND e.id IS NOT NULL
        ORDER BY a.appointment_date DESC, a.appointment_time DESC
        LIMIT 10`,
@@ -204,14 +210,25 @@ exports.getPatientContext = async (req, res) => {
     // Latest vitals (most recent encounter with vitals)
     const latestVitals = encounters.find(e => e.vitals && Object.keys(e.vitals || {}).length > 0)?.vitals || null;
 
+    // Use patient profile if found, else fall back to appointment row data
+    const firstName = encounters[0];
+    const patientName    = p?.name    || firstName?.patient_name    || 'Unknown';
+    const patientDob     = p?.dob     || firstName?.patient_dob     || null;
+    const patientGender  = p?.gender  || firstName?.patient_gender  || null;
+    const patientMobile  = p?.mobile  || firstName?.patient_mobile  || null;
+    const patientUhid    = firstName?.uhid || null;
+    const effectiveAge   = age || (patientDob ? Math.floor((Date.now() - new Date(patientDob)) / (365.25 * 24 * 60 * 60 * 1000)) : null);
+
     // Build rich context string
     const lines = [
-      `Patient: ${p.name}`,
-      age ? `Age: ${age} years` : null,
-      p.gender ? `Gender: ${p.gender}` : null,
-      p.blood_type ? `Blood Type: ${p.blood_type}` : null,
-      (p.allergies?.length) ? `Allergies: ${Array.isArray(p.allergies) ? p.allergies.join(', ') : p.allergies}` : null,
-      (p.chronic_conditions?.length) ? `Chronic Conditions: ${Array.isArray(p.chronic_conditions) ? p.chronic_conditions.join(', ') : p.chronic_conditions}` : null,
+      `Patient: ${patientName}`,
+      effectiveAge ? `Age: ${effectiveAge} years` : null,
+      patientGender ? `Gender: ${patientGender === 'M' ? 'Male' : patientGender === 'F' ? 'Female' : patientGender}` : null,
+      patientMobile ? `Mobile: ${patientMobile}` : null,
+      patientUhid ? `UHID: ${patientUhid}` : null,
+      p?.blood_type ? `Blood Type: ${p.blood_type}` : null,
+      (p?.allergies?.length) ? `Allergies: ${Array.isArray(p.allergies) ? p.allergies.join(', ') : p.allergies}` : null,
+      (p?.chronic_conditions?.length) ? `Chronic Conditions: ${Array.isArray(p.chronic_conditions) ? p.chronic_conditions.join(', ') : p.chronic_conditions}` : null,
     ].filter(Boolean);
 
     if (latestVitals) {
@@ -252,14 +269,15 @@ exports.getPatientContext = async (req, res) => {
 
     res.json({
       patient: {
-        id: p.id,
-        name: p.name,
-        age,
-        gender: p.gender,
-        mobile: p.mobile,
-        blood_type: p.blood_type,
-        allergies: p.allergies || [],
-        chronic_conditions: p.chronic_conditions || [],
+        id: p?.id || patientId,
+        name: patientName,
+        age: effectiveAge,
+        gender: patientGender,
+        mobile: patientMobile,
+        uhid: patientUhid,
+        blood_type: p?.blood_type || null,
+        allergies: p?.allergies || [],
+        chronic_conditions: p?.chronic_conditions || [],
         latest_vitals: latestVitals,
         visit_count: encounters.length,
         last_visit: encounters[0]?.appointment_date || null,

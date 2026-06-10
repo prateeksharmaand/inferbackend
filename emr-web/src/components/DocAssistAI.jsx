@@ -377,9 +377,12 @@ export default function InferAssistAI({ appt: propAppt }) {
   const [open,        setOpen]        = useState(false);
   const [activeAppt,  setActiveAppt]  = useState(null);
 
-  // Sync with the propAppt (current patient in queue/rx)
+  // Auto-open and load patient when "Ask AI" is clicked on a card
   useEffect(() => {
-    if (propAppt) setActiveAppt(propAppt);
+    if (propAppt) {
+      setActiveAppt(propAppt);
+      setOpen(true);
+    }
   }, [propAppt?.id]);
 
   useEffect(() => {
