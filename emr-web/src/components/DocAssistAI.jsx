@@ -395,7 +395,7 @@ function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
 
           <QuickAskPanel
             ctx={patientData?.context || baseContext}
-            onAsk={onQuickAsk}
+            onAsk={(q, ctx) => { setExpanded(false); onQuickAsk(q, ctx); }}
             patientName={name}
           />
         </div>
@@ -415,6 +415,7 @@ function QuickAskPanel({ ctx, onAsk, patientName }) {
     if (!customQ.trim()) return;
     onAsk(customQ.trim(), ctx);
     setCustomQ('');
+    setOpenSection(null);
   };
 
   return (

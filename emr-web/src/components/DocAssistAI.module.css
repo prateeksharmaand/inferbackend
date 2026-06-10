@@ -887,7 +887,7 @@
 }
 .patientPanelClear:hover { color: #dc2626; background: #fee2e2; }
 
-.patientPanelBody { padding: 0 16px 12px; }
+.patientPanelBody { padding: 0 16px 12px; max-height: 280px; overflow-y: auto; }
 .patientPanelLoading { font-size: 12px; color: #94a3b8; display: flex; align-items: center; gap: 6px; padding: 4px 0 8px; }
 .patientPanelStats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .patientStatChip {
