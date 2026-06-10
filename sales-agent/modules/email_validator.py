@@ -22,7 +22,8 @@ import socket
 import smtplib
 import dns.resolver          # pip install dnspython
 from functools import lru_cache
-from typing import Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Tuple, List, Dict
 
 # ── Format regex ─────────────────────────────────────────────────────────────
 EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
@@ -66,47 +67,47 @@ def _extract_domain(email: str) -> str:
 
 @lru_cache(maxsize=512)
 def _get_mx(domain: str):
-    """Returns sorted list of MX hostnames, or empty list if none."""
+    """Returns sorted list of MX records, or empty list. Cached per domain."""
     try:
-        records = dns.resolver.resolve(domain, "MX", lifetime=5)
+        records = dns.resolver.resolve(domain, "MX", lifetime=4)
         return sorted(records, key=lambda r: r.preference)
     except Exception:
         return []
 
 
+@lru_cache(maxsize=512)
 def check_mx(domain: str) -> bool:
-    """True if domain has at least one MX record."""
+    """True if domain has at least one MX record. Cached — same domain checked once."""
     return len(_get_mx(domain)) > 0
 
 
+@lru_cache(maxsize=256)
 def smtp_check(email: str, domain: str, from_addr: str = "check@inferapp.online") -> str:
     """
-    Attempt SMTP RCPT TO check against the recipient's mail server.
-    Returns: "ok" | "rejected" | "unknown"
-    Many servers block this probe — treat "unknown" as safe to send.
+    SMTP RCPT-TO probe. Cached per email — never probes same address twice.
+    Timeout: 6s. Returns: "ok" | "rejected" | "unknown"
+    Note: many real servers (Google Workspace, Outlook) return "unknown"
+    because they block probes — this is NOT a rejection.
     """
     mx_records = _get_mx(domain)
     if not mx_records:
         return "no_mx"
 
     mx_host = str(mx_records[0].exchange).rstrip(".")
-
     try:
-        with smtplib.SMTP(timeout=8) as s:
+        with smtplib.SMTP(timeout=6) as s:
             s.connect(mx_host, 25)
             s.ehlo("inferapp.online")
             code, _ = s.mail(from_addr)
             if code not in (250, 251):
                 return "unknown"
-            code, msg = s.rcpt(email)
+            code, _ = s.rcpt(email)
             s.quit()
-            if code in (250, 251):
-                return "ok"
-            if code in (550, 551, 552, 553, 554):
-                return "rejected"
-            return "unknown"   # 4xx greylist or probe-blocking
+            if code in (250, 251):   return "ok"
+            if code in (550,551,552,553,554): return "rejected"
+            return "unknown"
     except (socket.timeout, socket.error, smtplib.SMTPException):
-        return "unknown"   # server blocked probe — not a hard reject
+        return "unknown"
 
 
 # ── Master validate function ──────────────────────────────────────────────────
@@ -158,19 +159,39 @@ def validate_email(email: str, smtp_probe: bool = True) -> Tuple[bool, str]:
     return True, "ok"
 
 
-# ── Batch validator ───────────────────────────────────────────────────────────
+# ── Batch validator (parallel) ────────────────────────────────────────────────
 
-def validate_batch(emails: list, smtp_probe: bool = True) -> dict:
+def validate_batch(emails: List[str], smtp_probe: bool = False,
+                   max_workers: int = 10) -> Dict[str, Tuple[bool, str]]:
     """
-    Validate a list of emails.
+    Validate a list of emails in parallel.
+    smtp_probe=False (default) — only MX check, ~200ms per unique domain, very fast.
+    smtp_probe=True  — adds SMTP handshake, ~5s per unique domain, more accurate.
+
+    MX results are cached per domain so 100 emails at same domain = 1 DNS lookup.
+    SMTP results cached per email — never probes same address twice.
+
     Returns { email: (is_valid, reason) }
     """
-    results = {}
-    for email in emails:
-        valid, reason = validate_email(email, smtp_probe=smtp_probe)
-        results[email] = (valid, reason)
-        status = "✓" if valid else "✗"
-        print(f"  {status} {email} — {reason}")
+    import time
+    t0 = time.time()
+    results: Dict[str, Tuple[bool, str]] = {}
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(validate_email, e, smtp_probe): e for e in emails}
+        for fut in as_completed(futures):
+            email = futures[fut]
+            try:
+                valid, reason = fut.result()
+            except Exception:
+                valid, reason = True, "ok"   # never block on validator crash
+            results[email] = (valid, reason)
+
+    elapsed = time.time() - t0
+    ok    = sum(1 for v, _ in results.values() if v)
+    skip  = len(results) - ok
+    print(f"\n  📊 Validated {len(results)} emails in {elapsed:.1f}s — "
+          f"{ok} safe to send, {skip} skipped")
     return results
 
 

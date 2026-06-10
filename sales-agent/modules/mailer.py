@@ -25,8 +25,10 @@ _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DAILY_COUNT_FILE = os.path.join(_BASE, "daily_email_count.json")
 BOUNCE_LOG_FILE  = os.path.join(_BASE, "bounce_log.json")
 
-# Whether to run SMTP RCPT-TO probe (slightly slower but catches more bad mailboxes)
-SMTP_PROBE = os.environ.get("SMTP_PROBE", "true").lower() == "true"
+# SMTP_PROBE=false (default) — only MX check, fast (~200ms/domain, cached)
+# SMTP_PROBE=true  — adds RCPT-TO handshake, slower (~5s/domain) but more accurate
+# Set SMTP_PROBE=true in .env only if you want maximum accuracy and can afford the time
+SMTP_PROBE = os.environ.get("SMTP_PROBE", "false").lower() == "true"
 
 
 # ── Daily counter ─────────────────────────────────────────────────────────────
