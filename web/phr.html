@@ -79,9 +79,9 @@
     .nav-dropdown { position: relative; }
     .nav-dropdown-toggle { display: flex; align-items: center; gap: 5px; }
     .nav-dropdown-toggle svg { transition: transform .2s; }
-    .nav-dropdown:hover .nav-dropdown-toggle svg { transform: rotate(180deg); }
-    .nav-dropdown-menu { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid var(--divider); border-radius: var(--radius-lg); box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 8px; min-width: 220px; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; transform: translateX(-50%) translateY(-6px); }
-    .nav-dropdown:hover .nav-dropdown-menu { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .nav-dropdown.open .nav-dropdown-toggle svg { transform: rotate(180deg); }
+    .nav-dropdown-menu { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(-6px); background: #fff; border: 1px solid var(--divider); border-radius: var(--radius-lg); box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 8px; min-width: 220px; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; }
+    .nav-dropdown.open .nav-dropdown-menu { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
     .dropdown-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); transition: background .15s; }
     .dropdown-item:hover { background: var(--surface-var); }
     .dropdown-item-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
@@ -711,6 +711,19 @@
   const navbar = document.getElementById('navbar');
   window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 20); });
   function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
+
+  // Products dropdown — click to open, outside click or item click to close
+  const dropdown = document.querySelector('.nav-dropdown');
+  const toggle = dropdown.querySelector('.nav-dropdown-toggle');
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+  });
+  dropdown.querySelectorAll('.dropdown-item').forEach(item => {
+    item.addEventListener('click', () => dropdown.classList.remove('open'));
+  });
+  document.addEventListener('click', () => dropdown.classList.remove('open'));
+
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
   }, { threshold: 0.12 });
