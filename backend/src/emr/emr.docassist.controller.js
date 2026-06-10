@@ -177,90 +177,144 @@ exports.getPatientContext = async (req, res) => {
   const clinic_id = req.emrUser.clinic_id;
 
   try {
-    // Basic patient info — try by UUID first, not fatal if missing
-    const { rows: [p] } = await pool.query(
-      `SELECT id, name, dob, gender, mobile, blood_type, allergies, chronic_conditions
-       FROM emr_patients WHERE id=$1 AND clinic_id=$2`,
-      [patientId, clinic_id]
-    ).catch(() => ({ rows: [] }));
-
-    const age = p?.dob ? Math.floor((Date.now() - new Date(p.dob)) / (365.25 * 24 * 60 * 60 * 1000)) : null;
-
-    // Past encounters — search by emr_patient_id OR by uhid (covers walk-in appointments)
-    const { rows: encounters } = await pool.query(
-      `SELECT a.appointment_date, a.appointment_time, a.uhid, a.patient_name,
-              a.patient_dob, a.patient_gender, a.patient_mobile,
-              e.symptoms, e.diagnosis, e.medications, e.notes, e.advices,
-              e.vitals, e.lab_investigations, e.examination_findings, e.refer_to
-       FROM emr_appointments a
-       LEFT JOIN emr_encounters e ON e.appointment_id = a.id
-       WHERE a.clinic_id=$2
-         AND (a.emr_patient_id=$1 OR (
-               a.uhid IS NOT NULL AND a.uhid = (
-                 SELECT MAX(uhid) FROM emr_appointments
-                 WHERE emr_patient_id=$1 AND clinic_id=$2 AND uhid IS NOT NULL
-               )
-             ))
-         AND e.id IS NOT NULL
-       ORDER BY a.appointment_date DESC, a.appointment_time DESC
-       LIMIT 10`,
+    // Step 1: get mobile/name from the appointment itself to use the proven history query
+    const { rows: [apptRow] } = await pool.query(
+      `SELECT patient_name, patient_mobile, patient_dob, patient_gender, uhid, emr_patient_id
+       FROM emr_appointments
+       WHERE (emr_patient_id=$1 OR uhid=(SELECT MAX(uhid) FROM emr_appointments WHERE emr_patient_id=$1 AND clinic_id=$2))
+         AND clinic_id=$2
+       ORDER BY appointment_date DESC LIMIT 1`,
       [patientId, clinic_id]
     );
 
-    // Latest vitals (most recent encounter with vitals)
-    const latestVitals = encounters.find(e => e.vitals && Object.keys(e.vitals || {}).length > 0)?.vitals || null;
+    const mobile = apptRow?.patient_mobile;
+    const uhid   = apptRow?.uhid;
 
-    // Use patient profile if found, else fall back to appointment row data
-    const firstName = encounters[0];
-    const patientName    = p?.name    || firstName?.patient_name    || 'Unknown';
-    const patientDob     = p?.dob     || firstName?.patient_dob     || null;
-    const patientGender  = p?.gender  || firstName?.patient_gender  || null;
-    const patientMobile  = p?.mobile  || firstName?.patient_mobile  || null;
-    const patientUhid    = firstName?.uhid || null;
-    const effectiveAge   = age || (patientDob ? Math.floor((Date.now() - new Date(patientDob)) / (365.25 * 24 * 60 * 60 * 1000)) : null);
+    // Step 2: use the same query as /patients/history — proven to return full encounter data
+    let rows = [];
+    if (mobile) {
+      const { rows: byMobile } = await pool.query(
+        `SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+                a.patient_name, a.patient_mobile, a.patient_gender, a.patient_dob, a.uhid, a.visit_type,
+                d.name AS doctor_name,
+                e.chief_complaint, e.symptoms, e.diagnosis, e.medications,
+                e.vitals, e.lab_investigations, e.lab_results,
+                e.advices, e.notes AS encounter_notes,
+                e.next_visit_date, e.examination_findings, e.refer_to, e.vaccinations
+         FROM emr_appointments a
+         LEFT JOIN emr_doctors    d ON d.id = a.doctor_id
+         LEFT JOIN emr_encounters e ON e.appointment_id = a.id
+         WHERE a.clinic_id=$1 AND a.patient_mobile=$2
+           AND (e.id IS NULL OR (
+             (e.symptoms IS NOT NULL AND jsonb_array_length(e.symptoms::jsonb) > 0)
+             OR (e.diagnosis IS NOT NULL AND jsonb_array_length(e.diagnosis::jsonb) > 0)
+             OR (e.medications IS NOT NULL AND jsonb_array_length(e.medications::jsonb) > 0)
+             OR (e.chief_complaint IS NOT NULL AND TRIM(e.chief_complaint) != '')
+             OR (e.vitals IS NOT NULL AND e.vitals::text != '{}' AND e.vitals::text != 'null')
+           ))
+         ORDER BY a.appointment_date DESC, a.created_at DESC LIMIT 20`,
+        [clinic_id, mobile]
+      );
+      rows = byMobile;
+    } else if (uhid) {
+      const { rows: byUhid } = await pool.query(
+        `SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+                a.patient_name, a.patient_mobile, a.patient_gender, a.patient_dob, a.uhid, a.visit_type,
+                d.name AS doctor_name,
+                e.chief_complaint, e.symptoms, e.diagnosis, e.medications,
+                e.vitals, e.lab_investigations, e.lab_results,
+                e.advices, e.notes AS encounter_notes,
+                e.next_visit_date, e.examination_findings, e.refer_to, e.vaccinations
+         FROM emr_appointments a
+         LEFT JOIN emr_doctors    d ON d.id = a.doctor_id
+         LEFT JOIN emr_encounters e ON e.appointment_id = a.id
+         WHERE a.clinic_id=$1 AND a.uhid=$2
+         ORDER BY a.appointment_date DESC LIMIT 20`,
+        [clinic_id, uhid]
+      );
+      rows = byUhid;
+    }
 
-    // Build rich context string
+    if (!rows.length) {
+      // Nothing found — return minimal context from appointment row
+      const name = apptRow?.patient_name || 'Unknown';
+      const age  = apptRow?.patient_dob ? Math.floor((Date.now() - new Date(apptRow.patient_dob)) / (365.25*24*60*60*1000)) : null;
+      return res.json({
+        patient: { id: patientId, name, age, mobile, uhid, visit_count: 0, last_visit: null, allergies: [], chronic_conditions: [], latest_vitals: null },
+        context: [`Patient: ${name}`, age ? `Age: ${age} years` : null, mobile ? `Mobile: ${mobile}` : null, uhid ? `UHID: ${uhid}` : null].filter(Boolean).join('\n'),
+      });
+    }
+
+    // Step 3: build rich context from history rows
+    const first = rows[0];
+    const patientName   = first.patient_name;
+    const patientDob    = first.patient_dob;
+    const patientGender = first.patient_gender;
+    const patientMobile = first.patient_mobile || mobile;
+    const patientUhid   = first.uhid || uhid;
+    const age = patientDob ? Math.floor((Date.now() - new Date(patientDob)) / (365.25*24*60*60*1000)) : null;
+
+    const visitRows = rows.filter(r => r.appointment_date);
+
+    // Latest vitals
+    const latestVitals = visitRows.find(r => r.vitals && r.vitals !== '{}')?.vitals || null;
+
     const lines = [
       `Patient: ${patientName}`,
-      effectiveAge ? `Age: ${effectiveAge} years` : null,
-      patientGender ? `Gender: ${patientGender === 'M' ? 'Male' : patientGender === 'F' ? 'Female' : patientGender}` : null,
-      patientMobile ? `Mobile: ${patientMobile}` : null,
-      patientUhid ? `UHID: ${patientUhid}` : null,
-      p?.blood_type ? `Blood Type: ${p.blood_type}` : null,
-      (p?.allergies?.length) ? `Allergies: ${Array.isArray(p.allergies) ? p.allergies.join(', ') : p.allergies}` : null,
-      (p?.chronic_conditions?.length) ? `Chronic Conditions: ${Array.isArray(p.chronic_conditions) ? p.chronic_conditions.join(', ') : p.chronic_conditions}` : null,
+      age             ? `Age: ${age} years`                                                                    : null,
+      patientGender   ? `Gender: ${patientGender === 'M' ? 'Male' : patientGender === 'F' ? 'Female' : patientGender}` : null,
+      patientMobile   ? `Mobile: ${patientMobile}`                                                             : null,
+      patientUhid     ? `UHID: ${patientUhid}`                                                                 : null,
     ].filter(Boolean);
 
-    if (latestVitals) {
+    if (latestVitals && typeof latestVitals === 'object') {
       const v = latestVitals;
       const vStr = [
         v.bp_systolic && v.bp_diastolic ? `BP: ${v.bp_systolic}/${v.bp_diastolic} mmHg` : null,
-        v.pulse ? `Pulse: ${v.pulse} bpm` : null,
-        v.temperature ? `Temp: ${v.temperature}°${v.temp_unit || 'F'}` : null,
-        v.spo2 ? `SpO2: ${v.spo2}%` : null,
-        v.weight ? `Weight: ${v.weight} kg` : null,
-        v.height ? `Height: ${v.height} cm` : null,
-        v.bmi ? `BMI: ${v.bmi}` : null,
-        v.rbs ? `RBS: ${v.rbs} mg/dL` : null,
+        v.pulse       ? `Pulse: ${v.pulse} bpm`                    : null,
+        v.temperature ? `Temp: ${v.temperature}°${v.temp_unit||''}`: null,
+        v.spo2        ? `SpO2: ${v.spo2}%`                         : null,
+        v.weight      ? `Weight: ${v.weight} kg`                   : null,
+        v.height      ? `Height: ${v.height} cm`                   : null,
+        v.bmi         ? `BMI: ${v.bmi}`                            : null,
+        v.rbs         ? `RBS: ${v.rbs} mg/dL`                      : null,
       ].filter(Boolean).join(', ');
       if (vStr) lines.push(`Latest Vitals: ${vStr}`);
     }
 
-    if (encounters.length) {
-      lines.push(`\nPast ${encounters.length} visit(s):`);
-      encounters.forEach((e, i) => {
-        const dateStr = e.appointment_date ? new Date(e.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Unknown date';
+    const completedVisits = visitRows.filter(r => r.diagnosis || r.medications || r.symptoms || r.chief_complaint);
+    if (completedVisits.length) {
+      lines.push(`\nPast ${completedVisits.length} visit(s):`);
+      completedVisits.forEach((r, i) => {
+        const dateStr = r.appointment_date
+          ? new Date(r.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'Unknown date';
         const parts = [];
-        if (e.diagnosis) parts.push(`Dx: ${e.diagnosis}`);
-        if (e.symptoms)  parts.push(`Sx: ${e.symptoms}`);
-        if (e.medications?.length) {
-          const meds = e.medications.slice(0, 5).map(m => m.name || m.drug_name || m).filter(Boolean);
-          if (meds.length) parts.push(`Meds: ${meds.join(', ')}`);
+        if (r.doctor_name)      parts.push(`Dr. ${r.doctor_name}`);
+        if (r.chief_complaint)  parts.push(`CC: ${r.chief_complaint}`);
+        if (r.diagnosis?.length)  {
+          const dx = Array.isArray(r.diagnosis) ? r.diagnosis.map(d => d.name || d.text || d).filter(Boolean).join(', ') : r.diagnosis;
+          if (dx) parts.push(`Dx: ${dx}`);
         }
-        if (e.lab_investigations?.length) {
-          const labs = e.lab_investigations.slice(0, 3).map(l => l.name || l).filter(Boolean);
-          if (labs.length) parts.push(`Labs: ${labs.join(', ')}`);
+        if (r.symptoms?.length) {
+          const sx = Array.isArray(r.symptoms) ? r.symptoms.map(s => s.name || s.text || s).filter(Boolean).join(', ') : r.symptoms;
+          if (sx) parts.push(`Sx: ${sx}`);
         }
+        if (r.medications?.length) {
+          const meds = Array.isArray(r.medications)
+            ? r.medications.slice(0, 5).map(m => m.name || m.drug_name || m.generic_name || m).filter(Boolean).join(', ')
+            : r.medications;
+          if (meds) parts.push(`Meds: ${meds}`);
+        }
+        if (r.lab_investigations?.length) {
+          const labs = Array.isArray(r.lab_investigations)
+            ? r.lab_investigations.slice(0, 3).map(l => l.name || l.test || l).filter(Boolean).join(', ')
+            : r.lab_investigations;
+          if (labs) parts.push(`Labs: ${labs}`);
+        }
+        if (r.advices)          parts.push(`Advice: ${r.advices}`);
+        if (r.refer_to)         parts.push(`Referred to: ${r.refer_to}`);
+        if (r.next_visit_date)  parts.push(`Next visit: ${r.next_visit_date}`);
         lines.push(`  ${i + 1}. ${dateStr}${parts.length ? ' — ' + parts.join(' | ') : ''}`);
       });
     }
@@ -269,21 +323,21 @@ exports.getPatientContext = async (req, res) => {
 
     res.json({
       patient: {
-        id: p?.id || patientId,
+        id: patientId,
         name: patientName,
-        age: effectiveAge,
+        age,
         gender: patientGender,
         mobile: patientMobile,
         uhid: patientUhid,
-        blood_type: p?.blood_type || null,
-        allergies: p?.allergies || [],
-        chronic_conditions: p?.chronic_conditions || [],
+        allergies: [],
+        chronic_conditions: [],
         latest_vitals: latestVitals,
-        visit_count: encounters.length,
-        last_visit: encounters[0]?.appointment_date || null,
+        visit_count: completedVisits.length,
+        last_visit: visitRows[0]?.appointment_date || null,
       },
       context: contextStr,
     });
+
   } catch (e) {
     logger.error('[InferAssist] getPatientContext error:', e.message);
     res.status(500).json({ error: 'Failed to load patient context' });
