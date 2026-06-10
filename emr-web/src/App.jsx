@@ -20,6 +20,8 @@ import LabPortal from './components/laboratory/LabPortal';
 import LabResultViewer from './components/laboratory/LabResultViewer';
 import AdminDashboard from './components/laboratory/AdminDashboard';
 import RxPublicView from './pages/RxPublicView';
+import Home from './pages/Home';
+import PHR  from './pages/PHR';
 
 // Super Admin Portal
 import AdminLogin        from './pages/admin/AdminLogin';
@@ -61,7 +63,7 @@ export default function App() {
           {/* Clinic Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<Protected><Layout /></Protected>}>
-            <Route index element={<Navigate to="/queue" replace />} />
+            <Route index element={<Home />} />
             <Route path="queue"              element={<Queue />} />
             <Route path="queue/setup"        element={<QueueSetup />} />
             <Route path="patients"           element={<Patients />} />
@@ -71,6 +73,7 @@ export default function App() {
             <Route path="settings"           element={<Settings />} />
             <Route path="inbound"            element={<Inbound />} />
             <Route path="analytics"          element={<Analytics />} />
+            <Route path="phr"                element={<PHR />} />
 
             {/* Doctor: View patient lab results (inside clinic layout) */}
             <Route path="patients/:patientId/lab-results" element={<LabResultViewer />} />

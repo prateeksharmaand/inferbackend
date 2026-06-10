@@ -1,9 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutList, Mic2, CreditCard, BarChart2, ShieldPlus, Settings, LogOut, PhoneIncoming } from 'lucide-react';
+import { LayoutList, Mic2, CreditCard, BarChart2, ShieldPlus, Settings, LogOut, PhoneIncoming, Home } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 const NAV = [
+  { to: '/',         Icon: Home,          label: 'Home',    end: true },
   { to: '/queue',    Icon: LayoutList,    label: 'Queue' },
   { to: '/voice',    Icon: Mic2,          label: 'Infer Voice AI' },
   { to: '/inbound',  Icon: PhoneIncoming, label: 'Inbound Booking' },
@@ -29,9 +30,9 @@ export default function Sidebar() {
       </div>
 
       <nav className={styles.nav}>
-        {NAV.map(({ to, Icon, label }) => (
+        {NAV.map(({ to, Icon, label, end }) => (
           <NavLink
-            key={to} to={to}
+            key={to} to={to} end={end}
             className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
             title={label}
           >
