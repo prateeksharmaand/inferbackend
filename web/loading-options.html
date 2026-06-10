@@ -3,442 +3,489 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Infer — Loading Animation Options</title>
+  <title>Infer Care — Loading Screen</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: 'Poppins', sans-serif;
-      background: #0f0e1a;
-      color: #fff;
-      min-height: 100vh;
-      padding: 40px 20px;
-    }
-
-    :root {
-      --p:  #7B6EF6;
-      --p2: #9C8FFA;
-      --p3: #B8AEFB;
-      --d1: #3A2ED4;
-      --d2: #6657E8;
-    }
-
-    h1 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 8px; color: #fff; }
-    .subtitle { text-align: center; font-size: 14px; color: rgba(255,255,255,.5); margin-bottom: 48px; }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-      gap: 24px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .option {
-      background: rgba(255,255,255,.04);
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 20px;
+      background: #08071a;
       overflow: hidden;
-    }
-    .option-label {
-      padding: 14px 20px;
-      border-bottom: 1px solid rgba(255,255,255,.08);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .option-num { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--p3); text-transform: uppercase; }
-    .option-name { font-size: 14px; font-weight: 600; color: #fff; }
-    .preview {
-      height: 280px;
+      width: 100vw; height: 100vh;
       display: flex; align-items: center; justify-content: center;
-      position: relative; overflow: hidden;
     }
 
-    /* ════════════════════════════════════════════
-       OPTION 1 — Orbiting Dots
-    ════════════════════════════════════════════ */
-    .loader1 { position: relative; width: 120px; height: 120px; }
-    .l1-center {
+    /* ── Animated grid canvas ────────────────────────────────────── */
+    #gridCanvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Floating medical icons ──────────────────────────────────── */
+    .med-float {
+      position: fixed; font-size: 22px; opacity: 0;
+      animation: medFloat 6s ease-in-out infinite;
+      pointer-events: none; z-index: 1; filter: blur(.5px);
+    }
+    .med-f1  { top: 12%; left: 8%;   animation-delay: 0s;    font-size: 18px; }
+    .med-f2  { top: 20%; right: 10%; animation-delay: 1.2s;  font-size: 20px; }
+    .med-f3  { top: 55%; left: 5%;   animation-delay: 2.4s;  font-size: 16px; }
+    .med-f4  { top: 70%; right: 8%;  animation-delay: 0.6s;  font-size: 18px; }
+    .med-f5  { top: 82%; left: 18%;  animation-delay: 3.6s;  font-size: 14px; }
+    .med-f6  { top: 35%; right: 6%;  animation-delay: 1.8s;  font-size: 16px; }
+    .med-f7  { top: 88%; right: 20%; animation-delay: 2.8s;  font-size: 20px; }
+    .med-f8  { top: 10%; left: 30%;  animation-delay: 4.2s;  font-size: 14px; }
+    @keyframes medFloat {
+      0%,100% { opacity: 0;    transform: translateY(0px) scale(.9); }
+      20%,80% { opacity: .18;  transform: translateY(-8px) scale(1); }
+      50%      { opacity: .28;  transform: translateY(-16px) scale(1.05); }
+    }
+
+    /* ── Cross pulse corners ─────────────────────────────────────── */
+    .cross-corner {
+      position: fixed; width: 28px; height: 28px; opacity: .25;
+      animation: crossPulse 2s ease-in-out infinite;
+    }
+    .cross-corner::before, .cross-corner::after {
+      content: ''; position: absolute; background: rgba(123,110,246,.7); border-radius: 2px;
+    }
+    .cross-corner::before { width: 4px; height: 100%; left: 50%; transform: translateX(-50%); }
+    .cross-corner::after  { height: 4px; width: 100%; top: 50%; transform: translateY(-50%); }
+    .cc-tl { top: 28px; left: 28px; }
+    .cc-tr { top: 28px; right: 28px; }
+    .cc-bl { bottom: 28px; left: 28px; }
+    .cc-br { bottom: 28px; right: 28px; }
+    @keyframes crossPulse {
+      0%,100% { opacity: .15; transform: scale(1); }
+      50%      { opacity: .4;  transform: scale(1.15); }
+    }
+    .cc-tr { animation-delay: .5s; }
+    .cc-bl { animation-delay: 1s; }
+    .cc-br { animation-delay: 1.5s; }
+
+    /* ── Center card ─────────────────────────────────────────────── */
+    .center-card {
+      position: relative; z-index: 10;
+      display: flex; flex-direction: column; align-items: center; gap: 24px;
+      padding: 44px 52px 36px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(123,110,246,.2);
+      border-radius: 28px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 0 80px rgba(58,46,212,.2), inset 0 1px 0 rgba(255,255,255,.06);
+      min-width: 380px; max-width: 460px;
+    }
+
+    /* ── Logo ring ───────────────────────────────────────────────── */
+    .logo-ring-wrap { position: relative; width: 96px; height: 96px; }
+    .logo-ring-svg  { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .ring-track  { stroke: rgba(123,110,246,.12); }
+    .ring-fill   {
+      stroke: url(#rg); stroke-dasharray: 276; stroke-dashoffset: 60;
+      transform-origin: center; transform: rotate(-90deg);
+      animation: ringRotate 3s linear infinite;
+      filter: drop-shadow(0 0 4px rgba(123,110,246,.6));
+    }
+    @keyframes ringRotate { to { transform: rotate(270deg); } }
+
+    .logo-icon {
       position: absolute; inset: 0; margin: auto;
-      width: 44px; height: 44px; border-radius: 12px;
-      background: linear-gradient(135deg, var(--d1), var(--p));
+      width: 52px; height: 52px; border-radius: 15px;
+      background: linear-gradient(135deg, #3A2ED4, #7B6EF6);
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px; font-weight: 800; color: #fff;
-      box-shadow: 0 0 32px rgba(123,110,246,.6);
-      animation: l1pulse 2s ease-in-out infinite;
+      font-size: 24px; font-weight: 800; color: #fff;
+      box-shadow: 0 0 28px rgba(58,46,212,.7);
+      animation: logoPulse 2s ease-in-out infinite;
     }
-    @keyframes l1pulse {
-      0%,100% { box-shadow: 0 0 20px rgba(123,110,246,.5); transform: scale(1); }
-      50%      { box-shadow: 0 0 40px rgba(123,110,246,.9); transform: scale(1.05); }
+    @keyframes logoPulse {
+      0%,100% { box-shadow: 0 0 20px rgba(58,46,212,.5); }
+      50%      { box-shadow: 0 0 40px rgba(123,110,246,.8); }
     }
-    .l1-orbit {
-      position: absolute; inset: 0;
-      animation: l1spin 2.4s linear infinite;
+    .logo-pulse-ring {
+      position: absolute; inset: -8px; border-radius: 22px;
+      border: 1.5px solid rgba(123,110,246,.4);
+      animation: pulseRingExpand 2s ease-out infinite;
     }
-    .l1-orbit::before, .l1-orbit::after {
-      content: '';
-      position: absolute; top: 50%; left: 50%;
-      width: 12px; height: 12px; border-radius: 50%;
-      background: var(--p2);
-      transform-origin: 0 0;
-    }
-    .l1-orbit::before { transform: translate(-50%,-50%) translateX(52px); }
-    .l1-orbit::after  { transform: translate(-50%,-50%) translateX(-52px); background: var(--p3); width: 8px; height: 8px; }
-    @keyframes l1spin { to { transform: rotate(360deg); } }
-
-    .l1-orbit2 {
-      position: absolute; inset: 0;
-      animation: l1spin 1.8s linear infinite reverse;
-    }
-    .l1-orbit2::before {
-      content: '';
-      position: absolute; top: 50%; left: 50%;
-      width: 7px; height: 7px; border-radius: 50%;
-      background: #fff;
-      transform: translate(-50%,-50%) translateY(50px);
-      transform-origin: 0 0;
+    @keyframes pulseRingExpand {
+      0%   { transform: scale(1); opacity: .6; }
+      100% { transform: scale(1.4); opacity: 0; }
     }
 
-    .l1-text {
-      position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%);
-      font-size: 13px; font-weight: 600; color: rgba(255,255,255,.7);
-      white-space: nowrap;
-      animation: fadeUpDown 1.6s ease-in-out infinite;
+    /* ── Brand name ──────────────────────────────────────────────── */
+    .brand-wrap { text-align: center; }
+    .brand-name {
+      font-size: 22px; font-weight: 800; letter-spacing: -.3px; color: #fff;
+      line-height: 1.2;
     }
-    @keyframes fadeUpDown {
-      0%,100% { opacity: .5; } 50% { opacity: 1; }
+    .brand-name span {
+      background: linear-gradient(135deg, #7B6EF6, #B8AEFB);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .brand-sub { font-size: 11px; color: rgba(255,255,255,.4); margin-top: 4px; letter-spacing: .4px; }
+
+    /* ── ECG line ────────────────────────────────────────────────── */
+    .ecg-wrap {
+      width: 100%; height: 48px; position: relative; overflow: hidden;
+    }
+    .ecg-wrap::before, .ecg-wrap::after {
+      content: ''; position: absolute; top: 0; width: 48px; height: 100%; z-index: 2;
+    }
+    .ecg-wrap::before { left: 0;  background: linear-gradient(to right, #08071a, transparent); }
+    .ecg-wrap::after  { right: 0; background: linear-gradient(to left,  #08071a, transparent); }
+
+    .ecg-svg {
+      width: 900px; height: 48px; position: absolute; left: 0;
+      animation: ecgScroll 2s linear infinite;
+    }
+    @keyframes ecgScroll { from { transform: translateX(0); } to { transform: translateX(-450px); } }
+
+    /* Scanning dot on ECG -->*/
+    .ecg-dot {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #9C8FFA;
+      box-shadow: 0 0 10px #7B6EF6, 0 0 20px rgba(123,110,246,.5);
+      animation: dotScan 2s linear infinite;
+      z-index: 3;
+    }
+    @keyframes dotScan {
+      0%   { left: 0%;   opacity: 0; }
+      5%   { opacity: 1; }
+      95%  { opacity: 1; }
+      100% { left: 100%; opacity: 0; }
     }
 
-    /* ════════════════════════════════════════════
-       OPTION 2 — Gradient Ring Spinner
-    ════════════════════════════════════════════ */
-    .loader2-wrap { display: flex; flex-direction: column; align-items: center; gap: 24px; }
-    .loader2 {
-      width: 90px; height: 90px; position: relative;
+    /* ── Vitals row ──────────────────────────────────────────────── */
+    .vitals-row {
+      display: flex; align-items: center; gap: 0; width: 100%;
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+      border-radius: 12px; overflow: hidden;
     }
-    .l2-ring {
-      position: absolute; inset: 0; border-radius: 50%;
-      border: 4px solid transparent;
-      background: conic-gradient(from 0deg, #3A2ED4, #7B6EF6, #9C8FFA, transparent, transparent) border-box;
-      -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: destination-out; mask-composite: exclude;
-      animation: l2spin 1.1s linear infinite;
+    .vital-cell {
+      flex: 1; padding: 8px 0; text-align: center;
     }
-    @keyframes l2spin { to { transform: rotate(360deg); } }
-    .l2-inner {
-      position: absolute; inset: 12px; border-radius: 50%;
-      background: rgba(123,110,246,.12);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; font-weight: 800; color: var(--p2);
+    .vital-cell + .vital-cell { border-left: 1px solid rgba(255,255,255,.06); }
+    .vital-val {
+      font-size: 13px; font-weight: 700; color: #fff; display: flex;
+      align-items: center; justify-content: center; gap: 4px;
+      animation: vitalBlink 2s ease-in-out infinite;
     }
-    .l2-text { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -.2px; }
-    .l2-sub { font-size: 12px; color: rgba(255,255,255,.45); margin-top: 2px; text-align: center; }
+    .vital-val:nth-child(1) { animation-delay: 0s; }
+    @keyframes vitalBlink {
+      0%,100% { opacity: .8; }
+      50%      { opacity: 1; }
+    }
+    .vital-label { font-size: 9px; color: rgba(255,255,255,.35); margin-top: 2px; letter-spacing: .4px; text-transform: uppercase; }
+    .vital-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: vDot 1s ease-in-out infinite alternate; }
+    @keyframes vDot { from { opacity: .4; transform: scale(.8); } to { opacity: 1; transform: scale(1.2); } }
 
-    /* ════════════════════════════════════════════
-       OPTION 3 — ECG / Heartbeat Line
-    ════════════════════════════════════════════ */
-    .loader3-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
-    .l3-logo {
-      width: 48px; height: 48px; border-radius: 14px;
-      background: linear-gradient(135deg, var(--d1), var(--p));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; font-weight: 800; color: #fff;
-      box-shadow: 0 0 24px rgba(123,110,246,.5);
+    /* ── Progress bar ────────────────────────────────────────────── */
+    .prog-wrap { width: 100%; }
+    .prog-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px; font-size: 11px; color: rgba(255,255,255,.4);
     }
-    .l3-ecg-wrap {
-      width: 220px; height: 50px; overflow: hidden; position: relative;
+    .prog-track {
+      height: 4px; background: rgba(255,255,255,.08); border-radius: 10px; overflow: hidden;
     }
-    .l3-ecg-wrap::before, .l3-ecg-wrap::after {
-      content: '';
-      position: absolute; top: 0; width: 40px; height: 100%; z-index: 2;
-    }
-    .l3-ecg-wrap::before { left: 0; background: linear-gradient(to right, #0f0e1a, transparent); }
-    .l3-ecg-wrap::after  { right: 0; background: linear-gradient(to left,  #0f0e1a, transparent); }
-    svg.l3-ecg {
-      width: 440px; height: 50px;
-      animation: l3slide 1.8s linear infinite;
-    }
-    @keyframes l3slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-    .l3-path {
-      fill: none; stroke: url(#ecgGrad); stroke-width: 2.5;
-      stroke-linecap: round; stroke-linejoin: round;
-    }
-    .l3-text { font-size: 14px; font-weight: 600; color: #fff; }
-    .l3-sub  { font-size: 11px; color: rgba(255,255,255,.4); margin-top: 2px; text-align: center; }
-
-    /* ════════════════════════════════════════════
-       OPTION 4 — Staggered Bars
-    ════════════════════════════════════════════ */
-    .loader4-wrap { display: flex; flex-direction: column; align-items: center; gap: 28px; }
-    .l4-bars {
-      display: flex; align-items: flex-end; gap: 6px; height: 52px;
-    }
-    .l4-bar {
-      width: 10px; border-radius: 5px;
-      background: linear-gradient(to top, var(--d1), var(--p3));
-      animation: l4bounce 1.2s ease-in-out infinite;
-    }
-    .l4-bar:nth-child(1) { animation-delay: 0s; }
-    .l4-bar:nth-child(2) { animation-delay: .15s; }
-    .l4-bar:nth-child(3) { animation-delay: .3s; }
-    .l4-bar:nth-child(4) { animation-delay: .45s; }
-    .l4-bar:nth-child(5) { animation-delay: .6s; }
-    .l4-bar:nth-child(6) { animation-delay: .45s; }
-    .l4-bar:nth-child(7) { animation-delay: .3s; }
-    @keyframes l4bounce {
-      0%,100% { height: 14px; opacity: .5; }
-      50%      { height: 52px; opacity: 1; }
-    }
-    .l4-logo-row { display: flex; align-items: center; gap: 10px; }
-    .l4-logo-icon {
-      width: 36px; height: 36px; border-radius: 10px;
-      background: linear-gradient(135deg, var(--d1), var(--p));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 17px; font-weight: 800; color: #fff;
-    }
-    .l4-brand { font-size: 16px; font-weight: 700; color: #fff; }
-
-    /* ════════════════════════════════════════════
-       OPTION 5 — Morphing Blobs + Progress
-    ════════════════════════════════════════════ */
-    .loader5-wrap { display: flex; flex-direction: column; align-items: center; gap: 28px; }
-    .l5-blob-ring {
-      position: relative; width: 100px; height: 100px;
-    }
-    .l5-blob {
-      position: absolute; border-radius: 50%;
-      animation: l5morph 3s ease-in-out infinite;
-    }
-    .l5-blob-1 {
-      width: 70px; height: 70px; background: rgba(58,46,212,.5);
-      top: 0; left: 0; animation-delay: 0s;
-    }
-    .l5-blob-2 {
-      width: 55px; height: 55px; background: rgba(123,110,246,.5);
-      bottom: 0; right: 0; animation-delay: .8s;
-    }
-    .l5-blob-3 {
-      width: 45px; height: 45px; background: rgba(156,143,250,.4);
-      top: 50%; left: 50%; transform: translate(-50%,-50%);
-      animation-delay: 1.6s;
-    }
-    @keyframes l5morph {
-      0%,100% { border-radius: 50% 40% 60% 30% / 40% 60% 30% 50%; transform: scale(1); }
-      33%      { border-radius: 30% 60% 40% 50% / 60% 30% 50% 40%; transform: scale(1.1) rotate(30deg); }
-      66%      { border-radius: 60% 30% 50% 40% / 30% 50% 40% 60%; transform: scale(0.95) rotate(-20deg); }
-    }
-    .l5-center {
-      position: absolute; inset: 0; margin: auto;
-      width: 42px; height: 42px; border-radius: 12px;
-      background: #0f0e1a; display: flex; align-items: center; justify-content: center;
-      font-size: 18px; font-weight: 800; color: #fff; z-index: 2;
-    }
-    .l5-progress-wrap { width: 200px; }
-    .l5-progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,.5); }
-    .l5-progress-track {
-      height: 5px; background: rgba(255,255,255,.1); border-radius: 10px; overflow: hidden;
-    }
-    .l5-progress-fill {
+    .prog-fill {
       height: 100%; border-radius: 10px;
-      background: linear-gradient(90deg, var(--d1), var(--p), var(--p3));
+      background: linear-gradient(90deg, #3A2ED4, #7B6EF6, #B8AEFB);
       background-size: 200% 100%;
-      animation: l5fill 2.4s ease-in-out infinite alternate, l5shimmer 1.2s linear infinite;
+      animation: progGrow 3s ease-in-out infinite alternate, progShimmer 1.5s linear infinite;
     }
-    @keyframes l5fill    { from { width: 20%; } to { width: 90%; } }
-    @keyframes l5shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0% 0; } }
-    .l5-text { font-size: 14px; font-weight: 700; color: #fff; text-align: center; }
-    .l5-sub  { font-size: 11px; color: rgba(255,255,255,.4); margin-top: 2px; text-align: center; }
+    @keyframes progGrow    { from { width: 15%; } to { width: 92%; } }
+    @keyframes progShimmer { from { background-position: 100%; } to { background-position: 0%; } }
 
-    /* BG glow behind each preview */
-    .preview::before {
-      content: '';
-      position: absolute; width: 300px; height: 300px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(123,110,246,.12), transparent 70%);
-      pointer-events: none;
+    .prog-msg {
+      margin-top: 10px; font-size: 11px; color: rgba(255,255,255,.35);
+      text-align: center; min-height: 16px;
+      animation: fadeUpDown 1.8s ease-in-out infinite;
     }
+    @keyframes fadeUpDown { 0%,100% { opacity: .4; } 50% { opacity: .9; } }
 
-    .pick-btn {
-      display: block; width: calc(100% - 32px); margin: 0 16px 16px;
-      padding: 10px; background: rgba(123,110,246,.15); border: 1px solid rgba(123,110,246,.35);
-      border-radius: 10px; color: var(--p3); font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: all .15s; font-family: 'Poppins', sans-serif;
-      text-align: center;
+    /* ── Particle dots (DNA-style) ───────────────────────────────── */
+    .dna-dots {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
     }
-    .pick-btn:hover { background: rgba(123,110,246,.3); border-color: var(--p); color: #fff; }
+    .dna-dot {
+      position: absolute; border-radius: 50%;
+      background: radial-gradient(circle, rgba(123,110,246,.6), transparent);
+      animation: dnaDrift linear infinite;
+    }
   </style>
 </head>
 <body>
 
-<h1>Infer — Loading Animation Options</h1>
-<p class="subtitle">5 options matching your purple/indigo brand — pick your favourite</p>
+<!-- Grid canvas -->
+<canvas id="gridCanvas"></canvas>
 
-<div class="grid">
+<!-- Medical floating icons -->
+<div class="med-float med-f1">💊</div>
+<div class="med-float med-f2">🩺</div>
+<div class="med-float med-f3">🧬</div>
+<div class="med-float med-f4">🔬</div>
+<div class="med-float med-f5">🩻</div>
+<div class="med-float med-f6">💉</div>
+<div class="med-float med-f7">🫀</div>
+<div class="med-float med-f8">🧪</div>
 
-  <!-- ── OPTION 1 ── Orbiting Dots -->
-  <div class="option">
-    <div class="option-label">
-      <span class="option-num">Option 01</span>
-      <span class="option-name">Orbiting Dots</span>
+<!-- Cross corners -->
+<div class="cross-corner cc-tl"></div>
+<div class="cross-corner cc-tr"></div>
+<div class="cross-corner cc-bl"></div>
+<div class="cross-corner cc-br"></div>
+
+<!-- Particle canvas -->
+<canvas id="particleCanvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
+
+<!-- Center card -->
+<div class="center-card">
+
+  <!-- Logo with rotating ring -->
+  <div class="logo-ring-wrap">
+    <svg class="logo-ring-svg" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#3A2ED4"/>
+          <stop offset="100%" stop-color="#9C8FFA"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="44" fill="none" stroke-width="1.5" class="ring-track"/>
+      <circle cx="50" cy="50" r="44" fill="none" stroke-width="2.5" class="ring-fill"/>
+    </svg>
+    <div class="logo-icon">
+      I
+      <div class="logo-pulse-ring"></div>
     </div>
-    <div class="preview">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:52px;">
-        <div class="loader1">
-          <div class="l1-orbit"></div>
-          <div class="l1-orbit2"></div>
-          <div class="l1-center">I</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:15px;font-weight:700;color:#fff;">Infer Care</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;animation:fadeUpDown 1.6s ease-in-out infinite;">Loading your clinic…</div>
-        </div>
-      </div>
-    </div>
-    <button class="pick-btn" onclick="pickOption(1)">✓ Use This Animation</button>
   </div>
 
-  <!-- ── OPTION 2 ── Gradient Ring -->
-  <div class="option">
-    <div class="option-label">
-      <span class="option-num">Option 02</span>
-      <span class="option-name">Gradient Ring Spinner</span>
-    </div>
-    <div class="preview">
-      <div class="loader2-wrap">
-        <div class="loader2">
-          <div class="l2-ring"></div>
-          <div class="l2-inner">I</div>
-        </div>
-        <div>
-          <div class="l2-text">Infer Care</div>
-          <div class="l2-sub">Initialising your workspace…</div>
-        </div>
-      </div>
-    </div>
-    <button class="pick-btn" onclick="pickOption(2)">✓ Use This Animation</button>
+  <!-- Brand -->
+  <div class="brand-wrap">
+    <div class="brand-name">Infer <span>Care</span></div>
+    <div class="brand-sub">AI-NATIVE CLINICAL MANAGEMENT</div>
   </div>
 
-  <!-- ── OPTION 3 ── ECG Heartbeat -->
-  <div class="option">
-    <div class="option-label">
-      <span class="option-num">Option 03</span>
-      <span class="option-name">ECG Heartbeat Line</span>
-    </div>
-    <div class="preview">
-      <div class="loader3-wrap">
-        <div class="l3-logo">I</div>
-        <div class="l3-ecg-wrap">
-          <svg class="l3-ecg" viewBox="0 0 440 50" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="ecgGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%"   stop-color="#3A2ED4"/>
-                <stop offset="50%"  stop-color="#9C8FFA"/>
-                <stop offset="100%" stop-color="#3A2ED4"/>
-              </linearGradient>
-            </defs>
-            <!-- ECG pattern repeated twice for seamless loop -->
-            <polyline class="l3-path" points="
-              0,25 15,25 20,25 25,10 30,40 35,5 40,45 45,25 55,25
-              65,25 70,25 75,12 80,38 85,8 90,42 95,25 105,25
-              115,25 120,25 125,10 130,40 135,5 140,45 145,25 155,25
-              165,25 170,25 175,12 180,38 185,8 190,42 195,25 205,25
-              220,25
-            "/>
-            <!-- Second copy for seamless scroll -->
-            <polyline class="l3-path" points="
-              220,25 235,25 240,25 245,10 250,40 255,5 260,45 265,25 275,25
-              285,25 290,25 295,12 300,38 305,8 310,42 315,25 325,25
-              335,25 340,25 345,10 350,40 355,5 360,45 365,25 375,25
-              385,25 390,25 395,12 400,38 405,8 410,42 415,25 425,25
-              440,25
-            "/>
-          </svg>
-        </div>
-        <div>
-          <div class="l3-text">Infer Care</div>
-          <div class="l3-sub">AI-powered clinic management</div>
-        </div>
-      </div>
-    </div>
-    <button class="pick-btn" onclick="pickOption(3)">✓ Use This Animation</button>
+  <!-- ECG line -->
+  <div class="ecg-wrap">
+    <svg class="ecg-svg" viewBox="0 0 900 48" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="eg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#3A2ED4" stop-opacity="0"/>
+          <stop offset="15%"  stop-color="#7B6EF6"/>
+          <stop offset="50%"  stop-color="#B8AEFB"/>
+          <stop offset="85%"  stop-color="#7B6EF6"/>
+          <stop offset="100%" stop-color="#3A2ED4" stop-opacity="0"/>
+        </linearGradient>
+        <filter id="eg-glow">
+          <feGaussianBlur stdDeviation="1.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <line x1="0" y1="24" x2="900" y2="24" stroke="rgba(123,110,246,.1)" stroke-width="1"/>
+      <!-- ECG repeating pattern (450px × 2 for seamless scroll) -->
+      <polyline filter="url(#eg-glow)" fill="none" stroke="url(#eg)" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round"
+        points="
+          0,24  25,24  35,24  44,9   50,39  55,3   61,45  67,24  80,24
+          105,24 115,24 124,9 130,39 135,3 141,45 147,24 160,24
+          185,24 195,24 204,9 210,39 215,3 221,45 227,24 240,24
+          265,24 275,24 284,9 290,39 295,3 301,45 307,24 320,24
+          345,24 355,24 364,9 370,39 375,3 381,45 387,24 400,24
+          425,24 435,24 444,9 450,39 455,3 461,45 467,24 450,24
+
+          450,24 475,24 485,24 494,9 500,39 505,3 511,45 517,24 530,24
+          555,24 565,24 574,9 580,39 585,3 591,45 597,24 610,24
+          635,24 645,24 654,9 660,39 665,3 671,45 677,24 690,24
+          715,24 725,24 734,9 740,39 745,3 751,45 757,24 770,24
+          795,24 805,24 814,9 820,39 825,3 831,45 837,24 850,24
+          875,24 885,24 894,9 900,24
+        "/>
+    </svg>
+    <div class="ecg-dot"></div>
   </div>
 
-  <!-- ── OPTION 4 ── Staggered Bars -->
-  <div class="option">
-    <div class="option-label">
-      <span class="option-num">Option 04</span>
-      <span class="option-name">Staggered Bars</span>
+  <!-- Vitals row -->
+  <div class="vitals-row">
+    <div class="vital-cell">
+      <div class="vital-val"><div class="vital-dot"></div> <span id="bpmVal">72</span></div>
+      <div class="vital-label">Heart Rate</div>
     </div>
-    <div class="preview">
-      <div class="loader4-wrap">
-        <div class="l4-bars">
-          <div class="l4-bar"></div>
-          <div class="l4-bar"></div>
-          <div class="l4-bar"></div>
-          <div class="l4-bar"></div>
-          <div class="l4-bar"></div>
-          <div class="l4-bar"></div>
-          <div class="l4-bar"></div>
-        </div>
-        <div class="l4-logo-row">
-          <div class="l4-logo-icon">I</div>
-          <div>
-            <div class="l4-brand">Infer Care</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.4);">Doctor Management</div>
-          </div>
-        </div>
-      </div>
+    <div class="vital-cell">
+      <div class="vital-val">🩸 120/80</div>
+      <div class="vital-label">Blood Pressure</div>
     </div>
-    <button class="pick-btn" onclick="pickOption(4)">✓ Use This Animation</button>
+    <div class="vital-cell">
+      <div class="vital-val">🫁 98%</div>
+      <div class="vital-label">SpO₂</div>
+    </div>
+    <div class="vital-cell">
+      <div class="vital-val">🌡️ 37.1°</div>
+      <div class="vital-label">Temperature</div>
+    </div>
   </div>
 
-  <!-- ── OPTION 5 ── Morphing Blobs -->
-  <div class="option">
-    <div class="option-label">
-      <span class="option-num">Option 05</span>
-      <span class="option-name">Morphing Blobs + Progress</span>
+  <!-- Progress -->
+  <div class="prog-wrap">
+    <div class="prog-header">
+      <span>Loading</span>
+      <span id="pct">0%</span>
     </div>
-    <div class="preview">
-      <div class="loader5-wrap">
-        <div class="l5-blob-ring">
-          <div class="l5-blob l5-blob-1"></div>
-          <div class="l5-blob l5-blob-2"></div>
-          <div class="l5-blob l5-blob-3"></div>
-          <div class="l5-center">I</div>
-        </div>
-        <div class="l5-text">Infer Care</div>
-        <div class="l5-progress-wrap">
-          <div class="l5-progress-label">
-            <span>Loading</span><span style="animation:fadeUpDown 1.6s ease-in-out infinite;">Please wait…</span>
-          </div>
-          <div class="l5-progress-track">
-            <div class="l5-progress-fill"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <button class="pick-btn" onclick="pickOption(5)">✓ Use This Animation</button>
+    <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+    <div class="prog-msg" id="progMsg">Initialising AI engine…</div>
   </div>
 
-</div>
-
-<!-- Result -->
-<div id="result" style="display:none;margin:32px auto;max-width:700px;padding:20px 28px;background:rgba(123,110,246,.15);border:1px solid rgba(123,110,246,.4);border-radius:16px;text-align:center;">
-  <div id="result-text" style="font-size:15px;font-weight:600;color:#fff;"></div>
-  <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:6px;">Tell the developer which option number you picked and they'll implement it.</div>
 </div>
 
 <script>
-function pickOption(n) {
-  const names = {
-    1: 'Option 1 — Orbiting Dots',
-    2: 'Option 2 — Gradient Ring Spinner',
-    3: 'Option 3 — ECG Heartbeat Line',
-    4: 'Option 4 — Staggered Bars',
-    5: 'Option 5 — Morphing Blobs + Progress Bar',
-  };
-  document.getElementById('result').style.display = 'block';
-  document.getElementById('result-text').textContent = '✓ You selected: ' + names[n];
-  document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
+/* ── Animated grid ────────────────────────────────────────── */
+(function() {
+  const canvas = document.getElementById('gridCanvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H, t = 0;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const cellSize = 48;
+    const cols = Math.ceil(W / cellSize) + 2;
+    const rows = Math.ceil(H / cellSize) + 2;
+    const offX = (t * 12) % cellSize;
+    const offY = (t *  6) % cellSize;
+
+    for (let r = -1; r < rows; r++) {
+      for (let c = -1; c < cols; c++) {
+        const x = c * cellSize - offX;
+        const y = r * cellSize - offY;
+        // Distance from center
+        const dx = (x + cellSize/2) - W/2;
+        const dy = (y + cellSize/2) - H/2;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const maxDist = Math.sqrt((W/2)*(W/2) + (H/2)*(H/2));
+        const fade = 1 - dist / maxDist;
+        const pulse = 0.3 + 0.2 * Math.sin(t * 1.5 + dist * 0.01);
+        const alpha = fade * pulse * 0.6;
+
+        ctx.strokeStyle = `rgba(123,110,246,${alpha.toFixed(3)})`;
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+
+        // Dot at intersection
+        if (Math.random() < 0.002) {
+          ctx.fillStyle = `rgba(156,143,250,${(alpha * 1.5).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    t += 0.008;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ── Particle system ──────────────────────────────────────── */
+(function() {
+  const canvas = document.getElementById('particleCanvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H;
+  const particles = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  for (let i = 0; i < 40; i++) {
+    particles.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: Math.random() * 2.5 + 0.5,
+      vx: (Math.random() - .5) * .4,
+      vy: (Math.random() - .5) * .4,
+      alpha: Math.random() * .5 + .1,
+      hue: 240 + Math.random() * 40,
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W;
+      if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H;
+      if (p.y > H) p.y = 0;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 80%, 70%, ${p.alpha})`;
+      ctx.fill();
+    });
+
+    // Draw connecting lines between close particles
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const d  = Math.sqrt(dx*dx + dy*dy);
+        if (d < 90) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(123,110,246,${(1 - d/90) * 0.15})`;
+          ctx.lineWidth = 0.7;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ── BPM animation ────────────────────────────────────────── */
+(function() {
+  const bpmEl = document.getElementById('bpmVal');
+  const base = 72;
+  setInterval(() => {
+    bpmEl.textContent = base + Math.floor(Math.random() * 5 - 2);
+  }, 1200);
+})();
+
+/* ── Progress messages ────────────────────────────────────── */
+(function() {
+  const msgs = [
+    'Initialising AI engine…',
+    'Loading patient modules…',
+    'Connecting to clinic data…',
+    'Syncing EMR records…',
+    'Preparing prescription writer…',
+    'Starting InferAssist…',
+    'Almost ready…',
+  ];
+  let i = 0;
+  const el = document.getElementById('progMsg');
+  const pct = document.getElementById('pct');
+  const fill = document.getElementById('progFill');
+
+  setInterval(() => {
+    i = (i + 1) % msgs.length;
+    el.textContent = msgs[i];
+    const p = Math.min(95, Math.round((i / msgs.length) * 100 + Math.random() * 15));
+    pct.textContent = p + '%';
+  }, 1800);
+})();
 </script>
 
 </body>
