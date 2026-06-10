@@ -4,12 +4,13 @@ One per sequence step — each with a different focus and design.
 Theme: #7B6EF6 purple, Poppins font, matching inferapp.online
 """
 
-YOUTUBE_LINK  = "https://www.youtube.com/watch?v=dukqzJ1rh1Y&t=234s"
-CALENDLY_LINK = "https://calendly.com/prateeksharmaand/30min"
-WEBSITE_LINK  = "https://inferapp.online"
-SUPPORT_EMAIL = "support@inferapp.online"
-PHONE         = "+91 96502 69758"
-WHATSAPP      = "https://wa.me/919650269758"
+YOUTUBE_LINK   = "https://www.youtube.com/watch?v=dukqzJ1rh1Y&t=234s"
+CALENDLY_LINK  = "https://calendly.com/prateeksharmaand/30min"
+WEBSITE_LINK   = "https://inferapp.online"
+SUPPORT_EMAIL  = "support@inferapp.online"
+PHONE          = "+91 96502 69758"
+WHATSAPP       = "https://wa.me/919650269758"
+TRACKING_BASE  = "https://api.inferapp.online/api/track/open"
 
 # ── Shared components ─────────────────────────────────────────────────────────
 
@@ -349,7 +350,7 @@ TEMPLATES = {1: template_1, 4: template_2, 8: template_3, 14: template_4}
 
 def render(subject: str, body_text: str, clinic_name: str = "",
            doctor_name: str = "", specialty: str = "General Physician",
-           step: int = 1) -> tuple[str, str]:
+           step: int = 1, lead_hash: str = "") -> tuple[str, str]:
     fn = TEMPLATES.get(step, template_1)
     html = fn(
         doctor_name=doctor_name or "Doctor",
@@ -357,4 +358,10 @@ def render(subject: str, body_text: str, clinic_name: str = "",
         specialty=specialty,
         body_text=body_text,
     )
+
+    # Embed tracking pixel before </body>
+    if lead_hash:
+        pixel = f'<img src="{TRACKING_BASE}?lid={lead_hash}" width="1" height="1" style="display:none;" alt=""/>'
+        html = html.replace("</body>", f"{pixel}\n</body>")
+
     return html, body_text

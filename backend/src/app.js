@@ -56,6 +56,12 @@ app.use('/api/v1', v1Routes);
 // Super Admin Portal API
 app.use('/api/admin', require('./emr/admin.routes'));
 
+// Email open tracking (public — no auth)
+const track = require('./emr/emr.track.controller');
+app.get('/api/track/open',          track.trackOpen);
+app.get('/api/track/opened-leads',  track.getOpenedLeads);
+app.post('/api/track/register',     track.registerLead);
+
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 

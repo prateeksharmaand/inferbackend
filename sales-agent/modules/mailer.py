@@ -84,6 +84,11 @@ def is_blocked(email: str) -> bool:
     return False
 
 
+def generate_lead_hash(email: str) -> str:
+    import hashlib
+    return hashlib.sha256(email.lower().encode()).hexdigest()[:32]
+
+
 def send_email(to_email: str, subject: str, body: str, clinic_name: str = "",
                doctor_name: str = "", specialty: str = "", step: int = 1) -> bool:
     """
@@ -101,9 +106,12 @@ def send_email(to_email: str, subject: str, body: str, clinic_name: str = "",
         print(f"  ⛔ Daily email limit reached ({MAX_DAILY_EMAILS}/day). Stopping.")
         return False
 
+    lead_hash = generate_lead_hash(to_email)
+
     from modules.email_template import render
     html, plain = render(subject=subject, body_text=body, clinic_name=clinic_name,
-                         doctor_name=doctor_name, specialty=specialty, step=step)
+                         doctor_name=doctor_name, specialty=specialty, step=step,
+                         lead_hash=lead_hash)
 
     try:
         msg = MIMEMultipart("alternative")
@@ -124,6 +132,17 @@ def send_email(to_email: str, subject: str, body: str, clinic_name: str = "",
 
         count = _increment_daily_count()
         print(f"  ✓ Sent to {to_email} ({count}/{MAX_DAILY_EMAILS} today)")
+
+        # Register lead for open tracking
+        try:
+            import requests as _req
+            _req.post(
+                "https://api.inferapp.online/api/track/register",
+                json={"email": to_email, "clinic": clinic_name, "lead_hash": lead_hash},
+                timeout=5
+            )
+        except Exception:
+            pass
 
         # Save to Hostinger Sent folder
         _save_to_sent(msg_bytes)

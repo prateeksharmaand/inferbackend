@@ -33,7 +33,7 @@ _client = None
 _sheet  = None
 
 HEADERS = ["name", "email", "specialty", "clinic", "city",
-           "status", "step", "next_send_date", "last_sent_date", "notes", "whatsapp_log"]
+           "status", "step", "next_send_date", "last_sent_date", "notes", "whatsapp_log", "email_opened"]
 
 
 def _get_sheet():
@@ -50,9 +50,11 @@ def ensure_headers():
     first_row = sheet.row_values(1)
     if not first_row:
         sheet.append_row(HEADERS)
-    elif len(first_row) < 11:
-        # Add whatsapp_log column if missing
-        sheet.update_cell(1, 11, "whatsapp_log")
+    else:
+        if len(first_row) < 11:
+            sheet.update_cell(1, 11, "whatsapp_log")
+        if len(first_row) < 12:
+            sheet.update_cell(1, 12, "email_opened")
 
 
 def get_existing_emails() -> set:
@@ -136,6 +138,16 @@ def log_whatsapp(row_index: int, step: int):
     entry   = f"Day {step}: sent {today}"
     updated = f"{current} | {entry}" if current else entry
     sheet.update_cell(row_index, 11, updated)
+
+
+def has_opened_email(lead: dict) -> bool:
+    """Returns True if the lead has opened any email."""
+    return str(lead.get("email_opened", "")).strip().lower() in ("true", "yes", "1")
+
+
+def mark_email_opened(row_index: int):
+    """Marks email as opened in column L."""
+    _get_sheet().update_cell(row_index, 12, "true")
 
 
 def mark_unsubscribed(row_index: int):

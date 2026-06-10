@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from modules.scraper import scrape_leads, SPECIALTIES
-from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed, log_whatsapp
+from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed, log_whatsapp, has_opened_email, mark_email_opened
 from modules.personalizer import personalize_email
 from modules.mailer import send_email
 from modules.scheduler import get_next_step, get_next_send_date, is_sequence_complete
@@ -30,6 +30,43 @@ MAX_EMAILS_PER_RUN   = int(os.environ.get("MAX_DAILY_EMAILS", 300))
 DELAY_BETWEEN_EMAILS = int(os.environ.get("DELAY_BETWEEN_EMAILS", 30))
 SCRAPE_CITIES        = os.environ.get("SCRAPE_CITIES", "Mumbai,Pune,Delhi,Bangalore").split(",")
 MAX_PER_COMBO        = int(os.environ.get("MAX_PER_COMBO", 10))
+
+
+def sync_email_opens():
+    """
+    Syncs email open status from backend DB to Google Sheet.
+    Checks sales_leads table for any newly opened emails.
+    """
+    print("\n── Phase 0: Syncing email opens ─────────────────────")
+    try:
+        import requests
+        resp = requests.get(
+            "https://api.inferapp.online/api/track/opened-leads",
+            timeout=10
+        )
+        if resp.status_code != 200:
+            print(f"  ⚠ Sync skipped: {resp.status_code}")
+            return
+
+        opened = resp.json().get("opened", [])
+        if not opened:
+            print("  No new email opens.")
+            return
+
+        from modules.sheets import _get_sheet
+        sheet = _get_sheet()
+        records = sheet.get_all_records()
+
+        count = 0
+        for i, row in enumerate(records, start=2):
+            email = str(row.get("email", "")).strip().lower()
+            if email in opened and not has_opened_email(row):
+                mark_email_opened(i)
+                count += 1
+
+        print(f"  ✓ Marked {count} leads as email opened")
+    except Exception as e:
+        print(f"  ⚠ Open sync failed: {e}")
 
 
 def phase_scrape():
@@ -147,8 +184,16 @@ def phase_outreach():
             update_lead(row_index=row, step=next_step, next_send_date=next_date or "", status=status)
             sent += 1
 
-            # Also send WhatsApp on Day 4 and Day 14
-            if next_step in (4, 14):
+            # WhatsApp on Day 4 — only if they opened the email
+            # WhatsApp on Day 14 — always (final follow-up)
+            if next_step == 4:
+                if has_opened_email(lead):
+                    wa_sent = send_whatsapp(lead, next_step)
+                    if wa_sent:
+                        log_whatsapp(row, next_step)
+                else:
+                    print(f"  ↷ WhatsApp skipped — {name} hasn't opened email yet")
+            elif next_step == 14:
                 wa_sent = send_whatsapp(lead, next_step)
                 if wa_sent:
                     log_whatsapp(row, next_step)
@@ -167,6 +212,7 @@ def run():
     print("║     Infer Sales Agent — Running      ║")
     print("╚══════════════════════════════════════╝")
 
+    sync_email_opens()
     phase_scrape()
     phase_outreach()
 
