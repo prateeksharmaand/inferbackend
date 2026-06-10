@@ -1,8 +1,8 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -147,30 +147,24 @@ Format:
 *Note: Prescriber must verify doses and review for patient-specific contraindications.*`,
 };
 
-// ── Gemini helper ─────────────────────────────────────────────────────────────
+// ── Groq helper ───────────────────────────────────────────────────────────────
 
-async function callGemini(contents, systemPrompt, maxTokens = 1024) {
-  if (!process.env.GEMINI_API_KEY) return null;
-
-  const body = {
-    contents,
-    generationConfig: {
-      maxOutputTokens: maxTokens,
-      temperature: 1,
-      thinkingConfig: { thinkingBudget: 0 },
-    },
-  };
-  if (systemPrompt) {
-    body.systemInstruction = { parts: [{ text: systemPrompt }] };
-  }
+async function callGroq(messages, maxTokens = 1024) {
+  if (!process.env.GROQ_API_KEY) return null;
 
   const response = await axios.post(
-    `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
-    body,
-    { headers: { 'Content-Type': 'application/json' }, timeout: 30000 },
+    GROQ_URL,
+    { model: GROQ_MODEL, messages, max_tokens: maxTokens, temperature: 0.7 },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      timeout: 30000,
+    },
   );
 
-  return response.data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  return response.data?.choices?.[0]?.message?.content || null;
 }
 
 // ── Chat endpoint ─────────────────────────────────────────────────────────────
@@ -182,32 +176,31 @@ exports.chat = async (req, res) => {
     return res.status(400).json({ error: 'message is required' });
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return res.json({ reply: _chatFallback(message) });
   }
 
-  const contents = [
+  const messages = [
+    { role: 'system', content: CHAT_SYSTEM_PROMPT },
     ...history.slice(-12).map(h => ({
-      role: h.role === 'user' ? 'user' : 'model',
-      parts: [{ text: h.content }],
+      role: h.role === 'user' ? 'user' : 'assistant',
+      content: h.content,
     })),
     {
       role: 'user',
-      parts: [{
-        text: patient_context
-          ? `[Patient context: ${patient_context}]\n\n${message}`
-          : message,
-      }],
+      content: patient_context
+        ? `[Patient context: ${patient_context}]\n\n${message}`
+        : message,
     },
   ];
 
   try {
-    const reply = await callGemini(contents, CHAT_SYSTEM_PROMPT, 1024);
+    const reply = await callGroq(messages, 1024);
     if (!reply) return res.json({ reply: _chatFallback(message) });
     res.json({ reply });
   } catch (e) {
     if (e.response?.status === 429) return res.json({ reply: 'I am currently busy. Please try again in a moment.' });
-    logger.error('[DocAssist Chat] Gemini error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
+    logger.error('[DocAssist Chat] Groq error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
     res.json({ reply: _chatFallback(message) });
   }
 };
@@ -225,21 +218,23 @@ exports.generateDocument = async (req, res) => {
   const promptFn = DOC_PROMPTS[doc_type];
   const prompt = promptFn(context || '', patient_context || '');
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return res.json({ document: _docFallback(doc_type) });
   }
 
   try {
-    const document = await callGemini(
-      [{ role: 'user', parts: [{ text: prompt }] }],
-      'You are a medical documentation expert. Generate professional, clinically accurate medical documents in proper format. Use markdown formatting.',
+    const document = await callGroq(
+      [
+        { role: 'system', content: 'You are a medical documentation expert. Generate professional, clinically accurate medical documents in proper format. Use markdown formatting.' },
+        { role: 'user', content: prompt },
+      ],
       2048,
     );
     if (!document) return res.json({ document: _docFallback(doc_type) });
     res.json({ document });
   } catch (e) {
     if (e.response?.status === 429) return res.status(429).json({ error: 'Rate limited. Please try again.' });
-    logger.error('[DocAssist Doc] Gemini error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
+    logger.error('[DocAssist Doc] Groq error:', e.response?.status, JSON.stringify(e.response?.data || e.message));
     res.json({ document: _docFallback(doc_type) });
   }
 };
@@ -262,5 +257,5 @@ function _chatFallback(message) {
 
 function _docFallback(doc_type) {
   const labels = { soap: 'SOAP Note', discharge: 'Discharge Summary', referral: 'Referral Letter', followup: 'Follow-up Plan', prescription: 'Prescription Draft' };
-  return `**${labels[doc_type] || 'Document'} — AI Generation Unavailable**\n\nThe AI document generation service is currently unavailable (API key not configured).\n\nPlease configure GEMINI_API_KEY to enable document generation.`;
+  return `**${labels[doc_type] || 'Document'} — AI Generation Unavailable**\n\nThe AI document generation service is currently unavailable (API key not configured).\n\nPlease configure GROQ_API_KEY to enable document generation.`;
 }
