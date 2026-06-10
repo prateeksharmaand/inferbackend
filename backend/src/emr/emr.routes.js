@@ -21,9 +21,11 @@ const rxpublic    = require('./emr.rxpublic.controller');
 const subscription = require('./emr.subscription.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
-router.post('/auth/login',           auth.login);
-router.post('/auth/register-clinic', auth.registerClinic);
-router.post('/auth/lab/login',       labStaff.loginStaff);
+router.post('/auth/login',            auth.login);
+router.post('/auth/register-clinic',  auth.registerClinic);
+router.post('/auth/lab/login',        labStaff.loginStaff);
+router.post('/auth/forgot-password',  auth.forgotPassword);
+router.post('/auth/reset-password',   auth.resetPassword);
 
 // Autocomplete proxy (ICD-10 / RxTerms via NLM — public, avoids CSP)
 router.get('/autocomplete/icd10',   ac.searchICD10);
@@ -62,7 +64,8 @@ router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
 
 // Auth helpers
-router.get   ('/auth/seat-info',     auth.getSeatInfo);
+router.post  ('/auth/change-password', auth.changePassword);
+router.get   ('/auth/seat-info',       auth.getSeatInfo);
 router.post  ('/auth/add-doctor',    auth.addDoctor);
 router.get   ('/auth/doctors',       auth.listDoctors);
 router.patch ('/auth/doctors/:id',   auth.updateDoctor);

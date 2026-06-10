@@ -1,21 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  X, Send, Mic, Bot, RotateCcw, Search, FileText,
+  X, Send, Bot, RotateCcw, Search,
   MessageSquare, User, ChevronDown, Copy, Check,
-  Sparkles, AlertTriangle, RefreshCw,
+  Sparkles, RefreshCw,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { useAuth } from '../context/AuthContext';
-import ScribePanel from './ScribePanel';
 import styles from './DocAssistAI.module.css';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const TABS = [
   { id: 'chat',     label: 'Chat',     Icon: MessageSquare },
-  { id: 'dictate',  label: 'Dictate',  Icon: Mic },
   { id: 'patients', label: 'Patients', Icon: User },
-  { id: 'docs',     label: 'Docs',     Icon: FileText },
 ];
 
 const CHAT_SUGGESTIONS = [
@@ -25,14 +21,6 @@ const CHAT_SUGGESTIONS = [
   { icon: '🥗', text: 'Diet chart for DM2 patient in Hindi' },
   { icon: '⚠️', text: 'Common drug interactions to watch' },
   { icon: '🔬', text: 'When to order HbA1c vs fasting glucose?' },
-];
-
-const DOC_TYPES = [
-  { id: 'soap',        label: 'SOAP Note',           icon: '📋', desc: 'Subjective · Objective · Assessment · Plan' },
-  { id: 'discharge',   label: 'Discharge Summary',   icon: '🏥', desc: 'Inpatient summary with follow-up plan' },
-  { id: 'referral',    label: 'Referral Letter',      icon: '📨', desc: 'Specialist referral with clinical context' },
-  { id: 'followup',    label: 'Follow-up Plan',       icon: '📅', desc: 'Next steps, tests, and monitoring plan' },
-  { id: 'prescription',label: 'Prescription Draft',  icon: '💊', desc: 'Structured Rx with dosage and instructions' },
 ];
 
 const SEGMENT_MS = 5000;
@@ -112,8 +100,6 @@ function renderMarkdown(text) {
   flushList();
   return out;
 }
-
-const noop = () => {};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -270,27 +256,6 @@ function ChatTab({ patientCtx }) {
   );
 }
 
-// ── Dictate Tab — uses the full ScribePanel (same as VoiceAI) ────────────────
-
-function DictateTab() {
-  const { user } = useAuth();
-  return (
-    <div className={styles.tabPane} style={{ overflow: 'hidden' }}>
-      <ScribePanel
-        set={noop}
-        setVital={noop}
-        onClose={null}
-        appt={null}
-        pastNotes={[]}
-        user={user}
-        form={null}
-        standalone
-        fullscreen
-      />
-    </div>
-  );
-}
-
 // ── Patients Tab ──────────────────────────────────────────────────────────────
 
 function PatientsTab({ onSetPatientCtx }) {
@@ -443,103 +408,6 @@ function PatientsTab({ onSetPatientCtx }) {
   );
 }
 
-// ── Docs Tab ──────────────────────────────────────────────────────────────────
-
-function DocsTab({ patientCtx }) {
-  const [selectedDoc, setSelectedDoc] = useState(null);
-  const [context,     setContext]     = useState('');
-  const [generated,   setGenerated]   = useState('');
-  const [loading,     setLoading]     = useState(false);
-  const [copied,      setCopied]      = useState(false);
-
-  const generate = async () => {
-    if (!selectedDoc) return;
-    setLoading(true);
-    setGenerated('');
-    try {
-      const res = await api.post('/docassist/document', {
-        doc_type: selectedDoc.id,
-        context: context.trim() || null,
-        patient_context: patientCtx || null,
-      });
-      setGenerated(res.document || res.reply || '');
-    } catch (err) {
-      if (err?.status === 429 || err?.message?.includes('429')) {
-        setGenerated('⚠️ The AI service is temporarily busy (rate limit). Please wait 30 seconds and try again.');
-      } else {
-        setGenerated('Failed to generate document. Please try again.');
-      }
-    } finally { setLoading(false); }
-  };
-
-  const copy = () => {
-    navigator.clipboard.writeText(generated).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    });
-  };
-
-  return (
-    <div className={styles.tabPane}>
-      <div className={styles.docsBody}>
-        <p className={styles.docsTitle}>Select document type</p>
-
-        <div className={styles.docTypes}>
-          {DOC_TYPES.map(dt => (
-            <button
-              key={dt.id}
-              className={`${styles.docTypeCard} ${selectedDoc?.id === dt.id ? styles.docTypeCardActive : ''}`}
-              onClick={() => { setSelectedDoc(dt); setGenerated(''); }}
-            >
-              <span className={styles.docTypeIcon}>{dt.icon}</span>
-              <div>
-                <div className={styles.docTypeLabel}>{dt.label}</div>
-                <div className={styles.docTypeDesc}>{dt.desc}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {selectedDoc && (
-          <>
-            <textarea
-              className={styles.docContext}
-              rows={3}
-              placeholder={`Add context for the ${selectedDoc.label} (chief complaint, diagnosis, key findings…)`}
-              value={context}
-              onChange={e => setContext(e.target.value)}
-            />
-            {patientCtx && (
-              <div className={styles.ctxBadge} style={{ marginBottom: 8 }}>
-                <User size={11} /> Patient context active
-              </div>
-            )}
-            <button className={styles.generateBtn} onClick={generate} disabled={loading}>
-              {loading
-                ? <><RefreshCw size={14} className={styles.spin} /> Generating…</>
-                : <><Sparkles size={14} /> Generate {selectedDoc.label}</>
-              }
-            </button>
-          </>
-        )}
-
-        {generated && (
-          <div className={styles.soapCard}>
-            <div className={styles.soapHeader}>
-              <FileText size={14} />
-              <span>{selectedDoc?.label}</span>
-              <button className={styles.copyBtn} onClick={copy} title="Copy">
-                {copied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} strokeWidth={2} />}
-              </button>
-            </div>
-            <div className={styles.soapBody}>{renderMarkdown(generated)}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function DocAssistAI() {
@@ -609,9 +477,7 @@ export default function DocAssistAI() {
           {/* Tab content */}
           <div className={styles.drawerBody}>
             {activeTab === 'chat'     && <ChatTab patientCtx={patientCtx} />}
-            {activeTab === 'dictate'  && <DictateTab />}
             {activeTab === 'patients' && <PatientsTab onSetPatientCtx={ctx => { setPatientCtx(ctx); if (ctx) setActiveTab('chat'); }} />}
-            {activeTab === 'docs'     && <DocsTab patientCtx={patientCtx} />}
           </div>
         </div>
       )}

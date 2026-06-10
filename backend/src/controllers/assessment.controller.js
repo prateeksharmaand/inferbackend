@@ -1,65 +1,32 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
 
-const QUESTIONS_SCHEMA = {
-  type: 'object',
-  properties: {
-    questions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id:      { type: 'integer' },
-          text:    { type: 'string' },
-          type:    { type: 'string', enum: ['single_choice', 'multiple_choice'] },
-          options: { type: 'array', items: { type: 'string' } },
-        },
-        required: ['id', 'text', 'type', 'options'],
-      },
-    },
-  },
-  required: ['questions'],
-};
-
-const RESULT_SCHEMA = {
-  type: 'object',
-  properties: {
-    risk_level:         { type: 'string', enum: ['low', 'moderate', 'high', 'critical'] },
-    risk_score:         { type: 'integer' },
-    summary:            { type: 'string' },
-    findings:           { type: 'array', items: { type: 'string' } },
-    recommendations:    { type: 'array', items: { type: 'string' } },
-    warning_signs:      { type: 'array', items: { type: 'string' } },
-    when_to_see_doctor: { type: 'string' },
-  },
-  required: ['risk_level', 'risk_score', 'summary', 'findings', 'recommendations', 'warning_signs', 'when_to_see_doctor'],
-};
-
-async function _callGemini(prompt, schema) {
-  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set');
-
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: {
-      maxOutputTokens: 4096,
-      temperature: 1,
-      responseMimeType: 'application/json',
-      responseSchema: schema,
-      thinkingConfig: { thinkingBudget: 0 },
-    },
-  };
+async function _callGroq(prompt) {
+  if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY not set');
 
   const response = await axios.post(
-    `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
-    body,
-    { headers: { 'Content-Type': 'application/json' }, timeout: 30000 },
+    GROQ_URL,
+    {
+      model: GROQ_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 4096,
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      timeout: 30000,
+    },
   );
 
-  const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Empty Gemini response');
+  const text = response.data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error('Empty Groq response');
   return JSON.parse(text);
 }
 
@@ -81,10 +48,22 @@ Rules:
 - Do NOT ask for personal identifying information (name, DOB, etc.)
 - Question 1: primary symptom or main concern presence
 - Question 6: impact on daily life or duration/when symptoms started
-- Include at least 2 multiple_choice questions`;
+- Include at least 2 multiple_choice questions
+
+Return a JSON object with this exact structure:
+{
+  "questions": [
+    {
+      "id": 1,
+      "text": "question text",
+      "type": "single_choice" or "multiple_choice",
+      "options": ["option1", "option2", "option3"]
+    }
+  ]
+}`;
 
   try {
-    const data = await _callGemini(prompt, QUESTIONS_SCHEMA);
+    const data = await _callGroq(prompt);
     logger.info(`[Assessment] Generated ${data.questions?.length} questions for "${category}" > "${subcategory}"`);
     res.json({ questions: data.questions || [] });
   } catch (e) {
@@ -109,23 +88,25 @@ async function analyzeAnswers(req, res) {
 Assessment Responses:
 ${qaLines}
 
-Provide a JSON result with:
-- risk_level: "low", "moderate", "high", or "critical" — based strictly on the answers
-- risk_score: integer 0–100 (0=no risk, 100=maximum risk)
-- summary: 2–3 plain-language sentences summarizing the overall health picture for "${subcategory}"
-- findings: 2–4 key specific observations derived from the answers (be concrete, reference actual answers)
-- recommendations: 3–5 actionable steps — ordered by priority, specific to "${subcategory}"
-- warning_signs: 2–3 specific signs that would require urgent medical attention for this condition
-- when_to_see_doctor: one concise sentence on urgency and what type of doctor to consult
+Return a JSON object with this exact structure:
+{
+  "risk_level": "low" | "moderate" | "high" | "critical",
+  "risk_score": integer 0-100,
+  "summary": "2-3 plain-language sentences summarizing the overall health picture",
+  "findings": ["key observation 1", "key observation 2", "key observation 3"],
+  "recommendations": ["action 1", "action 2", "action 3"],
+  "warning_signs": ["warning sign 1", "warning sign 2"],
+  "when_to_see_doctor": "one concise sentence on urgency and doctor type"
+}
 
-Important constraints:
+Important:
 - Do NOT diagnose — provide risk assessment only
-- Base everything strictly on "${subcategory}" — do not generalize to unrelated conditions
-- Be non-alarmist for low-risk results, appropriately cautious for high/critical
+- Base everything strictly on "${subcategory}"
+- Be non-alarmist for low-risk, appropriately cautious for high/critical
 - If answers were skipped or vague, default to moderate assessment`;
 
   try {
-    const data = await _callGemini(prompt, RESULT_SCHEMA);
+    const data = await _callGroq(prompt);
     logger.info(`[Assessment] Analyzed ${answers.length} answers for "${category}" > "${subcategory}" | risk: ${data.risk_level} (${data.risk_score})`);
     res.json({ result: data });
   } catch (e) {

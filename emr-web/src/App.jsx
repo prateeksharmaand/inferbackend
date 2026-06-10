@@ -6,6 +6,7 @@ import { QueueDateProvider } from './context/QueueDateContext';
 import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Queue from './pages/Queue';
 import QueueSetup from './pages/QueueSetup';
 import Patients from './pages/Patients';
@@ -59,7 +60,8 @@ export default function App() {
       <BrowserRouter basename="/opd">
         <Routes>
           {/* Clinic Routes */}
-          <Route path="/login" element={<Login />} />
+          <Route path="/login"          element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/" element={<Protected><Layout /></Protected>}>
             <Route index element={<Navigate to="/queue" replace />} />
             <Route path="queue"              element={<Queue />} />

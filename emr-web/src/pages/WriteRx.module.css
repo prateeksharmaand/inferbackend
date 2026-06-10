@@ -609,9 +609,9 @@
     overflow: visible !important;
   }
   /* Hide the overlay chrome, show only the paper */
-  .previewOverlay,
   .previewToolbar,
   .previewCloseBtn { display: none !important; }
+  .previewOverlay  { background: none !important; }
   .previewBody {
     padding: 0 !important;
     background: #fff !important;

@@ -1,5 +1,7 @@
-const bcrypt = require('bcryptjs');
-const jwt    = require('jsonwebtoken');
+const bcrypt   = require('bcryptjs');
+const jwt      = require('jsonwebtoken');
+const crypto   = require('crypto');
+const nodemailer = require('nodemailer');
 const { pool } = require('../config/database');
 
 const JWT_SECRET  = process.env.JWT_SECRET || 'infer-emr-secret';
@@ -234,4 +236,89 @@ const deleteDoctor = async (req, res) => {
   res.json({ ok: true });
 };
 
-module.exports = { login, registerClinic, addDoctor, getSeatInfo, listDoctors, updateDoctor, deleteDoctor };
+// POST /api/emr/auth/forgot-password  { email, role: 'doctor'|'staff' }
+const forgotPassword = async (req, res) => {
+  const { email, role = 'staff' } = req.body;
+  if (!email) return res.status(400).json({ error: 'email required' });
+
+  const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
+  const { rows } = await pool.query(`SELECT id, name FROM ${table} WHERE email=$1 AND is_active=true`, [email]);
+
+  // Always respond OK to avoid email enumeration
+  if (!rows.length) return res.json({ message: 'If that email exists, a reset link has been sent.' });
+
+  const token   = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await pool.query(
+    `INSERT INTO emr_password_resets (email, role, token, expires_at)
+     VALUES ($1,$2,$3,$4)
+     ON CONFLICT (email, role) DO UPDATE SET token=$3, expires_at=$4`,
+    [email, role, token, expires]
+  );
+
+  const resetUrl = `${process.env.APP_URL || 'https://emr.inferapp.online'}/reset-password?token=${token}&role=${role}`;
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 465,
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+
+  await transporter.sendMail({
+    from: `"Infer Care" <${process.env.SMTP_FROM}>`,
+    to: email,
+    subject: 'Reset your Infer Care password',
+    html: `<p>Hi ${rows[0].name},</p>
+           <p>Click the link below to reset your password. This link expires in 1 hour.</p>
+           <p><a href="${resetUrl}" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Reset Password</a></p>
+           <p>If you did not request this, ignore this email.</p>`,
+  });
+
+  res.json({ message: 'If that email exists, a reset link has been sent.' });
+};
+
+// POST /api/emr/auth/reset-password  { token, role, new_password }
+const resetPassword = async (req, res) => {
+  const { token, role = 'staff', new_password } = req.body;
+  if (!token || !new_password) return res.status(400).json({ error: 'token and new_password required' });
+  if (new_password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+  const { rows } = await pool.query(
+    `SELECT email FROM emr_password_resets WHERE token=$1 AND role=$2 AND expires_at > NOW()`,
+    [token, role]
+  );
+  if (!rows.length) return res.status(400).json({ error: 'Invalid or expired reset link.' });
+
+  const { email } = rows[0];
+  const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
+  const hash  = await bcrypt.hash(new_password, 10);
+
+  await pool.query(`UPDATE ${table} SET password_hash=$1 WHERE email=$2`, [hash, email]);
+  await pool.query(`DELETE FROM emr_password_resets WHERE email=$1 AND role=$2`, [email, role]);
+
+  res.json({ message: 'Password reset successfully. You can now log in.' });
+};
+
+// POST /api/emr/auth/change-password  { current_password, new_password }  (authenticated)
+const changePassword = async (req, res) => {
+  const { current_password, new_password } = req.body;
+  if (!current_password || !new_password) return res.status(400).json({ error: 'current_password and new_password required' });
+  if (new_password.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+  const { id, role } = req.emrUser;
+  const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
+
+  const { rows } = await pool.query(`SELECT password_hash FROM ${table} WHERE id=$1`, [id]);
+  if (!rows.length) return res.status(404).json({ error: 'User not found' });
+
+  const ok = await bcrypt.compare(current_password, rows[0].password_hash);
+  if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+
+  const hash = await bcrypt.hash(new_password, 10);
+  await pool.query(`UPDATE ${table} SET password_hash=$1 WHERE id=$2`, [hash, id]);
+
+  res.json({ message: 'Password changed successfully.' });
+};
+
+module.exports = { login, registerClinic, addDoctor, getSeatInfo, listDoctors, updateDoctor, deleteDoctor, forgotPassword, resetPassword, changePassword };
