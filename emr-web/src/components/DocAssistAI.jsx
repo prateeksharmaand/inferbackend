@@ -102,20 +102,95 @@ function TypingDots() {
   );
 }
 
-// ── Patient Quick-Ask chips ───────────────────────────────────────────────────
+// ── Patient Quick-Ask sections (matches patient sidebar) ─────────────────────
 
-const PATIENT_QUICK_ASK = [
-  { icon: <ClipboardList size={12} />, label: 'Past Visits',        q: 'Summarize this patient\'s past visits and key findings.' },
-  { icon: <User size={12} />,          label: 'Overview',           q: 'Give me a clinical overview of this patient.' },
-  { icon: <Pill size={12} />,          label: 'Medications',        q: 'What medications has this patient been prescribed? Any interactions?' },
-  { icon: <FileText size={12} />,      label: 'Medical History',    q: 'Summarize the medical history of this patient.' },
-  { icon: <Activity size={12} />,      label: 'Vitals',             q: 'What are the latest vitals for this patient? Any concerns?' },
-  { icon: <FlaskConical size={12} />,  label: 'Lab Results',        q: 'Summarize the recent lab investigations for this patient.' },
-  { icon: <Heart size={12} />,         label: 'Chronic Conditions', q: 'What chronic conditions does this patient have? What should I watch for?' },
-  { icon: <AlertCircle size={12} />,   label: 'Allergies',          q: 'What are this patient\'s known allergies? What drugs to avoid?' },
-  { icon: <Stethoscope size={12} />,   label: 'Diagnosis',          q: 'What diagnoses has this patient been given across visits?' },
-  { icon: <Syringe size={12} />,       label: 'Vaccinations',       q: 'What vaccinations are recorded for this patient?' },
-  { icon: <UtensilsCrossed size={12}/>, label: 'Diet & Lifestyle',  q: 'Suggest a diet and lifestyle plan for this patient based on their history.' },
+const QUICK_ASK_SECTIONS = [
+  {
+    section: 'Past Visits',
+    icon: <ClipboardList size={11} />,
+    questions: [
+      'Summarize all past visits for this patient.',
+      'What was the last diagnosis and treatment?',
+      'Did this patient ever have fever?',
+      'How many times has this patient visited and for what?',
+    ],
+  },
+  {
+    section: 'Patient Overview',
+    icon: <User size={11} />,
+    questions: [
+      'Give me a full clinical overview of this patient.',
+      'What are the key health concerns for this patient?',
+      'Is there anything unusual in this patient\'s history I should know?',
+    ],
+  },
+  {
+    section: 'Treatments',
+    icon: <Pill size={11} />,
+    questions: [
+      'What medications has this patient been prescribed across all visits?',
+      'Are there any drug interactions in this patient\'s medication history?',
+      'What is the current treatment plan for this patient?',
+      'Has this patient been prescribed antibiotics? When?',
+    ],
+  },
+  {
+    section: 'Medical History',
+    icon: <FileText size={11} />,
+    questions: [
+      'Summarize the full medical history of this patient.',
+      'Does this patient have any chronic conditions?',
+      'What allergies does this patient have? What drugs to avoid?',
+      'Has this patient had any surgical history or procedures?',
+    ],
+  },
+  {
+    section: 'Vitals & Lab Results',
+    icon: <Activity size={11} />,
+    questions: [
+      'What are the latest vitals for this patient? Any concerns?',
+      'Summarize all lab investigations ordered for this patient.',
+      'Is there any abnormal lab finding I should act on?',
+      'Show the BP and pulse trend for this patient.',
+    ],
+  },
+  {
+    section: 'Assessments',
+    icon: <Stethoscope size={11} />,
+    questions: [
+      'What diagnoses has this patient received across all visits?',
+      'What is the most likely current diagnosis based on history?',
+      'Has this patient been referred to any specialist?',
+    ],
+  },
+  {
+    section: 'Vaccinations',
+    icon: <Syringe size={11} />,
+    questions: [
+      'Does this patient have any due vaccinations?',
+      'What vaccinations has this patient received?',
+      'Which vaccines are pending or missed for this patient?',
+      'Is this patient\'s vaccination schedule up to date?',
+    ],
+  },
+  {
+    section: 'Diet Charts',
+    icon: <UtensilsCrossed size={11} />,
+    questions: [
+      'Suggest a diet plan for this patient based on their conditions.',
+      'What dietary restrictions should this patient follow?',
+      'Create a 7-day meal plan appropriate for this patient.',
+    ],
+  },
+  {
+    section: 'Lab Reports',
+    icon: <FlaskConical size={11} />,
+    questions: [
+      'Interpret the lab results for this patient.',
+      'Are any lab values critical or abnormal?',
+      'What follow-up tests should be ordered based on history?',
+    ],
+  },
 ];
 
 // ── Patient Context Panel ─────────────────────────────────────────────────────
@@ -310,42 +385,82 @@ function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
           {patientData && !loading && (
             <div className={styles.patientPanelStats}>
               {patientData.patient.visit_count > 0 && (
-                <span className={styles.patientStatChip}>
-                  <ClipboardList size={10} /> {patientData.patient.visit_count} visit{patientData.patient.visit_count !== 1 ? 's' : ''}
-                </span>
+                <span className={styles.patientStatChip}><ClipboardList size={10} /> {patientData.patient.visit_count} visit{patientData.patient.visit_count !== 1 ? 's' : ''}</span>
               )}
               {patientData.patient.last_visit && (
-                <span className={styles.patientStatChip}>
-                  Last: {fmtDate(patientData.patient.last_visit)}
-                </span>
-              )}
-              {patientData.patient.allergies?.length > 0 && (
-                <span className={`${styles.patientStatChip} ${styles.patientStatChipAlert}`}>
-                  <AlertCircle size={10} /> {patientData.patient.allergies.length} allerg{patientData.patient.allergies.length > 1 ? 'ies' : 'y'}
-                </span>
-              )}
-              {patientData.patient.chronic_conditions?.length > 0 && (
-                <span className={`${styles.patientStatChip} ${styles.patientStatChipWarn}`}>
-                  <Heart size={10} /> {patientData.patient.chronic_conditions.length} condition{patientData.patient.chronic_conditions.length > 1 ? 's' : ''}
-                </span>
+                <span className={styles.patientStatChip}>Last: {fmtDate(patientData.patient.last_visit)}</span>
               )}
             </div>
           )}
 
-          <p className={styles.patientPanelAskLabel}>Ask about this patient:</p>
-          <div className={styles.patientQuickAsk}>
-            {PATIENT_QUICK_ASK.map((item, i) => (
-              <button
-                key={i}
-                className={styles.patientQuickChip}
-                onClick={() => onQuickAsk(item.q, patientData?.context || baseContext)}
-              >
-                {item.icon} {item.label}
-              </button>
-            ))}
-          </div>
+          <QuickAskPanel
+            ctx={patientData?.context || baseContext}
+            onAsk={onQuickAsk}
+            patientName={name}
+          />
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Quick Ask Panel ───────────────────────────────────────────────────────────
+
+function QuickAskPanel({ ctx, onAsk, patientName }) {
+  const [openSection, setOpenSection] = useState(null);
+  const [customQ, setCustomQ] = useState('');
+
+  const handleCustomSubmit = (e) => {
+    e.preventDefault();
+    if (!customQ.trim()) return;
+    onAsk(customQ.trim(), ctx);
+    setCustomQ('');
+  };
+
+  return (
+    <div className={styles.quickAskPanel}>
+      {/* Custom question input */}
+      <form className={styles.quickAskCustom} onSubmit={handleCustomSubmit}>
+        <input
+          className={styles.quickAskInput}
+          placeholder={`Ask anything about ${patientName}…`}
+          value={customQ}
+          onChange={e => setCustomQ(e.target.value)}
+        />
+        <button type="submit" className={styles.quickAskSubmit} disabled={!customQ.trim()}>
+          <Send size={12} strokeWidth={2.5} />
+        </button>
+      </form>
+
+      {/* Section-based accordion */}
+      <p className={styles.patientPanelAskLabel}>Or choose a topic:</p>
+      <div className={styles.quickAskSections}>
+        {QUICK_ASK_SECTIONS.map((sec, si) => (
+          <div key={si} className={styles.quickAskSection}>
+            <button
+              className={`${styles.quickAskSectionHeader} ${openSection === si ? styles.quickAskSectionHeaderOpen : ''}`}
+              onClick={() => setOpenSection(openSection === si ? null : si)}
+            >
+              <span className={styles.quickAskSectionIcon}>{sec.icon}</span>
+              <span>{sec.section}</span>
+              <ChevronDown size={11} strokeWidth={2} className={`${styles.quickAskChevron} ${openSection === si ? styles.quickAskChevronOpen : ''}`} />
+            </button>
+            {openSection === si && (
+              <div className={styles.quickAskSectionBody}>
+                {sec.questions.map((q, qi) => (
+                  <button
+                    key={qi}
+                    className={styles.quickAskQ}
+                    onClick={() => { onAsk(q, ctx); setOpenSection(null); }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
