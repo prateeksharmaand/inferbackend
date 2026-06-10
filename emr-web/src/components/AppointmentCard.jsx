@@ -288,6 +288,13 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 title="Upload Lab Report">
                 <FlaskConical size={12} strokeWidth={2} /> Lab
               </button>
+              {onInferAssist && (
+                <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
+                  onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
+                  title="Ask InferAssist about this patient">
+                  <Bot size={12} strokeWidth={2} /> Ask AI
+                </button>
+              )}
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
                   onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">
@@ -369,6 +376,13 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
+              {onInferAssist && (
+                <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
+                  onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
+                  title="Ask InferAssist about this patient">
+                  <Bot size={12} strokeWidth={2} /> Ask AI
+                </button>
+              )}
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
                   onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">
