@@ -44,8 +44,9 @@ router.use(emrAuth);
 const { proOnlyCheck } = subscription;
 
 // ── AI features — Pro plan only ───────────────────────────────────────────────
-router.post  ('/docassist',            proOnlyCheck('ai_docassist'), docassist.chat);
-router.post  ('/docassist/document',   proOnlyCheck('ai_docassist'), docassist.generateDocument);
+router.post  ('/docassist',                          proOnlyCheck('ai_docassist'), docassist.chat);
+router.post  ('/docassist/document',                 proOnlyCheck('ai_docassist'), docassist.generateDocument);
+router.get   ('/docassist/patient-context/:patientId', proOnlyCheck('ai_docassist'), docassist.getPatientContext);
 router.post  ('/scribe/transcribe',    proOnlyCheck('scribe'),       ...scribe.transcribe);
 router.post  ('/scribe/soap',          proOnlyCheck('scribe'),       scribe.extractSOAP);
 router.get   ('/scribe/templates',     proOnlyCheck('scribe'),       tpl.listTemplates);

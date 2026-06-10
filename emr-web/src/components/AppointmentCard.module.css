@@ -136,6 +136,9 @@
 .actionBtnLab  { border-color: #d8b4fe; color: #7c3aed; background: #faf5ff; }
 .actionBtnLab:hover  { background: #7c3aed; border-color: #7c3aed; color: #fff; }
 
+.actionBtnAI  { border-color: #a5f3fc; color: #0891b2; background: #ecfeff; }
+.actionBtnAI:hover  { background: #0891b2; border-color: #0891b2; color: #fff; }
+
 /* 3-dots more menu */
 .moreWrap { position: relative; margin-left: auto; flex-shrink: 0; }
 .moreBtn {

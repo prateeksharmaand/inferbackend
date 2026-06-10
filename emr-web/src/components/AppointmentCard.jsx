@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip, FlaskConical } from 'lucide-react';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip, FlaskConical, Bot } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
@@ -82,7 +82,7 @@ function reminderTime(timeStr) {
   return `${rh12}:${String(rm).padStart(2, '0')} ${ampm}`;
 }
 
-export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen, onDragStart, onDelete }) {
+export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen, onDragStart, onDelete, onDocAssist }) {
   const { user } = useAuth();
   const [appt,           setAppt]           = useState(initialAppt);
   useEffect(() => { setAppt(initialAppt); }, [initialAppt.status]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -322,6 +322,13 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
+              {onDocAssist && appt.emr_patient_id && (
+                <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
+                  onClick={e => { e.stopPropagation(); onDocAssist(appt); }}
+                  title="Ask DocAssist AI about this patient">
+                  <Bot size={12} strokeWidth={2} /> Ask AI
+                </button>
+              )}
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
                   onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">

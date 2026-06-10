@@ -169,6 +169,111 @@ async function callGroq(messages, maxTokens = 1024) {
 
 // ── Chat endpoint ─────────────────────────────────────────────────────────────
 
+// ── Patient context fetch ─────────────────────────────────────────────────────
+
+exports.getPatientContext = async (req, res) => {
+  const { pool } = require('../config/database');
+  const { patientId } = req.params;
+  const clinic_id = req.emrUser.clinic_id;
+
+  try {
+    // Basic patient info
+    const { rows: [p] } = await pool.query(
+      `SELECT id, name, dob, gender, mobile, blood_type, allergies, chronic_conditions
+       FROM emr_patients WHERE id=$1 AND clinic_id=$2`,
+      [patientId, clinic_id]
+    );
+    if (!p) return res.status(404).json({ error: 'Patient not found' });
+
+    const age = p.dob ? Math.floor((Date.now() - new Date(p.dob)) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+
+    // Past encounters (last 10)
+    const { rows: encounters } = await pool.query(
+      `SELECT a.appointment_date, a.appointment_time,
+              e.symptoms, e.diagnosis, e.medications, e.notes, e.advices,
+              e.vitals, e.lab_investigations, e.examination_findings, e.refer_to
+       FROM emr_appointments a
+       LEFT JOIN emr_encounters e ON e.appointment_id = a.id
+       WHERE a.emr_patient_id=$1 AND a.clinic_id=$2
+         AND e.id IS NOT NULL
+       ORDER BY a.appointment_date DESC, a.appointment_time DESC
+       LIMIT 10`,
+      [patientId, clinic_id]
+    );
+
+    // Latest vitals (most recent encounter with vitals)
+    const latestVitals = encounters.find(e => e.vitals && Object.keys(e.vitals || {}).length > 0)?.vitals || null;
+
+    // Build rich context string
+    const lines = [
+      `Patient: ${p.name}`,
+      age ? `Age: ${age} years` : null,
+      p.gender ? `Gender: ${p.gender}` : null,
+      p.blood_type ? `Blood Type: ${p.blood_type}` : null,
+      (p.allergies?.length) ? `Allergies: ${Array.isArray(p.allergies) ? p.allergies.join(', ') : p.allergies}` : null,
+      (p.chronic_conditions?.length) ? `Chronic Conditions: ${Array.isArray(p.chronic_conditions) ? p.chronic_conditions.join(', ') : p.chronic_conditions}` : null,
+    ].filter(Boolean);
+
+    if (latestVitals) {
+      const v = latestVitals;
+      const vStr = [
+        v.bp_systolic && v.bp_diastolic ? `BP: ${v.bp_systolic}/${v.bp_diastolic} mmHg` : null,
+        v.pulse ? `Pulse: ${v.pulse} bpm` : null,
+        v.temperature ? `Temp: ${v.temperature}°${v.temp_unit || 'F'}` : null,
+        v.spo2 ? `SpO2: ${v.spo2}%` : null,
+        v.weight ? `Weight: ${v.weight} kg` : null,
+        v.height ? `Height: ${v.height} cm` : null,
+        v.bmi ? `BMI: ${v.bmi}` : null,
+        v.rbs ? `RBS: ${v.rbs} mg/dL` : null,
+      ].filter(Boolean).join(', ');
+      if (vStr) lines.push(`Latest Vitals: ${vStr}`);
+    }
+
+    if (encounters.length) {
+      lines.push(`\nPast ${encounters.length} visit(s):`);
+      encounters.forEach((e, i) => {
+        const dateStr = e.appointment_date ? new Date(e.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Unknown date';
+        const parts = [];
+        if (e.diagnosis) parts.push(`Dx: ${e.diagnosis}`);
+        if (e.symptoms)  parts.push(`Sx: ${e.symptoms}`);
+        if (e.medications?.length) {
+          const meds = e.medications.slice(0, 5).map(m => m.name || m.drug_name || m).filter(Boolean);
+          if (meds.length) parts.push(`Meds: ${meds.join(', ')}`);
+        }
+        if (e.lab_investigations?.length) {
+          const labs = e.lab_investigations.slice(0, 3).map(l => l.name || l).filter(Boolean);
+          if (labs.length) parts.push(`Labs: ${labs.join(', ')}`);
+        }
+        lines.push(`  ${i + 1}. ${dateStr}${parts.length ? ' — ' + parts.join(' | ') : ''}`);
+      });
+    }
+
+    const contextStr = lines.join('\n');
+
+    res.json({
+      patient: {
+        id: p.id,
+        name: p.name,
+        age,
+        gender: p.gender,
+        mobile: p.mobile,
+        blood_type: p.blood_type,
+        allergies: p.allergies || [],
+        chronic_conditions: p.chronic_conditions || [],
+        latest_vitals: latestVitals,
+        visit_count: encounters.length,
+        last_visit: encounters[0]?.appointment_date || null,
+      },
+      context: contextStr,
+    });
+  } catch (e) {
+    logger.error('[DocAssist] getPatientContext error:', e.message);
+    res.status(500).json({ error: 'Failed to load patient context' });
+  }
+};
+
+// ── Chat endpoint ─────────────────────────────────────────────────────────────
+
 exports.chat = async (req, res) => {
   const { message, history = [], patient_context } = req.body;
 

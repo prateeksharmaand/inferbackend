@@ -111,9 +111,10 @@ export default function Queue() {
   const leftSortRef  = useRef(null);
   const rightSortRef = useRef(null);
 
-  const [vitalsAppt,   setVitalsAppt]   = useState(null);
-  const [printAppt,    setPrintAppt]    = useState(null);
-  const [profileAppt,  setProfileAppt]  = useState(null);
+  const [vitalsAppt,     setVitalsAppt]     = useState(null);
+  const [printAppt,      setPrintAppt]      = useState(null);
+  const [profileAppt,    setProfileAppt]    = useState(null);
+  const [docAssistAppt,  setDocAssistAppt]  = useState(null);
 
   const dateStr = useCallback(() => {
     const q = queueDate;
@@ -366,6 +367,7 @@ export default function Queue() {
                   onTagUpdate={handleTagUpdate}
                   onDelete={handleDeleteAppointment}
                   onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
+                  onDocAssist={(appt) => setDocAssistAppt(appt)}
                 />
               ))}
             </div>
@@ -474,6 +476,7 @@ export default function Queue() {
                   onTagUpdate={handleTagUpdate}
                   onDelete={handleDeleteAppointment}
                   onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
+                  onDocAssist={(appt) => setDocAssistAppt(appt)}
                 />
               ))}
             </div>
@@ -502,7 +505,7 @@ export default function Queue() {
           onClose={() => setPrintAppt(null)}
         />
       )}
-      <DocAssistAI />
+      <DocAssistAI appt={docAssistAppt} />
 
       {profileAppt && (
         <PatientProfilePanel

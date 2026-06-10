@@ -1,39 +1,18 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
-  X, Send, Bot, RotateCcw, Search,
-  MessageSquare, User, ChevronDown, Copy, Check,
-  Sparkles, RefreshCw,
+  X, Send, Bot, RotateCcw, Copy, Check,
+  Sparkles, RefreshCw, User, ChevronDown, ChevronUp,
+  Activity, ClipboardList, Pill, FlaskConical, Stethoscope,
+  Heart, Syringe, UtensilsCrossed, FileText, AlertCircle,
 } from 'lucide-react';
 import { api } from '../api/client';
 import styles from './DocAssistAI.module.css';
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const TABS = [
-  { id: 'chat',     label: 'Chat',     Icon: MessageSquare },
-  { id: 'patients', label: 'Patients', Icon: User },
-];
-
-const CHAT_SUGGESTIONS = [
-  { icon: '💊', text: 'Safe anti-hypertensives in asthma' },
-  { icon: '💉', text: 'Ozempic vs Rybelsus — which is more effective?' },
-  { icon: '🤰', text: 'Safe cough syrup for pregnant woman' },
-  { icon: '🥗', text: 'Diet chart for DM2 patient in Hindi' },
-  { icon: '⚠️', text: 'Common drug interactions to watch' },
-  { icon: '🔬', text: 'When to order HbA1c vs fasting glucose?' },
-];
-
-const SEGMENT_MS = 5000;
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtAge(dob) {
   if (!dob) return null;
   return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
-}
-function fmtDate(d) {
-  if (!d) return '';
-  return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 function fmtTime(ts) {
   if (!ts) return '';
@@ -43,8 +22,12 @@ function fmtTime(ts) {
   h = h % 12 || 12;
   return `${h}:${String(m).padStart(2, '0')} ${ap}`;
 }
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
-// Simple markdown renderer: bold, italic, bullets, headers, code
+// Simple markdown renderer
 function renderMarkdown(text) {
   if (!text) return null;
   const lines = text.split('\n');
@@ -58,17 +41,11 @@ function renderMarkdown(text) {
     }
   };
 
-  const inlineFormat = (str, key) => {
-    const parts = [];
+  const inlineFormat = (str) => {
     let rest = str;
-    let i = 0;
-    // bold **text**
     rest = rest.replace(/\*\*(.+?)\*\*/g, (_, m) => `§B§${m}§/B§`);
-    // italic *text*
     rest = rest.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, (_, m) => `§I§${m}§/I§`);
-    // inline code `text`
     rest = rest.replace(/`(.+?)`/g, (_, m) => `§C§${m}§/C§`);
-
     const tokens = rest.split(/(§B§.*?§\/B§|§I§.*?§\/I§|§C§.*?§\/C§)/);
     return tokens.map((tok, j) => {
       if (tok.startsWith('§B§')) return <strong key={j}>{tok.slice(3, -4)}</strong>;
@@ -82,46 +59,21 @@ function renderMarkdown(text) {
     if (/^#{1,3}\s/.test(line)) {
       flushList();
       const level = line.match(/^(#{1,3})/)[1].length;
-      const content = line.replace(/^#{1,3}\s/, '');
-      const Tag = `h${level + 3}`; // h4-h6 for visual hierarchy
-      out.push(<p key={idx} className={styles[`mdH${level}`]}>{inlineFormat(content, idx)}</p>);
+      out.push(<p key={idx} className={styles[`mdH${level}`]}>{inlineFormat(line.replace(/^#{1,3}\s/, ''))}</p>);
     } else if (/^[-•*]\s/.test(line)) {
-      listItems.push(<li key={idx} className={styles.mdLi}>{inlineFormat(line.replace(/^[-•*]\s/, ''), idx)}</li>);
+      listItems.push(<li key={idx} className={styles.mdLi}>{inlineFormat(line.replace(/^[-•*]\s/, ''))}</li>);
     } else if (/^\d+\.\s/.test(line)) {
-      listItems.push(<li key={idx} className={styles.mdLi}>{inlineFormat(line.replace(/^\d+\.\s/, ''), idx)}</li>);
+      listItems.push(<li key={idx} className={styles.mdLi}>{inlineFormat(line.replace(/^\d+\.\s/, ''))}</li>);
     } else if (line.trim() === '') {
       flushList();
       out.push(<br key={idx} />);
     } else {
       flushList();
-      out.push(<p key={idx} className={styles.mdP}>{inlineFormat(line, idx)}</p>);
+      out.push(<p key={idx} className={styles.mdP}>{inlineFormat(line)}</p>);
     }
   });
   flushList();
   return out;
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function Logo({ size = 'sm' }) {
-  const sz = size === 'lg' ? styles.logoLg : styles.logoSm;
-  return (
-    <div className={`${styles.logo} ${sz}`}>
-      <span className={styles.logoDot1} />
-      <span className={styles.logoDot2} />
-    </div>
-  );
-}
-
-function TypingDots() {
-  return (
-    <div className={styles.msgRow}>
-      <div className={styles.msgAvatar}><Bot size={13} strokeWidth={2} /></div>
-      <div className={`${styles.bubble} ${styles.bubbleAI}`}>
-        <span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} />
-      </div>
-    </div>
-  );
 }
 
 function CopyButton({ text }) {
@@ -139,21 +91,143 @@ function CopyButton({ text }) {
   );
 }
 
-// ── Chat Tab ─────────────────────────────────────────────────────────────────
+function TypingDots() {
+  return (
+    <div className={styles.msgRow}>
+      <div className={styles.msgAvatar}><Bot size={13} strokeWidth={2} /></div>
+      <div className={`${styles.bubble} ${styles.bubbleAI}`}>
+        <span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} />
+      </div>
+    </div>
+  );
+}
 
-function ChatTab({ patientCtx }) {
+// ── Patient Quick-Ask chips ───────────────────────────────────────────────────
+
+const PATIENT_QUICK_ASK = [
+  { icon: <ClipboardList size={12} />, label: 'Past Visits',        q: 'Summarize this patient\'s past visits and key findings.' },
+  { icon: <User size={12} />,          label: 'Overview',           q: 'Give me a clinical overview of this patient.' },
+  { icon: <Pill size={12} />,          label: 'Medications',        q: 'What medications has this patient been prescribed? Any interactions?' },
+  { icon: <FileText size={12} />,      label: 'Medical History',    q: 'Summarize the medical history of this patient.' },
+  { icon: <Activity size={12} />,      label: 'Vitals',             q: 'What are the latest vitals for this patient? Any concerns?' },
+  { icon: <FlaskConical size={12} />,  label: 'Lab Results',        q: 'Summarize the recent lab investigations for this patient.' },
+  { icon: <Heart size={12} />,         label: 'Chronic Conditions', q: 'What chronic conditions does this patient have? What should I watch for?' },
+  { icon: <AlertCircle size={12} />,   label: 'Allergies',          q: 'What are this patient\'s known allergies? What drugs to avoid?' },
+  { icon: <Stethoscope size={12} />,   label: 'Diagnosis',          q: 'What diagnoses has this patient been given across visits?' },
+  { icon: <Syringe size={12} />,       label: 'Vaccinations',       q: 'What vaccinations are recorded for this patient?' },
+  { icon: <UtensilsCrossed size={12}/>, label: 'Diet & Lifestyle',  q: 'Suggest a diet and lifestyle plan for this patient based on their history.' },
+];
+
+// ── Patient Context Panel ─────────────────────────────────────────────────────
+
+function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
+  const [expanded,    setExpanded]    = useState(true);
+  const [patientData, setPatientData] = useState(null);
+  const [loading,     setLoading]     = useState(false);
+
+  useEffect(() => {
+    if (!appt?.emr_patient_id) {
+      setPatientData(null);
+      return;
+    }
+    setLoading(true);
+    api.get(`/docassist/patient-context/${appt.emr_patient_id}`)
+      .then(d => setPatientData(d))
+      .catch(() => setPatientData(null))
+      .finally(() => setLoading(false));
+  }, [appt?.emr_patient_id]);
+
+  const name = appt?.patient_name || 'Patient';
+  const age  = fmtAge(appt?.patient_dob);
+  const gender = appt?.patient_gender;
+
+  return (
+    <div className={styles.patientPanel}>
+      {/* Header row */}
+      <div className={styles.patientPanelHeader} onClick={() => setExpanded(e => !e)}>
+        <div className={styles.patientPanelAvatar}>{name.charAt(0).toUpperCase()}</div>
+        <div className={styles.patientPanelInfo}>
+          <span className={styles.patientPanelName}>{name}</span>
+          <span className={styles.patientPanelMeta}>
+            {[age ? `${age}y` : null, gender === 'M' ? 'Male' : gender === 'F' ? 'Female' : gender, appt?.patient_mobile].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+        <div className={styles.patientPanelActions}>
+          <button className={styles.patientPanelClear} onClick={e => { e.stopPropagation(); onClearPatient(); }} title="Remove patient context">
+            <X size={11} strokeWidth={2} />
+          </button>
+          {expanded ? <ChevronUp size={13} strokeWidth={2} /> : <ChevronDown size={13} strokeWidth={2} />}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className={styles.patientPanelBody}>
+          {loading && <div className={styles.patientPanelLoading}><RefreshCw size={12} className={styles.spin} /> Loading patient data…</div>}
+
+          {patientData && !loading && (
+            <div className={styles.patientPanelStats}>
+              {patientData.patient.visit_count > 0 && (
+                <span className={styles.patientStatChip}>
+                  <ClipboardList size={10} /> {patientData.patient.visit_count} visit{patientData.patient.visit_count !== 1 ? 's' : ''}
+                </span>
+              )}
+              {patientData.patient.last_visit && (
+                <span className={styles.patientStatChip}>
+                  Last: {fmtDate(patientData.patient.last_visit)}
+                </span>
+              )}
+              {patientData.patient.allergies?.length > 0 && (
+                <span className={`${styles.patientStatChip} ${styles.patientStatChipAlert}`}>
+                  <AlertCircle size={10} /> {patientData.patient.allergies.length} allerg{patientData.patient.allergies.length > 1 ? 'ies' : 'y'}
+                </span>
+              )}
+              {patientData.patient.chronic_conditions?.length > 0 && (
+                <span className={`${styles.patientStatChip} ${styles.patientStatChipWarn}`}>
+                  <Heart size={10} /> {patientData.patient.chronic_conditions.length} condition{patientData.patient.chronic_conditions.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          )}
+
+          <p className={styles.patientPanelAskLabel}>Ask about this patient:</p>
+          <div className={styles.patientQuickAsk}>
+            {PATIENT_QUICK_ASK.map((item, i) => (
+              <button
+                key={i}
+                className={styles.patientQuickChip}
+                onClick={() => onQuickAsk(item.q, patientData?.context)}
+              >
+                {item.icon} {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Chat Tab ──────────────────────────────────────────────────────────────────
+
+function ChatTab({ appt, onClearPatient }) {
   const [messages, setMessages] = useState([]);
-  const [input, setInput]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [input,    setInput]    = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [patientCtx, setPatientCtx] = useState('');
   const bottomRef = useRef(null);
-  const inputRef  = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
 
-  async function send(text) {
+  // When appt changes, clear context so PatientContextPanel reloads
+  useEffect(() => {
+    if (!appt) setPatientCtx('');
+  }, [appt?.id]);
+
+  async function send(text, overrideCtx) {
     const query = text.trim();
     if (!query || loading) return;
-    const ts = fmtTime(new Date());
+    const ts  = fmtTime(new Date());
+    const ctx = overrideCtx !== undefined ? overrideCtx : patientCtx;
     setMessages(prev => [...prev, { role: 'user', text: query, ts }]);
     setInput('');
     setLoading(true);
@@ -162,7 +236,7 @@ function ChatTab({ patientCtx }) {
       const res = await api.post('/docassist', {
         message: query,
         history,
-        patient_context: patientCtx || null,
+        patient_context: ctx || null,
       });
       setMessages(prev => [...prev, { role: 'ai', text: res.reply, ts: fmtTime(new Date()) }]);
     } catch (err) {
@@ -170,8 +244,8 @@ function ChatTab({ patientCtx }) {
       setMessages(prev => [...prev, {
         role: 'ai',
         text: is429
-          ? '⚠️ AI service is busy (rate limit). Please wait 30 seconds and try again.'
-          : 'Sorry, I could not get a response. Please check your connection and try again.',
+          ? '⚠️ AI service is busy. Please wait 30 seconds and try again.'
+          : 'Sorry, I could not get a response. Please check your connection.',
         ts: fmtTime(new Date()),
         error: true,
       }]);
@@ -180,30 +254,56 @@ function ChatTab({ patientCtx }) {
     }
   }
 
+  const handleQuickAsk = (q, ctx) => {
+    if (ctx) setPatientCtx(ctx);
+    send(q, ctx);
+  };
+
   const isEmpty = messages.length === 0;
+
+  const GENERAL_SUGGESTIONS = [
+    { icon: '💊', text: 'Safe anti-hypertensives in asthma' },
+    { icon: '💉', text: 'Ozempic vs Rybelsus — which is more effective?' },
+    { icon: '🤰', text: 'Safe cough syrup for pregnant woman' },
+    { icon: '🥗', text: 'Diet chart for DM2 patient' },
+    { icon: '⚠️', text: 'Common dangerous drug interactions' },
+    { icon: '🔬', text: 'When to order HbA1c vs fasting glucose?' },
+  ];
 
   return (
     <div className={styles.tabPane}>
+      {/* Patient context panel — shown when an appointment is active */}
+      {appt && (
+        <PatientContextPanel
+          appt={appt}
+          onQuickAsk={handleQuickAsk}
+          onClearPatient={onClearPatient}
+        />
+      )}
+
       <div className={styles.chatBody}>
         {isEmpty ? (
           <div className={styles.welcome}>
-            <Logo size="lg" />
-            <h2 className={styles.welcomeTitle}>DocAssist AI</h2>
-            <p className={styles.welcomeSub}>Your intelligent clinical copilot</p>
-            {patientCtx && (
-              <div className={styles.ctxBadge}>
-                <User size={11} /> Patient context active
-              </div>
-            )}
-            <p className={styles.suggestLabel}>Try asking:</p>
-            <div className={styles.suggestions}>
-              {CHAT_SUGGESTIONS.map((s, i) => (
-                <button key={i} className={styles.suggCard} onClick={() => send(s.text)}>
-                  <span className={styles.suggIcon}>{s.icon}</span>
-                  <span className={styles.suggText}>{s.text}</span>
-                </button>
-              ))}
+            <div className={styles.logoLg}>
+              <span className={styles.logoDot1} /><span className={styles.logoDot2} />
             </div>
+            <h2 className={styles.welcomeTitle}>DocAssist AI</h2>
+            <p className={styles.welcomeSub}>
+              {appt ? `Ask anything about ${appt.patient_name || 'this patient'}, or any clinical question.` : 'Your intelligent clinical copilot'}
+            </p>
+            {!appt && (
+              <>
+                <p className={styles.suggestLabel}>Try asking:</p>
+                <div className={styles.suggestions}>
+                  {GENERAL_SUGGESTIONS.map((s, i) => (
+                    <button key={i} className={styles.suggCard} onClick={() => send(s.text)}>
+                      <span className={styles.suggIcon}>{s.icon}</span>
+                      <span className={styles.suggText}>{s.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <div className={styles.messages}>
@@ -228,17 +328,16 @@ function ChatTab({ patientCtx }) {
       </div>
 
       {!isEmpty && (
-        <button className={styles.newChatBtn} onClick={() => setMessages([])}>
+        <button className={styles.newChatBtn} onClick={() => { setMessages([]); setPatientCtx(''); }}>
           <RotateCcw size={12} strokeWidth={2} /> New chat
         </button>
       )}
 
       <div className={styles.inputWrap}>
         <textarea
-          ref={inputRef}
           className={styles.input}
           rows={1}
-          placeholder="Ask a clinical question…"
+          placeholder={appt ? `Ask about ${appt.patient_name || 'patient'} or any clinical question…` : 'Ask a clinical question…'}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
@@ -256,166 +355,17 @@ function ChatTab({ patientCtx }) {
   );
 }
 
-// ── Patients Tab ──────────────────────────────────────────────────────────────
-
-function PatientsTab({ onSetPatientCtx }) {
-  const [query,     setQuery]     = useState('');
-  const [results,   setResults]   = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [selected,  setSelected]  = useState(null);
-  const [insight,   setInsight]   = useState('');
-  const [loading,   setLoading]   = useState(false);
-  const [expanded,  setExpanded]  = useState({});
-  const debRef = useRef(null);
-
-  const search = useCallback(async (q) => {
-    if (!q.trim()) { setResults([]); return; }
-    setSearching(true);
-    try {
-      const data = await api.get(`/patients?q=${encodeURIComponent(q)}&limit=8`);
-      setResults(Array.isArray(data) ? data : data.patients || data.data || []);
-    } catch { setResults([]); }
-    finally { setSearching(false); }
-  }, []);
-
-  useEffect(() => {
-    clearTimeout(debRef.current);
-    debRef.current = setTimeout(() => search(query), 350);
-    return () => clearTimeout(debRef.current);
-  }, [query, search]);
-
-  const selectPatient = async (p) => {
-    setSelected(p);
-    setInsight('');
-    onSetPatientCtx && onSetPatientCtx(`Patient: ${p.name}, Age: ${fmtAge(p.dob) || '?'}, Gender: ${p.gender || '?'}`);
-
-    setLoading(true);
-    try {
-      const res = await api.post('/docassist', {
-        message: `Give a brief clinical summary and key insights for this patient. Highlight any abnormal patterns, chronic conditions, allergy risks, or follow-up gaps. Be concise.`,
-        history: [],
-        patient_context: `Patient: ${p.name}, Age: ${fmtAge(p.dob) || '?'}, Gender: ${p.gender || '?'}, UHID: ${p.uhid || 'N/A'}`,
-      });
-      setInsight(res.reply);
-    } catch { setInsight('Could not generate AI insight for this patient.'); }
-    finally { setLoading(false); }
-  };
-
-  const toggle = (key) => setExpanded(e => ({ ...e, [key]: !e[key] }));
-
-  return (
-    <div className={styles.tabPane}>
-      <div className={styles.patientsBody}>
-        {/* Search bar */}
-        <div className={styles.patientSearch}>
-          <Search size={14} className={styles.patientSearchIcon} strokeWidth={2} />
-          <input
-            className={styles.patientSearchInput}
-            placeholder="Name, UHID, mobile, ABHA ID…"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-          />
-          {searching && <RefreshCw size={13} className={styles.spin} />}
-        </div>
-
-        {/* Results */}
-        {results.length > 0 && !selected && (
-          <div className={styles.patientResults}>
-            {results.map(p => (
-              <button key={p.id} className={styles.patientCard} onClick={() => selectPatient(p)}>
-                <div className={styles.patientAvatar}>
-                  {(p.name || '?').charAt(0).toUpperCase()}
-                </div>
-                <div className={styles.patientInfo}>
-                  <span className={styles.patientName}>{p.name}</span>
-                  <span className={styles.patientMeta}>
-                    {[p.uhid, fmtAge(p.dob) ? `${fmtAge(p.dob)}y` : null, p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : p.gender].filter(Boolean).join(' · ')}
-                  </span>
-                  {p.mobile && <span className={styles.patientMeta}>{p.mobile}</span>}
-                </div>
-                <ChevronDown size={14} className={styles.patientArrow} strokeWidth={2} />
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Selected patient detail */}
-        {selected && (
-          <div className={styles.patientDetail}>
-            <button className={styles.backBtn} onClick={() => { setSelected(null); setInsight(''); onSetPatientCtx && onSetPatientCtx(''); }}>
-              ← Back to search
-            </button>
-
-            <div className={styles.patientDetailHeader}>
-              <div className={styles.patientAvatarLg}>
-                {(selected.name || '?').charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div className={styles.patientName}>{selected.name}</div>
-                <div className={styles.patientMeta}>
-                  {[selected.uhid, fmtAge(selected.dob) ? `${fmtAge(selected.dob)} years` : null, selected.gender === 'M' ? 'Male' : selected.gender === 'F' ? 'Female' : selected.gender, selected.mobile].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-            </div>
-
-            {/* AI Insight */}
-            <div className={styles.insightCard}>
-              <div className={styles.insightHeader}>
-                <Sparkles size={13} />
-                <span>AI Clinical Insight</span>
-              </div>
-              {loading
-                ? <div className={styles.insightLoading}><span className={styles.dot}/><span className={styles.dot}/><span className={styles.dot}/></div>
-                : <div className={styles.insightBody}>{renderMarkdown(insight)}</div>
-              }
-            </div>
-
-            {/* Quick actions */}
-            <div className={styles.quickActions}>
-              <span className={styles.quickActionsLabel}>Quick questions</span>
-              {[
-                'What changed since last visit?',
-                'Any drug interactions?',
-                'Summarize chronic conditions.',
-                'Show abnormal lab trends.',
-              ].map((q, i) => (
-                <button key={i} className={styles.quickAction} onClick={() => {
-                  onSetPatientCtx && onSetPatientCtx(`Patient: ${selected.name}, Age: ${fmtAge(selected.dob) || '?'}`);
-                  // Switch to chat tab is handled by parent — we just set context
-                }}>
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!selected && !searching && query.length > 1 && results.length === 0 && (
-          <div className={styles.noResults}>
-            <Search size={28} className={styles.noResultsIcon} />
-            <p>No patients found for "{query}"</p>
-          </div>
-        )}
-
-        {!selected && !query && (
-          <div className={styles.patientEmpty}>
-            <User size={36} className={styles.patientEmptyIcon} />
-            <p>Search for a patient to get AI-powered clinical insights</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function DocAssistAI() {
-  const [open,       setOpen]       = useState(false);
-  const [activeTab,  setActiveTab]  = useState('chat');
-  const [patientCtx, setPatientCtx] = useState('');
+export default function DocAssistAI({ appt: propAppt }) {
+  const [open,        setOpen]        = useState(false);
+  const [activeAppt,  setActiveAppt]  = useState(null);
 
-  // Close on Escape
+  // Sync with the propAppt (current patient in queue/rx)
+  useEffect(() => {
+    if (propAppt) setActiveAppt(propAppt);
+  }, [propAppt?.id]);
+
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('keydown', handler);
@@ -424,35 +374,30 @@ export default function DocAssistAI() {
 
   return (
     <>
-      {/* Backdrop */}
       {open && <div className={styles.backdrop} onClick={() => setOpen(false)} />}
 
-      {/* Floating button — hidden when drawer is open */}
       {!open && (
-        <button
-          className={styles.fab}
-          onClick={() => setOpen(true)}
-          title="DocAssist AI"
-        >
+        <button className={styles.fab} onClick={() => setOpen(true)} title="DocAssist AI">
           <Bot size={18} strokeWidth={2} />
           <span className={styles.fabLabel}>DocAssist AI</span>
           <span className={styles.fabBadge}>Beta</span>
+          {activeAppt && <span className={styles.fabPatientDot} title={activeAppt.patient_name} />}
         </button>
       )}
 
-      {/* Side Drawer */}
       {open && (
         <div className={styles.drawer}>
-          {/* Header */}
           <div className={styles.drawerHeader}>
-            <Logo size="sm" />
+            <div className={`${styles.logo} ${styles.logoSm}`}>
+              <span className={styles.logoDot1} /><span className={styles.logoDot2} />
+            </div>
             <div className={styles.headerText}>
               <span className={styles.headerTitle}>DocAssist AI</span>
               <span className={styles.headerBadge}>Beta</span>
             </div>
-            {patientCtx && (
+            {activeAppt && (
               <div className={styles.headerPatientCtx}>
-                <User size={10} /> context
+                <User size={10} /> {activeAppt.patient_name}
               </div>
             )}
             <button className={styles.headerCloseBtn} onClick={() => setOpen(false)}>
@@ -460,24 +405,11 @@ export default function DocAssistAI() {
             </button>
           </div>
 
-          {/* Tabs */}
-          <div className={styles.tabs}>
-            {TABS.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                className={`${styles.tab} ${activeTab === id ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab(id)}
-              >
-                <Icon size={13} strokeWidth={2} />
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
           <div className={styles.drawerBody}>
-            {activeTab === 'chat'     && <ChatTab patientCtx={patientCtx} />}
-            {activeTab === 'patients' && <PatientsTab onSetPatientCtx={ctx => { setPatientCtx(ctx); if (ctx) setActiveTab('chat'); }} />}
+            <ChatTab
+              appt={activeAppt}
+              onClearPatient={() => setActiveAppt(null)}
+            />
           </div>
         </div>
       )}

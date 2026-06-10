@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ChevronDown, Settings2, Globe, User,
@@ -724,7 +725,7 @@ export default function WriteRx() {
           calc_results:         data.calc_results  || {},
         }));
         if (searchParams.get('print') === '1') {
-          setTimeout(() => { setShowPreview(true); window.print(); }, 400);
+          setTimeout(() => window.print(), 600);
         }
       }
     }).catch(() => {});
@@ -795,8 +796,7 @@ export default function WriteRx() {
   };
 
   const handlePrint = () => {
-    setShowPreview(true);
-    setTimeout(() => window.print(), 300);
+    window.print();
   };
 
   function checkMandatory() {
@@ -1501,6 +1501,14 @@ export default function WriteRx() {
           minimized={patientMinimized}
           onMinimize={setPatientMinimized}
         />
+      )}
+
+      {/* Print portal — rendered outside #root so visibility tricks aren't needed */}
+      {createPortal(
+        <div id="rx-print-portal" style={{ display: 'none' }}>
+          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} />
+        </div>,
+        document.body
       )}
 
     </>

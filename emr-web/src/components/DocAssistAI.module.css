@@ -842,3 +842,70 @@
 }
 .docContext:focus { border-color: #a78bfa; background: #fff; }
 .docContext::placeholder { color: #c4cad8; }
+
+/* ── FAB patient indicator dot ──────────────────────────────── */
+.fabPatientDot {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 8px; height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+}
+
+/* ── Patient context panel (inside chat) ─────────────────────── */
+.patientPanel {
+  border-bottom: 1px solid #ede9fe;
+  background: linear-gradient(135deg, #faf5ff 0%, #f0f4ff 100%);
+  flex-shrink: 0;
+}
+.patientPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.patientPanelAvatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #fff;
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.patientPanelInfo { flex: 1; min-width: 0; }
+.patientPanelName { font-size: 13px; font-weight: 700; color: #1a202c; display: block; }
+.patientPanelMeta { font-size: 11px; color: #64748b; }
+.patientPanelActions { display: flex; align-items: center; gap: 6px; color: #94a3b8; }
+.patientPanelClear {
+  background: none; border: none; cursor: pointer;
+  color: #94a3b8; padding: 2px; border-radius: 4px;
+  display: flex; align-items: center;
+}
+.patientPanelClear:hover { color: #dc2626; background: #fee2e2; }
+
+.patientPanelBody { padding: 0 16px 12px; }
+.patientPanelLoading { font-size: 12px; color: #94a3b8; display: flex; align-items: center; gap: 6px; padding: 4px 0 8px; }
+.patientPanelStats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.patientStatChip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 20px;
+  background: #ede9fe; color: #5b21b6;
+}
+.patientStatChipAlert { background: #fee2e2; color: #b91c1c; }
+.patientStatChipWarn  { background: #fef3c7; color: #92400e; }
+
+.patientPanelAskLabel { font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+.patientQuickAsk { display: flex; flex-wrap: wrap; gap: 6px; }
+.patientQuickChip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 500;
+  padding: 5px 10px; border-radius: 20px;
+  background: #fff; border: 1.5px solid #ddd6fe; color: #5b21b6;
+  cursor: pointer; transition: all 0.12s;
+}
+.patientQuickChip:hover { background: #7c3aed; border-color: #7c3aed; color: #fff; }
