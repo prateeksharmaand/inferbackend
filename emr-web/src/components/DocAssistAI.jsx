@@ -208,6 +208,19 @@ function buildApptContext(appt) {
   ].filter(Boolean).join('\n');
 }
 
+// Safe JSON parse helper
+function safeJson(val) {
+  if (!val) return null;
+  if (typeof val === 'object') return val;
+  try { return JSON.parse(val); } catch { return null; }
+}
+// Extract text from various object shapes
+function extractText(item) {
+  if (!item) return null;
+  if (typeof item === 'string') return item;
+  return item.display || item.name || item.text || item.label || item.drug_name || item.generic_name || null;
+}
+
 function buildContextFromHistory(rows, appt) {
   const first = rows[0];
   const age   = fmtAge(first.patient_dob || appt?.patient_dob);
@@ -220,6 +233,22 @@ function buildContextFromHistory(rows, appt) {
     first.patient_mobile ? `Mobile: ${first.patient_mobile}`                                        : null,
     first.uhid           ? `UHID: ${first.uhid}`                                                    : null,
   ].filter(Boolean);
+
+  // Medical history from appointment (pre-existing conditions)
+  const medHistRow = rows.find(r => r.medical_history?.length);
+  if (medHistRow) {
+    const mh = safeJson(medHistRow.medical_history);
+    if (Array.isArray(mh) && mh.length) {
+      const mhStr = mh.map(h => {
+        const label = h.label || h.name || h.condition || extractText(h) || '';
+        const since = h.since ? ` since ${h.since}` : '';
+        return label ? `${label}${since}` : null;
+      }).filter(Boolean).join(', ');
+      if (mhStr) lines.push(`Medical History: ${mhStr}`);
+    } else if (typeof mh === 'string' && mh.trim()) {
+      lines.push(`Medical History: ${mh}`);
+    }
+  }
 
   // Latest vitals — parse JSON string if needed, use correct field keys from InferPad
   const vitalsRow = rows.find(r => {
@@ -283,7 +312,10 @@ function buildContextFromHistory(rows, appt) {
     allVaccinations.forEach(v => lines.push(`  • ${v}`));
   }
 
-  const visits = rows.filter(r => r.diagnosis?.length || r.medications?.length || r.chief_complaint || r.symptoms?.length);
+  const visits = rows.filter(r =>
+    r.diagnosis || r.medications || r.chief_complaint || r.symptoms ||
+    r.examination_findings || r.advices || r.encounter_notes || r.procedures
+  );
   if (visits.length) {
     lines.push(`\nPast ${visits.length} visit(s):`);
     visits.forEach((r, i) => {
@@ -291,43 +323,84 @@ function buildContextFromHistory(rows, appt) {
         ? new Date(r.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
         : 'Unknown date';
       const parts = [];
+
       if (r.doctor_name)     parts.push(`Dr. ${r.doctor_name}`);
+      if (r.visit_type)      parts.push(`Type: ${r.visit_type}`);
       if (r.chief_complaint) parts.push(`CC: ${r.chief_complaint}`);
-      if (r.diagnosis?.length) {
-        const dx = Array.isArray(r.diagnosis)
-          ? r.diagnosis.map(d => d.name || d.text || d).filter(Boolean).join(', ')
-          : r.diagnosis;
-        if (dx) parts.push(`Dx: ${dx}`);
+
+      // Diagnosis — objects have {display, code, system, since, severity}
+      const dx = safeJson(r.diagnosis);
+      if (Array.isArray(dx) && dx.length) {
+        const dxStr = dx.map(d => {
+          const name = d.display || d.name || d.text || extractText(d);
+          const code = d.code ? ` [${d.code}]` : '';
+          const sev  = d.severity ? ` (${d.severity})` : '';
+          return name ? `${name}${code}${sev}` : null;
+        }).filter(Boolean).join(', ');
+        if (dxStr) parts.push(`Dx: ${dxStr}`);
       }
-      if (r.symptoms?.length) {
-        const sx = Array.isArray(r.symptoms)
-          ? r.symptoms.map(s => s.name || s.text || s).filter(Boolean).join(', ')
-          : r.symptoms;
-        if (sx) parts.push(`Sx: ${sx}`);
+
+      // Symptoms — objects have {name, code, since, severity}
+      const sx = safeJson(r.symptoms);
+      if (Array.isArray(sx) && sx.length) {
+        const sxStr = sx.map(s => {
+          const name = s.name || s.text || extractText(s);
+          const since = s.since ? ` since ${s.since}` : '';
+          const sev   = s.severity ? ` (${s.severity})` : '';
+          return name ? `${name}${since}${sev}` : null;
+        }).filter(Boolean).join(', ');
+        if (sxStr) parts.push(`Sx: ${sxStr}`);
       }
-      if (r.medications?.length) {
-        const meds = Array.isArray(r.medications)
-          ? r.medications.slice(0, 5).map(m => m.name || m.drug_name || m.generic_name || m).filter(Boolean).join(', ')
-          : r.medications;
-        if (meds) parts.push(`Meds: ${meds}`);
+
+      // Medications — objects have {name, dose/dosage, frequency, duration, instructions}
+      const meds = safeJson(r.medications);
+      if (Array.isArray(meds) && meds.length) {
+        const medsStr = meds.slice(0, 6).map(m => {
+          const name = m.name || m.drug_name || m.generic_name || extractText(m);
+          const dose = m.dose || m.dosage || '';
+          const freq = m.frequency || '';
+          const dur  = m.duration || '';
+          const detail = [dose, freq, dur].filter(Boolean).join(' ');
+          return name ? `${name}${detail ? ` (${detail})` : ''}` : null;
+        }).filter(Boolean).join(', ');
+        if (medsStr) parts.push(`Meds: ${medsStr}`);
       }
-      if (r.lab_investigations?.length) {
-        const labs = Array.isArray(r.lab_investigations)
-          ? r.lab_investigations.slice(0, 3).map(l => l.name || l.test || l).filter(Boolean).join(', ')
-          : r.lab_investigations;
-        if (labs) parts.push(`Labs: ${labs}`);
+
+      // Lab investigations — objects have {name, code}
+      const labs = safeJson(r.lab_investigations);
+      if (Array.isArray(labs) && labs.length) {
+        const labsStr = labs.map(l => l.name || l.test || extractText(l)).filter(Boolean).join(', ');
+        if (labsStr) parts.push(`Labs ordered: ${labsStr}`);
       }
-      if (r.lab_results?.length) {
-        const results = Array.isArray(r.lab_results)
-          ? r.lab_results.slice(0, 3).map(l => `${l.test || l.name}: ${l.result || l.value}${l.unit ? ' ' + l.unit : ''}`).filter(Boolean).join(', ')
-          : '';
-        if (results) parts.push(`Lab Results: ${results}`);
+
+      // Lab results — objects have {test/name, result/value, unit}
+      const labRes = safeJson(r.lab_results);
+      if (Array.isArray(labRes) && labRes.length) {
+        const labResStr = labRes.map(l => {
+          const name = l.test || l.name || l.parameter;
+          const val  = l.result || l.value;
+          const unit = l.unit || '';
+          return name && val ? `${name}: ${val}${unit ? ' ' + unit : ''}` : null;
+        }).filter(Boolean).join(', ');
+        if (labResStr) parts.push(`Lab Results: ${labResStr}`);
       }
+
+      // Procedures
+      const procs = safeJson(r.procedures);
+      if (Array.isArray(procs) && procs.length) {
+        const procStr = procs.map(p => typeof p === 'string' ? p : p.name || extractText(p)).filter(Boolean).join(', ');
+        if (procStr) parts.push(`Procedures: ${procStr}`);
+      } else if (typeof procs === 'string' && procs.trim()) {
+        parts.push(`Procedures: ${procs}`);
+      }
+
       if (r.examination_findings) parts.push(`Exam: ${r.examination_findings}`);
+      if (r.encounter_notes)      parts.push(`Notes: ${r.encounter_notes}`);
       if (r.advices)              parts.push(`Advice: ${r.advices}`);
       if (r.refer_to)             parts.push(`Referred to: ${r.refer_to}`);
       if (r.next_visit_date)      parts.push(`Next visit: ${r.next_visit_date}`);
-      lines.push(`  ${i + 1}. ${dateStr}${parts.length ? ' — ' + parts.join(' | ') : ''}`);
+
+      lines.push(`  ${i + 1}. ${dateStr}${parts.length ? '\n     ' + parts.join('\n     ') : ''}`);
     });
   }
   return lines.join('\n');
