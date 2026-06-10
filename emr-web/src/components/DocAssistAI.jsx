@@ -494,33 +494,10 @@ function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
 
 function QuickAskPanel({ ctx, onAsk, patientName }) {
   const [openSection, setOpenSection] = useState(null);
-  const [customQ, setCustomQ] = useState('');
-
-  const handleCustomSubmit = (e) => {
-    e.preventDefault();
-    if (!customQ.trim()) return;
-    onAsk(customQ.trim(), ctx);
-    setCustomQ('');
-    setOpenSection(null);
-  };
 
   return (
     <div className={styles.quickAskPanel}>
-      {/* Custom question input */}
-      <form className={styles.quickAskCustom} onSubmit={handleCustomSubmit}>
-        <input
-          className={styles.quickAskInput}
-          placeholder={`Ask anything about ${patientName}…`}
-          value={customQ}
-          onChange={e => setCustomQ(e.target.value)}
-        />
-        <button type="submit" className={styles.quickAskSubmit} disabled={!customQ.trim()}>
-          <Send size={12} strokeWidth={2.5} />
-        </button>
-      </form>
-
-      {/* Section-based accordion */}
-      <p className={styles.patientPanelAskLabel}>Or choose a topic:</p>
+      <p className={styles.patientPanelAskLabel}>Choose a topic to ask:</p>
       <div className={styles.quickAskSections}>
         {QUICK_ASK_SECTIONS.map((sec, si) => (
           <div key={si} className={styles.quickAskSection}>
