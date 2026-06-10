@@ -55,6 +55,12 @@ app.use('/api/admin', require('./src/emr/admin.routes'));
 // V1 API routes (OPD portal)
 app.use('/api/v1', require('./src/routes/v1.routes'));
 
+// Email open tracking (public — no auth)
+const track = require('./src/emr/emr.track.controller');
+app.get('/api/track/open',         track.trackOpen);
+app.get('/api/track/opened-leads', track.getOpenedLeads);
+app.post('/api/track/register',    track.registerLead);
+
 // Health check
 app.get('/health', (_, res) => res.json({ status: 'healthy', timestamp: new Date().toISOString(), version: process.env.npm_package_version || '1.0.0' }));
 
