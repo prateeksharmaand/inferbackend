@@ -1503,9 +1503,9 @@ export default function WriteRx() {
         />
       )}
 
-      {/* Print portal — rendered outside #root so visibility tricks aren't needed */}
+      {/* Print portal — off-screen but always laid out so browser renders it before print */}
       {createPortal(
-        <div id="rx-print-portal" style={{ display: 'none' }}>
+        <div id="rx-print-portal" style={{ position: 'fixed', left: '-9999px', top: 0, width: '210mm', opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
           <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} />
         </div>,
         document.body
