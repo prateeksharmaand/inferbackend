@@ -214,10 +214,6 @@ if [ -d "$AGENT_DIR" ]; then
       info "Cron job already set up: ✓"
     fi
 
-    # Run agent once now
-    info "Running sales agent (first run)..."
-    cd "$AGENT_DIR" && ./venv/bin/python agent.py && cd - > /dev/null
-    info "Sales agent run complete: ✓"
   fi
 else
   warn "sales-agent/ directory not found — skipping"
