@@ -156,6 +156,45 @@ Check your Google Sheet for live updates.
     print("  ✓ Summary notification sent to prateeksharmaand@gmail.com")
 
 
+def phase_preflight(leads: list) -> list:
+    """
+    Batch-validate all lead emails before outreach.
+    Removes invalid/dead emails and logs them to bounce_log so they're never retried.
+    Uses SMTP probe for maximum accuracy.
+    """
+    from modules.email_validator import validate_batch
+    from modules.mailer import mark_bounced, is_bounced
+
+    print("\n── Phase 1.5: Pre-flight email validation ───────────")
+    emails = [
+        str(lead.get("email", "")).strip()
+        for lead in leads
+        if lead.get("email") and not is_bounced(str(lead.get("email", "")).strip())
+    ]
+
+    if not emails:
+        print("  All emails already in bounce log or missing — nothing to validate.")
+        return leads
+
+    print(f"  Validating {len(emails)} emails (smtp_probe=True)…")
+    results = validate_batch(emails, smtp_probe=True, max_workers=8)
+
+    rejected = 0
+    for email, (valid, reason) in results.items():
+        if not valid:
+            mark_bounced(email, reason)
+            rejected += 1
+
+    print(f"  Pre-flight: {rejected} emails removed before sending.")
+
+    # Filter leads to only those that passed
+    valid_leads = [
+        lead for lead in leads
+        if not lead.get("email") or not is_bounced(str(lead.get("email", "")).strip())
+    ]
+    return valid_leads
+
+
 def phase_outreach():
     print("\n── Phase 2: Email outreach ──────────────────────────")
     leads = get_leads_due_today()
@@ -164,6 +203,8 @@ def phase_outreach():
     if not leads:
         print("  Nothing to send.")
         return
+
+    leads = phase_preflight(leads)
 
     # Send summary notification first
     send_summary_notification(len(leads))

@@ -154,8 +154,10 @@ def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
                 website     = place.get("websiteUri", "")
 
                 email = extract_email_from_website(website)
+                guessed = False
                 if not email:
                     email = guess_email(website)
+                    guessed = True
 
                 if not email:
                     continue
@@ -176,7 +178,7 @@ def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
                     "step": 0,
                     "next_send_date": "",
                     "last_sent_date": "",
-                    "notes": f"Phone: {phone} | {address}",
+                    "notes": f"Phone: {phone} | {address}" + (" | email:guessed" if guessed else ""),
                 })
                 count += 1
                 print(f"    ✓ {clinic_name} — {email}")
