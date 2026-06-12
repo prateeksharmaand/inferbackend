@@ -70,15 +70,15 @@ async function hiecmPost(path, body) {
 async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, gender, yearOfBirth }) {
   // ABDM v3 on-share requires requestId + timestamp + response (original requestId) to avoid "Response cannot be NULL"
   const body = {
-    requestId:   uuid(),
-    timestamp:   new Date().toISOString(),
-    response:    { requestId },           // original REQUEST-ID from ABDM's incoming request
-    status:      'SUCCESS',
+    requestId:      uuid(),
+    timestamp:      new Date().toISOString(),
+    response:       { requestId },
+    acknowledgement: { status: 'SUCCESS' },   // ABDM deserializes this — top-level status is ignored
     abhaAddress,
     profile: {
       context:     HIP_ID,
       tokenNumber: String(tokenNumber),
-      expiry:      '1800',
+      expiry:      1800,                       // integer, not string
     },
   };
   logger.info('on-share request body', body);
