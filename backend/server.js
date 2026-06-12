@@ -99,6 +99,12 @@ app.post('/v0.5/consent-requests/on-init', abdmCtrl.consentOnInit);
 // M2: Consent grant/revoke notification from CM → HIU
 app.post('/v0.5/consents/hiu/notify', abdmCtrl.consentNotify);
 
+// M3: Consent callbacks CM → HIU (v3 paths — both with and without /api prefix)
+app.post('/api/v3/hiu/consent/request/on-init', abdmCtrl.consentOnInit);
+app.post('/v3/hiu/consent/request/on-init',     abdmCtrl.consentOnInit);
+app.post('/api/v3/hiu/consent/request/notify',  abdmCtrl.consentNotify);
+app.post('/v3/hiu/consent/request/notify',      abdmCtrl.consentNotify);
+
 // M3: Consent artifact notification from CM → HIP (after patient approves)
 app.post('/v0.5/consents/hip/notify', hipCtrl.handleConsentNotify);
 app.post('/api/v3/hip/consent/request/notify',      hipCtrl.handleConsentNotify);
