@@ -179,7 +179,7 @@ const handleHealthInfoRequest = async (req, res) => {
     const consentId  = hiRequest?.consent?.id;
     const dataPushUrl = hiRequest?.dataPushUrl;
     const keyMaterial = hiRequest?.keyMaterial;
-    logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl, keyMaterial });
+    logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl, keyMaterial, inlineConsent: JSON.stringify(hiRequest?.consent).slice(0, 300) });
 
     await pool.query(
       `INSERT INTO hip_health_requests (transaction_id, consent_id, data_push_url, key_material)
@@ -193,27 +193,33 @@ const handleHealthInfoRequest = async (req, res) => {
       [consentId]
     ).catch(() => ({ rows: [] }));
 
+    // ABDM v3: hiRequest.consent contains the full consent detail inline
+    const inlineConsent = hiRequest?.consent;
+
+    // Also check stored artifact as fallback
     const artifact = artifactRows[0];
     const raw      = artifact?.raw ?? {};
 
-    logger.info('HIP health-info: consent artifact raw keys', { keys: Object.keys(raw), raw: JSON.stringify(raw).slice(0, 400) });
-
-    // Extract consented care context references — try all known ABDM v2/v3 locations
+    // Extract consented care context references — try all known locations in priority order
     const ctxList =
-      raw.grants?.careContexts ??           // ABDM v3: notification.grants.careContexts
-      raw.careContexts ??                    // ABDM v0.5 flat
-      raw.consentDetail?.careContexts ??     // ABDM v0.5 nested
+      inlineConsent?.careContexts ??                  // ABDM v3 inline in health-info request
+      inlineConsent?.consentDetail?.careContexts ??   // ABDM v3 nested
+      raw.grants?.careContexts ??                     // stored notify v3
+      raw.careContexts ??                             // stored notify v0.5 flat
+      raw.consentDetail?.careContexts ??              // stored notify v0.5 nested
       [];
 
     const consentedRefs = ctxList.map(c => c.careContextReference).filter(Boolean);
 
     const patientId =
+      inlineConsent?.patient?.id ??
+      inlineConsent?.careContexts?.[0]?.patientReference ??
       raw.grants?.careContexts?.[0]?.patientReference ??
       raw.patient?.id ??
       raw.consentDetail?.patient?.id ??
       ctxList[0]?.patientReference;
 
-    logger.info('HIP health-info: consent filter', { patientId, consentedRefs });
+    logger.info('HIP health-info: consent filter', { patientId, consentedRefs, source: inlineConsent ? 'inline' : 'stored' });
 
     // Fetch only the care contexts that were explicitly consented to
     let rows;
