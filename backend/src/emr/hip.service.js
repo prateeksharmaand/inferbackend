@@ -1,27 +1,24 @@
 const axios   = require('axios');
 const crypto  = require('crypto');
 const logger  = require('../utils/logger');
-const { Field } = require('@noble/curves/abstract/modular.js');
+const { weierstrass } = require('@noble/curves/abstract/weierstrass.js');
+const { Field, mod } = require('@noble/curves/abstract/modular.js');
 
-// Weierstrass → Montgomery x-coordinate conversion
-// HIU sends 65-byte Weierstrass Curve25519 public key (04||xW||yW, big-endian)
-// X25519 ECDH uses Montgomery u-coordinate = xW - A/3 mod p (little-endian 32 bytes)
-const _p25519  = BigInt('0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED');
-const _Fp25519 = Field(_p25519);
-const _A_div_3 = _Fp25519.mul(BigInt(486662), _Fp25519.inv(3n)); // 486662/3 mod p
-
-function _weierstrassToX25519Raw(pub65) {
-  // Extract Weierstrass x (bytes 1–32, big-endian) → Montgomery u → little-endian 32 bytes
-  const xW  = BigInt('0x' + pub65.slice(1, 33).toString('hex'));
-  const xM  = _Fp25519.sub(xW, _A_div_3);
-  const le  = Buffer.alloc(32);
-  let val = xM;
-  for (let i = 0; i < 32; i++) { le[i] = Number(val & 0xffn); val >>= 8n; }
-  return le; // 32-byte little-endian X25519 public key
-}
-
-// X25519 SPKI prefix for wrapping raw 32-byte key into Node.js createPublicKey format
-const _X25519_SPKI_PREFIX = Buffer.from('302a300506032b656e032100', 'hex');
+// Weierstrass Curve25519 — BouncyCastle's short-Weierstrass form
+// ABDM sends AND expects 65-byte uncompressed points (04||x||y)
+// Gx/Gy derived from Montgomery base x=9 via u = x + A/3 mod p
+const _c25519n = BigInt('0x1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3ED');
+const _c25519W = weierstrass({
+  a:  BigInt('0x2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA984914A144'),
+  b:  BigInt('0x7B425ED097B425ED097B425ED097B425ED097B425ED097B4260B5E9C7710C864'),
+  p:  BigInt('0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED'),
+  n:  _c25519n,
+  Gx: BigInt('0x2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a'),
+  Gy: BigInt('0x5f51e65e475f794b1fe122d388b72eb36dc2b28192839e4dd6163a5d81312c14'),
+  h:  BigInt(8),
+  randomBytes: (b) => crypto.randomBytes(b),
+});
+const _c25519Scalar = (b) => mod(BigInt('0x' + b.toString('hex')), _c25519n - 1n) + 1n;
 
 const GATEWAY = process.env.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in/gateway';
 const HIECM   = process.env.ABDM_HIECM_URL   || 'https://dev.abdm.gov.in/api/hiecm';
@@ -218,39 +215,37 @@ function buildFhirBundle(patient, careContext) {
 
 // Encrypt one FHIR bundle entry for ABDM health data transfer
 //
-// Key exchange:
-//   HIU sends 65-byte Weierstrass Curve25519 key → convert x to X25519 Montgomery (32 bytes LE)
-//   HIP generates X25519 ephemeral key pair (32-byte raw keys)
-//   ECDH shared secret = X25519(hip_priv, hiu_x25519_pub)
+// ABDM uses BouncyCastle Weierstrass Curve25519 throughout:
+//   - HIU sends 65-byte uncompressed Weierstrass public key
+//   - HIP must also return 65-byte Weierstrass public key
+//   - Shared secret = Weierstrass x-coordinate of ECDH point
 //
-// KDF:  SHA-256( XOR(hiu_nonce, hip_nonce) || shared_secret )
+// KDF:  SHA-256( XOR(hiu_nonce, hip_nonce) || sharedX )  (nonces decoded from base64)
 // IV:   first 12 bytes of hip_nonce
-// AES:  AES-256-GCM → content = ciphertext || auth_tag (NOT iv||tag||cipher)
-//
-// Returns: { encryptedData, hipPublicKey (32-byte raw X25519 base64), hipNonce (32-byte base64) }
+// AES:  AES-256-GCM → content = ciphertext || auth_tag  (BouncyCastle format, NO embedded IV)
 function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
   try {
-    const hiuPub65  = Buffer.from(hiuPubKeyBase64, 'base64');
+    const hiuPubHex = Buffer.from(hiuPubKeyBase64, 'base64').toString('hex');
     const hiuNonce  = Buffer.from(hiuNonceBase64,  'base64'); // 32 bytes
 
-    // Convert HIU Weierstrass key → X25519 Montgomery key
-    const hiuX25519Raw = _weierstrassToX25519Raw(hiuPub65);
-    const hiuX25519Key = crypto.createPublicKey({
-      key: Buffer.concat([_X25519_SPKI_PREFIX, hiuX25519Raw]),
-      format: 'der', type: 'spki',
-    });
+    // Generate HIP ephemeral Weierstrass Curve25519 key pair
+    const hipPriv     = crypto.randomBytes(32);
+    const hipScalar   = _c25519Scalar(hipPriv);
+    const hipPubBytes = Buffer.from(_c25519W.BASE.multiply(hipScalar).toBytes(false)); // 65 bytes
 
-    // Generate HIP X25519 ephemeral key pair
-    const hipKeyPair = crypto.generateKeyPairSync('x25519');
-    const hipNonce   = crypto.randomBytes(32);
+    // Weierstrass ECDH: shared x-coordinate (big-endian 32 bytes)
+    const hiuPoint = _c25519W.BASE.constructor.fromHex(hiuPubHex);
+    const sharedX  = Buffer.from(
+      hiuPoint.multiply(hipScalar).toAffine().x.toString(16).padStart(64, '0'), 'hex'
+    );
 
-    // X25519 ECDH → 32-byte shared secret
-    const shared = crypto.diffieHellman({ publicKey: hiuX25519Key, privateKey: hipKeyPair.privateKey });
+    // Generate HIP nonce (32 bytes)
+    const hipNonce = crypto.randomBytes(32);
 
-    // KDF: SHA-256( XOR(hiu_nonce, hip_nonce) || shared )
+    // KDF: SHA-256( XOR(hiu_nonce, hip_nonce) || sharedX )
     const xorNonce = Buffer.alloc(32);
     for (let i = 0; i < 32; i++) xorNonce[i] = (hiuNonce[i] ?? 0) ^ hipNonce[i];
-    const aesKey = crypto.createHash('sha256').update(Buffer.concat([xorNonce, shared])).digest();
+    const aesKey = crypto.createHash('sha256').update(Buffer.concat([xorNonce, sharedX])).digest();
 
     // AES-256-GCM: IV = first 12 bytes of hip_nonce
     const iv     = hipNonce.slice(0, 12);
@@ -258,14 +253,12 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const enc    = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const tag    = cipher.getAuthTag();
 
-    // Content = ciphertext || auth_tag  (ABDM/BouncyCastle format, no IV embedded)
-    const encryptedData = Buffer.concat([enc, tag]).toString('base64');
-
-    // HIP public key: raw 32-byte X25519 (strip DER/SPKI wrapper)
-    const hipPubDer = hipKeyPair.publicKey.export({ format: 'der', type: 'spki' });
-    const hipPubRaw = hipPubDer.slice(-32);
-
-    return { encryptedData, hipPublicKey: hipPubRaw.toString('base64'), hipNonce: hipNonce.toString('base64') };
+    // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
+    return {
+      encryptedData: Buffer.concat([enc, tag]).toString('base64'),
+      hipPublicKey:  hipPubBytes.toString('base64'),        // 65-byte Weierstrass
+      hipNonce:      hipNonce.toString('base64'),            // 32 bytes
+    };
   } catch (err) {
     logger.warn('FHIR encryption failed', {
       error: err.message,
