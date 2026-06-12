@@ -227,7 +227,7 @@ async function verifyAadhaarOtp(otp, txnId, mobile) {
 async function generateMobileLoginOtp(mobile) {
   const encryptedId = await rsaEncrypt(mobile);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    scope: 'mobile',
+    scope: ['abha-login', 'mobile-verify'],
     loginHint: 'mobile',
     loginId: encryptedId,
     otpSystem: 'abdm',
@@ -237,7 +237,7 @@ async function generateMobileLoginOtp(mobile) {
 async function verifyMobileLoginOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
   return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
-    scope: 'mobile',
+    scope: ['abha-login', 'mobile-verify'],
     authData: {
       authMethods: ['otp'],
       otp: { txnId, otpValue: encOtp },
@@ -248,20 +248,19 @@ async function verifyMobileLoginOtp(otp, txnId) {
 // ─── Login with ABHA (Aadhaar OTP or Mobile OTP, via ABHA Number or Address) ──
 
 async function loginRequestAbhaOtp(loginId, _loginHint, otpSystem) {
-  const isAbhaAddress = loginId.includes('@');
-
-  // Determine loginHint and loginId based on input type
-  // ABDM v3: ABHA address → plaintext + 'abha-address'; ABHA number → RSA-encrypted + 'abha-number'
-  const loginHint = isAbhaAddress ? 'abha-address' : 'abha-number';
-  const finalLoginId = isAbhaAddress
-    ? loginId
-    : await rsaEncrypt(loginId.replace(/-/g, ''));
-
+  // ABDM v3 valid loginHint values: mobile | aadhaar | abha-number | email | password | index
+  // 'abha-address' is NOT a valid loginHint — ABDM rejects it
+  if (loginId.includes('@')) {
+    const err = new Error('ABHA address login is not supported by ABDM v3. Please use your 14-digit ABHA number.');
+    err.status = 400;
+    throw err;
+  }
+  const encryptedId = await rsaEncrypt(loginId.replace(/-/g, ''));
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
     scope: ['abha-login', 'mobile-verify'],
-    loginHint,
-    loginId: finalLoginId,
-    otpSystem,
+    loginHint: 'abha-number',
+    loginId: encryptedId,
+    otpSystem: otpSystem ?? 'abdm',
   });
 }
 
@@ -272,14 +271,7 @@ async function updateAbhaProfileMobile(xToken, mobile) {
 // ─── M1: ABHA Login ───────────────────────────────────────────────────────────
 
 async function loginRequestOtp(abhaNumber) {
-  const normalised = abhaNumber.replace(/-/g, '');
-  const encryptedId = await rsaEncrypt(normalised);
-  return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    scope: ['abha-login', 'mobile-verify'],
-    loginHint: 'abha-number',
-    loginId: encryptedId,
-    otpSystem: 'abdm',
-  });
+  return loginRequestAbhaOtp(abhaNumber, null, 'abdm');
 }
 
 async function loginVerifyOtp(otp, txnId) {
