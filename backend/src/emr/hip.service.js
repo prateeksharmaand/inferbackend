@@ -73,8 +73,7 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, 
     requestId:      uuid(),
     timestamp:      new Date().toISOString(),
     response:       { requestId },
-    acknowledgement: { status: 'SUCCESS' },   // ABDM deserializes this — top-level status is ignored
-    abhaAddress,
+    acknowledgement: { status: 'SUCCESS', abhaAddress },  // abhaAddress must be inside acknowledgement
     profile: {
       context:     HIP_ID,
       tokenNumber: String(tokenNumber),
