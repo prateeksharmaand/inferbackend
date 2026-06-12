@@ -240,23 +240,22 @@ async function verifyMobileLoginOtp(otp, txnId) {
     scope: 'mobile',
     authData: {
       authMethods: ['otp'],
-      otp: { timeStamp: new Date().toISOString(), txnId, otpValue: encOtp },
+      otp: { txnId, otpValue: encOtp },
     },
   });
 }
 
 // ─── Login with ABHA (Aadhaar OTP or Mobile OTP, via ABHA Number or Address) ──
 
-async function loginRequestAbhaOtp(loginId, loginHint, otpSystem) {
+async function loginRequestAbhaOtp(loginId, _loginHint, otpSystem) {
   const isAbhaAddress = loginId.includes('@');
-  let finalLoginId;
 
-  if (isAbhaAddress) {
-    finalLoginId = loginId;
-  } else {
-    const normalised = loginId.replace(/-/g, '');
-    finalLoginId = await rsaEncrypt(normalised);
-  }
+  // Determine loginHint and loginId based on input type
+  // ABDM v3: ABHA address → plaintext + 'abha-address'; ABHA number → RSA-encrypted + 'abha-number'
+  const loginHint = isAbhaAddress ? 'abha-address' : 'abha-number';
+  const finalLoginId = isAbhaAddress
+    ? loginId
+    : await rsaEncrypt(loginId.replace(/-/g, ''));
 
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
     scope: ['abha-login', 'mobile-verify'],
@@ -325,7 +324,7 @@ async function getAbhaSuggestions(xToken, txnId) {
       headers: {
         Authorization: `Bearer ${token}`,
         'X-Token': xToken,
-        'Transaction_Id': txnId,
+        'TRANSACTION_ID': txnId,
         'X-CM-ID': 'sbx',
         'REQUEST-ID': uuid(),
         TIMESTAMP: new Date().toISOString(),
