@@ -12,11 +12,13 @@ const handleDiscovery = async (req, res) => {
 
     // Match patient by ABHA address, then mobile, then name
     let rows = [];
+    let matchedBy = ['MOBILE'];
     if (patient?.id) {
       ({ rows } = await pool.query(
         `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
         [patient.id]
       ));
+      if (rows.length) matchedBy = ['ABHA_ID'];
     }
     if (!rows.length && patient?.verifiedIdentifiers?.length) {
       const mobiles = patient.verifiedIdentifiers
@@ -27,11 +29,12 @@ const handleDiscovery = async (req, res) => {
           `SELECT * FROM emr_patients WHERE mobile = ANY($1) LIMIT 1`,
           [mobiles]
         ));
+        if (rows.length) matchedBy = ['MOBILE'];
       }
     }
 
     if (!rows.length) {
-      await hip.sendDiscoverResult({ requestId, transactionId, patientId: null, careContexts: [] });
+      await hip.sendDiscoverResult({ requestId, transactionId, patientId: null, careContexts: [], matchedBy: [] });
       return;
     }
 
@@ -46,6 +49,7 @@ const handleDiscovery = async (req, res) => {
       transactionId,
       patientId: pt.abha_address ?? pt.abha_number ?? `${pt.id}@hip`,
       careContexts: ctxRows,
+      matchedBy,
     });
     logger.info('HIP discover: matched patient', { name: pt.name, contexts: ctxRows.length });
   } catch (err) {

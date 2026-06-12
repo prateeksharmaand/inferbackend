@@ -20,7 +20,7 @@ function uuid() {
 
 async function getToken() {
   if (_token && Date.now() < _tokenExpiry) return _token;
-  const res = await axios.post(`${HIECM}/gateway/v3/sessions`,
+  const res = await axios.post(`${GATEWAY}/v3/sessions`,
     { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
     { headers: { 'Content-Type': 'application/json', 'X-CM-ID': 'sbx', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
   );
@@ -33,7 +33,13 @@ async function gwPost(path, body) {
   const token = await getToken();
   try {
     await axios.post(`${GATEWAY}${path}`, body, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CM-ID': 'sbx' },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-CM-ID': 'sbx',
+        'REQUEST-ID': uuid(),
+        TIMESTAMP: new Date().toISOString(),
+      },
     });
   } catch (err) {
     logger.error('HIP gateway callback failed', { path, status: err.response?.status, body: err.response?.data });
@@ -62,7 +68,6 @@ async function hiecmPost(path, body) {
 }
 
 async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, gender, yearOfBirth }) {
-  const token = await getToken();
   const body = {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
@@ -83,22 +88,12 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, 
     },
   };
   logger.info('on-share request body', body);
-  try {
-    await axios.post(`${HIECM}/patient-share/v3/on-share`, body, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-  } catch (err) {
-    logger.error('HIP HIECM callback failed', { body: err.response?.data, path: '/patient-share/v3/on-share', status: err.response?.status, timestamp: new Date().toISOString() });
-    throw err;
-  }
+  await hiecmPost('/patient-share/v3/on-share', body);
 }
 
 // ── Gateway callbacks ─────────────────────────────────────────────────────────
 
-async function sendDiscoverResult({ requestId, transactionId, patientId, careContexts }) {
+async function sendDiscoverResult({ requestId, transactionId, patientId, careContexts, matchedBy }) {
   await gwPost('/v0.5/care-contexts/on-discover', {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
@@ -110,7 +105,7 @@ async function sendDiscoverResult({ requestId, transactionId, patientId, careCon
         display: c.display,
         hiType: c.hi_type,
       })),
-      matchedBy: ['MOBILE'],
+      matchedBy: matchedBy ?? ['MOBILE'],
       display: patientId,
     } : null,
     resp: { requestId },
@@ -234,11 +229,13 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   const nonce = keyMaterial?.nonce ?? uuid();
   const hiuPubKey = keyMaterial?.dhPublicKey?.keyValue;
 
+  let hipPublicKeyForResponse = '';
   const entries = careContexts.map(ctx => {
     const fhir = ctx.fhir_content ?? buildFhirBundle(patient, ctx);
     const { encryptedData, hipPublicKey } = hiuPubKey
       ? encryptFhir(fhir, hiuPubKey, nonce)
       : { encryptedData: Buffer.from(fhir).toString('base64'), hipPublicKey: '' };
+    if (hipPublicKey) hipPublicKeyForResponse = hipPublicKey;
     return {
       content: encryptedData,
       media: 'application/fhir+json',
@@ -253,7 +250,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     dhPublicKey: {
       expiry: new Date(Date.now() + 3600_000).toISOString(),
       parameters: 'Curve25519',
-      keyValue: entries[0] ? '' : '',  // populated per-entry above
+      keyValue: hipPublicKeyForResponse,
     },
     nonce,
   };
