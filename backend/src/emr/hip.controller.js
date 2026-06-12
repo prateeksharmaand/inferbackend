@@ -68,12 +68,15 @@ const handleLinkInit = async (req, res) => {
   try {
     const requestId = req.headers['request-id'] || req.body.requestId;
     const { transactionId, patient } = req.body;
-    logger.info('HIP link/init', { requestId, transactionId, patientId: patient?.id });
+    // ABDM v3 sends careContexts at root level; v0.5 nests under patient
+    const careContexts = patient?.careContexts ?? req.body.careContexts ?? [];
+    const patientId    = patient?.id ?? req.body.abhaAddress ?? req.body.patientId ?? '';
+    logger.info('HIP link/init', { requestId, transactionId, patientId, careContexts: careContexts.length });
 
     // Find patient
     const { rows } = await pool.query(
       `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
-      [patient?.id ?? '']
+      [patientId]
     );
     const pt = rows[0] ?? null;
 
@@ -86,11 +89,11 @@ const handleLinkInit = async (req, res) => {
          (patient_id, transaction_id, request_id, care_contexts, otp, otp_expires_at, link_ref_number, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,'pending_otp')`,
       [pt?.id ?? null, transactionId, requestId,
-       JSON.stringify(patient?.careContexts ?? []),
+       JSON.stringify(careContexts),
        otp, expiresAt, linkRefNumber]
     );
 
-    logger.info('HIP OTP generated', { otp, linkRefNumber, patient: patient?.id });
+    logger.info('HIP OTP generated', { otp, linkRefNumber, patientId, contexts: careContexts.length });
 
     await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber });
   } catch (err) {
