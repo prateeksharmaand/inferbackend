@@ -3029,7 +3029,7 @@ function startAbhaCamera() {
         _abhaScanInterval = setInterval(() => _abhaTickScan(video), 250);
       };
     })
-    .catch(err => showToast('Camera error: ' + err.message, 'danger'));
+    .catch(err => toast('Camera error: ' + err.message, 'danger'));
 }
 
 function stopAbhaCamera() {
@@ -3063,7 +3063,7 @@ function uploadAbhaQR(input) {
       const imgData = uctx.getImageData(0, 0, img.width, img.height);
       const code = jsQR(imgData.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
       if (code) { _abhaLoadQRText(code.data); return; }
-      showToast('No QR code found in image', 'warning');
+      toast('No QR code found in image', 'warning');
     };
     img.src = e.target.result;
   };
@@ -3072,7 +3072,7 @@ function uploadAbhaQR(input) {
 
 function parseAbhaQRJson() {
   const raw = document.getElementById('abha-qr-json').value.trim();
-  if (!raw) return showToast('Paste QR JSON first', 'warning');
+  if (!raw) return toast('Paste QR JSON first', 'warning');
   _abhaLoadQRText(raw);
 }
 
@@ -3083,7 +3083,7 @@ function _abhaLoadQRText(text) {
     const parts = text.split('|').map(s => s.trim());
     if (parts.length >= 2) data = { hidn: parts[0], hid: parts[1], name: parts[2], gender: parts[3], dob: parts[4], mobile: parts[5] };
   }
-  if (!data) return showToast('Could not parse QR data', 'danger');
+  if (!data) return toast('Could not parse QR data', 'danger');
 
   // Normalise field names across ABDM QR formats
   const abhaNum  = data.hidn || data.abhaNumber || data.abha_number || '';
@@ -3129,7 +3129,7 @@ async function confirmAbhaRegistration() {
     doctor:      document.getElementById('abha-reg-doctor').value.trim() || undefined,
     visitType:   document.getElementById('abha-reg-visit-type').value,
   };
-  if (!payload.name) return showToast('Name is required', 'warning');
+  if (!payload.name) return toast('Name is required', 'warning');
 
   const btn = document.querySelector('#abha-reg-verify .btn-accent');
   btn.disabled = true; btn.textContent = 'Registering…';
@@ -3151,7 +3151,7 @@ async function confirmAbhaRegistration() {
 
     loadPatients();
   } catch(err) {
-    showToast(err.message, 'danger');
+    toast(err.message, 'danger');
   } finally {
     btn.disabled = false; btn.textContent = 'Confirm & Register';
   }
