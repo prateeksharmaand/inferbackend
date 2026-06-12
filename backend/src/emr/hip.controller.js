@@ -83,8 +83,8 @@ const handleLinkInit = async (req, res) => {
 
     await pool.query(
       `INSERT INTO hip_link_sessions
-         (patient_id, transaction_id, request_id, care_contexts, otp, otp_expires_at, link_ref_number)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+         (patient_id, transaction_id, request_id, care_contexts, otp, otp_expires_at, link_ref_number, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending_otp')`,
       [pt?.id ?? null, transactionId, requestId,
        JSON.stringify(patient?.careContexts ?? []),
        otp, expiresAt, linkRefNumber]
@@ -118,7 +118,7 @@ const handleLinkConfirm = async (req, res) => {
     }
     const session = rows[0];
 
-    if (session.status !== 'pending_otp') {
+    if (!['pending_otp', 'pending'].includes(session.status)) {
       logger.warn('HIP: link already processed', { linkRefNumber, status: session.status });
       return;
     }
