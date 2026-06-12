@@ -68,33 +68,21 @@ async function hiecmPost(path, body) {
 }
 
 async function sendShareProfileAck({ requestId, abhaAddress, abhaNumber, tokenNumber, name, gender, yearOfBirth, dayOfBirth, monthOfBirth, mobile, address }) {
-  const expiryTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const body = {
     requestId:       uuid(),
     timestamp:       new Date().toISOString(),
     response:        { requestId },
     acknowledgement: { status: 'SUCCESS', abhaAddress },
     profile: {
-      patient: {
-        abhaNumber:  abhaNumber  || null,
-        abhaAddress: abhaAddress || null,
-        name:        name        || null,
-        gender:      gender      || null,
-        dayOfBirth:  dayOfBirth  || null,
-        monthOfBirth: monthOfBirth || null,
-        yearOfBirth: yearOfBirth  || null,
-        address:     address     || null,
-        phoneNumber: mobile      || null,
-      },
-    },
-    token: {
-      number:   String(tokenNumber),
-      type:     'OPD',
-      validity: {
-        purpose: 'REGISTRATION',
-        expiry:  expiryTime,
-        use:     'ONCE',
-      },
+      abhaNumber:   abhaNumber   || null,
+      abhaAddress:  abhaAddress  || null,
+      name:         name         || null,
+      gender:       gender       || null,
+      dayOfBirth:   dayOfBirth   || null,
+      monthOfBirth: monthOfBirth || null,
+      yearOfBirth:  yearOfBirth  || null,
+      address:      address      || null,
+      phoneNumber:  mobile       || null,
     },
   };
   logger.info('on-share request body', body);
