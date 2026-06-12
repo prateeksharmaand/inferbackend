@@ -7,7 +7,9 @@ const hip       = require('./hip.service');
 const handleDiscovery = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
-    const { requestId, transactionId, patient } = req.body;
+    // ABDM v3 sends requestId in REQUEST-ID header; v0.5 sends it in body
+    const requestId = req.headers['request-id'] || req.body.requestId;
+    const { transactionId, patient } = req.body;
     logger.info('HIP discover request', { requestId, transactionId, patientId: patient?.id });
 
     // Match patient by ABHA address, then mobile, then name
@@ -62,7 +64,8 @@ const handleDiscovery = async (req, res) => {
 const handleLinkInit = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
-    const { requestId, transactionId, patient } = req.body;
+    const requestId = req.headers['request-id'] || req.body.requestId;
+    const { transactionId, patient } = req.body;
     logger.info('HIP link/init', { requestId, transactionId, patientId: patient?.id });
 
     // Find patient
@@ -98,7 +101,8 @@ const handleLinkInit = async (req, res) => {
 const handleLinkConfirm = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
-    const { requestId, transactionId, confirmation } = req.body;
+    const requestId = req.headers['request-id'] || req.body.requestId;
+    const { transactionId, confirmation } = req.body;
     const { linkRefNumber, token: submittedOtp } = confirmation ?? {};
     logger.info('HIP link/confirm', { requestId, linkRefNumber });
 
