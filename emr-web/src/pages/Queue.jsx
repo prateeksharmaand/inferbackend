@@ -161,6 +161,33 @@ export default function Queue() {
     return () => clearInterval(timer);
   }, [fetchBoard]);
 
+  // ABHA QR walk-in: poll profile-shares every 5s, auto check-in pending scans
+  const [abhaToast, setAbhaToast] = useState(null); // { name, token }
+  useEffect(() => {
+    if (!activeQueue) return;
+    const poll = async () => {
+      try {
+        const shares = await api.get('/profile-shares');
+        const pending = (shares || []).filter(s => s.status === 'pending');
+        for (const share of pending) {
+          try {
+            const result = await api.post(`/profile-shares/${share.id}/auto-checkin`, {
+              queue_id: activeQueue.id,
+            });
+            if (result?.appointment) {
+              setAbhaToast({ name: share.name || 'ABHA Patient', token: result.token_number });
+              setTimeout(() => setAbhaToast(null), 6000);
+              fetchBoard();
+            }
+          } catch (_) { /* skip individual errors */ }
+        }
+      } catch (_) { /* ignore poll errors */ }
+    };
+    poll(); // run immediately on mount/queue change
+    const timer = setInterval(poll, 5000);
+    return () => clearInterval(timer);
+  }, [activeQueue, fetchBoard]);
+
   const handleStatusChange = async (apptId, status) => {
     await api.patch(`/appointments/${apptId}/status`, { status });
     fetchBoard();
@@ -245,6 +272,26 @@ export default function Queue() {
 
   return (
     <div className={styles.page}>
+      {/* ABHA QR walk-in toast */}
+      {abhaToast && (
+        <div style={{
+          position: 'fixed', top: 16, right: 16, zIndex: 9999,
+          background: '#7c3aed', color: '#fff',
+          padding: '14px 20px', borderRadius: 12,
+          boxShadow: '0 4px 24px rgba(124,58,237,0.4)',
+          fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 22 }}>✅</span>
+          <div>
+            <div>ABHA QR Check-In</div>
+            <div style={{ fontWeight: 400, fontSize: 13, opacity: 0.9 }}>
+              {abhaToast.name} · Token #{abhaToast.token}
+            </div>
+          </div>
+          <button onClick={() => setAbhaToast(null)}
+            style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 18, marginLeft: 8 }}>✕</button>
+        </div>
+      )}
       {/* Queue selector + view toggle strip */}
       {queues.length > 0 && (
         <div className={styles.queueStrip}>

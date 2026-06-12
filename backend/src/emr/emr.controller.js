@@ -368,7 +368,6 @@ const linkProfileShareToPatient = async (req, res) => {
     [patientId, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Share not found' });
-  // Also update the patient's ABHA fields from the share
   const s = rows[0];
   if (s.abha_number || s.abha_address) {
     await pool.query(
@@ -377,6 +376,81 @@ const linkProfileShareToPatient = async (req, res) => {
     );
   }
   res.json(rows[0]);
+};
+
+// Auto check-in: finds/creates patient + appointment from a profile share in one shot
+const autoCheckinProfileShare = async (req, res) => {
+  const { queue_id } = req.body;
+
+  const { rows: shareRows } = await pool.query(
+    `SELECT * FROM hip_profile_shares WHERE id=$1 AND status='pending'`,
+    [req.params.id]
+  );
+  if (!shareRows.length) return res.status(404).json({ error: 'Share not found or already processed' });
+  const share = shareRows[0];
+
+  const clinicId = req.emrUser.clinic_id;
+  const today    = new Date().toISOString().slice(0, 10);
+
+  // Find existing patient by ABHA or create new one
+  let patientId;
+  const { rows: existing } = await pool.query(
+    `SELECT id FROM emr_patients
+     WHERE clinic_id=$1 AND (
+       (abha_address IS NOT NULL AND abha_address=$2) OR
+       (abha_number  IS NOT NULL AND abha_number=$3)  OR
+       (mobile IS NOT NULL AND mobile=$4)
+     ) LIMIT 1`,
+    [clinicId, share.abha_address || '', share.abha_number || '', share.mobile || '']
+  );
+
+  if (existing.length) {
+    patientId = existing[0].id;
+    // Update ABHA fields if missing
+    await pool.query(
+      `UPDATE emr_patients
+       SET abha_number=COALESCE(abha_number,$1), abha_address=COALESCE(abha_address,$2),
+           name=COALESCE(name,$3)
+       WHERE id=$4`,
+      [share.abha_number, share.abha_address, share.name, patientId]
+    );
+  } else {
+    const { rows: [newPt] } = await pool.query(
+      `INSERT INTO emr_patients (clinic_id, name, mobile, gender, dob, abha_number, abha_address)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [clinicId, share.name || 'ABHA Patient', share.mobile, share.gender,
+       share.dob, share.abha_number, share.abha_address]
+    );
+    patientId = newPt.id;
+  }
+
+  // Auto token number
+  const { rows: [tok] } = await pool.query(
+    `SELECT COALESCE(MAX(token_number), 0) + 1 AS next_token
+     FROM emr_appointments WHERE queue_id=$1 AND appointment_date=$2`,
+    [queue_id || null, today]
+  );
+
+  // Create appointment
+  const { rows: [appt] } = await pool.query(
+    `INSERT INTO emr_appointments
+       (queue_id, clinic_id, emr_patient_id, patient_name, patient_mobile,
+        patient_gender, patient_dob, patient_abha,
+        token_number, visit_type, channel, appointment_date, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'OPConsultation','abha_qr',$10,'booked') RETURNING *`,
+    [queue_id || null, clinicId, patientId,
+     share.name || 'ABHA Patient', share.mobile,
+     share.gender, share.dob, share.abha_address || share.abha_number,
+     tok.next_token, today]
+  );
+
+  // Mark share as linked
+  await pool.query(
+    `UPDATE hip_profile_shares SET status='linked', patient_id=$1 WHERE id=$2`,
+    [patientId, share.id]
+  );
+
+  res.json({ appointment: appt, patient_id: patientId, token_number: tok.next_token });
 };
 
 // ── M1: ABHA Creation & Verification (EMR patient workflow) ───────────────────
@@ -738,5 +812,5 @@ module.exports = {
   abhaAddOtp, abhaAddCreate,
   abdmGetBridge, abdmUpdateBridge,
   abhaLoginRequestOtp, abhaLoginVerifyOtp, abhaLoginUpdateMobile, abhaLoginLinkPatient,
-  listProfileShares, dismissProfileShare, linkProfileShareToPatient,
+  listProfileShares, dismissProfileShare, linkProfileShareToPatient, autoCheckinProfileShare,
 };

@@ -166,6 +166,7 @@ router.post('/abdm/bridge/update', emr.abdmUpdateBridge);
 router.get   ('/profile-shares',                        emr.listProfileShares);
 router.patch ('/profile-shares/:id/dismiss',            emr.dismissProfileShare);
 router.post  ('/profile-shares/:id/link-patient',       emr.linkProfileShareToPatient);
+router.post  ('/profile-shares/:id/auto-checkin',       emr.autoCheckinProfileShare);
 
 // Add Patient via Aadhaar (standalone)
 router.post('/abha/aadhaar-otp',          emr.abhaCreateOtp);
