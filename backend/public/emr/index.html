@@ -393,13 +393,13 @@
       <h5 class="fw-bold mb-0">Patient Check-In <span class="fs-6 fw-normal text-muted">(QR Walk-in)</span></h5>
       <div class="text-muted small mt-1">Patients who scanned your facility QR code in the ABHA app appear here.</div>
     </div>
-    <button class="btn btn-outline-secondary btn-sm" onclick="loadCheckins()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+    <span class="text-muted small"><i class="bi bi-arrow-repeat me-1"></i>Auto-refreshes every 10s</span>
   </div>
 
-  <div class="alert alert-info small mb-3">
-    <i class="bi bi-info-circle me-1"></i>
-    ABDM calls <code>POST /v3/hip/patient/share/profile</code> on your registered HIP URL when a patient scans your QR.
-    Staff can then register the patient or link them to an existing record.
+  <div class="alert alert-success small mb-3">
+    <i class="bi bi-magic me-1"></i>
+    When a patient scans your facility QR, they are <strong>automatically checked in</strong> — no manual action needed.
+    The token number is sent to their ABHA app instantly.
   </div>
 
   <div id="checkin-list">
@@ -2803,20 +2803,70 @@ async function verifyDownloadCard() {
 
 let prevOtpIds = new Set();
 
-// Poll for pending check-ins every 30s to keep badge fresh
+// Auto-process a pending share: find or create patient, then link
+async function _autoProcessShare(s) {
+  try {
+    // 1. Try to find existing patient by ABHA address or number
+    let patientId = null;
+    if (s.abha_address || s.abha_number) {
+      const pts = await api('GET', `/patients?q=${encodeURIComponent(s.abha_address || s.abha_number)}`);
+      const match = (pts || []).find(p =>
+        (s.abha_address && p.abha_address === s.abha_address) ||
+        (s.abha_number  && p.abha_number  === s.abha_number)
+      );
+      if (match) patientId = match.id;
+    }
+
+    // 2. If not found, auto-create the patient from share data
+    if (!patientId) {
+      const created = await api('POST', '/patients', {
+        name:         s.name   || 'Unknown',
+        mobile:       s.mobile || '',
+        gender:       s.gender || 'M',
+        dob:          s.dob    || null,
+        abha_number:  s.abha_number  || '',
+        abha_address: s.abha_address || '',
+      });
+      patientId = created.id;
+    }
+
+    // 3. Link the share to the patient
+    await api('POST', `/profile-shares/${s.id}/link-patient`, { patientId });
+    console.log(`[auto-checkin] share ${s.id} linked to patient ${patientId}`);
+  } catch(e) {
+    console.warn('[auto-checkin] failed for share', s.id, e.message);
+  }
+}
+
+// Poll for pending check-ins every 10s — auto-process new arrivals + refresh list if on page
+let _lastSeenShareIds = new Set();
 function _pollCheckinBadge() {
   if (!emrToken) return;
-  api('GET', '/profile-shares').then(shares => {
-    const n = shares.filter(s => s.status === 'pending').length;
-    const badge = document.getElementById('checkin-badge');
-    if (n) { badge.textContent = n; badge.classList.remove('d-none'); }
+  api('GET', '/profile-shares').then(async shares => {
+    const pending = shares.filter(s => s.status === 'pending');
+    const badge   = document.getElementById('checkin-badge');
+    if (pending.length) { badge.textContent = pending.length; badge.classList.remove('d-none'); }
     else badge.classList.add('d-none');
+
+    // Auto-process any pending share we haven't seen before
+    for (const s of pending) {
+      if (!_lastSeenShareIds.has(s.id)) {
+        _lastSeenShareIds.add(s.id);
+        await _autoProcessShare(s);
+      }
+    }
+
+    // If checkin page is active, refresh the list automatically
+    const checkinPage = document.getElementById('page-checkin');
+    if (checkinPage && checkinPage.classList.contains('active')) {
+      loadCheckins();
+    }
   }).catch(() => {});
 }
 
 // Initial load
 if (!emrToken) showLogin(); else { loadPatients(); setTimeout(_pollCheckinBadge, 2000); }
-setInterval(_pollCheckinBadge, 30000);
+setInterval(_pollCheckinBadge, 10000);
 </script>
 </body>
 </html>
