@@ -426,4 +426,49 @@ const handleConsentNotify = async (req, res) => {
   }
 };
 
-module.exports = { handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest, handlePatientShareProfile, handleConsentNotify };
+// ── ABDM → HIP: verify running token status (called after on-share ack) ─────
+// ABDM polls this to confirm the token shown to the patient is still valid.
+// Body: { requestId, timestamp, shareProfile: { context, tokenNumber, hipId } }
+const handleRunningTokenStatus = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const requestId   = req.headers['request-id'] || req.body.requestId;
+    const shareProfile = req.body.shareProfile ?? req.body;
+    const tokenNumber  = shareProfile?.tokenNumber ?? shareProfile?.context;
+    const hipId        = shareProfile?.hipId;
+    logger.info('HIP running-token/status', { requestId, tokenNumber, hipId });
+
+    if (!tokenNumber) {
+      logger.warn('HIP running-token/status: no tokenNumber in request', { body: req.body });
+      return;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT token, token_expires_at, status FROM hip_profile_shares
+       WHERE token=$1 ORDER BY created_at DESC LIMIT 1`,
+      [String(tokenNumber)]
+    );
+
+    const share      = rows[0];
+    const isValid    = share && new Date() < new Date(share.token_expires_at) && share.status !== 'expired';
+    const tokenStatus = isValid ? 'VALID' : 'EXPIRED';
+
+    logger.info('HIP running-token/status result', { tokenNumber, tokenStatus, found: !!share });
+
+    // Respond to ABDM gateway with token status
+    await hip.hiecmPost('/patient-share/v3/on-running-token-status', {
+      requestId: hip.uuid(),
+      timestamp: new Date().toISOString(),
+      acknowledgement: {
+        tokenStatus,
+        tokenNumber: String(tokenNumber),
+        hipId: hipId ?? process.env.ABDM_HIP_ID ?? process.env.ABDM_CLIENT_ID,
+      },
+      response: { requestId },
+    }).catch(err => logger.warn('HIP running-token/status ack failed', { error: err.message, status: err.response?.status }));
+  } catch (err) {
+    logger.error('handleRunningTokenStatus error', err);
+  }
+};
+
+module.exports = { handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest, handlePatientShareProfile, handleConsentNotify, handleRunningTokenStatus };

@@ -159,6 +159,10 @@ app.post('/v3/hip/patient/share',                   hipCtrl.handlePatientSharePr
 app.post('/api/v3/hip/patient/share/profile',       hipCtrl.handlePatientShareProfile);
 app.post('/api/v3/hip/patient/share',               hipCtrl.handlePatientShareProfile);
 
+// M1: ABDM queries HIP to verify token shown to patient after QR scan is still valid
+app.post('/v3/hip/patient/running-token/status',     hipCtrl.handleRunningTokenStatus);
+app.post('/api/v3/hip/patient/running-token/status', hipCtrl.handleRunningTokenStatus);
+
 // ── Meta WhatsApp Cloud API webhook (registered in Facebook Developer Console) ──
 // GET  = hub challenge verification  POST = inbound messages + status updates
 app.get ('/webhook/whatsapp', waWebhook.verify);
