@@ -134,13 +134,22 @@ const handleLinkConfirm = async (req, res) => {
 
     await pool.query(`UPDATE hip_link_sessions SET status='confirmed' WHERE id=$1`, [session.id]);
 
-    const careContexts = session.care_contexts ?? [];
+    let careContexts = session.care_contexts ?? [];
+    // care_contexts stored as JSONB — ensure it's an array
+    if (!Array.isArray(careContexts)) careContexts = Object.values(careContexts);
+
     const ptId = session.patient_id
       ? (await pool.query(`SELECT abha_address, abha_number, id FROM emr_patients WHERE id=$1`, [session.patient_id]))
           .rows[0]
       : null;
     const patientRef = ptId?.abha_address ?? ptId?.abha_number ?? `${ptId?.id}@hip`;
 
+    if (!careContexts.length) {
+      logger.warn('HIP link confirm: no care contexts in session — cannot send count 0', { linkRefNumber });
+      return;
+    }
+
+    logger.info('HIP link confirm payload', { patientRef, count: careContexts.length, careContexts });
     await hip.sendLinkConfirmResult({ requestId, patientId: patientRef, careContexts });
     logger.info('HIP link confirmed', { linkRefNumber, contexts: careContexts.length });
   } catch (err) {
