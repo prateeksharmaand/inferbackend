@@ -195,49 +195,36 @@ function buildFhirBundle(patient, careContext) {
   });
 }
 
-// Encrypt FHIR bundle with HIU's public key (X25519 + AES-256-GCM)
-// ABDM sends the HIU public key as a raw 32-byte Curve25519 key in base64 (not SPKI/DER wrapped)
-function encryptFhir(plaintext, hiuPubKeyBase64, nonce) {
+// Encrypt FHIR bundle with HIU's public key (ECDH P-256 + AES-256-GCM)
+// ABDM sends HIU public key as 65-byte uncompressed P-256 EC point (04 || x || y), base64 encoded
+// Nonce is base64 encoded and must be decoded before use in KDF
+function encryptFhir(plaintext, hiuPubKeyBase64, nonceBase64) {
   try {
-    const hipKeys = crypto.generateKeyPairSync('x25519');
-    const rawPub = Buffer.from(hiuPubKeyBase64, 'base64');
+    const hiuPubBytes  = Buffer.from(hiuPubKeyBase64, 'base64');  // 65 bytes: 04 || x || y
+    const nonceBytes   = Buffer.from(nonceBase64, 'base64');       // decode base64 → raw bytes
 
-    // Build SPKI wrapper if key is raw 32 bytes (ABDM format)
-    let hiuPubKey;
-    if (rawPub.length === 32) {
-      // X25519 SPKI prefix: 302a300506032b656e032100
-      const spkiPrefix = Buffer.from('302a300506032b656e032100', 'hex');
-      hiuPubKey = crypto.createPublicKey({
-        key: Buffer.concat([spkiPrefix, rawPub]),
-        format: 'der',
-        type: 'spki',
-      });
-    } else {
-      hiuPubKey = crypto.createPublicKey({
-        key: rawPub,
-        format: 'der',
-        type: 'spki',
-      });
-    }
+    // prime256v1 (P-256) natively accepts raw uncompressed 65-byte EC points
+    const ecdh = crypto.createECDH('prime256v1');
+    ecdh.generateKeys();
 
-    const shared = crypto.diffieHellman({ publicKey: hiuPubKey, privateKey: hipKeys.privateKey });
-    const salt   = Buffer.from(nonce);
-    const key    = crypto.createHash('sha256').update(Buffer.concat([shared, salt])).digest();
+    const shared = ecdh.computeSecret(hiuPubBytes);
+    const aesKey = crypto.createHash('sha256').update(Buffer.concat([shared, nonceBytes])).digest();
+
     const iv     = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
     const enc    = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const tag    = cipher.getAuthTag();
 
-    // Export HIP public key as raw 32 bytes (ABDM expects raw Curve25519, not SPKI)
-    const hipPubDer = hipKeys.publicKey.export({ format: 'der', type: 'spki' });
-    const hipPubRaw = hipPubDer.slice(-32); // last 32 bytes are the raw key
-
+    // Return HIP public key as uncompressed 65-byte base64 (same format ABDM sends)
     return {
       encryptedData: Buffer.concat([iv, tag, enc]).toString('base64'),
-      hipPublicKey: hipPubRaw.toString('base64'),
+      hipPublicKey:  ecdh.getPublicKey('base64', 'uncompressed'),
     };
   } catch (err) {
-    logger.warn('FHIR encryption failed', { error: err.message, stack: err.stack?.split('\n')[1], hiuPubKeyLen: hiuPubKeyBase64 ? Buffer.from(hiuPubKeyBase64, 'base64').length : 0 });
+    logger.warn('FHIR encryption failed', {
+      error: err.message,
+      hiuPubKeyLen: hiuPubKeyBase64 ? Buffer.from(hiuPubKeyBase64, 'base64').length : 0,
+    });
     return { encryptedData: Buffer.from(plaintext).toString('base64'), hipPublicKey: null };
   }
 }
