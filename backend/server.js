@@ -101,8 +101,10 @@ app.post('/v0.5/consents/hiu/notify', abdmCtrl.consentNotify);
 
 // M3: Consent artifact notification from CM → HIP (after patient approves)
 app.post('/v0.5/consents/hip/notify', hipCtrl.handleConsentNotify);
-app.post('/api/v3/hip/consent/request/notify', hipCtrl.handleConsentNotify);
-app.post('/v3/hip/consent/request/notify',     hipCtrl.handleConsentNotify);
+app.post('/api/v3/hip/consent/request/notify',      hipCtrl.handleConsentNotify);
+app.post('/v3/hip/consent/request/notify',          hipCtrl.handleConsentNotify);
+app.post('/api/v3/consent/request/hip/notify',      hipCtrl.handleConsentNotify);
+app.post('/v3/consent/request/hip/notify',          hipCtrl.handleConsentNotify);
 
 // M3: Acknowledgment that HIP received health-info request (status only, no data yet)
 app.post('/v0.5/health-information/hiu/on-request', (req, res) => {
