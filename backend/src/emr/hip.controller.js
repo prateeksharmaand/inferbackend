@@ -193,27 +193,51 @@ const handleHealthInfoRequest = async (req, res) => {
       [consentId]
     ).catch(() => ({ rows: [] }));
 
-    const artifact  = artifactRows[0];
-    const patientId = artifact?.raw?.patient?.id ?? artifact?.raw?.careContexts?.[0]?.patientReference;
+    const artifact = artifactRows[0];
+    const raw      = artifact?.raw ?? {};
 
-    // Fetch care contexts — filter by patient if consent artifact specifies one
-    let ctxQuery, ctxParams;
-    if (patientId) {
-      ctxQuery = `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
-                  FROM emr_care_contexts ecc
-                  JOIN emr_patients ep ON ep.id = ecc.patient_id
-                  WHERE ep.abha_address=$1 OR ep.abha_number=$1
-                  ORDER BY ecc.created_at DESC`;
-      ctxParams = [patientId];
+    // Extract consented care context references from the artifact
+    // ABDM v3: raw.careContexts = [{careContextReference, patientReference}]
+    // ABDM v0.5: raw.careContexts or raw.consentDetail.careContexts
+    const consentedRefs = (
+      raw.careContexts?.map(c => c.careContextReference) ??
+      raw.consentDetail?.careContexts?.map(c => c.careContextReference) ??
+      []
+    ).filter(Boolean);
+
+    const patientId = raw.patient?.id ??
+                      raw.consentDetail?.patient?.id ??
+                      raw.careContexts?.[0]?.patientReference;
+
+    logger.info('HIP health-info: consent filter', { patientId, consentedRefs });
+
+    // Fetch only the care contexts that were explicitly consented to
+    let rows;
+    if (consentedRefs.length) {
+      const { rows: r } = await pool.query(
+        `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
+         FROM emr_care_contexts ecc
+         JOIN emr_patients ep ON ep.id = ecc.patient_id
+         WHERE ecc.reference_number = ANY($1::text[])
+         ORDER BY ecc.created_at DESC`,
+        [consentedRefs]
+      );
+      rows = r;
+    } else if (patientId) {
+      const { rows: r } = await pool.query(
+        `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
+         FROM emr_care_contexts ecc
+         JOIN emr_patients ep ON ep.id = ecc.patient_id
+         WHERE ep.abha_address=$1 OR ep.abha_number=$1
+         ORDER BY ecc.created_at DESC`,
+        [patientId]
+      );
+      rows = r;
     } else {
-      ctxQuery  = `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
-                   FROM emr_care_contexts ecc
-                   JOIN emr_patients ep ON ep.id = ecc.patient_id
-                   ORDER BY ecc.created_at DESC LIMIT 50`;
-      ctxParams = [];
+      rows = [];
     }
 
-    const { rows } = await pool.query(ctxQuery, ctxParams);
+    logger.info('HIP health-info: care contexts to push', { count: rows.length, refs: rows.map(r => r.reference_number) });
 
     if (!rows.length) {
       logger.warn('HIP health-info: no care contexts to push', { patientId });
