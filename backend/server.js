@@ -105,6 +105,18 @@ app.post('/v3/hiu/consent/request/on-init',     abdmCtrl.consentOnInit);
 app.post('/api/v3/hiu/consent/request/notify',  abdmCtrl.consentNotify);
 app.post('/v3/hiu/consent/request/notify',      abdmCtrl.consentNotify);
 
+// M3: Health-info request acknowledgement CM → HIU (confirms CM received our request)
+app.post('/api/v3/hiu/health-information/on-request', (req, res) => {
+  const { hiRequest } = req.body;
+  logger.info('HIU health-info on-request ack', { transactionId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
+  res.status(202).json({ status: 'accepted' });
+});
+app.post('/v3/hiu/health-information/on-request', (req, res) => {
+  const { hiRequest } = req.body;
+  logger.info('HIU health-info on-request ack', { transactionId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
+  res.status(202).json({ status: 'accepted' });
+});
+
 // M3: Consent artifact notification from CM → HIP (after patient approves)
 app.post('/v0.5/consents/hip/notify', hipCtrl.handleConsentNotify);
 app.post('/api/v3/hip/consent/request/notify',      hipCtrl.handleConsentNotify);
