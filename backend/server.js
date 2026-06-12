@@ -26,7 +26,18 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
 // Security middleware
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'connect-src': ["'self'", 'https://api.inferapp.online', 'https://clinicaltables.nlm.nih.gov', 'https://cdn.jsdelivr.net'],
+      'script-src':  ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      'style-src':   ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      'font-src':    ["'self'", 'https://cdn.jsdelivr.net'],
+    },
+  },
+}));
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*', credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] }));
 app.use(compression());
 app.use(morgan('combined', { stream: { write: (msg) => logger.info(msg.trim()) } }));
@@ -158,11 +169,7 @@ async function start() {
     workflowService.setSocketManager(labSocket);
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`PHR Backend running on port ${PORT}`);
-      // Register HIP services + hiTypes with ABDM on every startup
-      const abdmSvc = require('./src/services/abdm.service');
-      abdmSvc.updateHipServices()
-        .then(() => logger.info('ABDM HIP services registered (hiTypes updated)'))
-        .catch(err => logger.warn('ABDM HIP services update failed (non-fatal)', err.response?.data ?? err.message));
+      // updateHipServices removed — was calling addUpdateServices on every deploy
       logger.info('Lab WebSocket manager initialized');
       startReminderCron();
       startGmailSyncCron();
