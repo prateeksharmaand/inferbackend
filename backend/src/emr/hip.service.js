@@ -319,6 +319,20 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
 
   const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries };
   if (respondingKeyMaterial) pushBody.keyMaterial = respondingKeyMaterial;
+
+  logger.info('HIP push attempt', {
+    dataPushUrl,
+    transactionId,
+    entries: entries.length,
+    keyMaterial: respondingKeyMaterial ? {
+      cryptoAlg: respondingKeyMaterial.cryptoAlg,
+      curve:     respondingKeyMaterial.curve,
+      keyValue:  respondingKeyMaterial.dhPublicKey?.keyValue?.slice(0, 20) + '...',
+      keyValueLen: Buffer.from(respondingKeyMaterial.dhPublicKey?.keyValue ?? '', 'base64').length,
+      nonce:     respondingKeyMaterial.nonce?.slice(0, 10) + '...',
+    } : null,
+  });
+
   await axios.post(dataPushUrl, pushBody);
   logger.info('HIP health data pushed', { transactionId, entries: entries.length, encrypted: !!respondingKeyMaterial });
 }
