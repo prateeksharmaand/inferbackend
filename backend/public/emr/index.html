@@ -2000,13 +2000,11 @@ async function loadConsents() {
     const consents = await api('GET', '/consents');
     if (!consents.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No consent requests yet</td></tr>'; return; }
     tbody.innerHTML = consents.map(c => {
-      const pending  = c.status === 'REQUESTED';
       const granted  = c.status === 'GRANTED';
-      const actions  = pending
-        ? `<button class="btn btn-success btn-sm me-1" onclick="respondConsent('${c.request_id}','GRANT',this)"><i class="bi bi-check-lg"></i> Accept</button>
-           <button class="btn btn-danger btn-sm"  onclick="respondConsent('${c.request_id}','DENY',this)"><i class="bi bi-x-lg"></i> Deny</button>`
-        : granted
+      const actions  = granted
           ? `<button class="btn btn-primary btn-sm" onclick="fetchConsentData('${c.request_id}',this)"><i class="bi bi-database-down me-1"></i>Fetch Data</button>`
+          : c.status === 'REQUESTED'
+            ? `<span class="text-muted small"><i class="bi bi-hourglass-split me-1"></i>Awaiting patient approval in PHR app</span>`
           : `<span class="text-muted small">—</span>`;
       return `<tr>
         <td class="small font-monospace">${c.request_id?.slice(0,16)}…</td>
@@ -2022,15 +2020,10 @@ async function loadConsents() {
   } catch(e) { tbody.innerHTML = `<tr><td colspan="8" class="text-danger p-3">${e.message}</td></tr>`; }
 }
 
-async function respondConsent(requestId, action, btn) {
-  btn.disabled = true;
-  try {
-    await api('POST', `/consents/${requestId}/respond`, { action });
-    toast(action === 'GRANT' ? 'Consent accepted — health data auto-fetched from EMR' : 'Consent denied');
-    loadConsents();
-    if (action === 'GRANT') setTimeout(() => { loadConsentHealthRecords(); }, 1000);
-  } catch(e) { toast(e.message, 'danger'); btn.disabled = false; }
-}
+// Auto-refresh consent list every 15 s so status updates when patient grants in PHR app
+setInterval(() => {
+  if (document.getElementById('consents-tbody')) loadConsents();
+}, 15000);
 
 async function fetchConsentData(requestId, btn) {
   if (btn) btn.disabled = true;
