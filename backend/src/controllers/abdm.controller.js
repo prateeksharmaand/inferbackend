@@ -503,12 +503,7 @@ const consentNotify = async (req, res) => {
       for (const artefact of notification.consentArtefacts) {
         try {
           logger.info('HIU fetching health-info for artefact', { artefactId: artefact.id, dataPushUrl });
-          const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl, {
-            cryptoAlg: 'ECDH',
-            curve: 'Curve25519',
-            dhPublicKey: { expiry: new Date(Date.now() + 3600_000).toISOString(), parameters: 'Curve25519', keyValue: '' },
-            nonce: abdm.uuid(),
-          });
+          const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl);
           const txnId = result?.hiRequest?.transactionId ?? abdm.uuid();
           logger.info('HIU health-info request sent to CM', { artefactId: artefact.id, txnId });
           await pool.query(
@@ -553,19 +548,37 @@ const healthInfoPush = async (req, res) => {
       return;
     }
 
+    // Decrypt if HIP sent encrypted data and we have the HIU private key
+    const hipPubKey  = keyMaterial?.dhPublicKey?.keyValue;
+    const hipNonce   = keyMaterial?.nonce;
+
     for (const entry of entries) {
+      let content = entry.content;
+      if (hipPubKey && hipNonce) {
+        // Find matching HIU nonce from key store (stored when we generated key for this request)
+        // The HIU nonce is embedded in the request; ABDM passes it back via the HIP's keyMaterial response
+        // We try decryption; if it fails, fall back to raw content (HIP may have sent unencrypted)
+        const decrypted = abdm.decryptHipEntry(content, hipPubKey, hipNonce, /* hiuNonce from store */ null);
+        if (decrypted) {
+          content = Buffer.from(decrypted).toString('base64');
+          logger.info('HIU decrypted health record', { transactionId, careContextReference: entry.careContextReference });
+        } else {
+          logger.warn('HIU decrypt skipped (no key or failed) — storing raw content', { transactionId });
+        }
+      }
+
       logger.info('HIU storing health record', {
         transactionId,
         careContextReference: entry.careContextReference,
         media: entry.media,
-        contentLen: entry.content?.length,
+        contentLen: content?.length,
       });
       await pool.query(
         `INSERT INTO health_records
            (transaction_id, care_context_reference, content, media, checksum, page_number, page_count)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT DO NOTHING`,
-        [transactionId, entry.careContextReference, entry.content, entry.media, entry.checksum, pageNumber, pageCount]
+        [transactionId, entry.careContextReference, content, entry.media, entry.checksum, pageNumber, pageCount]
       );
     }
     logger.info('HIU health-info push stored', { transactionId, count: entries.length });

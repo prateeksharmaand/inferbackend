@@ -209,13 +209,14 @@ const createConsentRequest = async (req, res) => {
       dateRange,
       { name: requesterName, identifierValue: requesterReg }
     );
-    logger.info('EMR consent-requests/init accepted', { consentRequestId: result.consentRequest?.id });
+    logger.info('EMR consent-requests/init accepted', { reqId: result.reqId });
   } catch (e) {
     logger.error('ABDM consent-requests/init failed', { message: e.message, response: e.response?.data });
-    // Proceed with local DB insert so patient can still see the request internally
   }
 
-  const requestId = result.consentRequest?.id ?? abdmSvc.uuid();
+  // Use the reqId we sent to ABDM — this is what on-init's resp.requestId references.
+  // ABDM's 202 response body is empty so result.consentRequest?.id is always undefined.
+  const requestId = result.reqId ?? abdmSvc.uuid();
 
   await pool.query(
     `INSERT INTO emr_consent_requests

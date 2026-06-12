@@ -1,6 +1,87 @@
 const axios  = require('axios');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { weierstrass } = require('@noble/curves/abstract/weierstrass.js');
+const { mod } = require('@noble/curves/abstract/modular.js');
+
+// Weierstrass Curve25519 — same as HIP side; ABDM requires this curve for key exchange
+const _c25519n = BigInt('0x1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3ED');
+const _c25519W = weierstrass({
+  a:  BigInt('0x2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA984914A144'),
+  b:  BigInt('0x7B425ED097B425ED097B425ED097B425ED097B425ED097B4260B5E9C7710C864'),
+  p:  BigInt('0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED'),
+  n:  _c25519n,
+  Gx: BigInt('0x2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a'),
+  Gy: BigInt('0x5f51e65e475f794b1fe122d388b72eb36dc2b28192839e4dd6163a5d81312c14'),
+  h:  BigInt(8),
+  randomBytes: (b) => crypto.randomBytes(b),
+});
+const _c25519Scalar = (b) => mod(BigInt('0x' + b.toString('hex')), _c25519n - 1n) + 1n;
+
+// DER helpers (duplicate from hip.service.js to keep services independent)
+const _derLen = (n) => { if (n < 0x80) return Buffer.from([n]); if (n < 0x100) return Buffer.from([0x81, n]); return Buffer.from([0x82, (n >> 8) & 0xff, n & 0xff]); };
+const _derSeq    = (c) => Buffer.concat([Buffer.from([0x30]), _derLen(c.length), c]);
+const _derInt    = (b) => { if (b[0] & 0x80) b = Buffer.concat([Buffer.from([0x00]), b]); return Buffer.concat([Buffer.from([0x02]), _derLen(b.length), b]); };
+const _derOctet  = (b) => Buffer.concat([Buffer.from([0x04]), _derLen(b.length), b]);
+const _derBitStr = (b) => Buffer.concat([Buffer.from([0x03]), _derLen(b.length + 1), Buffer.from([0x00]), b]);
+const _C25519_p  = Buffer.from('7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed','hex');
+const _C25519_a  = Buffer.from('2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa984914a144','hex');
+const _C25519_b  = Buffer.from('7b425ed097b425ed097b425ed097b425ed097b425ed097b4260b5e9c7710c864','hex');
+const _C25519_Gx = Buffer.from('2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a','hex');
+const _C25519_Gy = Buffer.from('5f51e65e475f794b1fe122d388b72eb36dc2b28192839e4dd6163a5d81312c14','hex');
+const _C25519_n  = Buffer.from('1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed','hex');
+const _OID_EC_PUB    = Buffer.from('06072a8648ce3d0201','hex');
+const _OID_PRIME_FLD = Buffer.from('06072a8648ce3d0101','hex');
+
+function _buildSpki(rawPub65) {
+  const G        = Buffer.concat([Buffer.from([0x04]), _C25519_Gx, _C25519_Gy]);
+  const fieldID  = _derSeq(Buffer.concat([_OID_PRIME_FLD, _derInt(_C25519_p)]));
+  const curve    = _derSeq(Buffer.concat([_derOctet(_C25519_a), _derOctet(_C25519_b)]));
+  const ecParams = _derSeq(Buffer.concat([_derInt(Buffer.from([0x01])), fieldID, curve, _derOctet(G), _derInt(_C25519_n), _derInt(Buffer.from([0x08]))]));
+  return _derSeq(Buffer.concat([_derSeq(Buffer.concat([_OID_EC_PUB, ecParams])), _derBitStr(rawPub65)]));
+}
+
+// In-memory store for HIU key pairs keyed by nonce (used to decrypt HIP response)
+const _hiuKeyStore = new Map();
+
+function generateHiuKeyMaterial() {
+  const privBytes = crypto.randomBytes(32);
+  const scalar    = _c25519Scalar(privBytes);
+  const pubBytes  = Buffer.from(_c25519W.BASE.multiply(scalar).toBytes(false)); // 65 bytes
+  const spki      = _buildSpki(pubBytes);
+  const nonce     = crypto.randomBytes(32).toString('base64');
+  const keyValue  = spki.toString('base64');
+  // Store private key by nonce for decryption when HIP responds
+  _hiuKeyStore.set(nonce, { privBytes, nonce });
+  return { keyValue, nonce };
+}
+
+function decryptHipEntry(encryptedBase64, hipPubKeyBase64, hipNonceBase64, hiuNonce) {
+  try {
+    const stored = _hiuKeyStore.get(hiuNonce);
+    if (!stored) return null;
+    const { privBytes } = stored;
+    const scalar   = _c25519Scalar(privBytes);
+    const hipPub   = _c25519W.BASE.constructor.fromHex(Buffer.from(hipPubKeyBase64, 'base64').toString('hex'));
+    const sharedX  = Buffer.from(hipPub.multiply(scalar).toAffine().x.toString(16).padStart(64,'0'), 'hex');
+    const hipNonce = Buffer.from(hipNonceBase64,  'base64');
+    const hiuNonceB = Buffer.from(hiuNonce, 'base64');
+    const xorNonce = Buffer.alloc(32);
+    for (let i = 0; i < 32; i++) xorNonce[i] = hipNonce[i] ^ (hiuNonceB[i] ?? 0);
+    const salt   = xorNonce.slice(0, 20);
+    const aesKey = Buffer.from(crypto.hkdfSync('sha256', sharedX, salt, Buffer.alloc(0), 32));
+    const iv     = xorNonce.slice(20, 32);
+    const raw    = Buffer.from(encryptedBase64, 'base64');
+    const tag    = raw.slice(-16);
+    const ct     = raw.slice(0, -16);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
+  } catch (err) {
+    logger.warn('HIU decryptHipEntry failed', { error: err.message });
+    return null;
+  }
+}
 
 // ── ABDM axios interceptor — logs every outbound request + response ───────────
 const abdmAxios = axios.create();
@@ -528,7 +609,7 @@ const PURPOSE_REF_URI = 'http://terminology.hl7.org/CodeSystem/v3-ActReason';
 async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRange, requester = {}) {
   const reqId = uuid();
   logger.info('consent-requests/init outbound', { reqId, hiuId, patientId, purpose, hiTypes });
-  return gwReq('POST', `${ABDM_GATEWAY}/v0.5/consent-requests/init`, {
+  const response = await gwReq('POST', `${ABDM_GATEWAY}/v0.5/consent-requests/init`, {
     requestId: reqId,
     timestamp: new Date().toISOString(),
     consent: {
@@ -556,11 +637,27 @@ async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRang
       },
     },
   });
+  // Return reqId alongside response so caller can store it as the consent request_id.
+  // ABDM's 202 response body is empty — the reqId we sent IS the consent request ID
+  // until on-init arrives and updates it to ABDM's assigned ID.
+  return { reqId, ...response };
 }
 
 // ─── M3: Fetch health information ─────────────────────────────────────────────
 
-async function fetchHealthInfo(consentId, dataPushUrl, keyMaterial) {
+async function fetchHealthInfo(consentId, dataPushUrl) {
+  const { keyValue, nonce } = generateHiuKeyMaterial();
+  const km = {
+    cryptoAlg: 'ECDH',
+    curve: 'Curve25519',
+    dhPublicKey: {
+      expiry: new Date(Date.now() + 3600_000).toISOString(),
+      parameters: 'Curve25519/X25519',
+      keyValue,
+    },
+    nonce,
+  };
+  logger.info('HIU health-info request key generated', { noncePrefix: nonce.slice(0, 8), keyValueLen: Buffer.from(keyValue, 'base64').length });
   return gwReq('POST', `${ABDM_GATEWAY}/v0.5/health-information/cm/request`, {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
@@ -571,7 +668,7 @@ async function fetchHealthInfo(consentId, dataPushUrl, keyMaterial) {
         to: new Date().toISOString(),
       },
       dataPushUrl,
-      keyMaterial,
+      keyMaterial: km,
     },
   });
 }
@@ -594,6 +691,7 @@ module.exports = {
   discoverCareContexts,   linkInit,             linkConfirm,
   generateLinkToken,      linkCareContexts,
   createConsentRequest,   fetchHealthInfo,
+  generateHiuKeyMaterial, decryptHipEntry,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,
   uuid,
 };
