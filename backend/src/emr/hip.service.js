@@ -1,22 +1,24 @@
 const axios   = require('axios');
 const crypto  = require('crypto');
 const logger  = require('../utils/logger');
-const { weierstrass } = require('@noble/curves/abstract/weierstrass');
-const { Field }       = require('@noble/curves/abstract/modular');
+const { weierstrass } = require('@noble/curves/abstract/weierstrass.js');
+const { mod }         = require('@noble/curves/abstract/modular.js');
 
 // Weierstrass Curve25519 — BouncyCastle's short-Weierstrass form of Curve25519
-// This is what ABDM's PHR app uses (65-byte uncompressed keys: 04||x||y)
-// Parameters from BouncyCastle CustomNamedCurves "curve25519"
+// ABDM labels curve="curve25519" but sends 65-byte uncompressed Weierstrass points
+// Gx/Gy derived from Montgomery base point x=9 via substitution u = x + A/3
+const _c25519n = BigInt('0x1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3ED');
 const _c25519W = weierstrass({
   a:  BigInt('0x2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA984914A144'),
   b:  BigInt('0x7B425ED097B425ED097B425ED097B425ED097B425ED097B4260B5E9C7710C864'),
-  Fp: Field(BigInt('0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED')),
-  n:  BigInt('0x1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3ED'),
-  Gx: BigInt('0x2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9C10FD2D9C5'),
-  Gy: BigInt('0x20AE19A1B8A086B4E01EDD2C7748D14C923D4D7E6D7C61B229E9C5A27ECED3D9'),
+  p:  BigInt('0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED'),
+  n:  _c25519n,
+  Gx: BigInt('0x2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a'),
+  Gy: BigInt('0x5f51e65e475f794b1fe122d388b72eb36dc2b28192839e4dd6163a5d81312c14'),
   h:  BigInt(8),
-  randomBytes: (n) => crypto.randomBytes(n),
+  randomBytes: (b) => crypto.randomBytes(b),
 });
+const _c25519ToScalar = (bytes) => mod(BigInt('0x' + bytes.toString('hex')), _c25519n - 1n) + 1n;
 
 const GATEWAY = process.env.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in/gateway';
 const HIECM   = process.env.ABDM_HIECM_URL   || 'https://dev.abdm.gov.in/api/hiecm';
@@ -219,17 +221,14 @@ function encryptFhir(plaintext, hiuPubKeyBase64, nonceBase64) {
     const hiuPubHex  = Buffer.from(hiuPubKeyBase64, 'base64').toString('hex');
     const nonceBytes = Buffer.from(nonceBase64, 'base64');
 
-    // Parse HIU public point on Weierstrass Curve25519
-    const hiuPoint = _c25519W.ProjectivePoint.fromHex(hiuPubHex);
+    // Generate HIP ephemeral private scalar + public key
+    const hipPrivBytes = crypto.randomBytes(32);
+    const hipScalar    = _c25519ToScalar(hipPrivBytes);
+    const hipPubBytes  = Buffer.from(_c25519W.BASE.multiply(hipScalar).toBytes(false));
 
-    // Generate HIP ephemeral key pair
-    const hipPriv  = _c25519W.utils.randomPrivateKey();
-    const hipPubBytes = _c25519W.getPublicKey(hipPriv, false); // uncompressed 65-byte
-
-    // ECDH: shared x-coordinate
-    const hipPrivScalar = _c25519W.utils.normPrivateKeyToScalar(hipPriv);
-    const sharedPoint   = hiuPoint.multiply(hipPrivScalar);
-    const sharedX       = Buffer.from(sharedPoint.toRawBytes(false)).slice(1, 33); // x only
+    // Parse HIU public point and compute ECDH shared x-coordinate
+    const hiuPoint = _c25519W.BASE.constructor.fromHex(hiuPubHex);
+    const sharedX  = Buffer.from(hiuPoint.multiply(hipScalar).toAffine().x.toString(16).padStart(64, '0'), 'hex');
 
     // KDF: SHA-256(sharedX || nonce)
     const aesKey = crypto.createHash('sha256').update(Buffer.concat([sharedX, nonceBytes])).digest();
@@ -241,7 +240,7 @@ function encryptFhir(plaintext, hiuPubKeyBase64, nonceBase64) {
 
     return {
       encryptedData: Buffer.concat([iv, tag, enc]).toString('base64'),
-      hipPublicKey:  Buffer.from(hipPubBytes).toString('base64'), // 65-byte uncompressed
+      hipPublicKey:  hipPubBytes.toString('base64'), // 65-byte uncompressed
     };
   } catch (err) {
     logger.warn('FHIR encryption failed', {
