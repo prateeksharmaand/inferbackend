@@ -548,22 +548,32 @@ const healthInfoPush = async (req, res) => {
       return;
     }
 
-    // Decrypt if HIP sent encrypted data and we have the HIU private key
-    const hipPubKey  = keyMaterial?.dhPublicKey?.keyValue;
-    const hipNonce   = keyMaterial?.nonce;
+    // Look up HIU private key to decrypt HIP's response
+    // HIP push includes its own keyMaterial; we need HIU's stored key to derive shared secret
+    const hipPubKey = keyMaterial?.dhPublicKey?.keyValue;
+    const hipNonce  = keyMaterial?.nonce;
+
+    // Find the consent artefact ID for this transaction so we can retrieve the stored HIU key
+    let hiuKeyEntry = null;
+    if (hipPubKey && hipNonce) {
+      const { rows: hrRows } = await pool.query(
+        'SELECT consent_id FROM hip_health_requests WHERE transaction_id=$1 LIMIT 1',
+        [transactionId]
+      ).catch(() => ({ rows: [] }));
+      const consentId = hrRows[0]?.consent_id;
+      if (consentId) hiuKeyEntry = abdm.getHiuKey(consentId);
+      logger.info('HIU health-info push: key lookup', { transactionId, consentId, hasKey: !!hiuKeyEntry });
+    }
 
     for (const entry of entries) {
       let content = entry.content;
-      if (hipPubKey && hipNonce) {
-        // Find matching HIU nonce from key store (stored when we generated key for this request)
-        // The HIU nonce is embedded in the request; ABDM passes it back via the HIP's keyMaterial response
-        // We try decryption; if it fails, fall back to raw content (HIP may have sent unencrypted)
-        const decrypted = abdm.decryptHipEntry(content, hipPubKey, hipNonce, /* hiuNonce from store */ null);
+      if (hipPubKey && hipNonce && hiuKeyEntry) {
+        const decrypted = abdm.decryptHipEntry(content, hipPubKey, hipNonce, hiuKeyEntry);
         if (decrypted) {
           content = Buffer.from(decrypted).toString('base64');
           logger.info('HIU decrypted health record', { transactionId, careContextReference: entry.careContextReference });
         } else {
-          logger.warn('HIU decrypt skipped (no key or failed) — storing raw content', { transactionId });
+          logger.warn('HIU decrypt failed — storing raw content', { transactionId });
         }
       }
 

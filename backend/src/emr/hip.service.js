@@ -282,14 +282,31 @@ function _buildCurve25519ExplicitSpki(rawPub65) {
 // KDF:  SHA-256( XOR(hiu_nonce, hip_nonce) || sharedX )  (nonces decoded from base64)
 // IV:   first 12 bytes of hip_nonce
 // AES:  AES-256-GCM → content = ciphertext || auth_tag  (BouncyCastle format, NO embedded IV)
+// Extract raw 65-byte uncompressed EC point from SubjectPublicKeyInfo DER.
+// HIU sends its key wrapped in SPKI (309 bytes); the point is in the BIT STRING at the end.
+// BIT STRING encoding: 03 42 00 04 <32-byte-x> <32-byte-y>
+function _extractPointFromSpki(buf) {
+  for (let i = 0; i < buf.length - 67; i++) {
+    if (buf[i] === 0x03 && buf[i + 1] === 0x42 && buf[i + 2] === 0x00 && buf[i + 3] === 0x04) {
+      return buf.slice(i + 3, i + 68); // 65 bytes: 04 || x || y
+    }
+  }
+  return null;
+}
+
 function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
-  console.log('[ENCRYPT] encryptFhir called', {
+  logger.info('[ENCRYPT] encryptFhir called', {
     hiuPubKeyLen: hiuPubKeyBase64 ? Buffer.from(hiuPubKeyBase64, 'base64').length : 0,
     hiuNonceLen:  hiuNonceBase64  ? Buffer.from(hiuNonceBase64,  'base64').length : 0,
     plaintextLen: plaintext?.length,
   });
   try {
-    const hiuPubHex = Buffer.from(hiuPubKeyBase64, 'base64').toString('hex');
+    const hiuPubBytes = Buffer.from(hiuPubKeyBase64, 'base64');
+    // If key is SPKI-wrapped (>65 bytes), extract the raw 65-byte EC point
+    const rawPoint = hiuPubBytes.length > 65 ? _extractPointFromSpki(hiuPubBytes) : hiuPubBytes;
+    if (!rawPoint) throw new Error(`Cannot extract EC point from HIU public key (len=${hiuPubBytes.length})`);
+    const hiuPubHex = rawPoint.toString('hex');
+    logger.info('[ENCRYPT] HIU public key extracted', { spki: hiuPubBytes.length > 65, pointLen: rawPoint.length });
     const hiuNonce  = Buffer.from(hiuNonceBase64,  'base64'); // 32 bytes
 
     // Generate HIP ephemeral Weierstrass Curve25519 key pair

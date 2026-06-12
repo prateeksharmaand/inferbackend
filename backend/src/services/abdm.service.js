@@ -44,28 +44,45 @@ function _buildSpki(rawPub65) {
 // In-memory store for HIU key pairs keyed by nonce (used to decrypt HIP response)
 const _hiuKeyStore = new Map();
 
-function generateHiuKeyMaterial() {
+function generateHiuKeyMaterial(consentId) {
   const privBytes = crypto.randomBytes(32);
   const scalar    = _c25519Scalar(privBytes);
   const pubBytes  = Buffer.from(_c25519W.BASE.multiply(scalar).toBytes(false)); // 65 bytes
   const spki      = _buildSpki(pubBytes);
   const nonce     = crypto.randomBytes(32).toString('base64');
   const keyValue  = spki.toString('base64');
-  // Store private key by nonce for decryption when HIP responds
+  // Store private key by consentId (artefact ID) for decryption when HIP pushes data
+  if (consentId) _hiuKeyStore.set(consentId, { privBytes, nonce });
+  // Also store by nonce as fallback
   _hiuKeyStore.set(nonce, { privBytes, nonce });
   return { keyValue, nonce };
 }
 
-function decryptHipEntry(encryptedBase64, hipPubKeyBase64, hipNonceBase64, hiuNonce) {
+function getHiuKey(id) {
+  return _hiuKeyStore.get(id) ?? null;
+}
+
+// Decrypt a health record entry pushed by the HIP.
+// hiuKeyEntry = { privBytes, nonce } from getHiuKey(consentId)
+function decryptHipEntry(encryptedBase64, hipPubKeyBase64, hipNonceBase64, hiuKeyEntry) {
   try {
-    const stored = _hiuKeyStore.get(hiuNonce);
-    if (!stored) return null;
-    const { privBytes } = stored;
-    const scalar   = _c25519Scalar(privBytes);
-    const hipPub   = _c25519W.BASE.constructor.fromHex(Buffer.from(hipPubKeyBase64, 'base64').toString('hex'));
-    const sharedX  = Buffer.from(hipPub.multiply(scalar).toAffine().x.toString(16).padStart(64,'0'), 'hex');
-    const hipNonce = Buffer.from(hipNonceBase64,  'base64');
-    const hiuNonceB = Buffer.from(hiuNonce, 'base64');
+    if (!hiuKeyEntry) return null;
+    const { privBytes, nonce: hiuNonceB64 } = hiuKeyEntry;
+    const scalar    = _c25519Scalar(privBytes);
+    // HIP public key is also SPKI-wrapped — extract raw 65-byte point
+    const hipPubRaw = Buffer.from(hipPubKeyBase64, 'base64');
+    let   hipPubHex = hipPubRaw.toString('hex');
+    if (hipPubRaw.length > 65) {
+      for (let i = 0; i < hipPubRaw.length - 67; i++) {
+        if (hipPubRaw[i] === 0x03 && hipPubRaw[i+1] === 0x42 && hipPubRaw[i+2] === 0x00 && hipPubRaw[i+3] === 0x04) {
+          hipPubHex = hipPubRaw.slice(i + 3, i + 68).toString('hex'); break;
+        }
+      }
+    }
+    const hipPub    = _c25519W.BASE.constructor.fromHex(hipPubHex);
+    const sharedX   = Buffer.from(hipPub.multiply(scalar).toAffine().x.toString(16).padStart(64,'0'), 'hex');
+    const hipNonce  = Buffer.from(hipNonceBase64, 'base64');
+    const hiuNonceB = Buffer.from(hiuNonceB64,   'base64');
     const xorNonce = Buffer.alloc(32);
     for (let i = 0; i < 32; i++) xorNonce[i] = hipNonce[i] ^ (hiuNonceB[i] ?? 0);
     const salt   = xorNonce.slice(0, 20);
@@ -646,7 +663,7 @@ async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRang
 // ─── M3: Fetch health information ─────────────────────────────────────────────
 
 async function fetchHealthInfo(consentId, dataPushUrl) {
-  const { keyValue, nonce } = generateHiuKeyMaterial();
+  const { keyValue, nonce } = generateHiuKeyMaterial(consentId);
   const km = {
     cryptoAlg: 'ECDH',
     curve: 'Curve25519',
@@ -691,7 +708,7 @@ module.exports = {
   discoverCareContexts,   linkInit,             linkConfirm,
   generateLinkToken,      linkCareContexts,
   createConsentRequest,   fetchHealthInfo,
-  generateHiuKeyMaterial, decryptHipEntry,
+  generateHiuKeyMaterial, decryptHipEntry, getHiuKey,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,
   uuid,
 };
