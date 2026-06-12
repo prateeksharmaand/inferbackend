@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Trash2, User, Phone, ChevronRight } from 'lucide-react';
+import { Trash2, User, Phone, ChevronRight, QrCode } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import styles from './Patients.module.css';
 
@@ -7,6 +8,7 @@ export default function Patients() {
   const [patients, setPatients] = useState([]);
   const [search,   setSearch]   = useState('');
   const [deleting, setDeleting] = useState(null);
+  const navigate = useNavigate();
 
   const load = () => api.get('/patients').then(setPatients).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -34,8 +36,17 @@ export default function Patients() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h2>Patients</h2>
-        <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
-          value={search} onChange={e => setSearch(e.target.value)} />
+        <div className={styles.headerActions}>
+          <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
+            value={search} onChange={e => setSearch(e.target.value)} />
+          <button
+            className={styles.qrButton}
+            onClick={() => navigate('/abha-qr-scan')}
+            title="Register patient via ABHA QR code"
+          >
+            <QrCode size={18} /> ABHA QR
+          </button>
+        </div>
       </div>
       <div className={styles.table}>
         <div className={styles.thead}>

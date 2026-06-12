@@ -1,8 +1,11 @@
 .page { padding: 24px; display: flex; flex-direction: column; gap: 16px; height: 100%; overflow-y: auto; box-sizing: border-box; }
-.header { display: flex; align-items: center; justify-content: space-between; }
+.header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .header h2 { font-size: 20px; font-weight: 700; }
-.search { border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 14px; width: 280px; font-size: 13px; outline: none; }
+.headerActions { display: flex; gap: 12px; align-items: center; flex: 1; }
+.search { border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 14px; width: 280px; font-size: 13px; outline: none; flex: 1; min-width: 200px; }
 .search:focus { border-color: var(--color-primary); }
+.qrButton { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--color-primary); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
+.qrButton:hover { background: #1d4ed8; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
 .table { background: var(--color-surface); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
 .thead { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr; padding: 10px 16px; background: var(--color-bg); font-size: 12px; font-weight: 600; color: var(--color-text-2); text-transform: uppercase; letter-spacing: .4px; }
 .row   { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr; padding: 12px 16px; border-top: 1px solid var(--color-border); font-size: 13px; }

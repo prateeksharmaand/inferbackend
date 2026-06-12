@@ -81,6 +81,7 @@ router.delete('/labs/staff/:id',     labStaff.deleteStaff);
 // Patients (existing EMR patient store)
 router.get   ('/patients',                         emr.listPatients);
 router.post  ('/patients',                         subscription.subscriptionCheck('patients'), emr.createPatient);
+router.post  ('/patients/register-abha',           emr.registerAbhaPatient);
 router.get   ('/patients/history',                 appt.listPatientHistory);
 router.get   ('/patients/:id',                     emr.getPatient);
 router.patch ('/patients/:id',                     emr.updatePatient);
@@ -166,7 +167,6 @@ router.post('/abdm/bridge/update', emr.abdmUpdateBridge);
 router.get   ('/profile-shares',                        emr.listProfileShares);
 router.patch ('/profile-shares/:id/dismiss',            emr.dismissProfileShare);
 router.post  ('/profile-shares/:id/link-patient',       emr.linkProfileShareToPatient);
-router.post  ('/profile-shares/:id/auto-checkin',       emr.autoCheckinProfileShare);
 
 // Add Patient via Aadhaar (standalone)
 router.post('/abha/aadhaar-otp',          emr.abhaCreateOtp);

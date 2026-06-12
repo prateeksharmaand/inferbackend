@@ -10,6 +10,7 @@ import ResetPassword from './pages/ResetPassword';
 import Queue from './pages/Queue';
 import QueueSetup from './pages/QueueSetup';
 import Patients from './pages/Patients';
+import AbhaQrScan from './pages/AbhaQrScan';
 import WriteRx from './pages/WriteRx';
 import Settings from './pages/Settings';
 import VoiceAI    from './pages/VoiceAI';
@@ -68,6 +69,7 @@ export default function App() {
             <Route path="queue"              element={<Queue />} />
             <Route path="queue/setup"        element={<QueueSetup />} />
             <Route path="patients"           element={<Patients />} />
+            <Route path="abha-qr-scan"       element={<AbhaQrScan />} />
             <Route path="rx/:appointmentId"  element={<WriteRx />} />
             <Route path="voice"              element={<VoiceAI />} />
             <Route path="assessment"         element={<Assessment />} />

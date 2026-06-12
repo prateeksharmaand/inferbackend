@@ -1,0 +1,4 @@
+ALTER TABLE emr_patients
+  ADD COLUMN IF NOT EXISTS address       JSONB,
+  ADD COLUMN IF NOT EXISTS is_abdm_linked BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS abdm_linked_at TIMESTAMPTZ;
