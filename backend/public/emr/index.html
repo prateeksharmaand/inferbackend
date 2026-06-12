@@ -1060,12 +1060,13 @@ async function api(method, path, body) {
   return r.json();
 }
 
-function toast(msg, type = 'success') {
+function toast(msg, type = 'success', duration = 3000) {
   const t = document.createElement('div');
-  t.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
-  t.style.zIndex = 9999; t.textContent = msg;
+  t.className = `alert alert-${type} position-fixed top-0 end-0 m-3 shadow`;
+  t.style.cssText = 'z-index:9999;min-width:280px;font-size:15px';
+  t.innerHTML = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  setTimeout(() => t.remove(), duration);
 }
 
 // ── Add Patient via Aadhaar ───────────────────────────────────────────────────
@@ -2852,6 +2853,10 @@ function _pollCheckinBadge() {
     for (const s of pending) {
       if (!_lastSeenShareIds.has(s.id)) {
         _lastSeenShareIds.add(s.id);
+        // Show toast with token number
+        if (s.token) {
+          toast(`🏥 <strong>${s.name || 'Patient'}</strong> checked in &nbsp;·&nbsp; Token <span style="font-size:20px;font-weight:700;letter-spacing:4px;color:#7B6EF6">${s.token}</span>`, 'success', 8000);
+        }
         await _autoProcessShare(s);
       }
     }
