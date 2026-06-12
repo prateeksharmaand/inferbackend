@@ -67,17 +67,34 @@ async function hiecmPost(path, body) {
   }
 }
 
-async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, gender, yearOfBirth }) {
-  // ABDM v3 on-share requires requestId + timestamp + response (original requestId) to avoid "Response cannot be NULL"
+async function sendShareProfileAck({ requestId, abhaAddress, abhaNumber, tokenNumber, name, gender, yearOfBirth, dayOfBirth, monthOfBirth, mobile, address }) {
+  const expiryTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const body = {
-    requestId:      uuid(),
-    timestamp:      new Date().toISOString(),
-    response:       { requestId },
-    acknowledgement: { status: 'SUCCESS', abhaAddress },  // abhaAddress must be inside acknowledgement
+    requestId:       uuid(),
+    timestamp:       new Date().toISOString(),
+    response:        { requestId },
+    acknowledgement: { status: 'SUCCESS', abhaAddress },
     profile: {
-      context:     HIP_ID,
-      tokenNumber: String(tokenNumber),
-      expiry:      1800,                       // integer, not string
+      patient: {
+        abhaNumber:  abhaNumber  || null,
+        abhaAddress: abhaAddress || null,
+        name:        name        || null,
+        gender:      gender      || null,
+        dayOfBirth:  dayOfBirth  || null,
+        monthOfBirth: monthOfBirth || null,
+        yearOfBirth: yearOfBirth  || null,
+        address:     address     || null,
+        phoneNumber: mobile      || null,
+      },
+    },
+    token: {
+      number:   String(tokenNumber),
+      type:     'OPD',
+      validity: {
+        purpose: 'REGISTRATION',
+        expiry:  expiryTime,
+        use:     'ONCE',
+      },
     },
   };
   logger.info('on-share request body', body);
