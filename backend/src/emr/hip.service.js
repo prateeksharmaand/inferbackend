@@ -213,6 +213,47 @@ function buildFhirBundle(patient, careContext) {
   });
 }
 
+// ── DER helpers ──────────────────────────────────────────────────────────────
+function _derLen(n) {
+  if (n < 0x80) return Buffer.from([n]);
+  if (n < 0x100) return Buffer.from([0x81, n]);
+  return Buffer.from([0x82, (n >> 8) & 0xff, n & 0xff]);
+}
+const _derSeq = (c) => Buffer.concat([Buffer.from([0x30]), _derLen(c.length), c]);
+const _derInt = (b) => {
+  if (b[0] & 0x80) b = Buffer.concat([Buffer.from([0x00]), b]);
+  return Buffer.concat([Buffer.from([0x02]), _derLen(b.length), b]);
+};
+const _derOctet = (b) => Buffer.concat([Buffer.from([0x04]), _derLen(b.length), b]);
+const _derBitStr = (b) => Buffer.concat([Buffer.from([0x03]), _derLen(b.length + 1), Buffer.from([0x00]), b]);
+
+// Build SubjectPublicKeyInfo with explicit Weierstrass Curve25519 parameters
+// This is what BouncyCastle ECPublicKey.getEncoded() produces for a custom curve without named OID
+const _C25519_p  = Buffer.from('7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed','hex');
+const _C25519_a  = Buffer.from('2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa984914a144','hex');
+const _C25519_b  = Buffer.from('7b425ed097b425ed097b425ed097b425ed097b425ed097b4260b5e9c7710c864','hex');
+const _C25519_Gx = Buffer.from('2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a','hex');
+const _C25519_Gy = Buffer.from('5f51e65e475f794b1fe122d388b72eb36dc2b28192839e4dd6163a5d81312c14','hex');
+const _C25519_n  = Buffer.from('1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed','hex');
+const _OID_EC_PUB    = Buffer.from('06072a8648ce3d0201','hex'); // 1.2.840.10045.2.1 ecPublicKey
+const _OID_PRIME_FLD = Buffer.from('06072a8648ce3d0101','hex'); // 1.2.840.10045.1.1 prime-field
+
+function _buildCurve25519ExplicitSpki(rawPub65) {
+  const G        = Buffer.concat([Buffer.from([0x04]), _C25519_Gx, _C25519_Gy]);
+  const fieldID  = _derSeq(Buffer.concat([_OID_PRIME_FLD, _derInt(_C25519_p)]));
+  const curve    = _derSeq(Buffer.concat([_derOctet(_C25519_a), _derOctet(_C25519_b)]));
+  const ecParams = _derSeq(Buffer.concat([
+    _derInt(Buffer.from([0x01])),   // version = 1
+    fieldID,
+    curve,
+    _derOctet(G),                   // base point
+    _derInt(_C25519_n),             // order
+    _derInt(Buffer.from([0x08])),   // cofactor = 8
+  ]));
+  const algId = _derSeq(Buffer.concat([_OID_EC_PUB, ecParams]));
+  return _derSeq(Buffer.concat([algId, _derBitStr(rawPub65)]));
+}
+
 // Encrypt one FHIR bundle entry for ABDM health data transfer
 //
 // ABDM uses BouncyCastle Weierstrass Curve25519 throughout:
@@ -262,16 +303,10 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const tag    = cipher.getAuthTag();
 
     // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
-    // Wrap raw 65-byte EC point in SubjectPublicKeyInfo DER — ABDM uses X509EncodedKeySpec to parse
-    // OID: 1.3.6.1.4.1.11591.15.1 (GNU Crypto curve25519, used by BouncyCastle CustomNamedCurves)
-    const spkiHeader = Buffer.from([
-      0x30, 0x5A,       // SEQUENCE (90 bytes)
-      0x30, 0x14,       // SEQUENCE (20 bytes) — algorithm
-      0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01, // OID ecPublicKey
-      0x06, 0x09, 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01, // OID 1.3.6.1.4.1.11591.15.1
-      0x03, 0x42, 0x00, // BIT STRING (66 bytes, 0 unused bits)
-    ]);
-    const hipPubSpki = Buffer.concat([spkiHeader, hipPubBytes]); // 92 bytes SubjectPublicKeyInfo
+    // Build SubjectPublicKeyInfo with EXPLICIT Weierstrass Curve25519 parameters.
+    // BouncyCastle's ECPublicKey.getEncoded() uses explicit params for custom curves (no named OID).
+    // ABDM PHR app uses X509EncodedKeySpec which can parse explicit-params SubjectPublicKeyInfo.
+    const hipPubSpki = _buildCurve25519ExplicitSpki(hipPubBytes); // ~309 bytes
 
     return {
       encryptedData: Buffer.concat([enc, tag]).toString('base64'),
