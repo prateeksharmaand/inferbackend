@@ -84,20 +84,21 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, 
 
 // ── Gateway callbacks ─────────────────────────────────────────────────────────
 
-async function sendDiscoverResult({ requestId, transactionId, patientId, careContexts, matchedBy }) {
+async function sendDiscoverResult({ requestId, transactionId, patientId, patientRef, careContexts, matchedBy }) {
   await gwPost('/v0.5/care-contexts/on-discover', {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
     transactionId,
     patient: patientId ? {
       id: patientId,
+      referenceNumber: patientRef ?? patientId,   // patient's HIP record reference — required by ABDM
+      display: patientId,
       careContexts: careContexts.map(c => ({
         referenceNumber: c.reference_number,
         display: c.display,
         hiType: c.hi_type,
       })),
       matchedBy: matchedBy ?? ['MOBILE'],
-      display: patientId,
     } : null,
     resp: { requestId },
   });

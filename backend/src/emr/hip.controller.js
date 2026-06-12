@@ -46,10 +46,12 @@ const handleDiscovery = async (req, res) => {
       [pt.id]
     );
 
+    const abhaId = pt.abha_address ?? pt.abha_number ?? `${pt.id}@hip`;
     await hip.sendDiscoverResult({
       requestId,
       transactionId,
-      patientId: pt.abha_address ?? pt.abha_number ?? `${pt.id}@hip`,
+      patientId: abhaId,
+      patientRef: abhaId,   // patient.referenceNumber — patient's HIP record identifier
       careContexts: ctxRows,
       matchedBy,
     });
