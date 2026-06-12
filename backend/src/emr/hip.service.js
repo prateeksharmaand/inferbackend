@@ -20,7 +20,7 @@ function uuid() {
 
 async function getToken() {
   if (_token && Date.now() < _tokenExpiry) return _token;
-  const res = await axios.post(`${GATEWAY}/v3/sessions`,
+  const res = await axios.post(`${HIECM}/gateway/v3/sessions`,
     { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
     { headers: { 'Content-Type': 'application/json', 'X-CM-ID': 'sbx', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
   );
@@ -68,23 +68,14 @@ async function hiecmPost(path, body) {
 }
 
 async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber, name, gender, yearOfBirth }) {
+  // ABDM v3 ProfileV3Acknowledgement format (from NHA-ABDM/ABDM-wrapper)
   const body = {
-    requestId: uuid(),
-    timestamp: new Date().toISOString(),
-    acknowledgement: { status: 'SUCCESS', abhaAddress },
-    response: { requestId },
+    status: 'SUCCESS',
+    abhaAddress,
     profile: {
-      patient: {
-        abhaAddress,
-        name,
-        gender,
-        yearOfBirth: yearOfBirth ? parseInt(yearOfBirth, 10) : null,
-      },
-      hip: { id: HIP_ID },
-    },
-    token: {
-      number: String(tokenNumber),
-      type: 'OPD',
+      context: HIP_ID,
+      tokenNumber: String(tokenNumber),
+      expiry: '1800',
     },
   };
   logger.info('on-share request body', body);
@@ -119,7 +110,7 @@ async function sendLinkInitResult({ requestId, transactionId, linkRefNumber }) {
     transactionId,
     link: {
       referenceNumber: linkRefNumber,
-      authenticationType: 'DIRECT',
+      authenticationType: 'MEDIATE',
       meta: {
         communicationMedium: 'MOBILE',
         communicationHint: 'OTP sent to patient mobile',
