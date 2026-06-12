@@ -104,11 +104,15 @@ app.post('/v0.5/care-contexts/discover',            hipCtrl.handleDiscovery);
 app.post('/v0.5/links/link/init',                   hipCtrl.handleLinkInit);
 app.post('/v0.5/links/link/confirm',                hipCtrl.handleLinkConfirm);
 app.post('/v0.5/health-information/hip/request',    hipCtrl.handleHealthInfoRequest);
-// v3 paths (ABDM HIECM v3 — same handlers; gateway v3 on-discover callback is 404, falls back to v0.5)
-app.post('/v3/hip/patient/care-context/discover',   hipCtrl.handleDiscovery);
-app.post('/v3/hip/links/link/init',                 hipCtrl.handleLinkInit);
-app.post('/v3/hip/links/link/confirm',              hipCtrl.handleLinkConfirm);
-app.post('/v3/hip/health-information/request',      hipCtrl.handleHealthInfoRequest);
+// v3 paths — both with and without /api prefix (ABDM calls /api/v3/... when bridge URL is registered without /api)
+app.post('/v3/hip/patient/care-context/discover',        hipCtrl.handleDiscovery);
+app.post('/api/v3/hip/patient/care-context/discover',    hipCtrl.handleDiscovery);
+app.post('/v3/hip/links/link/init',                      hipCtrl.handleLinkInit);
+app.post('/api/v3/hip/links/link/init',                  hipCtrl.handleLinkInit);
+app.post('/v3/hip/links/link/confirm',                   hipCtrl.handleLinkConfirm);
+app.post('/api/v3/hip/links/link/confirm',               hipCtrl.handleLinkConfirm);
+app.post('/v3/hip/health-information/request',           hipCtrl.handleHealthInfoRequest);
+app.post('/api/v3/hip/health-information/request',       hipCtrl.handleHealthInfoRequest);
 // M1: Patient shares profile by scanning facility QR (SHARE_PATIENT_PROFILE_701)
 app.post('/v3/hip/patient/share/profile',           hipCtrl.handlePatientShareProfile);
 app.post('/v3/hip/patient/share',                   hipCtrl.handlePatientShareProfile);
