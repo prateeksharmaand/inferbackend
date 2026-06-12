@@ -82,7 +82,7 @@ const loginGenerateOtp = async (req, res) => {
   const input = abhaNumber || abhaAddress;
   if (!input) return res.status(400).json({ error: 'abhaNumber or abhaAddress required' });
   // loginHint is derived inside loginRequestAbhaOtp based on whether input contains '@'
-  const result = await abdm.loginRequestAbhaOtp(input, null, 'abdm');
+  const result = await abdm.loginRequestAbhaOtp(input);
   res.json({ txnId: result.txnId });
 };
 

@@ -247,11 +247,10 @@ async function verifyMobileLoginOtp(otp, txnId) {
 
 // ─── Login with ABHA (Aadhaar OTP or Mobile OTP, via ABHA Number or Address) ──
 
-async function loginRequestAbhaOtp(loginId, _loginHint, otpSystem) {
-  // ABDM v3 valid loginHint values: mobile | aadhaar | abha-number | email | password | index
-  // 'abha-address' is NOT a valid loginHint — ABDM rejects it
+async function loginRequestAbhaOtp(loginId) {
+  // ABDM v3: loginHint 'abha-address' is invalid; valid: mobile|aadhaar|abha-number|email|password|index
   if (loginId.includes('@')) {
-    const err = new Error('ABHA address login is not supported by ABDM v3. Please use your 14-digit ABHA number.');
+    const err = new Error('ABHA address login not supported. Please use your 14-digit ABHA number.');
     err.status = 400;
     throw err;
   }
@@ -260,7 +259,7 @@ async function loginRequestAbhaOtp(loginId, _loginHint, otpSystem) {
     scope: ['abha-login', 'mobile-verify'],
     loginHint: 'abha-number',
     loginId: encryptedId,
-    otpSystem: otpSystem ?? 'abdm',
+    otpSystem: 'abdm',   // hardcoded — 'aadhaar' is invalid for abha-number login
   });
 }
 
@@ -271,7 +270,7 @@ async function updateAbhaProfileMobile(xToken, mobile) {
 // ─── M1: ABHA Login ───────────────────────────────────────────────────────────
 
 async function loginRequestOtp(abhaNumber) {
-  return loginRequestAbhaOtp(abhaNumber, null, 'abdm');
+  return loginRequestAbhaOtp(abhaNumber);
 }
 
 async function loginVerifyOtp(otp, txnId) {
