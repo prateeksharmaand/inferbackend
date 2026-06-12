@@ -451,24 +451,41 @@ const consentNotify = async (req, res) => {
   try {
     const { notification } = req.body;
     logger.info('ABDM consent notification', notification);
-    if (!notification?.consentRequestId) return;
+    // ABDM uses different ID fields across notification types
+    const consentRequestId = notification.consentRequestId ?? notification.consentId ?? notification.id;
+    if (!consentRequestId) {
+      logger.warn('HIU consent notify: no consentRequestId in payload', { body: req.body });
+      return;
+    }
+    // Override with resolved ID for all downstream use
+    notification.consentRequestId = consentRequestId;
 
-    // Update PHR consent table
-    await pool.query(
+    // Update PHR consent table — try exact match first
+    const phrRes = await pool.query(
       `UPDATE consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
-      [notification.status, notification.consentRequestId]
+      [notification.status, consentRequestId]
     );
     // Update EMR consent table
-    await pool.query(
+    const emrRes = await pool.query(
       `UPDATE emr_consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
-      [notification.status, notification.consentRequestId]
+      [notification.status, consentRequestId]
     );
 
     logger.info('HIU consent notify: status update', {
-      consentRequestId: notification.consentRequestId,
+      consentRequestId,
       status: notification.status,
       artefacts: notification.consentArtefacts?.length ?? 0,
+      phrRowsUpdated: phrRes.rowCount,
+      emrRowsUpdated: emrRes.rowCount,
     });
+
+    // If no rows matched, ABDM used a different ID — log the full notification for diagnosis
+    if (emrRes.rowCount === 0) {
+      logger.warn('HIU consent notify: no emr_consent_requests row matched', {
+        consentRequestId,
+        fullNotification: notification,
+      });
+    }
 
     // When granted, automatically request health info from HIP
     if (notification.status === 'GRANTED' && notification.consentArtefacts?.length) {
