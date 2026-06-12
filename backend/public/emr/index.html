@@ -411,7 +411,7 @@
         <div class="col-md-6">
           <div id="abha-camera-wrap" class="rounded-3 overflow-hidden bg-black position-relative" style="height:260px;display:none">
             <video id="abha-video" autoplay playsinline class="w-100 h-100" style="object-fit:cover"></video>
-            <canvas id="abha-canvas" class="d-none"></canvas>
+            <canvas id="abha-canvas" style="position:absolute;visibility:hidden;pointer-events:none"></canvas>
             <div class="position-absolute top-50 start-50 translate-middle" style="width:180px;height:180px;border:2px solid #7B6EF6;border-radius:12px;pointer-events:none"></div>
             <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" onclick="stopAbhaCamera()">✕ Stop</button>
           </div>
@@ -3016,14 +3016,18 @@ let _abhaCameraStream = null;
 let _abhaScanInterval = null;
 
 function startAbhaCamera() {
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } })
     .then(stream => {
       _abhaCameraStream = stream;
       const video = document.getElementById('abha-video');
       video.srcObject = stream;
       document.getElementById('abha-camera-wrap').style.display = '';
       document.getElementById('abha-no-camera').classList.add('d-none');
-      _abhaScanInterval = setInterval(() => _abhaTickScan(video), 300);
+      video.onloadedmetadata = () => {
+        video.play();
+        clearInterval(_abhaScanInterval);
+        _abhaScanInterval = setInterval(() => _abhaTickScan(video), 250);
+      };
     })
     .catch(err => showToast('Camera error: ' + err.message, 'danger'));
 }
