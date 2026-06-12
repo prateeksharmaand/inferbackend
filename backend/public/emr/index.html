@@ -3039,8 +3039,9 @@ function _abhaTickScan(video) {
   if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
   const canvas = document.getElementById('abha-canvas');
   canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-  const img = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(video, 0, 0);
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
   if (code) { stopAbhaCamera(); _abhaLoadQRText(code.data); }
 }
@@ -3053,8 +3054,9 @@ function uploadAbhaQR(input) {
     img.onload = () => {
       const canvas = document.getElementById('abha-canvas');
       canvas.width = img.width; canvas.height = img.height;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      const imgData = canvas.getContext('2d').getImageData(0, 0, img.width, img.height);
+      const uctx = canvas.getContext('2d', { willReadFrequently: true });
+      uctx.drawImage(img, 0, 0);
+      const imgData = uctx.getImageData(0, 0, img.width, img.height);
       const code = jsQR(imgData.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
       if (code) { _abhaLoadQRText(code.data); return; }
       showToast('No QR code found in image', 'warning');
