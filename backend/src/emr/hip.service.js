@@ -196,27 +196,49 @@ function buildFhirBundle(patient, careContext) {
 }
 
 // Encrypt FHIR bundle with HIU's public key (X25519 + AES-256-GCM)
+// ABDM sends the HIU public key as a raw 32-byte Curve25519 key in base64 (not SPKI/DER wrapped)
 function encryptFhir(plaintext, hiuPubKeyBase64, nonce) {
   try {
     const hipKeys = crypto.generateKeyPairSync('x25519');
-    const hiuPubKey = crypto.createPublicKey({
-      key: Buffer.from(hiuPubKeyBase64, 'base64'),
-      format: 'der',
-      type: 'spki',
-    });
+    const rawPub = Buffer.from(hiuPubKeyBase64, 'base64');
+
+    // Build SPKI wrapper if key is raw 32 bytes (ABDM format)
+    let hiuPubKey;
+    if (rawPub.length === 32) {
+      // X25519 SPKI prefix: 302a300506032b656e032100
+      const spkiPrefix = Buffer.from('302a300506032b656e032100', 'hex');
+      hiuPubKey = crypto.createPublicKey({
+        key: Buffer.concat([spkiPrefix, rawPub]),
+        format: 'der',
+        type: 'spki',
+      });
+    } else {
+      hiuPubKey = crypto.createPublicKey({
+        key: rawPub,
+        format: 'der',
+        type: 'spki',
+      });
+    }
+
     const shared = crypto.diffieHellman({ publicKey: hiuPubKey, privateKey: hipKeys.privateKey });
-    const key = crypto.createHash('sha256').update(Buffer.concat([shared, Buffer.from(nonce)])).digest();
-    const iv = crypto.randomBytes(12);
+    const salt   = Buffer.from(nonce);
+    const key    = crypto.createHash('sha256').update(Buffer.concat([shared, salt])).digest();
+    const iv     = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const enc = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-    const tag = cipher.getAuthTag();
+    const enc    = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const tag    = cipher.getAuthTag();
+
+    // Export HIP public key as raw 32 bytes (ABDM expects raw Curve25519, not SPKI)
+    const hipPubDer = hipKeys.publicKey.export({ format: 'der', type: 'spki' });
+    const hipPubRaw = hipPubDer.slice(-32); // last 32 bytes are the raw key
+
     return {
       encryptedData: Buffer.concat([iv, tag, enc]).toString('base64'),
-      hipPublicKey: hipKeys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64'),
+      hipPublicKey: hipPubRaw.toString('base64'),
     };
   } catch (err) {
     logger.warn('FHIR encryption failed, sending plaintext (sandbox only)', err.message);
-    return { encryptedData: Buffer.from(plaintext).toString('base64'), hipPublicKey: '' };
+    return { encryptedData: Buffer.from(plaintext).toString('base64'), hipPublicKey: null };
   }
 }
 
@@ -239,7 +261,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     };
   });
 
-  const respondingKeyMaterial = {
+  const respondingKeyMaterial = hipPublicKeyForResponse ? {
     cryptoAlg: 'ECDH',
     curve: 'Curve25519',
     dhPublicKey: {
@@ -248,15 +270,11 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       keyValue: hipPublicKeyForResponse,
     },
     nonce,
-  };
+  } : null;
 
-  await axios.post(dataPushUrl, {
-    pageNumber: 1,
-    pageCount: 1,
-    transactionId,
-    entries,
-    keyMaterial: respondingKeyMaterial,
-  });
+  const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries };
+  if (respondingKeyMaterial) pushBody.keyMaterial = respondingKeyMaterial;
+  await axios.post(dataPushUrl, pushBody);
   logger.info('HIP health data pushed', { transactionId, entries: entries.length });
 }
 
