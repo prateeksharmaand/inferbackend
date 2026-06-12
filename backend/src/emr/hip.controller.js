@@ -196,18 +196,22 @@ const handleHealthInfoRequest = async (req, res) => {
     const artifact = artifactRows[0];
     const raw      = artifact?.raw ?? {};
 
-    // Extract consented care context references from the artifact
-    // ABDM v3: raw.careContexts = [{careContextReference, patientReference}]
-    // ABDM v0.5: raw.careContexts or raw.consentDetail.careContexts
-    const consentedRefs = (
-      raw.careContexts?.map(c => c.careContextReference) ??
-      raw.consentDetail?.careContexts?.map(c => c.careContextReference) ??
-      []
-    ).filter(Boolean);
+    logger.info('HIP health-info: consent artifact raw keys', { keys: Object.keys(raw), raw: JSON.stringify(raw).slice(0, 400) });
 
-    const patientId = raw.patient?.id ??
-                      raw.consentDetail?.patient?.id ??
-                      raw.careContexts?.[0]?.patientReference;
+    // Extract consented care context references — try all known ABDM v2/v3 locations
+    const ctxList =
+      raw.grants?.careContexts ??           // ABDM v3: notification.grants.careContexts
+      raw.careContexts ??                    // ABDM v0.5 flat
+      raw.consentDetail?.careContexts ??     // ABDM v0.5 nested
+      [];
+
+    const consentedRefs = ctxList.map(c => c.careContextReference).filter(Boolean);
+
+    const patientId =
+      raw.grants?.careContexts?.[0]?.patientReference ??
+      raw.patient?.id ??
+      raw.consentDetail?.patient?.id ??
+      ctxList[0]?.patientReference;
 
     logger.info('HIP health-info: consent filter', { patientId, consentedRefs });
 
