@@ -338,14 +338,12 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const tag    = cipher.getAuthTag();
 
     // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
-    // Build SubjectPublicKeyInfo with EXPLICIT Weierstrass Curve25519 parameters.
-    // BouncyCastle's ECPublicKey.getEncoded() uses explicit params for custom curves (no named OID).
-    // ABDM PHR app uses X509EncodedKeySpec which can parse explicit-params SubjectPublicKeyInfo.
-    const hipPubSpki = _buildCurve25519ExplicitSpki(hipPubBytes); // ~309 bytes
-
+    // Return raw 65-byte uncompressed EC point as HIP public key.
+    // ABDM fidelius (reference impl) constructs ECPublicKey from raw 65-byte base64,
+    // NOT from SPKI DER — sending SPKI causes "wrong domain parameters" on the PHR app side.
     return {
       encryptedData: Buffer.concat([enc, tag]).toString('base64'),
-      hipPublicKey:  hipPubSpki.toString('base64'),          // 92-byte SubjectPublicKeyInfo DER
+      hipPublicKey:  hipPubBytes.toString('base64'),         // raw 65-byte uncompressed point
       hipNonce:      hipNonce.toString('base64'),            // 32 bytes
     };
   } catch (err) {
