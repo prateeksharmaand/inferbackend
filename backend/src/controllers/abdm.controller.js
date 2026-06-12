@@ -429,17 +429,21 @@ const consentOnInit = async (req, res) => {
     logger.info('consent-requests/on-init', { abdmConsentId, ourRequestId });
     if (!abdmConsentId || !ourRequestId) return;
 
-    // If ABDM assigned a different ID from what we generated, update both tables
-    if (abdmConsentId !== ourRequestId) {
-      await pool.query(
-        `UPDATE emr_consent_requests SET request_id=$1 WHERE request_id=$2`,
-        [abdmConsentId, ourRequestId]
-      );
-      await pool.query(
-        `UPDATE consent_requests SET request_id=$1 WHERE request_id=$2`,
-        [abdmConsentId, ourRequestId]
-      );
-    }
+    // Store ABDM's assigned consent ID in abdm_request_id (keep our reqId as request_id for stability).
+    // The GRANTED notify will use ABDM's ID, so we need it stored separately to match later.
+    const emrRes = await pool.query(
+      `UPDATE emr_consent_requests
+         SET abdm_request_id=$1, updated_at=NOW()
+       WHERE request_id=$2`,
+      [abdmConsentId, ourRequestId]
+    );
+    await pool.query(
+      `UPDATE consent_requests SET request_id=$1 WHERE request_id=$2`,
+      [abdmConsentId, ourRequestId]
+    );
+    logger.info('consent-requests/on-init: stored abdm_request_id', {
+      abdmConsentId, ourRequestId, emrRowsUpdated: emrRes.rowCount,
+    });
   } catch (err) {
     logger.error('consentOnInit error', err.message);
   }
@@ -460,14 +464,15 @@ const consentNotify = async (req, res) => {
     // Override with resolved ID for all downstream use
     notification.consentRequestId = consentRequestId;
 
-    // Update PHR consent table — try exact match first
+    // Update PHR consent table
     const phrRes = await pool.query(
       `UPDATE consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
       [notification.status, consentRequestId]
     );
-    // Update EMR consent table
+    // Update EMR consent table — match on either our reqId OR ABDM's assigned ID
     const emrRes = await pool.query(
-      `UPDATE emr_consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
+      `UPDATE emr_consent_requests SET status=$1, updated_at=NOW()
+       WHERE request_id=$2 OR abdm_request_id=$2`,
       [notification.status, consentRequestId]
     );
 
@@ -479,19 +484,16 @@ const consentNotify = async (req, res) => {
       emrRowsUpdated: emrRes.rowCount,
     });
 
-    // If no rows matched, ABDM used a different ID — log the full notification for diagnosis
     if (emrRes.rowCount === 0) {
-      logger.warn('HIU consent notify: no emr_consent_requests row matched', {
-        consentRequestId,
-        fullNotification: notification,
-      });
+      logger.warn('HIU consent notify: no emr_consent_requests row matched', { consentRequestId });
     }
 
     // When granted, automatically request health info from HIP
     if (notification.status === 'GRANTED' && notification.consentArtefacts?.length) {
       await pool.query(
-        `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW() WHERE request_id=$2`,
-        [JSON.stringify(notification.consentArtefacts), notification.consentRequestId]
+        `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW()
+         WHERE request_id=$2 OR abdm_request_id=$2`,
+        [JSON.stringify(notification.consentArtefacts), consentRequestId]
       );
       const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
       logger.info('HIU consent GRANTED — initiating health-info fetch', {
@@ -508,11 +510,12 @@ const consentNotify = async (req, res) => {
           logger.info('HIU health-info request sent to CM', { artefactId: artefact.id, txnId });
           await pool.query(
             `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
-            [txnId, notification.consentRequestId]
+            [txnId, consentRequestId]
           );
           await pool.query(
-            `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
-            [txnId, notification.consentRequestId]
+            `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW()
+             WHERE request_id=$2 OR abdm_request_id=$2`,
+            [txnId, consentRequestId]
           );
         } catch (err) {
           logger.error('HIU fetchHealthInfo failed', {
