@@ -257,9 +257,20 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const tag    = cipher.getAuthTag();
 
     // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
+    // Wrap raw 65-byte EC point in SubjectPublicKeyInfo DER — ABDM uses X509EncodedKeySpec to parse
+    // OID: 1.3.6.1.4.1.11591.15.1 (GNU Crypto curve25519, used by BouncyCastle CustomNamedCurves)
+    const spkiHeader = Buffer.from([
+      0x30, 0x5A,       // SEQUENCE (90 bytes)
+      0x30, 0x14,       // SEQUENCE (20 bytes) — algorithm
+      0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01, // OID ecPublicKey
+      0x06, 0x09, 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01, // OID 1.3.6.1.4.1.11591.15.1
+      0x03, 0x42, 0x00, // BIT STRING (66 bytes, 0 unused bits)
+    ]);
+    const hipPubSpki = Buffer.concat([spkiHeader, hipPubBytes]); // 92 bytes SubjectPublicKeyInfo
+
     return {
       encryptedData: Buffer.concat([enc, tag]).toString('base64'),
-      hipPublicKey:  hipPubBytes.toString('base64'),        // 65-byte Weierstrass
+      hipPublicKey:  hipPubSpki.toString('base64'),          // 92-byte SubjectPublicKeyInfo DER
       hipNonce:      hipNonce.toString('base64'),            // 32 bytes
     };
   } catch (err) {
