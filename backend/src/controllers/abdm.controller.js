@@ -485,7 +485,38 @@ const consentNotify = async (req, res) => {
     });
 
     if (emrRes.rowCount === 0) {
-      logger.warn('HIU consent notify: no emr_consent_requests row matched', { consentRequestId });
+      // No row found — this is likely a patient-initiated consent (purpose: PATRQT) from ABHA app.
+      // Look up patient ABHA from the stored HIP artifact, then upsert a row so the UI shows it.
+      const artefactId = notification.consentArtefacts?.[0]?.id ?? consentRequestId;
+      const { rows: artRows } = await pool.query(
+        `SELECT patient_abha, raw FROM hip_consent_artifacts WHERE consent_id=$1 LIMIT 1`,
+        [artefactId]
+      ).catch(() => ({ rows: [] }));
+
+      const patientAbha = artRows[0]?.patient_abha
+        ?? artRows[0]?.raw?.consentDetail?.patient?.id
+        ?? null;
+      const purpose = artRows[0]?.raw?.consentDetail?.purpose?.code ?? 'PATRQT';
+      const hiTypes = artRows[0]?.raw?.consentDetail?.hiTypes ?? [];
+      const hipId   = artRows[0]?.raw?.consentDetail?.hip?.id ?? null;
+
+      if (patientAbha) {
+        const hiuId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+        await pool.query(
+          `INSERT INTO emr_consent_requests
+             (clinic_id, request_id, abdm_request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, status)
+           VALUES (
+             (SELECT MIN(id) FROM emr_clinics),
+             $1, $1, $2, $3, $4, $5, $6, $7
+           )
+           ON CONFLICT (request_id) DO UPDATE
+             SET status=$7, abdm_request_id=$1, updated_at=NOW()`,
+          [consentRequestId, patientAbha, hipId, hiuId, purpose, hiTypes, notification.status]
+        ).catch(err => logger.warn('HIU consent notify: upsert failed', { error: err.message }));
+        logger.info('HIU consent notify: inserted patient-initiated consent', { consentRequestId, patientAbha, purpose });
+      } else {
+        logger.warn('HIU consent notify: no patient ABHA found for upsert', { consentRequestId, artefactId });
+      }
     }
 
     // When granted, automatically request health info from HIP
