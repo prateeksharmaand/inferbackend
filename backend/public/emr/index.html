@@ -3003,6 +3003,161 @@ function _pollCheckinBadge() {
 // Initial load
 if (!emrToken) showLogin(); else { loadPatients(); setTimeout(_pollCheckinBadge, 2000); }
 setInterval(_pollCheckinBadge, 10000);
+
+// ── ABHA QR Registration ──────────────────────────────────────────────────────
+
+let _abhaCameraStream = null;
+let _abhaScanInterval = null;
+
+function startAbhaCamera() {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      _abhaCameraStream = stream;
+      const video = document.getElementById('abha-video');
+      video.srcObject = stream;
+      document.getElementById('abha-camera-wrap').style.display = '';
+      document.getElementById('abha-no-camera').classList.add('d-none');
+      _abhaScanInterval = setInterval(() => _abhaTickScan(video), 300);
+    })
+    .catch(err => showToast('Camera error: ' + err.message, 'danger'));
+}
+
+function stopAbhaCamera() {
+  clearInterval(_abhaScanInterval);
+  if (_abhaCameraStream) { _abhaCameraStream.getTracks().forEach(t => t.stop()); _abhaCameraStream = null; }
+  document.getElementById('abha-camera-wrap').style.display = 'none';
+  document.getElementById('abha-no-camera').classList.remove('d-none');
+}
+
+function _abhaTickScan(video) {
+  if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+  const canvas = document.getElementById('abha-canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  // Use jsQR if loaded, else skip
+  if (typeof jsQR === 'function') {
+    const img = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height);
+    if (code) { stopAbhaCamera(); _abhaLoadQRText(code.data); }
+  }
+}
+
+function uploadAbhaQR(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('abha-canvas');
+      canvas.width = img.width; canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      if (typeof jsQR === 'function') {
+        const imgData = canvas.getContext('2d').getImageData(0, 0, img.width, img.height);
+        const code = jsQR(imgData.data, img.width, img.height);
+        if (code) { _abhaLoadQRText(code.data); return; }
+      }
+      showToast('No QR code found in image', 'warning');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function parseAbhaQRJson() {
+  const raw = document.getElementById('abha-qr-json').value.trim();
+  if (!raw) return showToast('Paste QR JSON first', 'warning');
+  _abhaLoadQRText(raw);
+}
+
+function _abhaLoadQRText(text) {
+  let data = null;
+  try { data = JSON.parse(text); } catch(e) {
+    // pipe-delimited: abhaNumber|abhaAddress|name|gender|dob|mobile
+    const parts = text.split('|').map(s => s.trim());
+    if (parts.length >= 2) data = { hidn: parts[0], hid: parts[1], name: parts[2], gender: parts[3], dob: parts[4], mobile: parts[5] };
+  }
+  if (!data) return showToast('Could not parse QR data', 'danger');
+
+  // Normalise field names across ABDM QR formats
+  const abhaNum  = data.hidn || data.abhaNumber || data.abha_number || '';
+  const abhaAddr = data.hid  || data.abhaAddress || data.abha_address || '';
+  const name     = data.name || ((data.firstName || '') + ' ' + (data.lastName || '')).trim();
+  const gender   = (data.gender || 'M').toUpperCase().charAt(0);
+  const dob      = data.dob || data.dateOfBirth || '';
+  const mobile   = data.mobile || data.phone || data.phoneNumber || '';
+  const district = data.districtName || data.district || '';
+  const state    = data.stateName || data.state || '';
+
+  document.getElementById('abha-reg-name').value      = name;
+  document.getElementById('abha-reg-abha-num').value  = abhaNum;
+  document.getElementById('abha-reg-abha-addr').value = abhaAddr;
+  document.getElementById('abha-reg-gender').value    = ['M','F','O'].includes(gender) ? gender : 'M';
+  document.getElementById('abha-reg-dob').value       = dob ? dob.slice(0,10) : '';
+  document.getElementById('abha-reg-mobile').value    = mobile;
+  document.getElementById('abha-reg-location').value  = [district, state].filter(Boolean).join(', ');
+
+  document.getElementById('abha-reg-scan').classList.add('d-none');
+  document.getElementById('abha-reg-verify').classList.remove('d-none');
+  document.getElementById('abha-reg-success').classList.add('d-none');
+
+  // Check duplicate
+  if (abhaNum || abhaAddr) {
+    fetch(`${API}/patients?q=${encodeURIComponent(abhaNum || abhaAddr)}`, { headers: { Authorization: 'Bearer ' + emrToken } })
+      .then(r => r.json()).then(list => {
+        const dup = (list || []).find(p => p.abha_number === abhaNum || p.abha_address === abhaAddr);
+        document.getElementById('abha-reg-duplicate-badge').classList.toggle('d-none', !dup);
+      }).catch(() => {});
+  }
+}
+
+async function confirmAbhaRegistration() {
+  const payload = {
+    abhaNumber:  document.getElementById('abha-reg-abha-num').value.trim() || undefined,
+    abhaAddress: document.getElementById('abha-reg-abha-addr').value.trim() || undefined,
+    name:        document.getElementById('abha-reg-name').value.trim(),
+    gender:      document.getElementById('abha-reg-gender').value,
+    dob:         document.getElementById('abha-reg-dob').value || undefined,
+    phoneNumber: document.getElementById('abha-reg-mobile').value.trim() || undefined,
+    department:  document.getElementById('abha-reg-dept').value.trim() || undefined,
+    doctor:      document.getElementById('abha-reg-doctor').value.trim() || undefined,
+    visitType:   document.getElementById('abha-reg-visit-type').value,
+  };
+  if (!payload.name) return showToast('Name is required', 'warning');
+
+  const btn = document.querySelector('#abha-reg-verify .btn-accent');
+  btn.disabled = true; btn.textContent = 'Registering…';
+  try {
+    const res = await fetch(`${API}/patients/register-abha`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + emrToken },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+    document.getElementById('abha-reg-verify').classList.add('d-none');
+    document.getElementById('abha-reg-success').classList.remove('d-none');
+    document.getElementById('abha-reg-success-details').innerHTML =
+      `<strong>${data.patient?.name}</strong> · ID ${data.patientId}` +
+      (data.patient?.abha_address ? ` · ${data.patient.abha_address}` : '') +
+      (data.isNew ? ' <span class="badge bg-success ms-1">New</span>' : ' <span class="badge bg-info ms-1">Updated</span>');
+
+    loadPatients();
+  } catch(err) {
+    showToast(err.message, 'danger');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Confirm & Register';
+  }
+}
+
+function resetAbhaReg() {
+  stopAbhaCamera();
+  document.getElementById('abha-qr-json').value = '';
+  document.getElementById('abha-reg-scan').classList.remove('d-none');
+  document.getElementById('abha-reg-verify').classList.add('d-none');
+  document.getElementById('abha-reg-success').classList.add('d-none');
+  document.getElementById('abha-reg-duplicate-badge').classList.add('d-none');
+}
 </script>
 </body>
 </html>

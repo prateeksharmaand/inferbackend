@@ -13,7 +13,18 @@ const logger = require('./config/logger');
 const app = express();
 
 // Security middleware
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'connect-src':  ["'self'", 'https://api.inferapp.online', 'https://clinicaltables.nlm.nih.gov', 'https://cdn.jsdelivr.net'],
+      'script-src':   ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      'style-src':    ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      'font-src':     ["'self'", 'https://cdn.jsdelivr.net'],
+    },
+  },
+}));
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
