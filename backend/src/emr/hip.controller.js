@@ -179,7 +179,7 @@ const handleHealthInfoRequest = async (req, res) => {
     const consentId  = hiRequest?.consent?.id;
     const dataPushUrl = hiRequest?.dataPushUrl;
     const keyMaterial = hiRequest?.keyMaterial;
-    logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl });
+    logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl, keyMaterial });
 
     await pool.query(
       `INSERT INTO hip_health_requests (transaction_id, consent_id, data_push_url, key_material)
@@ -225,7 +225,11 @@ const handleHealthInfoRequest = async (req, res) => {
     await hip.pushHealthData({ dataPushUrl, transactionId, careContexts: rows, patient, keyMaterial });
     await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
   } catch (err) {
-    logger.error('handleHealthInfoRequest error', err);
+    logger.error('handleHealthInfoRequest error', {
+      message: err.message,
+      status: err.response?.status,
+      abdmError: err.response?.data,
+    });
     await pool.query(`UPDATE hip_health_requests SET status='failed' WHERE transaction_id=$1`,
       [req.body?.transactionId]).catch(() => {});
   }

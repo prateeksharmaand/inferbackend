@@ -237,7 +237,7 @@ function encryptFhir(plaintext, hiuPubKeyBase64, nonce) {
       hipPublicKey: hipPubRaw.toString('base64'),
     };
   } catch (err) {
-    logger.warn('FHIR encryption failed, sending plaintext (sandbox only)', err.message);
+    logger.warn('FHIR encryption failed', { error: err.message, stack: err.stack?.split('\n')[1], hiuPubKeyLen: hiuPubKeyBase64 ? Buffer.from(hiuPubKeyBase64, 'base64').length : 0 });
     return { encryptedData: Buffer.from(plaintext).toString('base64'), hipPublicKey: null };
   }
 }
