@@ -179,7 +179,7 @@ const handleHealthInfoRequest = async (req, res) => {
     const consentId  = hiRequest?.consent?.id;
     const dataPushUrl = hiRequest?.dataPushUrl;
     const keyMaterial = hiRequest?.keyMaterial;
-    logger.info('HIP health-info FULL BODY', JSON.stringify(req.body, null, 2));
+    logger.info('HIP health-info FULL BODY', { body: req.body });
     logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl });
 
     await pool.query(
@@ -220,10 +220,21 @@ const handleHealthInfoRequest = async (req, res) => {
       raw.consentDetail?.patient?.id ??
       ctxList[0]?.patientReference;
 
-    logger.info('HIP health-info STORED CONSENT', JSON.stringify(artifact, null, 2));
+    logger.info('HIP health-info STORED CONSENT', { artifact });
     logger.info('HIP health-info: consent filter', { patientId, consentedRefs, source: inlineConsent ? 'inline' : 'stored' });
 
-    // Fetch only the care contexts that were explicitly consented to
+    // If no patientId yet, look up via emr_consent_requests (HIP-side consent record)
+    let resolvedPatientId = patientId;
+    if (!resolvedPatientId && consentId) {
+      const { rows: cr } = await pool.query(
+        `SELECT patient_abha FROM emr_consent_requests WHERE request_id=$1 LIMIT 1`,
+        [consentId]
+      ).catch(() => ({ rows: [] }));
+      resolvedPatientId = cr[0]?.patient_abha ?? null;
+      if (resolvedPatientId) logger.info('HIP health-info: patient resolved via emr_consent_requests', { resolvedPatientId });
+    }
+
+    // Fetch care contexts: prefer explicit refs from consent, else all for patient
     let rows;
     if (consentedRefs.length) {
       const { rows: r } = await pool.query(
@@ -235,14 +246,14 @@ const handleHealthInfoRequest = async (req, res) => {
         [consentedRefs]
       );
       rows = r;
-    } else if (patientId) {
+    } else if (resolvedPatientId) {
       const { rows: r } = await pool.query(
         `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
          FROM emr_care_contexts ecc
          JOIN emr_patients ep ON ep.id = ecc.patient_id
          WHERE ep.abha_address=$1 OR ep.abha_number=$1
          ORDER BY ecc.created_at DESC`,
-        [patientId]
+        [resolvedPatientId]
       );
       rows = r;
     } else {

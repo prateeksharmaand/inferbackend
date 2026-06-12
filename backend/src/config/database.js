@@ -616,6 +616,19 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE emr_patients ADD COLUMN IF NOT EXISTS is_abdm_linked  BOOLEAN NOT NULL DEFAULT false`);
     await client.query(`ALTER TABLE emr_patients ADD COLUMN IF NOT EXISTS abdm_linked_at  TIMESTAMPTZ`);
 
+    // hip_consent_artifacts — stores consent artefacts received from ABDM gateway
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hip_consent_artifacts (
+        id          SERIAL PRIMARY KEY,
+        consent_id  VARCHAR(128) UNIQUE NOT NULL,
+        status      VARCHAR(20),
+        artefacts   JSONB,
+        raw         JSONB,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');
   } catch (err) {
