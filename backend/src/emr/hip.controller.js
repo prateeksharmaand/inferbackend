@@ -223,8 +223,16 @@ const handleHealthInfoRequest = async (req, res) => {
     logger.info('HIP health-info STORED CONSENT', { artifact });
     logger.info('HIP health-info: consent filter', { patientId, consentedRefs, source: inlineConsent ? 'inline' : 'stored' });
 
-    // If no patientId yet, look up via emr_consent_requests (HIP-side consent record)
+    // Resolve patient ID via multiple fallbacks
     let resolvedPatientId = patientId;
+
+    // Fallback 1: patient_abha stored in artifact during consent notify
+    if (!resolvedPatientId && artifact?.patient_abha) {
+      resolvedPatientId = artifact.patient_abha;
+      logger.info('HIP health-info: patient resolved via stored artifact patient_abha', { resolvedPatientId });
+    }
+
+    // Fallback 2: emr_consent_requests by consent artifact ID
     if (!resolvedPatientId && consentId) {
       const { rows: cr } = await pool.query(
         `SELECT patient_abha FROM emr_consent_requests WHERE request_id=$1 LIMIT 1`,
@@ -232,6 +240,23 @@ const handleHealthInfoRequest = async (req, res) => {
       ).catch(() => ({ rows: [] }));
       resolvedPatientId = cr[0]?.patient_abha ?? null;
       if (resolvedPatientId) logger.info('HIP health-info: patient resolved via emr_consent_requests', { resolvedPatientId });
+    }
+
+    // Fallback 3: fetch consent artifact from ABDM gateway
+    if (!resolvedPatientId && consentId) {
+      try {
+        const gwArtifact = await hip.gwGet(`/v0.5/consents/${consentId}`);
+        const gp = gwArtifact?.consent?.patient?.id ?? gwArtifact?.consentDetail?.patient?.id;
+        if (gp) {
+          resolvedPatientId = gp;
+          logger.info('HIP health-info: patient resolved via ABDM gateway fetch', { resolvedPatientId });
+          // persist so next request doesn't need to fetch again
+          await pool.query(
+            `UPDATE hip_consent_artifacts SET patient_abha=$1 WHERE consent_id=$2`,
+            [gp, consentId]
+          ).catch(() => {});
+        }
+      } catch (_) {}
     }
 
     // Fetch care contexts: prefer explicit refs from consent, else all for patient
@@ -369,14 +394,23 @@ const handleConsentNotify = async (req, res) => {
     const status     = notification.status;
     const artefacts  = notification.consentArtefacts ?? [];
 
+    // Extract patient ABHA from any known location in the ABDM notify payload
+    const patientAbha =
+      notification.consentDetail?.patient?.id ??
+      notification.grants?.careContexts?.[0]?.patientReference ??
+      notification.careContexts?.[0]?.patientReference ??
+      null;
+
     // Persist consent artifact
     await pool.query(
-      `INSERT INTO hip_consent_artifacts (consent_id, status, artefacts, raw)
-       VALUES ($1,$2,$3,$4)
+      `INSERT INTO hip_consent_artifacts (consent_id, status, artefacts, raw, patient_abha)
+       VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (consent_id) DO UPDATE
-         SET status=$2, artefacts=$3, raw=$4, updated_at=NOW()`,
-      [consentId, status, JSON.stringify(artefacts), JSON.stringify(notification)]
-    ).catch(() => {}); // table may not exist yet — log only
+         SET status=$2, artefacts=$3, raw=$4, patient_abha=COALESCE($5, hip_consent_artifacts.patient_abha), updated_at=NOW()`,
+      [consentId, status, JSON.stringify(artefacts), JSON.stringify(notification), patientAbha]
+    ).catch(() => {});
+
+    logger.info('HIP consent notify: stored artifact', { consentId, status, patientAbha }); // table may not exist yet — log only
 
     // Send on-notify ack back to gateway
     await hip.gwPost('/v0.5/consents/hip/on-notify', {

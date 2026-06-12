@@ -47,6 +47,24 @@ async function getToken() {
   return _token;
 }
 
+async function gwGet(path) {
+  const token = await getToken();
+  try {
+    const res = await axios.get(`${GATEWAY}${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-CM-ID': 'sbx',
+        'REQUEST-ID': uuid(),
+        TIMESTAMP: new Date().toISOString(),
+      },
+    });
+    return res.data;
+  } catch (err) {
+    logger.warn('HIP gateway GET failed', { path, status: err.response?.status });
+    return null;
+  }
+}
+
 async function gwPost(path, body) {
   const token = await getToken();
   try {
@@ -386,4 +404,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   logger.info('HIP health data pushed', { transactionId, entries: entries.length, encrypted: !!respondingKeyMaterial });
 }
 
-module.exports = { uuid, gwPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, pushHealthData, buildFhirBundle, sendShareProfileAck };
+module.exports = { uuid, gwGet, gwPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, pushHealthData, buildFhirBundle, sendShareProfileAck };
