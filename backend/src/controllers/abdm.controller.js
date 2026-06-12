@@ -615,6 +615,14 @@ const debugBridge = async (req, res) => {
   }
 };
 
+const debugHipSessions = async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, link_ref_number, status, care_contexts, request_id, created_at
+     FROM hip_link_sessions ORDER BY created_at DESC LIMIT 10`
+  );
+  res.json(rows);
+};
+
 const debugUpdateHipServices = async (req, res) => {
   try {
     const result = await abdm.updateHipServices();
@@ -638,5 +646,5 @@ module.exports = {
   createConsent, getConsents, respondConsent,
   consentOnInit, consentNotify, healthInfoPush,
   getHealthRecords,
-  debugToken, debugBridge, debugUpdateHipServices,
+  debugToken, debugBridge, debugUpdateHipServices, debugHipSessions,
 };
