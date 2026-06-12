@@ -138,7 +138,6 @@ const handleLinkConfirm = async (req, res) => {
     await pool.query(`UPDATE hip_link_sessions SET status='confirmed' WHERE id=$1`, [session.id]);
 
     let careContexts = session.care_contexts ?? [];
-    // care_contexts stored as JSONB — ensure it's an array
     if (!Array.isArray(careContexts)) careContexts = Object.values(careContexts);
 
     const ptId = session.patient_id
@@ -147,8 +146,19 @@ const handleLinkConfirm = async (req, res) => {
       : null;
     const patientRef = ptId?.abha_address ?? ptId?.abha_number ?? `${ptId?.id}@hip`;
 
+    // ABDM v3 never sends careContexts in link/init — fetch from EMR DB by patient
+    if (!careContexts.length && session.patient_id) {
+      const { rows: ctxRows } = await pool.query(
+        `SELECT reference_number AS "referenceNumber", display, hi_type AS "hiType"
+         FROM emr_care_contexts WHERE patient_id=$1 ORDER BY created_at DESC`,
+        [session.patient_id]
+      );
+      careContexts = ctxRows;
+      logger.info('HIP link confirm: loaded care contexts from EMR DB', { count: careContexts.length, patientId: session.patient_id });
+    }
+
     if (!careContexts.length) {
-      logger.warn('HIP link confirm: no care contexts in session — cannot send count 0', { linkRefNumber });
+      logger.warn('HIP link confirm: patient has no care contexts in EMR', { linkRefNumber, patientId: session.patient_id });
       return;
     }
 
