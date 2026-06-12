@@ -109,8 +109,12 @@ app.post('/v3/hip/patient/care-context/discover',        hipCtrl.handleDiscovery
 app.post('/api/v3/hip/patient/care-context/discover',    hipCtrl.handleDiscovery);
 app.post('/v3/hip/links/link/init',                      hipCtrl.handleLinkInit);
 app.post('/api/v3/hip/links/link/init',                  hipCtrl.handleLinkInit);
+app.post('/v3/hip/link/care-context/init',               hipCtrl.handleLinkInit);    // ABDM v3 actual path
+app.post('/api/v3/hip/link/care-context/init',           hipCtrl.handleLinkInit);    // ABDM v3 with /api prefix
 app.post('/v3/hip/links/link/confirm',                   hipCtrl.handleLinkConfirm);
 app.post('/api/v3/hip/links/link/confirm',               hipCtrl.handleLinkConfirm);
+app.post('/v3/hip/link/care-context/confirm',            hipCtrl.handleLinkConfirm); // ABDM v3 actual path
+app.post('/api/v3/hip/link/care-context/confirm',        hipCtrl.handleLinkConfirm); // ABDM v3 with /api prefix
 app.post('/v3/hip/health-information/request',           hipCtrl.handleHealthInfoRequest);
 app.post('/api/v3/hip/health-information/request',       hipCtrl.handleHealthInfoRequest);
 // M1: Patient shares profile by scanning facility QR (SHARE_PATIENT_PROFILE_701)
