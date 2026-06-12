@@ -224,6 +224,11 @@ function buildFhirBundle(patient, careContext) {
 // IV:   first 12 bytes of hip_nonce
 // AES:  AES-256-GCM → content = ciphertext || auth_tag  (BouncyCastle format, NO embedded IV)
 function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
+  console.log('[ENCRYPT] encryptFhir called', {
+    hiuPubKeyLen: hiuPubKeyBase64 ? Buffer.from(hiuPubKeyBase64, 'base64').length : 0,
+    hiuNonceLen:  hiuNonceBase64  ? Buffer.from(hiuNonceBase64,  'base64').length : 0,
+    plaintextLen: plaintext?.length,
+  });
   try {
     const hiuPubHex = Buffer.from(hiuPubKeyBase64, 'base64').toString('hex');
     const hiuNonce  = Buffer.from(hiuNonceBase64,  'base64'); // 32 bytes
@@ -283,6 +288,15 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
 }
 
 async function pushHealthData({ dataPushUrl, transactionId, careContexts, patient, keyMaterial }) {
+  console.log('[PUSH] pushHealthData called', {
+    dataPushUrl,
+    transactionId,
+    careContextCount: careContexts?.length,
+    cryptoAlg: keyMaterial?.cryptoAlg,
+    curve: keyMaterial?.curve,
+    keyValueLen: keyMaterial?.dhPublicKey?.keyValue ? Buffer.from(keyMaterial.dhPublicKey.keyValue, 'base64').length : 0,
+    hasNonce: !!keyMaterial?.nonce,
+  });
   const hiuNonce  = keyMaterial?.nonce ?? '';
   const hiuPubKey = keyMaterial?.dhPublicKey?.keyValue;
 
