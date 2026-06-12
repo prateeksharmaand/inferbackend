@@ -36,17 +36,8 @@ export default function Patients() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h2>Patients</h2>
-        <div className={styles.headerActions}>
-          <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
-            value={search} onChange={e => setSearch(e.target.value)} />
-          <button
-            className={styles.qrButton}
-            onClick={() => navigate('/abha-qr-scan')}
-            title="Register patient via ABHA QR code"
-          >
-            <QrCode size={18} /> ABHA QR
-          </button>
-        </div>
+        <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
+          value={search} onChange={e => setSearch(e.target.value)} />
       </div>
       <div className={styles.table}>
         <div className={styles.thead}>
@@ -72,6 +63,14 @@ export default function Patients() {
         ))}
         {filtered.length === 0 && <p className={styles.empty}>No patients found</p>}
       </div>
+      <button
+        className={styles.fab}
+        onClick={() => navigate('/abha-qr-scan')}
+        title="Register patient via ABHA QR code"
+      >
+        <QrCode size={22} />
+        <span>ABHA QR</span>
+      </button>
     </div>
   );
 }
