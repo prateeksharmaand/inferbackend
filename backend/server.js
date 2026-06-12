@@ -158,6 +158,11 @@ async function start() {
     workflowService.setSocketManager(labSocket);
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`PHR Backend running on port ${PORT}`);
+      // Register HIP services + hiTypes with ABDM on every startup
+      const abdmSvc = require('./src/services/abdm.service');
+      abdmSvc.updateHipServices()
+        .then(() => logger.info('ABDM HIP services registered (hiTypes updated)'))
+        .catch(err => logger.warn('ABDM HIP services update failed (non-fatal)', err.response?.data ?? err.message));
       logger.info('Lab WebSocket manager initialized');
       startReminderCron();
       startGmailSyncCron();

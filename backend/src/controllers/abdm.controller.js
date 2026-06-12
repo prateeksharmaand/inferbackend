@@ -615,6 +615,15 @@ const debugBridge = async (req, res) => {
   }
 };
 
+const debugUpdateHipServices = async (req, res) => {
+  try {
+    const result = await abdm.updateHipServices();
+    res.json({ ok: true, result });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.response?.data ?? err.message });
+  }
+};
+
 module.exports = {
   aadhaarGenerateOtp, aadhaarVerifyOtp,
   mobileGenerateOtp,  mobileVerifyOtp,
@@ -629,5 +638,5 @@ module.exports = {
   createConsent, getConsents, respondConsent,
   consentOnInit, consentNotify, healthInfoPush,
   getHealthRecords,
-  debugToken, debugBridge,
+  debugToken, debugBridge, debugUpdateHipServices,
 };

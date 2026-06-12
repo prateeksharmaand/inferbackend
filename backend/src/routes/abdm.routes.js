@@ -51,7 +51,8 @@ router.post('/health-info/push',   ctrl.healthInfoPush);
 router.get('/health-records', auth, ctrl.getHealthRecords);
 
 // ── Debug: test ABDM gateway credentials (no auth, remove after testing) ─────
-router.get('/debug/token',  ctrl.debugToken);
-router.get('/debug/bridge', ctrl.debugBridge);
+router.get ('/debug/token',              ctrl.debugToken);
+router.get ('/debug/bridge',             ctrl.debugBridge);
+router.post('/debug/update-hip-services', ctrl.debugUpdateHipServices);
 
 module.exports = router;

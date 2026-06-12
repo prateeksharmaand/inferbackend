@@ -142,6 +142,41 @@ async function updateBridgeUrl(callbackUrl) {
   return res.data ?? { ok: true };
 }
 
+async function updateHipServices() {
+  const ABDM_DEVSERVICE = process.env.ABDM_DEVSERVICE_URL || 'https://dev.abdm.gov.in/devservice';
+  const token = await getGatewayToken();
+  const body = {
+    id: CLIENT_ID,
+    name: process.env.ABDM_HIP_NAME || 'Infer EMR',
+    type: 'HIP',
+    active: true,
+    alias: [CLIENT_ID],
+    endpoints: [
+      { use: 'hip-url', connectionType: 'direct', address: process.env.BACKEND_URL || 'https://api.inferapp.online' }
+    ],
+    servicesOffered: [
+      {
+        type: 'HIP',
+        hiTypes: [
+          'OPConsultation',
+          'Prescription',
+          'DiagnosticReport',
+          'ImmunizationRecord',
+          'HealthDocumentRecord',
+          'DischargeSummary',
+          'WellnessRecord',
+        ],
+      },
+    ],
+  };
+  const res = await abdmAxios.patch(
+    `${ABDM_DEVSERVICE}/v1/bridges/addUpdateServices`,
+    body,
+    { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CM-ID': 'sbx', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
+  );
+  return res.data ?? { ok: true };
+}
+
 // Gateway requests (HIE-CM / M2-M3 operations)
 async function gwReq(method, url, data = null, extra = {}) {
   const token = await getGatewayToken();
@@ -559,6 +594,6 @@ module.exports = {
   discoverCareContexts,   linkInit,             linkConfirm,
   generateLinkToken,      linkCareContexts,
   createConsentRequest,   fetchHealthInfo,
-  getBridgeInfo,          updateBridgeUrl,
+  getBridgeInfo,          updateBridgeUrl,      updateHipServices,
   uuid,
 };
