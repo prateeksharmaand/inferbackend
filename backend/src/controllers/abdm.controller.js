@@ -606,6 +606,15 @@ const debugToken = async (req, res) => {
   }
 };
 
+const debugBridge = async (req, res) => {
+  try {
+    const info = await abdm.getBridgeInfo();
+    res.json({ ok: true, bridge: info });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.response?.data ?? err.message });
+  }
+};
+
 module.exports = {
   aadhaarGenerateOtp, aadhaarVerifyOtp,
   mobileGenerateOtp,  mobileVerifyOtp,
@@ -620,5 +629,5 @@ module.exports = {
   createConsent, getConsents, respondConsent,
   consentOnInit, consentNotify, healthInfoPush,
   getHealthRecords,
-  debugToken,
+  debugToken, debugBridge,
 };
