@@ -611,6 +611,11 @@ async function initializeDatabase() {
       ON CONFLICT (key) DO UPDATE SET price_monthly=EXCLUDED.price_monthly, price_yearly=EXCLUDED.price_yearly, price_2year=EXCLUDED.price_2year, price_3year=EXCLUDED.price_3year
     `);
 
+    // migration 029 — ABHA registration fields
+    await client.query(`ALTER TABLE emr_patients ADD COLUMN IF NOT EXISTS address        JSONB`);
+    await client.query(`ALTER TABLE emr_patients ADD COLUMN IF NOT EXISTS is_abdm_linked  BOOLEAN NOT NULL DEFAULT false`);
+    await client.query(`ALTER TABLE emr_patients ADD COLUMN IF NOT EXISTS abdm_linked_at  TIMESTAMPTZ`);
+
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');
   } catch (err) {
