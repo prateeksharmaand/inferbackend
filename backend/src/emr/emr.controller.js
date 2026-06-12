@@ -176,23 +176,42 @@ const activityLog = async (req, res) => {
 
 // ── Consent management (EMR acting as HIU) ────────────────────────────────────
 
+// All HI types supported by ABDM — must always send the full list per ABDM M3 guidance.
+// Sending only one type (e.g. OPConsultation) causes "no facility available" error in PHR app
+// because ABDM checks whether any linked care context's hiType is included in this list.
+const ALL_HI_TYPES = [
+  'OPConsultation', 'DiagnosticReport', 'DischargeSummary', 'Prescription',
+  'ImmunizationRecord', 'HealthDocumentRecord', 'WellnessRecord',
+];
+
 const createConsentRequest = async (req, res) => {
   const { patientAbha, hipId, purpose, hiTypes, dateFrom, dateTo, requesterName, requesterReg } = req.body;
-  if (!patientAbha || !hipId || !purpose || !hiTypes?.length)
-    return res.status(400).json({ error: 'patientAbha, hipId, purpose, hiTypes required' });
+  if (!patientAbha || !hipId || !purpose)
+    return res.status(400).json({ error: 'patientAbha, hipId, purpose required' });
 
   const clinicId = req.emrUser.clinic_id;
   const hiuId    = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
 
+  // Always send all HI types — ABDM disables grant button if the requested hiTypes
+  // don't include the hiType of the patient's linked care context.
+  const resolvedHiTypes = ALL_HI_TYPES;
+  const dateRange = {
+    from: dateFrom ?? new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
+    to:   dateTo   ?? new Date().toISOString(),
+  };
+
+  logger.info('EMR consent request', { patientAbha, hipId, hiuId, purpose, hiTypes: resolvedHiTypes, dateRange });
+
   let result = {};
   try {
     result = await abdmSvc.createConsentRequest(
-      patientAbha, hiuId, purpose, hiTypes,
-      { from: dateFrom ?? new Date(0).toISOString(), to: dateTo ?? new Date().toISOString() },
+      patientAbha, hiuId, purpose, resolvedHiTypes,
+      dateRange,
       { name: requesterName, identifierValue: requesterReg }
     );
+    logger.info('EMR consent-requests/init accepted', { consentRequestId: result.consentRequest?.id });
   } catch (e) {
-    console.error('ABDM consent-requests/init failed:', e.message);
+    logger.error('ABDM consent-requests/init failed', { message: e.message, response: e.response?.data });
     // Proceed with local DB insert so patient can still see the request internally
   }
 

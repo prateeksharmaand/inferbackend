@@ -464,6 +464,12 @@ const consentNotify = async (req, res) => {
       [notification.status, notification.consentRequestId]
     );
 
+    logger.info('HIU consent notify: status update', {
+      consentRequestId: notification.consentRequestId,
+      status: notification.status,
+      artefacts: notification.consentArtefacts?.length ?? 0,
+    });
+
     // When granted, automatically request health info from HIP
     if (notification.status === 'GRANTED' && notification.consentArtefacts?.length) {
       await pool.query(
@@ -471,15 +477,23 @@ const consentNotify = async (req, res) => {
         [JSON.stringify(notification.consentArtefacts), notification.consentRequestId]
       );
       const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
+      logger.info('HIU consent GRANTED — initiating health-info fetch', {
+        consentRequestId: notification.consentRequestId,
+        artefactIds: notification.consentArtefacts.map(a => a.id),
+        dataPushUrl,
+      });
+
       for (const artefact of notification.consentArtefacts) {
         try {
+          logger.info('HIU fetching health-info for artefact', { artefactId: artefact.id, dataPushUrl });
           const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl, {
             cryptoAlg: 'ECDH',
             curve: 'Curve25519',
             dhPublicKey: { expiry: new Date(Date.now() + 3600_000).toISOString(), parameters: 'Curve25519', keyValue: '' },
             nonce: abdm.uuid(),
           });
-          const txnId = result.hiRequest?.transactionId ?? abdm.uuid();
+          const txnId = result?.hiRequest?.transactionId ?? abdm.uuid();
+          logger.info('HIU health-info request sent to CM', { artefactId: artefact.id, txnId });
           await pool.query(
             `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
             [txnId, notification.consentRequestId]
@@ -488,11 +502,17 @@ const consentNotify = async (req, res) => {
             `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
             [txnId, notification.consentRequestId]
           );
-          logger.info('Health info requested', { txnId, artefactId: artefact.id });
         } catch (err) {
-          logger.error('fetchHealthInfo failed for artefact', artefact.id, err.message);
+          logger.error('HIU fetchHealthInfo failed', {
+            artefactId: artefact.id,
+            message: err.message,
+            response: err.response?.data,
+            status: err.response?.status,
+          });
         }
       }
+    } else if (notification.status === 'GRANTED' && !notification.consentArtefacts?.length) {
+      logger.warn('HIU consent GRANTED but no artefacts in notification', { consentRequestId: notification.consentRequestId });
     }
   } catch (err) {
     logger.error('consentNotify error', err);
@@ -500,30 +520,41 @@ const consentNotify = async (req, res) => {
 };
 
 const healthInfoPush = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
   try {
-    const { transactionId, entries, pageNumber, pageCount } = req.body;
-    logger.info('ABDM health-info push', { transactionId, pages: `${pageNumber}/${pageCount}` });
-    for (const entry of entries ?? []) {
+    const { transactionId, entries, pageNumber, pageCount, keyMaterial } = req.body;
+    logger.info('HIU health-info push received', {
+      transactionId,
+      page: `${pageNumber}/${pageCount}`,
+      entries: entries?.length ?? 0,
+      careContextRefs: entries?.map(e => e.careContextReference),
+      encrypted: !!keyMaterial,
+    });
+
+    if (!entries?.length) {
+      logger.warn('HIU health-info push: empty entries array', { transactionId });
+      return;
+    }
+
+    for (const entry of entries) {
+      logger.info('HIU storing health record', {
+        transactionId,
+        careContextReference: entry.careContextReference,
+        media: entry.media,
+        contentLen: entry.content?.length,
+      });
       await pool.query(
         `INSERT INTO health_records
            (transaction_id, care_context_reference, content, media, checksum, page_number, page_count)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT DO NOTHING`,
-        [
-          transactionId,
-          entry.careContextReference,
-          entry.content,
-          entry.media,
-          entry.checksum,
-          pageNumber,
-          pageCount,
-        ]
+        [transactionId, entry.careContextReference, entry.content, entry.media, entry.checksum, pageNumber, pageCount]
       );
     }
+    logger.info('HIU health-info push stored', { transactionId, count: entries.length });
   } catch (err) {
-    logger.error('healthInfoPush error', err);
+    logger.error('healthInfoPush error', { message: err.message });
   }
-  res.status(202).json({ status: 'accepted' });
 };
 
 // ─── M3: Fetch stored health records ──────────────────────────────────────────
