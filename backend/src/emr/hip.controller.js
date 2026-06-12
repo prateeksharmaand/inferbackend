@@ -179,7 +179,8 @@ const handleHealthInfoRequest = async (req, res) => {
     const consentId  = hiRequest?.consent?.id;
     const dataPushUrl = hiRequest?.dataPushUrl;
     const keyMaterial = hiRequest?.keyMaterial;
-    logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl, keyMaterial, inlineConsent: JSON.stringify(hiRequest?.consent).slice(0, 300) });
+    logger.info('HIP health-info FULL BODY', JSON.stringify(req.body, null, 2));
+    logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl });
 
     await pool.query(
       `INSERT INTO hip_health_requests (transaction_id, consent_id, data_push_url, key_material)
@@ -219,6 +220,7 @@ const handleHealthInfoRequest = async (req, res) => {
       raw.consentDetail?.patient?.id ??
       ctxList[0]?.patientReference;
 
+    logger.info('HIP health-info STORED CONSENT', JSON.stringify(artifact, null, 2));
     logger.info('HIP health-info: consent filter', { patientId, consentedRefs, source: inlineConsent ? 'inline' : 'stored' });
 
     // Fetch only the care contexts that were explicitly consented to
