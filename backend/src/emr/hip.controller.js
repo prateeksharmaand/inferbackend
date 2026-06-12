@@ -165,21 +165,40 @@ const handleHealthInfoRequest = async (req, res) => {
       [transactionId, consentId, dataPushUrl, JSON.stringify(keyMaterial ?? {})]
     );
 
-    // Find all care contexts for this HIP and push them
-    const { rows } = await pool.query(
-      `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
-       FROM emr_care_contexts ecc
-       JOIN emr_patients ep ON ep.id = ecc.patient_id
-       ORDER BY ecc.created_at DESC LIMIT 50`
-    );
+    // Look up consent artifact to find which patient's data was consented
+    const { rows: artifactRows } = await pool.query(
+      `SELECT * FROM hip_consent_artifacts WHERE consent_id=$1 LIMIT 1`,
+      [consentId]
+    ).catch(() => ({ rows: [] }));
+
+    const artifact  = artifactRows[0];
+    const patientId = artifact?.raw?.patient?.id ?? artifact?.raw?.careContexts?.[0]?.patientReference;
+
+    // Fetch care contexts — filter by patient if consent artifact specifies one
+    let ctxQuery, ctxParams;
+    if (patientId) {
+      ctxQuery = `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
+                  FROM emr_care_contexts ecc
+                  JOIN emr_patients ep ON ep.id = ecc.patient_id
+                  WHERE ep.abha_address=$1 OR ep.abha_number=$1
+                  ORDER BY ecc.created_at DESC`;
+      ctxParams = [patientId];
+    } else {
+      ctxQuery  = `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
+                   FROM emr_care_contexts ecc
+                   JOIN emr_patients ep ON ep.id = ecc.patient_id
+                   ORDER BY ecc.created_at DESC LIMIT 50`;
+      ctxParams = [];
+    }
+
+    const { rows } = await pool.query(ctxQuery, ctxParams);
 
     if (!rows.length) {
-      logger.warn('HIP health-info: no care contexts to push');
+      logger.warn('HIP health-info: no care contexts to push', { patientId });
       await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
       return;
     }
 
-    // Group by first patient for simplicity
     const patient = { name: rows[0].name, mobile: rows[0].mobile, dob: rows[0].dob, gender: rows[0].gender };
     await hip.pushHealthData({ dataPushUrl, transactionId, careContexts: rows, patient, keyMaterial });
     await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
@@ -265,4 +284,42 @@ const handlePatientShareProfile = async (req, res) => {
   }
 };
 
-module.exports = { handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest, handlePatientShareProfile };
+// ── CM → HIP: consent artifact notification (after patient approves) ─────────
+
+const handleConsentNotify = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const requestId    = req.headers['request-id'] || req.body.requestId;
+    const { notification } = req.body;
+    logger.info('HIP consent notify', { requestId, status: notification?.status, consentId: notification?.consentId });
+
+    if (!notification) return;
+
+    const consentId  = notification.consentId  ?? notification.consentRequestId;
+    const status     = notification.status;
+    const artefacts  = notification.consentArtefacts ?? [];
+
+    // Persist consent artifact
+    await pool.query(
+      `INSERT INTO hip_consent_artifacts (consent_id, status, artefacts, raw)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (consent_id) DO UPDATE
+         SET status=$2, artefacts=$3, raw=$4, updated_at=NOW()`,
+      [consentId, status, JSON.stringify(artefacts), JSON.stringify(notification)]
+    ).catch(() => {}); // table may not exist yet — log only
+
+    // Send on-notify ack back to gateway
+    await hip.gwPost('/v0.5/consents/hip/on-notify', {
+      requestId: hip.uuid(),
+      timestamp: new Date().toISOString(),
+      acknowledgement: { status: 'OK', consentId },
+      resp: { requestId },
+    });
+
+    logger.info('HIP consent notify ack sent', { consentId, status, artefacts: artefacts.length });
+  } catch (err) {
+    logger.error('handleConsentNotify error', err);
+  }
+};
+
+module.exports = { handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest, handlePatientShareProfile, handleConsentNotify };

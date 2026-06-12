@@ -257,4 +257,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   logger.info('HIP health data pushed', { transactionId, entries: entries.length });
 }
 
-module.exports = { uuid, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, pushHealthData, buildFhirBundle, sendShareProfileAck };
+module.exports = { uuid, gwPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, pushHealthData, buildFhirBundle, sendShareProfileAck };
