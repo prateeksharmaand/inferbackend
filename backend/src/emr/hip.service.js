@@ -129,7 +129,6 @@ async function sendLinkConfirmResult({ requestId, patientId, careContexts }) {
   const mapped = careContexts.map(c => ({
     referenceNumber: c.referenceNumber ?? c.reference_number,
     display: c.display,
-    hiType: c.hiType ?? c.hi_type,
   }));
   await gwPost('/v0.5/links/link/on-confirm', {
     requestId: uuid(),

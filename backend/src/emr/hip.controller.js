@@ -149,7 +149,7 @@ const handleLinkConfirm = async (req, res) => {
     // ABDM v3 never sends careContexts in link/init — fetch from EMR DB by patient
     if (!careContexts.length && session.patient_id) {
       const { rows: ctxRows } = await pool.query(
-        `SELECT reference_number AS "referenceNumber", display, hi_type AS "hiType"
+        `SELECT reference_number AS "referenceNumber", display
          FROM emr_care_contexts WHERE patient_id=$1 ORDER BY created_at DESC`,
         [session.patient_id]
       );
