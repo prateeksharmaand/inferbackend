@@ -280,16 +280,8 @@ const handlePatientShareProfile = async (req, res) => {
     // Call ABDM back — this makes ABHA app show the token to the patient
     await hip.sendShareProfileAck({
       requestId,
-      abhaAddress:  abhaAddress || abhaNumber,
-      abhaNumber,
-      tokenNumber:  token,
-      name,
-      gender,
-      yearOfBirth:  p.yearOfBirth  || null,
-      dayOfBirth:   p.dayOfBirth   || null,
-      monthOfBirth: p.monthOfBirth || null,
-      mobile:       p.phoneNumber  || mobile || null,
-      address:      p.address      || null,
+      abhaAddress: abhaAddress || abhaNumber,
+      tokenNumber: token,
     });
 
     logger.info('Patient profile share stored + ack sent', { name, abhaNumber, token });

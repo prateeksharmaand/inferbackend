@@ -67,23 +67,18 @@ async function hiecmPost(path, body) {
   }
 }
 
-async function sendShareProfileAck({ requestId, abhaAddress, abhaNumber, tokenNumber, name, gender, yearOfBirth, dayOfBirth, monthOfBirth, mobile, address }) {
+async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber }) {
   const body = {
-    requestId:       uuid(),
-    timestamp:       new Date().toISOString(),
-    response:        { requestId },
-    acknowledgement: { status: 'SUCCESS', abhaAddress },
-    profile: {
-      abhaNumber:   abhaNumber   || null,
-      abhaAddress:  abhaAddress  || null,
-      name:         name         || null,
-      gender:       gender       || null,
-      dayOfBirth:   dayOfBirth   || null,
-      monthOfBirth: monthOfBirth || null,
-      yearOfBirth:  yearOfBirth  || null,
-      address:      address      || null,
-      phoneNumber:  mobile       || null,
+    acknowledgement: {
+      abhaAddress,
+      status: 'SUCCESS',
+      profile: {
+        context:     HIP_ID,
+        tokenNumber: String(tokenNumber),
+        expiry:      '1800',
+      },
     },
+    response: { requestId },
   };
   logger.info('on-share request body', body);
   await hiecmPost('/patient-share/v3/on-share', body);
