@@ -338,9 +338,8 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const tag    = cipher.getAuthTag();
 
     // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
-    // Return raw 65-byte uncompressed EC point as HIP public key.
-    // ABDM fidelius (reference impl) constructs ECPublicKey from raw 65-byte base64,
-    // NOT from SPKI DER — sending SPKI causes "wrong domain parameters" on the PHR app side.
+    // keyValue in the transfer payload must be the raw 65-byte uncompressed point —
+    // fidelius / PHR app parses it with fromHex, not X509EncodedKeySpec.
     return {
       encryptedData: Buffer.concat([enc, tag]).toString('base64'),
       hipPublicKey:  hipPubBytes.toString('base64'),         // raw 65-byte uncompressed point
@@ -400,7 +399,16 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   });
 
   const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries };
-  if (respondingKeyMaterial) pushBody.keyMaterial = respondingKeyMaterial;
+  if (respondingKeyMaterial) {
+    pushBody.keyMaterial = respondingKeyMaterial;
+    const outgoingKey = keyMaterial.dhPublicKey.keyValue;
+    console.log({
+      outgoingKeyDecodedLen: Buffer.from(outgoingKey, 'base64').length,
+      outgoingKeyPrefix: Buffer.from(outgoingKey, 'base64')
+        .slice(0, 4)
+        .toString('hex')
+    });
+  }
 
   logger.info('HIP push attempt', {
     dataPushUrl,
