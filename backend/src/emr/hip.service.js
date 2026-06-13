@@ -1,8 +1,23 @@
-const axios   = require('axios');
-const crypto  = require('crypto');
-const logger  = require('../utils/logger');
+const axios        = require('axios');
+const crypto       = require('crypto');
+const { execFile } = require('child_process');
+const fs           = require('fs');
+const os           = require('os');
+const path         = require('path');
+const logger       = require('../utils/logger');
 const { weierstrass } = require('@noble/curves/abstract/weierstrass.js');
 const { Field, mod } = require('@noble/curves/abstract/modular.js');
+
+const FIDELIUS_JAR = process.env.FIDELIUS_JAR || '/opt/fidelius/fidelius-cli-1.2.0.jar';
+
+function _callFidelius(args) {
+  return new Promise((resolve, reject) => {
+    execFile('java', ['-jar', FIDELIUS_JAR, ...args], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) return reject(new Error(stderr?.trim() || err.message));
+      resolve(stdout.trim());
+    });
+  });
+}
 
 // BouncyCastle's short-Weierstrass Curve25519 (BC25519).
 // Identical to W25519 except Gy is negated mod p (Gy_bc = p - Gy_w25519).
@@ -266,85 +281,41 @@ function _buildSpki(rawPub65) {
   return seq(Buffer.concat([algId, bit(rawPub65)]));
 }
 
-// Encrypt one FHIR bundle entry for ABDM health data transfer
-//
-// ABDM uses BouncyCastle Weierstrass Curve25519 throughout:
-//   - HIU sends 65-byte uncompressed Weierstrass public key
-//   - HIP must also return 65-byte Weierstrass public key
-//   - Shared secret = Weierstrass x-coordinate of ECDH point
-//
-// KDF:  SHA-256( XOR(hiu_nonce, hip_nonce) || sharedX )  (nonces decoded from base64)
-// IV:   first 12 bytes of hip_nonce
-// AES:  AES-256-GCM → content = ciphertext || auth_tag  (BouncyCastle format, NO embedded IV)
-// Extract raw 65-byte uncompressed EC point from SubjectPublicKeyInfo DER.
-// HIU sends its key wrapped in SPKI (309 bytes); the point is in the BIT STRING at the end.
-// BIT STRING encoding: 03 42 00 04 <32-byte-x> <32-byte-y>
-function _extractPointFromSpki(buf) {
-  for (let i = 0; i < buf.length - 67; i++) {
-    if (buf[i] === 0x03 && buf[i + 1] === 0x42 && buf[i + 2] === 0x00 && buf[i + 3] === 0x04) {
-      return buf.slice(i + 3, i + 68); // 65 bytes: 04 || x || y
-    }
-  }
-  return null;
-}
+// Encrypt one FHIR bundle entry using fidelius-cli (reference BouncyCastle implementation).
+// Delegates to the JAR via subprocess so crypto is byte-for-byte compatible with ABDM.
+async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
+  // Generate HIP ephemeral BC25519 key pair in Node (curve definition matches BouncyCastle)
+  const hipPriv     = crypto.randomBytes(32);
+  const hipScalar   = _c25519Scalar(hipPriv);
+  const hipPubBytes = Buffer.from(_c25519W.BASE.multiply(hipScalar).toBytes(false)); // 65 bytes
+  const hipNonce    = crypto.randomBytes(32);
 
-function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
-  logger.info('[ENCRYPT] encryptFhir called', {
-    hiuPubKeyLen: hiuPubKeyBase64 ? Buffer.from(hiuPubKeyBase64, 'base64').length : 0,
-    hiuNonceLen:  hiuNonceBase64  ? Buffer.from(hiuNonceBase64,  'base64').length : 0,
-    plaintextLen: plaintext?.length,
-  });
+  // Encode private key as big-endian 32-byte base64 (matches Fidelius ECPrivateKey.getD())
+  const hipPrivBase64 = Buffer.from(hipScalar.toString(16).padStart(64, '0'), 'hex').toString('base64');
+
+  // Write params one-per-line; --filepath avoids shell arg-length limits on large FHIR bundles
+  const tmpFile = path.join(os.tmpdir(), `fidelius-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.txt`);
+  fs.writeFileSync(tmpFile, [
+    plaintext,
+    hipNonce.toString('base64'),   // sender nonce  (HIP)
+    hiuNonceBase64,                // requester nonce (HIU)
+    hipPrivBase64,                 // sender private key (HIP)
+    hiuPubKeyBase64,               // requester public key (HIU) — raw 65-byte 04||X||Y
+  ].join('\n'));
+
   try {
-    const hiuPubBytes = Buffer.from(hiuPubKeyBase64, 'base64');
-    // If key is SPKI-wrapped (>65 bytes), extract the raw 65-byte EC point
-    const rawPoint = hiuPubBytes.length > 65 ? _extractPointFromSpki(hiuPubBytes) : hiuPubBytes;
-    if (!rawPoint) throw new Error(`Cannot extract EC point from HIU public key (len=${hiuPubBytes.length})`);
-    const hiuPubHex = rawPoint.toString('hex');
-    logger.info('[ENCRYPT] HIU public key extracted', { spki: hiuPubBytes.length > 65, pointLen: rawPoint.length });
-    const hiuNonce  = Buffer.from(hiuNonceBase64,  'base64'); // 32 bytes
-
-    // Generate HIP ephemeral Weierstrass Curve25519 key pair
-    const hipPriv     = crypto.randomBytes(32);
-    const hipScalar   = _c25519Scalar(hipPriv);
-    const hipPubBytes = Buffer.from(_c25519W.BASE.multiply(hipScalar).toBytes(false)); // 65 bytes
-
-    // Weierstrass ECDH: shared x-coordinate (big-endian 32 bytes)
-    const hiuPoint = _c25519W.BASE.constructor.fromHex(hiuPubHex);
-    const sharedX  = Buffer.from(
-      hiuPoint.multiply(hipScalar).toAffine().x.toString(16).padStart(64, '0'), 'hex'
-    );
-
-    // Generate HIP nonce (32 bytes)
-    const hipNonce = crypto.randomBytes(32);
-
-    // XOR nonces: sender (HIP) XOR receiver (HIU)
-    const xorNonce = Buffer.alloc(32);
-    for (let i = 0; i < 32; i++) xorNonce[i] = hipNonce[i] ^ (hiuNonce[i] ?? 0);
-
-    // KDF: HKDF-SHA256(IKM=sharedX, salt=xorNonce[0:20], info='', length=32)
-    const salt   = xorNonce.slice(0, 20);
-    const aesKey = Buffer.from(crypto.hkdfSync('sha256', sharedX, salt, Buffer.alloc(0), 32));
-
-    // IV = LAST 12 bytes of XOR nonces (xorNonce[20:32])
-    const iv     = xorNonce.slice(20, 32);
-    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
-    const enc    = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-    const tag    = cipher.getAuthTag();
-
-    // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
-    // HIU sends raw 65-byte point with parameters:"Ephemeral public key".
-    // ABDM constructs both keys the same way (raw point + named curve spec) so domain params match.
+    const encryptedData = await _callFidelius(['e', '-f', tmpFile]);
+    logger.info('[ENCRYPT] fidelius-cli encrypt ok', { plaintextLen: plaintext.length, encLen: encryptedData.length });
     return {
-      encryptedData: Buffer.concat([enc, tag]).toString('base64'),
-      hipPublicKey:  hipPubBytes.toString('base64'), // raw 65-byte uncompressed point
-      hipNonce:      hipNonce.toString('base64'),
+      encryptedData,
+      hipPublicKey: hipPubBytes.toString('base64'), // raw 65-byte uncompressed point
+      hipNonce:     hipNonce.toString('base64'),
     };
   } catch (err) {
-    logger.warn('FHIR encryption failed', {
-      error: err.message,
-      hiuPubKeyLen: hiuPubKeyBase64 ? Buffer.from(hiuPubKeyBase64, 'base64').length : 0,
-    });
+    logger.warn('[ENCRYPT] fidelius-cli encrypt failed', { error: err.message });
     return { encryptedData: Buffer.from(plaintext).toString('base64'), hipPublicKey: null, hipNonce: null };
+  } finally {
+    fs.unlink(tmpFile, () => {});
   }
 }
 
@@ -361,17 +332,17 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   const hiuNonce  = keyMaterial?.nonce ?? '';
   const hiuPubKey = keyMaterial?.dhPublicKey?.keyValue;
 
-  // Encrypt all entries with one ephemeral key pair (same key for all entries per request)
   let respondingKeyMaterial = null;
-  const entries = careContexts.map(ctx => {
+  const entries = await Promise.all(careContexts.map(async ctx => {
     const fhir = typeof ctx.fhir_content === 'string'
       ? ctx.fhir_content
       : JSON.stringify(buildFhirBundle(patient, ctx));
 
-    let content, checksum = crypto.createHash('md5').update(fhir).digest('hex');
+    const checksum = crypto.createHash('md5').update(fhir).digest('hex');
+    let content;
 
     if (hiuPubKey && hiuNonce) {
-      const { encryptedData, hipPublicKey, hipNonce } = encryptFhir(fhir, hiuPubKey, hiuNonce);
+      const { encryptedData, hipPublicKey, hipNonce } = await encryptFhir(fhir, hiuPubKey, hiuNonce);
       content = encryptedData;
       if (hipPublicKey && hipNonce && !respondingKeyMaterial) {
         respondingKeyMaterial = {
@@ -390,7 +361,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     }
 
     return { content, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
-  });
+  }));
 
   const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries };
   if (respondingKeyMaterial) pushBody.keyMaterial = respondingKeyMaterial;
