@@ -8,14 +8,19 @@ const logger       = require('../utils/logger');
 const { weierstrass } = require('@noble/curves/abstract/weierstrass.js');
 const { Field, mod } = require('@noble/curves/abstract/modular.js');
 
-const FIDELIUS_JAR = process.env.FIDELIUS_JAR || '/opt/fidelius/fidelius-cli-1.2.0.jar';
+const FIDELIUS_DIR = process.env.FIDELIUS_DIR || '/opt/fidelius';
+const FIDELIUS_JAR = process.env.FIDELIUS_JAR || `${FIDELIUS_DIR}/fidelius-cli.jar`;
+const FIDELIUS_CP  = `${FIDELIUS_JAR}:${FIDELIUS_DIR}/lib/*`;
 
 function _callFidelius(args) {
   return new Promise((resolve, reject) => {
-    execFile('java', ['-jar', FIDELIUS_JAR, ...args], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) return reject(new Error(stderr?.trim() || err.message));
-      resolve(stdout.trim());
-    });
+    execFile('java', ['-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args],
+      { maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr?.trim() || err.message));
+        resolve(stdout.trim());
+      }
+    );
   });
 }
 
