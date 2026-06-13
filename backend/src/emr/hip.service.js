@@ -310,11 +310,13 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
   ].join('\n'));
 
   try {
-    const encryptedData = await _callFidelius(['-f', tmpFile]);
+    const raw = await _callFidelius(['-f', tmpFile]);
+    // fidelius-cli returns {"encryptedData":"<base64>"} — extract the value
+    const encryptedData = (JSON.parse(raw)).encryptedData ?? raw;
     logger.info('[ENCRYPT] fidelius-cli encrypt ok', { plaintextLen: plaintext.length, encLen: encryptedData.length });
     return {
       encryptedData,
-      hipPublicKey: hipPubBytes.toString('base64'), // raw 65-byte uncompressed point
+      hipPublicKey: _buildSpki(hipPubBytes).toString('base64'), // SPKI DER with correct BC25519 Gy
       hipNonce:     hipNonce.toString('base64'),
     };
   } catch (err) {
@@ -356,8 +358,8 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
           curve: 'curve25519',
           dhPublicKey: {
             expiry: new Date(Date.now() + 3600_000).toISOString(),
-            parameters: 'Ephemeral public key',
-            keyValue: hipPublicKey, // raw 65-byte uncompressed point: 04||X||Y
+            parameters: 'Curve25519/32ByteNonce',
+            keyValue: hipPublicKey, // SPKI DER with explicit BC25519 params
           },
           nonce: hipNonce,
         };
