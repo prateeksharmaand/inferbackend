@@ -331,10 +331,11 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const tag    = cipher.getAuthTag();
 
     // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
-    // ABDM gateway calls X509EncodedKeySpec on the keyValue — must be SPKI DER.
+    // HIU sends raw 65-byte point with parameters:"Ephemeral public key".
+    // ABDM constructs both keys the same way (raw point + named curve spec) so domain params match.
     return {
       encryptedData: Buffer.concat([enc, tag]).toString('base64'),
-      hipPublicKey:  _buildSpki(hipPubBytes).toString('base64'), // explicit-params SPKI DER
+      hipPublicKey:  hipPubBytes.toString('base64'), // raw 65-byte uncompressed point
       hipNonce:      hipNonce.toString('base64'),
     };
   } catch (err) {
@@ -377,7 +378,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
           curve: 'curve25519',
           dhPublicKey: {
             expiry: new Date(Date.now() + 3600_000).toISOString(),
-            parameters: 'Curve25519/32ByteNonce',
+            parameters: 'Ephemeral public key',
             keyValue: hipPublicKey, // raw 65-byte uncompressed point: 04||X||Y
           },
           nonce: hipNonce,
