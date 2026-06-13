@@ -241,6 +241,30 @@ function buildFhirBundle(patient, careContext) {
 }
 
 
+// Build SubjectPublicKeyInfo DER for Weierstrass Curve25519 with explicit ECParameters.
+// ABDM gateway calls X509EncodedKeySpec(keyValue) — SPKI DER is required.
+function _buildSpki(rawPub65) {
+  const dl = (n) => n < 0x80 ? Buffer.from([n]) : n < 0x100 ? Buffer.from([0x81, n]) : Buffer.from([0x82, (n >> 8) & 0xff, n & 0xff]);
+  const seq = (c) => Buffer.concat([Buffer.from([0x30]), dl(c.length), c]);
+  const int = (b) => { if (b[0] & 0x80) b = Buffer.concat([Buffer.from([0x00]), b]); return Buffer.concat([Buffer.from([0x02]), dl(b.length), b]); };
+  const oct = (b) => Buffer.concat([Buffer.from([0x04]), dl(b.length), b]);
+  const bit = (b) => Buffer.concat([Buffer.from([0x03]), dl(b.length + 1), Buffer.from([0x00]), b]);
+
+  const p  = Buffer.from('7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed', 'hex');
+  const a  = Buffer.from('2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa984914a144', 'hex');
+  const b_ = Buffer.from('7b425ed097b425ed097b425ed097b425ed097b425ed097b4260b5e9c7710c864', 'hex');
+  const G  = Buffer.from('042aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a5f51e65e475f794b1fe122d388b72eb36dc2b28192839e4dd6163a5d81312c14', 'hex');
+  const n  = Buffer.from('1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed', 'hex');
+  const OID_EC  = Buffer.from('06072a8648ce3d0201', 'hex');
+  const OID_PF  = Buffer.from('06072a8648ce3d0101', 'hex');
+
+  const fieldID  = seq(Buffer.concat([OID_PF, int(p)]));
+  const curve    = seq(Buffer.concat([oct(a), oct(b_)]));
+  const ecParams = seq(Buffer.concat([int(Buffer.from([0x01])), fieldID, curve, oct(G), int(n), int(Buffer.from([0x08]))]));
+  const algId    = seq(Buffer.concat([OID_EC, ecParams]));
+  return seq(Buffer.concat([algId, bit(rawPub65)]));
+}
+
 // Encrypt one FHIR bundle entry for ABDM health data transfer
 //
 // ABDM uses BouncyCastle Weierstrass Curve25519 throughout:
@@ -307,12 +331,11 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const tag    = cipher.getAuthTag();
 
     // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
-    // Fidelius keyValue = ECPublicKey.getQ().getEncoded(false) = raw 04||X||Y, 65 bytes.
-    // SPKI (getEncoded()) is stored as x509PublicKey internally but never sent over the wire.
+    // ABDM gateway calls X509EncodedKeySpec on the keyValue — must be SPKI DER.
     return {
       encryptedData: Buffer.concat([enc, tag]).toString('base64'),
-      hipPublicKey:  hipPubBytes.toString('base64'),         // raw 65-byte uncompressed point
-      hipNonce:      hipNonce.toString('base64'),            // 32 bytes
+      hipPublicKey:  _buildSpki(hipPubBytes).toString('base64'), // explicit-params SPKI DER
+      hipNonce:      hipNonce.toString('base64'),
     };
   } catch (err) {
     logger.warn('FHIR encryption failed', {
