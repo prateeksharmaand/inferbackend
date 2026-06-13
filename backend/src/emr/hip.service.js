@@ -338,12 +338,11 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const tag    = cipher.getAuthTag();
 
     // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
-    // ABDM Fidelius requires keyValue to be X.509 SubjectPublicKeyInfo DER (base64).
-    // Raw 65-byte points are rejected — HIU decodes with X509EncodedKeySpec / BouncyCastle.
-    const hipPubSpki = _buildCurve25519ExplicitSpki(hipPubBytes);
+    // Fidelius keyValue = ECPublicKey.getQ().getEncoded(false) = raw 04||X||Y, 65 bytes.
+    // SPKI (getEncoded()) is stored as x509PublicKey internally but never sent over the wire.
     return {
       encryptedData: Buffer.concat([enc, tag]).toString('base64'),
-      hipPublicKey:  hipPubSpki.toString('base64'),          // SPKI DER, explicit Weierstrass Curve25519
+      hipPublicKey:  hipPubBytes.toString('base64'),         // raw 65-byte uncompressed point
       hipNonce:      hipNonce.toString('base64'),            // 32 bytes
     };
   } catch (err) {
