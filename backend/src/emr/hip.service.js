@@ -301,6 +301,7 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
   // Write params one-per-line; --filepath avoids shell arg-length limits on large FHIR bundles
   const tmpFile = path.join(os.tmpdir(), `fidelius-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.txt`);
   fs.writeFileSync(tmpFile, [
+    'e',                           // command must be first line when using -f
     plaintext,
     hipNonce.toString('base64'),   // sender nonce  (HIP)
     hiuNonceBase64,                // requester nonce (HIU)
@@ -309,7 +310,7 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
   ].join('\n'));
 
   try {
-    const encryptedData = await _callFidelius(['e', '-f', tmpFile]);
+    const encryptedData = await _callFidelius(['-f', tmpFile]);
     logger.info('[ENCRYPT] fidelius-cli encrypt ok', { plaintextLen: plaintext.length, encLen: encryptedData.length });
     return {
       encryptedData,
