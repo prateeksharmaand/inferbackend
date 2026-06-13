@@ -338,11 +338,12 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     const tag    = cipher.getAuthTag();
 
     // Content = ciphertext || auth_tag  (16-byte GCM tag appended, no IV embedded)
-    // keyValue in the transfer payload must be the raw 65-byte uncompressed point —
-    // fidelius / PHR app parses it with fromHex, not X509EncodedKeySpec.
+    // ABDM Fidelius requires keyValue to be X.509 SubjectPublicKeyInfo DER (base64).
+    // Raw 65-byte points are rejected — HIU decodes with X509EncodedKeySpec / BouncyCastle.
+    const hipPubSpki = _buildCurve25519ExplicitSpki(hipPubBytes);
     return {
       encryptedData: Buffer.concat([enc, tag]).toString('base64'),
-      hipPublicKey:  hipPubBytes.toString('base64'),         // raw 65-byte uncompressed point
+      hipPublicKey:  hipPubSpki.toString('base64'),          // SPKI DER, explicit Weierstrass Curve25519
       hipNonce:      hipNonce.toString('base64'),            // 32 bytes
     };
   } catch (err) {
@@ -401,7 +402,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries };
   if (respondingKeyMaterial) {
     pushBody.keyMaterial = respondingKeyMaterial;
-    const outgoingKey = keyMaterial.dhPublicKey.keyValue;
+    const outgoingKey = respondingKeyMaterial.dhPublicKey.keyValue;
     console.log({
       outgoingKeyDecodedLen: Buffer.from(outgoingKey, 'base64').length,
       outgoingKeyPrefix: Buffer.from(outgoingKey, 'base64')
