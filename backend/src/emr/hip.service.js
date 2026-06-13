@@ -344,7 +344,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   const entries = await Promise.all(careContexts.map(async ctx => {
     const fhir = typeof ctx.fhir_content === 'string'
       ? ctx.fhir_content
-      : JSON.stringify(buildFhirBundle(patient, ctx));
+      : buildFhirBundle(patient, ctx); // already returns JSON.stringify'd string
 
     const checksum = crypto.createHash('md5').update(fhir).digest('hex');
     let content;
