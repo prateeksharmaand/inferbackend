@@ -6,7 +6,7 @@ RUN wget -q -O /tmp/fidelius.zip \
     && unzip -q /tmp/fidelius.zip -d /opt/fidelius-tmp \
     && mkdir -p /opt/fidelius/lib \
     && find /opt/fidelius-tmp -name "fidelius-cli-*.jar" -exec cp {} /opt/fidelius/fidelius-cli.jar \; \
-    && find /opt/fidelius-tmp -name "bcprov-*.jar" -exec cp {} /opt/fidelius/lib/ \; \
+    && find /opt/fidelius-tmp -name "*.jar" ! -name "fidelius-cli-*.jar" -exec cp {} /opt/fidelius/lib/ \; \
     && rm -rf /tmp/fidelius.zip /opt/fidelius-tmp
 ENV FIDELIUS_DIR=/opt/fidelius
 ENV FIDELIUS_JAR=/opt/fidelius/fidelius-cli.jar
