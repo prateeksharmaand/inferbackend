@@ -4,9 +4,10 @@ const logger  = require('../utils/logger');
 const { weierstrass } = require('@noble/curves/abstract/weierstrass.js');
 const { Field, mod } = require('@noble/curves/abstract/modular.js');
 
-// Weierstrass Curve25519 — BouncyCastle's short-Weierstrass form
-// ABDM sends AND expects 65-byte uncompressed points (04||x||y)
-// Gx/Gy derived from Montgomery base x=9 via u = x + A/3 mod p
+// BouncyCastle's short-Weierstrass Curve25519 (BC25519).
+// Identical to W25519 except Gy is negated mod p (Gy_bc = p - Gy_w25519).
+// Source: https://github.com/bcgit/bc-java/blob/main/core/src/main/java/org/bouncycastle/crypto/ec/CustomNamedCurves.java#L99
+// ECDH shared secret x-coordinate is identical with either Gy (negation preserves x).
 const _c25519n = BigInt('0x1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3ED');
 const _c25519W = weierstrass({
   a:  BigInt('0x2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA984914A144'),
@@ -14,7 +15,7 @@ const _c25519W = weierstrass({
   p:  BigInt('0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED'),
   n:  _c25519n,
   Gx: BigInt('0x2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a'),
-  Gy: BigInt('0x5f51e65e475f794b1fe122d388b72eb36dc2b28192839e4dd6163a5d81312c14'),
+  Gy: BigInt('0x20AE19A1B8A086B4E01EDD2C7748D14C923D4D7E6D7C61B229E9C5A27ECED3D9'),
   h:  BigInt(8),
   randomBytes: (b) => crypto.randomBytes(b),
 });
@@ -253,7 +254,7 @@ function _buildSpki(rawPub65) {
   const p  = Buffer.from('7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed', 'hex');
   const a  = Buffer.from('2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa984914a144', 'hex');
   const b_ = Buffer.from('7b425ed097b425ed097b425ed097b425ed097b425ed097b4260b5e9c7710c864', 'hex');
-  const G  = Buffer.from('042aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a5f51e65e475f794b1fe122d388b72eb36dc2b28192839e4dd6163a5d81312c14', 'hex');
+  const G  = Buffer.from('042aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaad245a20ae19a1b8a086b4e01edd2c7748d14c923d4d7e6d7c61b229e9c5a27eced3d9', 'hex');
   const n  = Buffer.from('1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed', 'hex');
   const OID_EC  = Buffer.from('06072a8648ce3d0201', 'hex');
   const OID_PF  = Buffer.from('06072a8648ce3d0101', 'hex');
