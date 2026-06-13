@@ -96,6 +96,11 @@ const handleLinkInit = async (req, res) => {
     logger.info('HIP OTP generated', { otp, linkRefNumber, patientId, contexts: careContexts.length });
 
     await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber });
+
+    // Ask ABDM to SMS the OTP to the patient's registered mobile
+    hip.sendOtpSms({ abhaAddress: patientId, otp }).catch(err =>
+      logger.warn('ABDM SMS notify failed', { error: err.message, status: err.response?.status })
+    );
   } catch (err) {
     logger.error('handleLinkInit error', err);
   }

@@ -182,6 +182,19 @@ async function sendLinkInitResult({ requestId, transactionId, linkRefNumber }) {
   });
 }
 
+async function sendOtpSms({ abhaAddress, otp }) {
+  await gwPost('/v0.5/patients/sms/notify', {
+    requestId: uuid(),
+    timestamp: new Date().toISOString(),
+    notification: {
+      phoneNo: null,
+      hip: { id: HIP_ID, name: HIP_ID },
+      abhaAddress,
+      message: `Your OTP for linking health records with ${HIP_ID} is ${otp}. Valid for 10 minutes.`,
+    },
+  });
+}
+
 async function sendLinkConfirmResult({ requestId, patientId, careContexts }) {
   const mapped = careContexts.map(c => ({
     referenceNumber: c.referenceNumber ?? c.reference_number,
@@ -383,4 +396,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   logger.info('HIP health data pushed', { transactionId, entries: entries.length, encrypted: !!respondingKeyMaterial });
 }
 
-module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
+module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendOtpSms, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
