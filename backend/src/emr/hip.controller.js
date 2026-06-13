@@ -293,6 +293,9 @@ const handleHealthInfoRequest = async (req, res) => {
       return;
     }
 
+    const requestId = req.headers['request-id'] || req.body.requestId;
+    await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'ACKNOWLEDGED' });
+
     const patient = { name: rows[0].name, mobile: rows[0].mobile, dob: rows[0].dob, gender: rows[0].gender };
     await hip.pushHealthData({ dataPushUrl, transactionId, careContexts: rows, patient, keyMaterial });
     await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);

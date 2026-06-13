@@ -181,6 +181,15 @@ async function sendLinkConfirmResult({ requestId, patientId, careContexts }) {
 
 // ── FHIR bundle generation ────────────────────────────────────────────────────
 
+async function sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus = 'ACKNOWLEDGED' }) {
+  await gwPost('/v0.5/health-information/hip/on-request', {
+    requestId: uuid(),
+    timestamp: new Date().toISOString(),
+    hiRequest: { transactionId, sessionStatus },
+    resp: { requestId },
+  });
+}
+
 function buildFhirBundle(patient, careContext) {
   const now = new Date().toISOString();
   return JSON.stringify({
@@ -370,4 +379,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   logger.info('HIP health data pushed', { transactionId, entries: entries.length, encrypted: !!respondingKeyMaterial });
 }
 
-module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, pushHealthData, buildFhirBundle, sendShareProfileAck };
+module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
