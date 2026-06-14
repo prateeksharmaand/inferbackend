@@ -268,7 +268,7 @@ async function sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus
 // SEC-015 + R2-012: stable UUIDs + ABDM IG required fields (identifier, Practitioner, Patient.identifier)
 function buildFhirBundle(patient, careContext) {
   const now            = new Date().toISOString();
-  const hipId          = HIP_ID || 'infer-hip';
+  const hipId          = HIP_ID || 'noushealthhip';
   const bundleId       = uuid();
   const compositionId  = uuid();
   const patientId      = uuid();
