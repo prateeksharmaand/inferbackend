@@ -98,7 +98,7 @@ const createPatient = async (req, res) => {
 };
 
 const getPatient = async (req, res) => {
-  const { rows } = await pool.query(`SELECT * FROM emr_patients WHERE id=$1`, [req.params.id]);
+  const { rows } = await pool.query(`SELECT * FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`, [req.params.id]);
   if (!rows.length) return res.status(404).json({ error: 'Patient not found' });
   const patient = rows[0];
   const { rows: ctxs } = await pool.query(
@@ -114,7 +114,7 @@ const updatePatient = async (req, res) => {
     `UPDATE emr_patients SET name=COALESCE($1,name), mobile=COALESCE($2,mobile),
        dob=COALESCE($3,dob), gender=COALESCE($4,gender),
        abha_number=COALESCE($5,abha_number), abha_address=COALESCE($6,abha_address)
-     WHERE id=$7 RETURNING *`,
+     WHERE id=$7 AND deleted_at IS NULL RETURNING *`,
     [name, mobile, dob, gender, abha_number, abha_address, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Patient not found' });
@@ -122,13 +122,13 @@ const updatePatient = async (req, res) => {
 };
 
 const deletePatient = async (req, res) => {
-  // Hard delete until security_hardening migration is run (adds deleted_at column)
+  // SEC-018: soft delete — retain records per medical data retention requirements
   const { rowCount } = await pool.query(
-    `DELETE FROM emr_patients WHERE id=$1`,
-    [req.params.id]
+    `UPDATE emr_patients SET deleted_at=NOW(), deleted_by_id=$1 WHERE id=$2 AND deleted_at IS NULL`,
+    [req.emrUser.id, req.params.id]
   );
   if (!rowCount) return res.status(404).json({ error: 'Patient not found' });
-  res.json({ message: 'Deleted' });
+  res.json({ message: 'Patient deactivated' });
 };
 
 // ── Care contexts ─────────────────────────────────────────────────────────────

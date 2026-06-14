@@ -240,6 +240,11 @@ async function start() {
   try {
     await initializeDatabase();
     logger.info('Database connected and initialized');
+
+    // Run idempotent migrations on every startup (IF NOT EXISTS guards make this safe)
+    const { pool } = require('./src/config/database');
+    const { runMigrations } = require('./migrations/run-migrations');
+    await runMigrations(pool, logger);
     // Seed superadmin from env vars (no-op if already exists)
     const { seedSuperadmin } = require('./src/emr/admin.auth.controller');
     await seedSuperadmin();
