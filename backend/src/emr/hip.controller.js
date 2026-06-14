@@ -113,9 +113,13 @@ const handleLinkInit = async (req, res) => {
        otpHash, expiresAt, linkRefNumber]
     );
 
-    // SEC-003: OTP never logged — send via SMS only
+    // SEC-003: OTP never logged in production
+    // In sandbox (NODE_ENV !== 'production'), print OTP to console so you can test without SMS
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`\n========== SANDBOX OTP (remove in prod) ==========\nRef : ${linkRefNumber}\nOTP : ${otp}\n===================================================\n`);
+    }
     logger.info('HIP OTP generated', { linkRefNumber, careContextCount: careContexts.length });
-    // TODO: replace with SMS delivery: await sendSms(pt?.mobile, `Your ABDM linking OTP: ${otp}. Valid 10 min.`);
+    // TODO: wire up SMS: await sendSms(pt?.mobile, `Your ABDM linking OTP: ${otp}. Valid 10 min.`);
 
     await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber });
   } catch (err) {
