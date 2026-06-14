@@ -88,11 +88,12 @@ const handleLinkInit = async (req, res) => {
     );
     const pt = rows[0] ?? null;
 
-    // R2-011: supersede any existing active link sessions to prevent duplication
+    // R2-011: supersede ALL pending sessions for this patient (expired or not)
+    // so the unique index never blocks the new INSERT
     if (pt?.id) {
       await pool.query(
         `UPDATE hip_link_sessions SET status='superseded'
-         WHERE patient_id=$1 AND status IN ('pending_otp','pending') AND otp_expires_at > NOW()`,
+         WHERE patient_id=$1 AND status IN ('pending_otp','pending')`,
         [pt.id]
       );
     }
