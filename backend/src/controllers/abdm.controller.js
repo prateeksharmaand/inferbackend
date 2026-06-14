@@ -466,7 +466,7 @@ const consentNotify = async (req, res) => {
       rowsUpdated: res.rowCount,
     });
 
-    if (emrRes.rowCount === 0) {
+    if (res.rowCount === 0) {
       // No row found — this is likely a patient-initiated consent (purpose: PATRQT) from ABHA app.
       // Look up patient ABHA from the stored HIP artifact, then upsert a row so the UI shows it.
       const artefactId = notification.consentArtefacts?.[0]?.id ?? consentRequestId;
