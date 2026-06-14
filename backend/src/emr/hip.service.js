@@ -437,6 +437,13 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     throw new Error(`Invalid transactionId UUID format: ${transactionId}`);
   }
 
+  logger.info('ABDM pushHealthData entry', {
+    transactionId,
+    careContextCount: careContexts?.length,
+    dataPushUrlPresent: !!dataPushUrl,
+    keyMaterialPresent: !!keyMaterial,
+  });
+
   logger.info('ABDM Transaction Trace', {
     stage: 'encryption_started',
     transactionId,

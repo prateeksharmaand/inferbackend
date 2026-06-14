@@ -247,9 +247,17 @@ const handleLinkConfirm = async (req, res) => {
 
 const handleHealthInfoRequest = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
+  let transactionId; // Declare at function scope so catch block can access it
   try {
     // CRITICAL: Extract transactionId with validation
     const rawTransactionId = req.body?.transactionId;
+
+    logger.debug('ABDM handleHealthInfoRequest start', {
+      rawTransactionId,
+      hasHiRequest: !!req.body?.hiRequest,
+      bodyKeys: Object.keys(req.body || {}),
+    });
+
     if (!rawTransactionId) {
       logger.error('ABDM Transaction Trace', {
         stage: 'request_received',
@@ -271,11 +279,18 @@ const handleHealthInfoRequest = async (req, res) => {
       return;
     }
 
-    const transactionId = rawTransactionId; // Now validated
+    transactionId = rawTransactionId; // Now validated
     const { hiRequest } = req.body;
     const consentId   = hiRequest?.consent?.id;
     const dataPushUrl = hiRequest?.dataPushUrl;
     const keyMaterial = hiRequest?.keyMaterial;
+
+    logger.info('ABDM handleHealthInfoRequest extracted', {
+      transactionId,
+      consentId,
+      dataPushUrl,
+      hasKeyMaterial: !!keyMaterial,
+    });
 
     logger.info('ABDM Transaction Trace', {
       stage: 'request_received',
