@@ -832,17 +832,16 @@ const abhaVerifyConfirm = async (req, res) => {
   const { otp, txnId, byMobile } = req.body;
   if (!otp || !txnId) return res.status(400).json({ error: 'otp and txnId required' });
   try {
-    let verifyResult;
-    if (byMobile) {
-      verifyResult = await abdmSvc.verifyMobileLoginOtp(otp, txnId);
-    } else {
-      verifyResult = await abdmSvc.loginVerifyOtp(otp, txnId);
-    }
-    const xToken = verifyResult.token || verifyResult.tokens?.token;
-    if (!xToken) return res.status(502).json({ error: 'No token returned from ABDM' });
+    const verifyResult = byMobile
+      ? await abdmSvc.verifyMobileLoginOtp(otp, txnId)
+      : await abdmSvc.loginVerifyOtp(otp, txnId);
 
-    const profile = await abdmSvc.getAbhaProfile(xToken);
-    const abhaNum  = profile.ABHANumber   || profile.abhaNumber   || null;
+    // ABDM v3: Transfer token from verify cannot be used for /profile/account (ABDM-1094).
+    // Profile is embedded in accounts[0] of the verify response.
+    const profile = verifyResult.accounts?.[0] ?? null;
+    if (!profile) return res.status(502).json({ error: 'No profile returned from ABDM verify' });
+
+    const abhaNum  = profile.ABHANumber  || profile.abhaNumber  || null;
     const abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
 
     if (abhaNum || abhaAddr) {
@@ -925,14 +924,17 @@ const abhaAddCreate = async (req, res) => {
     const verifyResult = byMobile
       ? await abdmSvc.verifyMobileLoginOtp(otp, txnId)
       : await abdmSvc.loginVerifyOtp(otp, txnId);
-    const xToken = verifyResult.token || verifyResult.tokens?.token;
-    if (!xToken) return res.status(502).json({ error: 'No token returned from ABDM' });
 
-    const profile  = await abdmSvc.getAbhaProfile(xToken);
-    const abhaNum  = profile.ABHANumber || profile.abhaNumber || null;
+    // ABDM v3 /login/verify returns full profile in accounts[0].
+    // The Transfer token in the response cannot be used for /profile/account (ABDM-1094).
+    const profile = verifyResult.accounts?.[0] ?? null;
+    if (!profile) return res.status(502).json({ error: 'No profile returned from ABDM' });
+
+    const abhaNum  = profile.ABHANumber  || profile.abhaNumber  || null;
     const abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
     const name     = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
-    const dob      = profile.dateOfBirth || (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
+    const dob      = profile.dob || profile.dateOfBirth ||
+      (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
 
     const result = await AbhaIdentity.resolveOrCreatePatient(pool, {
       abhaNumber: abhaNum, abhaAddress: abhaAddr,
