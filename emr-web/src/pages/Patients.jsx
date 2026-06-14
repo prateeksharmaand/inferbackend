@@ -161,27 +161,8 @@ export default function Patients() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h2>Patients</h2>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Facility QR button */}
-          <button
-            onClick={() => setShowFacQr(true)}
-            title="Show ABDM Facility QR Code"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 8,
-              border: '1.5px solid #7c3aed', background: '#faf5ff',
-              color: '#7c3aed', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-            }}
-          >
-            <QrCode size={15} /> Facility QR
-          </button>
-          <input
-            className={styles.search}
-            placeholder="Search by name, mobile or ABHA…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
+        <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
+          value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
       <div className={styles.table}>
@@ -208,6 +189,17 @@ export default function Patients() {
         ))}
         {filtered.length === 0 && <p className={styles.empty}>No patients found</p>}
       </div>
+
+      {/* Facility QR FAB — above ABHA QR */}
+      <button
+        className={styles.fab}
+        onClick={() => setShowFacQr(true)}
+        title="Show ABDM Facility QR for patient profile sharing"
+        style={{ bottom: 104 }}
+      >
+        <QrCode size={22} />
+        <span>Facility QR</span>
+      </button>
 
       {/* ABHA QR scan FAB */}
       <button
