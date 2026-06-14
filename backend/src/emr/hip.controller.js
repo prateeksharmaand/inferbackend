@@ -394,8 +394,9 @@ const handleHealthInfoRequest = async (req, res) => {
     await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
   } catch (err) {
     logger.error('handleHealthInfoRequest error', {
-      message: err.message,
-      status: err.response?.status,
+      message:   err.message,
+      status:    err.response?.status,
+      abdmError: JSON.stringify(err.response?.data),   // ← show exactly what ABDM rejected
     });
     await pool.query(`UPDATE hip_health_requests SET status='failed' WHERE transaction_id=$1`,
       [req.body?.transactionId]).catch(() => {});
