@@ -82,15 +82,29 @@ async function findPatient(pool, { abhaNumber, abhaAddress }) {
 async function attachAbha(pool, patientId, { abhaNumber, abhaAddress, source = 'abdm' }) {
   if (!abhaNumber && !abhaAddress) return;
 
-  await pool.query(
-    `INSERT INTO abha_mappings (patient_id, abha_number, abha_address, status, source)
-     VALUES ($1, $2, $3, 'active', $4)
-     ON CONFLICT (patient_id, abha_number) DO UPDATE
-       SET abha_address = COALESCE($3, abha_mappings.abha_address),
-           status = 'active',
-           linked_at = NOW()`,
-    [patientId, abhaNumber ?? null, abhaAddress ?? null, source]
+  // Check if a mapping already exists for this patient + abha_number
+  const { rows: existing } = await pool.query(
+    `SELECT id FROM abha_mappings WHERE patient_id = $1 AND abha_number IS NOT DISTINCT FROM $2 LIMIT 1`,
+    [patientId, abhaNumber ?? null]
   );
+
+  if (existing.length) {
+    // Update existing row
+    await pool.query(
+      `UPDATE abha_mappings
+       SET abha_address = COALESCE($1, abha_address), status = 'active', linked_at = NOW()
+       WHERE id = $2`,
+      [abhaAddress ?? null, existing[0].id]
+    );
+  } else {
+    // Insert new mapping row (ignore if somehow already exists)
+    await pool.query(
+      `INSERT INTO abha_mappings (patient_id, abha_number, abha_address, status, source)
+       VALUES ($1, $2, $3, 'active', $4)
+       ON CONFLICT DO NOTHING`,
+      [patientId, abhaNumber ?? null, abhaAddress ?? null, source]
+    );
+  }
 
   // Keep legacy columns in sync for backward compat
   await pool.query(
