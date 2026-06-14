@@ -461,7 +461,12 @@ const consentOnInit = async (req, res) => {
       abdmConsentId, ourRequestId, rowsUpdated: updateResult.rowCount,
     });
   } catch (err) {
-    logger.error('consentOnInit error', err.message);
+    logger.error('consentOnInit error', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+      stack: err.stack?.split('\n').slice(0, 3).join(' | '),
+    });
   }
 };
 
@@ -512,18 +517,29 @@ const consentNotify = async (req, res) => {
 
       if (patientAbha) {
         const hiuId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
-        await pool.query(
-          `INSERT INTO emr_consent_requests
-             (clinic_id, request_id, abdm_request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, status)
-           VALUES (
-             (SELECT MIN(id) FROM emr_clinics),
-             $1, $1, $2, $3, $4, $5, $6, $7
-           )
-           ON CONFLICT (request_id) DO UPDATE
-             SET status=$7, abdm_request_id=$1, updated_at=NOW()`,
-          [consentRequestId, patientAbha, hipId, hiuId, purpose, hiTypes, notification.status]
-        ).catch(err => logger.warn('HIU consent notify: upsert failed', { error: err.message }));
-        logger.info('HIU consent notify: inserted patient-initiated consent', { consentRequestId, patientAbha, purpose });
+        // Check if this ABDM ID already exists to prevent duplicates
+        const { rows: existing } = await pool.query(
+          `SELECT id, status FROM emr_consent_requests WHERE abdm_request_id=$1 LIMIT 1`,
+          [consentRequestId]
+        );
+
+        if (existing.length && existing[0].status === 'GRANTED') {
+          // Already processed — idempotent handling
+          logger.info('HIU consent notify: already GRANTED (idempotent)', { consentRequestId });
+        } else {
+          await pool.query(
+            `INSERT INTO emr_consent_requests
+               (clinic_id, request_id, abdm_request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, status)
+             VALUES (
+               (SELECT MIN(id) FROM emr_clinics),
+               $1, $1, $2, $3, $4, $5, $6, $7
+             )
+             ON CONFLICT (request_id) DO UPDATE
+               SET status=$7, abdm_request_id=$1, updated_at=NOW()`,
+            [consentRequestId, patientAbha, hipId, hiuId, purpose, hiTypes, notification.status]
+          ).catch(err => logger.warn('HIU consent notify: upsert failed', { error: err.message }));
+          logger.info('HIU consent notify: inserted patient-initiated consent', { consentRequestId, patientAbha, purpose });
+        }
       } else {
         logger.warn('HIU consent notify: no patient ABHA found for upsert', { consentRequestId, artefactId });
       }
