@@ -164,17 +164,24 @@ const addCareContext = async (req, res) => {
   const genderMap = { 'M': 'male', 'F': 'female', 'm': 'male', 'f': 'female' };
   const genderValue = genderMap[patData?.gender] || 'unknown';
 
+  const bundleId = hip.uuid().toLowerCase();
+  const compId = hip.uuid().slice(0, 8).toLowerCase();
+
   const fhirBundle = {
     resourceType: 'Bundle',
-    id: hip.uuid(),
+    id: bundleId,
+    identifier: {
+      system: `https://${process.env.ABDM_HIP_ID || 'infer'}.hip.abdm.gov.in/bundles`,
+      value: bundleId,
+    },
     type: 'document',
     timestamp: now,
     entry: [
       {
-        fullUrl: `urn:uuid:${hip.uuid().slice(0, 8)}-comp`,
+        fullUrl: `urn:uuid:${compId}`,
         resource: {
           resourceType: 'Composition',
-          id: hip.uuid().slice(0, 8),
+          id: compId,
           status: 'final',
           type: {
             coding: [{
@@ -266,6 +273,7 @@ const addCareContext = async (req, res) => {
           resourceType: 'Observation',
           id: bpId,
           status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs', display: 'Vital Signs' }] }],
           code: { coding: [{ system: 'http://loinc.org', code: '85354-9', display: 'Blood pressure' }] },
           subject: { reference: `urn:uuid:${patId}` },
           effectiveDateTime: now,
@@ -287,6 +295,7 @@ const addCareContext = async (req, res) => {
           resourceType: 'Observation',
           id: tempId,
           status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs', display: 'Vital Signs' }] }],
           code: { coding: [{ system: 'http://loinc.org', code: '8310-5', display: 'Body temperature' }] },
           subject: { reference: `urn:uuid:${patId}` },
           effectiveDateTime: now,
@@ -299,6 +308,7 @@ const addCareContext = async (req, res) => {
           resourceType: 'Observation',
           id: wtId,
           status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs', display: 'Vital Signs' }] }],
           code: { coding: [{ system: 'http://loinc.org', code: '29463-7', display: 'Body weight' }] },
           subject: { reference: `urn:uuid:${patId}` },
           effectiveDateTime: now,
