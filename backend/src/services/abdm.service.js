@@ -387,13 +387,13 @@ async function loginRequestAbhaOtp(loginId) {
     err.status = 400;
     throw err;
   }
-  const encryptedId = await rsaEncrypt(loginId.replace(/-/g, ''));
+  // /profile/login/request/otp expects PLAIN abha-number (e.g. "91-1000-4008-7627")
+  // NOT RSA-encrypted — only enrollment endpoints use encryption
   return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    // ABDM v3: abha-number login requires scope 'aadhaar-verify', NOT 'mobile-verify'
     scope: ['abha-login', 'aadhaar-verify'],
     loginHint: 'abha-number',
-    loginId: encryptedId,
-    otpSystem: 'aadhaar',  // must match scope — aadhaar OTP for abha-number login
+    loginId: loginId.trim(),  // plain, with or without dashes — ABDM accepts both
+    otpSystem: 'aadhaar',
   });
 }
 
