@@ -263,6 +263,10 @@ const listConsentRequests = async (req, res) => {
      LIMIT 100`,
     [req.emrUser.clinic_id]
   );
+  // Force fresh data on every request — no caching for consent status
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
   res.json(rows);
 };
 
@@ -343,6 +347,7 @@ const pullConsentData = async (req, res) => {
   const clinicId = req.emrUser.clinic_id;
   const result = await _pullHealthData(requestId, clinicId);
   if (!result.txnId) return res.status(400).json({ error: 'Consent not found, not GRANTED, or patient has no care contexts' });
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.json({ message: `Fetched ${result.count} health record(s) from EMR`, ...result });
 };
 
@@ -356,6 +361,7 @@ const getConsentHealthRecords = async (req, res) => {
      ORDER BY hr.received_at DESC LIMIT 100`,
     [req.emrUser.clinic_id]
   );
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.json(rows);
 };
 
