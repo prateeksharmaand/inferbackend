@@ -143,7 +143,66 @@ const addCareContext = async (req, res) => {
      VALUES ($1,$2,$3,$4,$5) RETURNING *`,
     [req.params.id, refNum, display, hi_type ?? 'OPConsultation', fhir_content ?? null]
   );
-  res.status(201).json(rows[0]);
+  const careCtx = rows[0];
+
+  // Create sample FHIR resources for this care context
+  const transactionId = hip.uuid();
+  const patientId = req.params.id;
+  const now = new Date().toISOString();
+  const sampleResources = [
+    {
+      resourceType: 'Condition',
+      id: hip.uuid(),
+      code: { coding: [{ system: 'http://snomed.info/sct', code: '15627015', display: 'Cough' }] },
+      subject: { reference: `Patient/${patientId}` },
+      recordedDate: now,
+      onsetDateTime: now,
+    },
+    {
+      resourceType: 'Observation',
+      id: hip.uuid(),
+      code: { coding: [{ system: 'http://loinc.org', code: '8480-6', display: 'Systolic blood pressure' }] },
+      valueQuantity: { value: 140, unit: 'mmHg', system: 'http://unitsofmeasure.org', code: 'mm[Hg]' },
+      subject: { reference: `Patient/${patientId}` },
+      effectiveDateTime: now,
+      status: 'final',
+    },
+    {
+      resourceType: 'MedicationRequest',
+      id: hip.uuid(),
+      medicationCodeableConcept: { coding: [{ system: 'http://snomed.info/sct', code: '27658006', display: 'Amoxicillin' }] },
+      subject: { reference: `Patient/${patientId}` },
+      authoredOn: now,
+      status: 'active',
+      intent: 'order',
+      dosageInstruction: [{ text: 'Take one tablet twice daily' }],
+    },
+    {
+      resourceType: 'DocumentReference',
+      id: hip.uuid(),
+      type: { coding: [{ system: 'http://loinc.org', code: '34117-2', display: 'History and Physical Note' }] },
+      subject: { reference: `Patient/${patientId}` },
+      date: now,
+      status: 'current',
+      content: [{
+        attachment: {
+          contentType: 'text/plain',
+          data: Buffer.from(`Sample consultation note for ${display}`).toString('base64'),
+        },
+      }],
+    },
+  ];
+
+  // Insert sample resources into health_records
+  for (const resource of sampleResources) {
+    await pool.query(
+      `INSERT INTO health_records (transaction_id, care_context_id, fhir_bundle, received_at, hi_type)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [transactionId, careCtx.id, JSON.stringify(resource), now, resource.resourceType]
+    ).catch(err => logger.warn('Failed to insert sample FHIR resource', { error: err.message, resourceType: resource.resourceType }));
+  }
+
+  res.status(201).json({ ...careCtx, sampleResourcesCreated: sampleResources.length });
 };
 
 const deleteCareContext = async (req, res) => {
