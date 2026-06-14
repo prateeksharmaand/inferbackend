@@ -1,9 +1,9 @@
-/* ═══════════════════════════════════════════════════════════════
-   InferAssist — Premium Side Drawer
+﻿/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   InferAssist â€” Premium Side Drawer
    Half-page width (50vw), slides from right
-═══════════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-/* ── Backdrop ───────────────────────────────────────────────── */
+/* â”€â”€ Backdrop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .backdrop {
   position: fixed;
   inset: 0;
@@ -14,7 +14,7 @@
 }
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 
-/* ── Floating Action Button ─────────────────────────────────── */
+/* â”€â”€ Floating Action Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .fab {
   position: fixed;
   bottom: 28px;
@@ -24,7 +24,7 @@
   align-items: center;
   gap: 8px;
   padding: 11px 18px;
-  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 55%, #2563eb 100%);
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 55%, #7c3aed 100%);
   color: #fff;
   border: none;
   border-radius: 50px;
@@ -53,7 +53,7 @@
   letter-spacing: 0.5px;
 }
 
-/* ── Side Drawer ─────────────────────────────────────────────── */
+/* â”€â”€ Side Drawer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .drawer {
   position: fixed;
   top: 0;
@@ -75,7 +75,7 @@
   to   { transform: translateX(0);    opacity: 1; }
 }
 
-/* ── Header ──────────────────────────────────────────────────── */
+/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .drawerHeader {
   display: flex;
   align-items: center;
@@ -142,7 +142,7 @@
 }
 .headerCloseBtn:hover { background: rgba(0,0,0,0.1); color: #1a202c; }
 
-/* ── Logo ────────────────────────────────────────────────────── */
+/* â”€â”€ Logo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .logo { position: relative; flex-shrink: 0; }
 .logoSm { width: 30px; height: 30px; }
 .logoLg { width: 44px; height: 44px; }
@@ -161,7 +161,7 @@
 .logoLg .logoDot1 { width: 28px; height: 28px; top: 0; left: 0; }
 .logoLg .logoDot2 { width: 28px; height: 28px; bottom: 0; right: 0; }
 
-/* ── Tabs ────────────────────────────────────────────────────── */
+/* â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .tabs {
   display: flex;
   border-bottom: 1px solid #e8eaf0;
@@ -192,7 +192,7 @@
   background: #faf5ff;
 }
 
-/* ── Drawer Body ─────────────────────────────────────────────── */
+/* â”€â”€ Drawer Body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .drawerBody {
   flex: 1;
   overflow: hidden;
@@ -206,7 +206,7 @@
   overflow: hidden;
 }
 
-/* ── Chat Tab ─────────────────────────────────────────────────── */
+/* â”€â”€ Chat Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .chatBody {
   flex: 1;
   overflow-y: auto;
@@ -295,7 +295,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ede9fe, #dbeafe);
+  background: linear-gradient(135deg, #ede9fe, #ede9fe);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -455,7 +455,7 @@
 }
 .copyBtn:hover { color: #7c3aed; }
 
-/* ── Dictate Tab ──────────────────────────────────────────────── */
+/* â”€â”€ Dictate Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .dictateBody {
   flex: 1;
   overflow-y: auto;
@@ -631,7 +631,7 @@
 .spin { animation: rotate 0.9s linear infinite; }
 @keyframes rotate { to { transform: rotate(360deg); } }
 
-/* ── Patients Tab ─────────────────────────────────────────────── */
+/* â”€â”€ Patients Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .patientsBody {
   flex: 1;
   overflow-y: auto;
@@ -683,7 +683,7 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ede9fe, #dbeafe);
+  background: linear-gradient(135deg, #ede9fe, #ede9fe);
   color: #7c3aed;
   display: flex;
   align-items: center;
@@ -696,7 +696,7 @@
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ede9fe, #dbeafe);
+  background: linear-gradient(135deg, #ede9fe, #ede9fe);
   color: #7c3aed;
   display: flex;
   align-items: center;
@@ -791,7 +791,7 @@
 .patientEmptyIcon { color: #e2e8f0; }
 .patientEmpty p { font-size: 13px; color: #94a3b8; max-width: 240px; line-height: 1.5; }
 
-/* ── Docs Tab ─────────────────────────────────────────────────── */
+/* â”€â”€ Docs Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .docsBody {
   flex: 1;
   overflow-y: auto;
@@ -843,7 +843,7 @@
 .docContext:focus { border-color: #a78bfa; background: #fff; }
 .docContext::placeholder { color: #c4cad8; }
 
-/* ── FAB patient indicator dot ──────────────────────────────── */
+/* â”€â”€ FAB patient indicator dot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .fabPatientDot {
   position: absolute;
   top: 6px; right: 6px;
@@ -853,7 +853,7 @@
   border: 1.5px solid #fff;
 }
 
-/* ── Patient context panel (inside chat) ─────────────────────── */
+/* â”€â”€ Patient context panel (inside chat) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .patientPanel {
   border-bottom: 1px solid #ede9fe;
   background: linear-gradient(135deg, #faf5ff 0%, #f0f4ff 100%);
@@ -910,7 +910,7 @@
 }
 .patientQuickChip:hover { background: #7c3aed; border-color: #7c3aed; color: #fff; }
 
-/* ── Quick Ask Panel ─────────────────────────────────────────────── */
+/* â”€â”€ Quick Ask Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .quickAskPanel { display: flex; flex-direction: column; gap: 8px; }
 
 .quickAskCustom {
@@ -953,3 +953,4 @@
   border-top: 1px solid #f3f0ff; line-height: 1.4; transition: background 0.1s;
 }
 .quickAskQ:hover { background: #f5f3ff; color: #7c3aed; }
+

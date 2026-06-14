@@ -1,4 +1,4 @@
-.overlay {
+﻿.overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
   display: flex; align-items: center; justify-content: center;
   z-index: 700; padding: 16px;
@@ -89,7 +89,7 @@
 
 .actView   { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--color-primary); padding: 0; }
 .actView:hover { text-decoration: underline; }
-.actEdit   { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: #2563eb; padding: 0; }
+.actEdit   { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: #7c3aed; padding: 0; }
 .actEdit:hover { text-decoration: underline; }
 .actDelete { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: #dc2626; padding: 0; }
 .actDelete:hover { text-decoration: underline; }
@@ -172,3 +172,4 @@
   #receipt-print-area, #receipt-print-area * { visibility: visible; }
   #receipt-print-area { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border-radius: 0; }
 }
+

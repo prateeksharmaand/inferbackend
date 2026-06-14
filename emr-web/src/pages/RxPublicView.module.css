@@ -1,4 +1,4 @@
-/* Mobile-first public prescription view */
+﻿/* Mobile-first public prescription view */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 .page {
@@ -11,7 +11,7 @@
   padding-bottom: 40px;
 }
 
-/* ── Center states ───────────────────────────────────────────── */
+/* â”€â”€ Center states â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .center {
   display: flex;
   flex-direction: column;
@@ -35,7 +35,7 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Header ──────────────────────────────────────────────────── */
+/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .header {
   display: flex;
   align-items: flex-start;
@@ -50,7 +50,7 @@
 .doctorName   { font-size: 13px; margin-top: 6px; font-weight: 600; }
 .doctorSpec   { font-weight: 400; opacity: 0.85; }
 
-/* ── Cards ───────────────────────────────────────────────────── */
+/* â”€â”€ Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .card {
   background: #fff;
   margin: 10px 12px 0;
@@ -73,7 +73,7 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ede9fe, #dbeafe);
+  background: linear-gradient(135deg, #ede9fe, #ede9fe);
   color: #7c3aed;
   font-size: 20px;
   font-weight: 700;
@@ -160,7 +160,7 @@
 .followupCard { background: #f0fdf4; border: 1px solid #bbf7d0; }
 .followupText { font-size: 13.5px; font-weight: 600; color: #166534; }
 
-/* ── Book appointment ─────────────────────────────────────────── */
+/* â”€â”€ Book appointment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .bookSection {
   margin: 14px 12px 0;
   background: #fff;
@@ -276,3 +276,4 @@
   margin-top: 24px;
   padding: 0 20px;
 }
+

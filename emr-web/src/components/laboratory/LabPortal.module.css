@@ -1,4 +1,4 @@
-.shell { display: flex; height: 100vh; background: var(--color-bg); }
+﻿.shell { display: flex; height: 100vh; background: var(--color-bg); }
 
 /* Sidebar */
 .sidebar { width: 200px; background: var(--color-sidebar); display: flex; flex-direction: column; padding: 12px 0; flex-shrink: 0; }
@@ -23,7 +23,7 @@
 .topbarRight { display: flex; align-items: center; gap: 12px; }
 .userChip { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-text-2); }
 .userAvatar { width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
-.roleBadge { font-size: 11px; font-weight: 600; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; }
+.roleBadge { font-size: 11px; font-weight: 600; background: #ede9fe; color: #6d28d9; padding: 2px 8px; border-radius: 10px; }
 
 /* Page content */
 .content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 24px; }
@@ -91,7 +91,7 @@
 
 /* Badges / Pills */
 .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-.badgeBlue { background: #dbeafe; color: #1e40af; }
+.badgeBlue { background: #ede9fe; color: #6d28d9; }
 .badgeGreen { background: #dcfce7; color: #166534; }
 .badgeYellow { background: #fef9c3; color: #92400e; }
 .badgeOrange { background: #ffedd5; color: #9a3412; }
@@ -104,7 +104,7 @@
 .alert { padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px; font-size: 13px; }
 .alertSuccess { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
 .alertError { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
-.alertInfo { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; }
+.alertInfo { background: #eff6ff; border: 1px solid #93c5fd; color: #6d28d9; }
 .alertWarning { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
 
 /* Empty state */
@@ -202,3 +202,4 @@
 .notifMsg { font-size: 12px; color: var(--color-text-2); margin-top: 2px; }
 .notifTime { font-size: 11px; color: var(--color-text-3); margin-top: 3px; }
 .notifRead { opacity: 0.5; }
+

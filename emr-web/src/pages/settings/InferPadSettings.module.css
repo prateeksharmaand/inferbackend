@@ -1,4 +1,4 @@
-.wrap { display: flex; flex-direction: column; gap: 16px; padding-top: 20px; }
+﻿.wrap { display: flex; flex-direction: column; gap: 16px; padding-top: 20px; }
 
 .card {
   background: var(--color-surface); border: 1px solid var(--color-border);
@@ -58,7 +58,7 @@
 }
 .btnSave:hover { background: var(--color-primary-dk); }
 
-/* ── Feature toggles ── */
+/* â”€â”€ Feature toggles â”€â”€ */
 .toggleRow {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 16px; padding: 12px 0; border-top: 1px solid var(--color-border, #e2e8f0);
@@ -78,7 +78,7 @@
   background: #fff; border-radius: 50%; transition: transform .2s;
   box-shadow: 0 1px 3px rgba(0,0,0,.2);
 }
-.toggle input:checked + .toggleSlider { background: var(--color-primary, #2563eb); }
+.toggle input:checked + .toggleSlider { background: var(--color-primary, #7c3aed); }
 .toggle input:checked + .toggleSlider::before { transform: translateX(18px); }
 
 .mandatoryTable { display: flex; flex-direction: column; gap: 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 12px; }
@@ -120,3 +120,4 @@
 .sectionIcon   { font-size: 15px; flex-shrink: 0; }
 .sectionLabel  { flex: 1; font-size: 13px; font-weight: 500; color: #374151; }
 .sectionPos    { font-size: 11px; color: #cbd5e1; font-weight: 600; min-width: 18px; text-align: right; }
+

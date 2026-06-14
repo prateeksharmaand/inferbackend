@@ -1,4 +1,4 @@
-.card {
+﻿.card {
   display: flex; background: var(--color-surface);
   border-radius: 10px; box-shadow: var(--shadow);
   overflow: visible; transition: box-shadow .15s;
@@ -8,7 +8,7 @@
 .stripe { width: 4px; flex-shrink: 0; border-radius: 10px 0 0 10px; }
 .body   { flex: 1; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 
-/* ── Row 1: token · name · status · edit ── */
+/* â”€â”€ Row 1: token Â· name Â· status Â· edit â”€â”€ */
 .row1      { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .row1Right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .token  { font-size: 11px; font-weight: 700; background: var(--color-bg); border-radius: 4px; padding: 1px 6px; color: var(--color-text-2); flex-shrink: 0; }
@@ -32,7 +32,7 @@
 }
 .editBtn:hover { background: var(--color-bg); color: var(--color-primary); }
 
-/* ── Info grid: 2 equal columns fill full card width ── */
+/* â”€â”€ Info grid: 2 equal columns fill full card width â”€â”€ */
 .infoGrid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;
 }
@@ -47,7 +47,7 @@
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 11px; font-weight: 600;
   padding: 1px 6px; border-radius: 8px;
-  background: #eff6ff; color: #1d4ed8;
+  background: #eff6ff; color: #6d28d9;
   border: 1px solid #bfdbfe; white-space: nowrap;
 }
 .uhid {
@@ -67,7 +67,7 @@
   padding: 1px 7px; border-radius: 10px;
 }
 
-/* ── Badges row: payment · new · receipt · tags ── */
+/* â”€â”€ Badges row: payment Â· new Â· receipt Â· tags â”€â”€ */
 .badgeRow {
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
 }
@@ -107,7 +107,7 @@
 }
 .addTagBtn:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
 
-/* ── Action buttons ── */
+/* â”€â”€ Action buttons â”€â”€ */
 .actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .actionBtn {
   padding: 4px 10px; border-radius: 6px; border: 1px solid var(--color-border);
@@ -121,8 +121,8 @@
 .actionBtnReminder:hover  { background: #d97706; border-color: #d97706; color: #fff; }
 .actionBtnReminder:disabled { opacity: .6; cursor: default; }
 
-.actionBtnReschedule { border-color: #bfdbfe; color: #2563eb; background: #eff6ff; }
-.actionBtnReschedule:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+.actionBtnReschedule { border-color: #bfdbfe; color: #7c3aed; background: #eff6ff; }
+.actionBtnReschedule:hover { background: #7c3aed; border-color: #7c3aed; color: #fff; }
 
 .actionBtnVitals { border-color: #a7f3d0; color: #059669; background: #ecfdf5; }
 .actionBtnVitals:hover { background: #059669; border-color: #059669; color: #fff; }
@@ -164,3 +164,4 @@
 .moreMenu li:hover { background: var(--color-bg); }
 
 .card[draggable]:active { opacity: .7; transform: scale(.98); }
+

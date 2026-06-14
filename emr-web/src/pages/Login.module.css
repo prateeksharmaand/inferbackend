@@ -1,6 +1,6 @@
-.page {
+﻿.page {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #1e2433 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #1e2433 0%, #7c3aed 100%);
 }
 .card {
   background: #fff; border-radius: 16px; padding: 40px;
@@ -43,3 +43,4 @@
 }
 .btn:hover:not(:disabled) { background: var(--color-primary-dk); }
 .btn:disabled { opacity: .7; cursor: not-allowed; }
+

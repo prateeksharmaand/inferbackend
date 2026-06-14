@@ -1,4 +1,4 @@
-/* ── Modal shell ── */
+﻿/* â”€â”€ Modal shell â”€â”€ */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
   display: flex; align-items: center; justify-content: center;
@@ -25,10 +25,10 @@
 .printBtn {
   display: flex; align-items: center; gap: 6px;
   padding: 7px 16px; border-radius: 8px;
-  background: var(--color-primary, #2563eb); color: #fff; border: none;
+  background: var(--color-primary, #7c3aed); color: #fff; border: none;
   font-size: 13px; font-weight: 600; cursor: pointer; transition: background .12s;
 }
-.printBtn:hover { background: #1d4ed8; }
+.printBtn:hover { background: #6d28d9; }
 .closeBtn {
   background: none; border: none; cursor: pointer; color: #94a3b8;
   display: flex; padding: 4px; border-radius: 6px;
@@ -37,7 +37,7 @@
 .modalBody { flex: 1; overflow-y: auto; padding: 20px; background: #f1f5f9; }
 .loading { text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; }
 
-/* ── Slip document ── */
+/* â”€â”€ Slip document â”€â”€ */
 .slipDoc {
   background: #fff; border-radius: 8px;
   padding: 20px; font-family: sans-serif;
@@ -63,7 +63,7 @@
   display: flex; align-items: center; gap: 10px; margin: 8px 0;
 }
 .tokenBox {
-  background: var(--color-primary, #2563eb); color: #fff;
+  background: var(--color-primary, #7c3aed); color: #fff;
   border-radius: 8px; padding: 6px 12px; text-align: center; flex-shrink: 0;
 }
 .tokenLabel { font-size: 9px; font-weight: 700; letter-spacing: .5px; opacity: .8; }
@@ -121,3 +121,4 @@
   .overlay, .modal, .modalHead, .modalBody { all: unset; }
   .slipDoc { box-shadow: none; padding: 10px; }
 }
+

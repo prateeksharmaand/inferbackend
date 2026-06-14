@@ -1,10 +1,10 @@
-/* ── Fullscreen layout ── */
+﻿/* â”€â”€ Fullscreen layout â”€â”€ */
 .fullscreen {
   position: fixed; inset: 0; background: #fff; z-index: 1500;
   display: flex; flex-direction: column; overflow: hidden;
 }
 
-/* ── Header ── */
+/* â”€â”€ Header â”€â”€ */
 .header {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 20px; border-bottom: 1px solid #e2e8f0; background: #fff;
@@ -17,7 +17,7 @@
 .headerTitle { font-size: 16px; font-weight: 700; color: #1e293b; }
 .patientMeta { font-size: 13px; color: #64748b; }
 
-/* ── Tabs ── */
+/* â”€â”€ Tabs â”€â”€ */
 .tabs {
   display: flex; border-bottom: 1px solid #e2e8f0; padding: 0 20px;
   background: #fff;
@@ -27,9 +27,9 @@
   font-size: 13px; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
 .tab:hover { color: #1e293b; }
-.tabActive { color: var(--color-primary, #2563eb); border-bottom-color: var(--color-primary, #2563eb); font-weight: 600; }
+.tabActive { color: var(--color-primary, #7c3aed); border-bottom-color: var(--color-primary, #7c3aed); font-weight: 600; }
 
-/* ── Body ── */
+/* â”€â”€ Body â”€â”€ */
 .body { flex: 1; display: flex; overflow: hidden; }
 
 .chartArea {
@@ -39,7 +39,7 @@
 .chartTitle { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0; }
 .chartSvg   { width: 100%; height: auto; max-height: calc(100vh - 220px); }
 
-/* ── Right panel ── */
+/* â”€â”€ Right panel â”€â”€ */
 .rightPanel {
   width: 300px; min-width: 300px; border-left: 1px solid #e2e8f0;
   background: #f8fafc; padding: 16px; overflow-y: auto;
@@ -69,10 +69,10 @@
 .promoBtn   {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 7px; border: none; cursor: pointer;
-  background: #1d4ed8; color: #fff; font-size: 12px; font-weight: 600;
+  background: #6d28d9; color: #fff; font-size: 12px; font-weight: 600;
   width: fit-content;
 }
-.promoBtn:hover { background: #1e40af; }
+.promoBtn:hover { background: #6d28d9; }
 
 /* Chart type row */
 .chartTypeRow { display: flex; align-items: center; justify-content: space-between; }
@@ -96,7 +96,7 @@
 .inputBox:focus, .inputBoxFull:focus { border-color: #3b82f6; }
 .inputUnit    { font-size: 11px; color: #94a3b8; min-width: 30px; }
 
-/* ── Footer ── */
+/* â”€â”€ Footer â”€â”€ */
 .footer {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 20px; border-top: 1px solid #e2e8f0; background: #fff;
@@ -113,10 +113,10 @@
 }
 .btnDone {
   padding: 8px 20px; border-radius: 7px; border: none;
-  background: var(--color-primary, #2563eb); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  background: var(--color-primary, #7c3aed); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 
-/* ── Tell Me More Dialog ── */
+/* â”€â”€ Tell Me More Dialog â”€â”€ */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.5);
   display: flex; align-items: center; justify-content: center; z-index: 2000;
@@ -156,11 +156,11 @@
 .tellFeatureDesc  { font-size: 12px; color: #64748b; margin-top: 2px; line-height: 1.5; }
 .tellBtn {
   width: 100%; padding: 11px; border-radius: 10px; border: none; cursor: pointer;
-  background: var(--color-primary, #2563eb); color: #fff; font-size: 14px; font-weight: 700;
+  background: var(--color-primary, #7c3aed); color: #fff; font-size: 14px; font-weight: 700;
 }
 .tellBtn:hover { opacity: .9; }
 
-/* ── Growth strip in InferPad — matches ICard style ── */
+/* â”€â”€ Growth strip in InferPad â€” matches ICard style â”€â”€ */
 .strip {
   display: flex; align-items: center; gap: 12px;
   padding: 13px 16px;
@@ -186,9 +186,10 @@
 }
 .stripBtn {
   padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer;
-  background: var(--color-primary, #2563eb); color: #fff; font-size: 12px;
+  background: var(--color-primary, #7c3aed); color: #fff; font-size: 12px;
   font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 5px;
 }
 .stripBtn:disabled { opacity: .45; cursor: not-allowed; }
 
 .inputAuto { background: #f0fdf4; color: #065f46; font-weight: 700; }
+

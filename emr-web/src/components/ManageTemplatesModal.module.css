@@ -1,4 +1,4 @@
-/* ManageTemplatesModal — absolutely overlays its parent ScribePanel */
+﻿/* ManageTemplatesModal â€” absolutely overlays its parent ScribePanel */
 .panel {
   position: absolute;
   inset: 0;
@@ -176,12 +176,12 @@
 }
 .btnClone {
   display: flex; align-items: center; gap: 4px;
-  background: #eff6ff; color: #1d4ed8;
+  background: #eff6ff; color: #6d28d9;
   border: 1px solid #bfdbfe; border-radius: 7px;
   padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
   white-space: nowrap;
 }
-.btnClone:hover { background: #dbeafe; }
+.btnClone:hover { background: #ede9fe; }
 .btnEdit {
   display: flex; align-items: center; gap: 4px;
   background: var(--color-bg); color: var(--color-text-2);
@@ -296,3 +296,4 @@
   font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .btnDeleteConfirm:hover { background: #b91c1c; }
+

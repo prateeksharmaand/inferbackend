@@ -1,10 +1,10 @@
-.wrap {
+﻿.wrap {
   padding: 16px 20px 90px;
   display: flex; flex-direction: column; gap: 10px;
   width: 100%;
 }
 
-/* ── Card ── */
+/* â”€â”€ Card â”€â”€ */
 .card {
   background: var(--color-surface);
   border-radius: 10px; border: 1px solid var(--color-border);
@@ -46,7 +46,7 @@
   display: flex; flex-direction: column; gap: 10px;
 }
 
-/* ── Vitals grid ── */
+/* â”€â”€ Vitals grid â”€â”€ */
 .vitalsGrid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
 }
@@ -73,7 +73,7 @@
 .vCell input:focus { border-color: var(--color-primary); }
 .vInputAuto { background: #f0fdf4; border-color: #86efac !important; color: #065f46; font-weight: 700; }
 
-/* ── Chips ── */
+/* â”€â”€ Chips â”€â”€ */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 4px; }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
@@ -88,7 +88,7 @@
 .chipLab      { background: #ecfdf5; color: #065f46; }
 .chipProc     { background: #fdf4ff; color: #7e22ce; }
 
-/* ── Add row ── */
+/* â”€â”€ Add row â”€â”€ */
 .addRow { display: flex; gap: 8px; }
 .addRow input {
   flex: 1; border: 1px solid var(--color-border); border-radius: 7px;
@@ -101,7 +101,7 @@
   cursor: pointer; white-space: nowrap;
 }
 
-/* ── Table (medications + lab results) ── */
+/* â”€â”€ Table (medications + lab results) â”€â”€ */
 .tableWrap { display: flex; flex-direction: column; gap: 6px; }
 .table {
   border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden;
@@ -115,7 +115,7 @@
 }
 .tHead4 { grid-template-columns: 2fr 1fr 1fr 1.5fr 26px; }
 
-/* ── Lab investigation cards ── */
+/* â”€â”€ Lab investigation cards â”€â”€ */
 .labInvList { display: flex; flex-direction: column; gap: 8px; }
 .labInvCard {
   border: 1px solid var(--color-border); border-radius: 8px;
@@ -155,7 +155,7 @@
 }
 .addLine:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
 
-/* ── Shared inputs/textareas ── */
+/* â”€â”€ Shared inputs/textareas â”€â”€ */
 .cardBody textarea,
 .cardBody > input {
   border: 1px solid var(--color-border); border-radius: 7px;
@@ -166,23 +166,23 @@
 .cardBody textarea:focus,
 .cardBody > input:focus { border-color: var(--color-primary); }
 
-/* ── Private note box ── */
+/* â”€â”€ Private note box â”€â”€ */
 .privateBox {
   font-size: 12px; color: #92400e; background: #fef3c7;
   border: 1px solid #fde68a; border-radius: 6px;
   padding: 8px 12px; line-height: 1.5;
 }
 
-/* ── Follow Up two-col ── */
+/* â”€â”€ Follow Up two-col â”€â”€ */
 .twoCol { display: flex; gap: 12px; }
 .fg     { display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .fg2    { flex: 2; }
 .fg label { font-size: 11px; font-weight: 600; color: var(--color-text-2); }
 
-/* ── Hint / empty ── */
+/* â”€â”€ Hint / empty â”€â”€ */
 .hint { font-size: 11px; color: var(--color-text-3); font-style: italic; margin: 0; }
 
-/* ── Custom section ── */
+/* â”€â”€ Custom section â”€â”€ */
 .customHead { display: flex; gap: 10px; align-items: center; }
 .customTitle {
   flex: 1; border: 1px solid var(--color-border); border-radius: 7px;
@@ -196,7 +196,7 @@
 }
 .customDel:hover { background: #fef2f2; }
 
-/* ── Since / Severity meta row ── */
+/* â”€â”€ Since / Severity meta row â”€â”€ */
 .metaRow {
   display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
 }
@@ -224,7 +224,7 @@
 .chipMeta { font-size: 10px; opacity: .75; font-weight: 400; }
 .chipCode { font-size: 10px; opacity: .65; font-weight: 400; }
 
-/* ── Medication card layout ── */
+/* â”€â”€ Medication card layout â”€â”€ */
 .medList { display: flex; flex-direction: column; gap: 10px; }
 .medCard {
   border: 1px solid var(--color-border); border-radius: 8px;
@@ -242,7 +242,7 @@
 .medCardRow3 label  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); flex-shrink: 0; margin-right: 8px; align-self: center; }
 .delTop { align-self: flex-end; padding-bottom: 5px; }
 
-/* ── Autocomplete suggestion item layout ── */
+/* â”€â”€ Autocomplete suggestion item layout â”€â”€ */
 .acItem { display: flex; align-items: baseline; gap: 8px; }
 .acCode { font-size: 11px; font-weight: 700; color: var(--color-primary); flex-shrink: 0; min-width: 50px; }
 .acName { font-size: 13px; color: var(--color-text); }
@@ -259,7 +259,7 @@
 }
 .cellInput:focus { border-color: var(--color-primary); }
 
-/* ── Notes two-section layout ── */
+/* â”€â”€ Notes two-section layout â”€â”€ */
 .notesSection { display: flex; flex-direction: column; gap: 8px; }
 
 .notesSectionHead {
@@ -297,7 +297,7 @@
 }
 .pastNoteText { font-size: 13px; color: var(--color-text-2); margin: 0; line-height: 1.6; white-space: pre-wrap; }
 
-/* ── NumberUnitInput dropdown ── */
+/* â”€â”€ NumberUnitInput dropdown â”€â”€ */
 .nuDropdown {
   position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 1000;
   background: #fff; border: 1px solid var(--color-border);
@@ -317,7 +317,7 @@
 }
 .metaInput:focus { border-color: var(--color-primary); }
 
-/* ── Add custom section button ── */
+/* â”€â”€ Add custom section button â”€â”€ */
 .addSection {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   background: none; border: 2px dashed var(--color-border);
@@ -327,7 +327,7 @@
 .addSection:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
 
 
-/* ── Prescription Language selector ── */
+/* â”€â”€ Prescription Language selector â”€â”€ */
 .langSection {
   background: var(--color-surface, #fff);
   border: 1px solid var(--color-border, #e2e8f0);
@@ -359,7 +359,7 @@
 }
 .langPillActive:hover { background: #6d28d9; border-color: #6d28d9; }
 
-/* ── Vitals configure button ── */
+/* â”€â”€ Vitals configure button â”€â”€ */
 .vitalsConfigBtn {
   display: inline-flex; align-items: center;
   background: none; border: 1px solid var(--color-border, #e2e8f0);
@@ -368,7 +368,7 @@
 }
 .vitalsConfigBtn:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
 
-/* ── Vitals Config Modal ── */
+/* â”€â”€ Vitals Config Modal â”€â”€ */
 .vcOverlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   display: flex; align-items: center; justify-content: center;
@@ -476,9 +476,9 @@
   padding: 8px 22px; border-radius: 8px; font-size: 13px; font-weight: 600;
   border: none; background: #3b82f6; color: #fff; cursor: pointer;
 }
-.vcBtnSave:hover { background: #2563eb; }
+.vcBtnSave:hover { background: #7c3aed; }
 
-/* ── VitalsConfigModal tabs ── */
+/* â”€â”€ VitalsConfigModal tabs â”€â”€ */
 .vcTabs {
   display: flex; border-bottom: 1px solid #e2e8f0;
   background: #f8fafc; flex-shrink: 0;
@@ -496,7 +496,7 @@
   padding: 1px 6px; border-radius: 10px; min-width: 16px; text-align: center;
 }
 
-/* ── Calculators tab in modal ── */
+/* â”€â”€ Calculators tab in modal â”€â”€ */
 .vcCalcBody {
   display: flex; flex-direction: column; flex: 1; overflow: hidden;
 }
@@ -511,7 +511,7 @@
 .vcCalcInfo { display: flex; flex-direction: column; gap: 2px; }
 .vcCalcDesc { font-size: 11px; color: #94a3b8; }
 
-/* ── InferPad Settings card ── */
+/* â”€â”€ InferPad Settings card â”€â”€ */
 .settingsBody {
   display: flex; flex-direction: column; gap: 14px;
 }
@@ -529,7 +529,8 @@
 .settingInput:focus { border-color: var(--color-primary); }
 .settingSave {
   align-self: flex-end; padding: 8px 20px; border-radius: 8px;
-  background: var(--color-primary, #2563eb); color: #fff; border: none;
+  background: var(--color-primary, #7c3aed); color: #fff; border: none;
   font-size: 13px; font-weight: 600; cursor: pointer; transition: background .12s;
 }
-.settingSave:hover { background: var(--color-primary-dk, #1d4ed8); }
+.settingSave:hover { background: var(--color-primary-dk, #6d28d9); }
+

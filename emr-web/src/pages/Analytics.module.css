@@ -1,10 +1,10 @@
-.page {
+﻿.page {
   display: flex; flex-direction: column; gap: 12px;
   flex: 1; height: 100%; min-height: 0; background: var(--color-bg); padding: 16px 24px;
   overflow: hidden;
 }
 
-/* ── Tab bar ── */
+/* â”€â”€ Tab bar â”€â”€ */
 .tabBar {
   display: flex; gap: 2px; border-bottom: 1px solid var(--color-border);
   background: var(--color-surface); padding: 0; flex-shrink: 0;
@@ -20,10 +20,10 @@
 .tab:hover { color: var(--color-primary); }
 .tabActive { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
 
-/* ── Content area ── */
+/* â”€â”€ Content area â”€â”€ */
 .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding-top: 0; min-height: 0; }
 
-/* ── Header ── */
+/* â”€â”€ Header â”€â”€ */
 .header {
   display: flex; align-items: flex-start; justify-content: space-between;
   flex-wrap: wrap; gap: 12px;
@@ -40,7 +40,7 @@
 .exportBtn:hover:not(:disabled) { background: var(--color-primary-dk); }
 .exportBtn:disabled { opacity: .4; cursor: not-allowed; }
 
-/* ── Summary cards ── */
+/* â”€â”€ Summary cards â”€â”€ */
 .summaryRow {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px; flex-shrink: 0;
@@ -59,12 +59,12 @@
 .summaryLabel { font-size: 12px; font-weight: 600; color: var(--color-text-2); margin-top: 4px; }
 .summarySub   { font-size: 11px; color: var(--color-text-3); margin-top: 2px; }
 
-/* ── Info banner ── */
+/* â”€â”€ Info banner â”€â”€ */
 .infoBanner {
   display: flex; align-items: flex-start; gap: 8px;
   padding: 8px 12px; border-radius: 8px;
   background: #eff6ff; border: 1px solid #bfdbfe;
-  font-size: 11px; color: #1e40af; line-height: 1.5; flex-shrink: 0;
+  font-size: 11px; color: #6d28d9; line-height: 1.5; flex-shrink: 0;
 }
 .infoIcon { flex-shrink: 0; margin-top: 1px; }
 .infoIconWrap {
@@ -86,7 +86,7 @@
   border: 6px solid transparent; border-top-color: #1e293b;
 }
 
-/* ── Filter bar ── */
+/* â”€â”€ Filter bar â”€â”€ */
 .filterBar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   background: var(--color-surface); border: 1px solid var(--color-border);
@@ -122,7 +122,7 @@
 }
 .filterSelect:focus { border-color: var(--color-primary); }
 
-/* ── Table section ── */
+/* â”€â”€ Table section â”€â”€ */
 .tableSection {
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: 12px; overflow: hidden; box-shadow: var(--shadow);
@@ -154,7 +154,7 @@
   background: none; border: none; cursor: pointer; color: var(--color-text-3); display: flex;
 }
 
-/* ── Table ── */
+/* â”€â”€ Table â”€â”€ */
 .tableWrap {
   overflow-x: auto;
   overflow-y: auto;
@@ -205,7 +205,7 @@
   padding: 48px; text-align: center; color: var(--color-text-3); font-size: 13px;
 }
 
-/* ── Pagination ── */
+/* â”€â”€ Pagination â”€â”€ */
 .pagination {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 18px; border-top: 1px solid var(--color-border);
@@ -221,3 +221,4 @@
 .pgBtn:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
 .pgBtn:disabled { opacity: .4; cursor: not-allowed; }
 .pgCurrent { font-size: 12px; color: var(--color-text-2); }
+

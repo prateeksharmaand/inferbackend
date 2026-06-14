@@ -1,4 +1,4 @@
-/* ── Root & top bar ── */
+﻿/* â”€â”€ Root & top bar â”€â”€ */
 .root { display: flex; flex-direction: column; height: 100%; background: #f8fafc; }
 
 .topBar {
@@ -9,13 +9,13 @@
 .btnAI {
   display: flex; align-items: center; gap: 5px;
   padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer;
-  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  background: linear-gradient(135deg, #7c3aed, #7c3aed);
   color: #fff; font-size: 13px; font-weight: 600;
   box-shadow: 0 2px 8px rgba(124,58,237,.3);
 }
 .btnAI:hover { opacity: .9; }
 
-/* ── Buttons ── */
+/* â”€â”€ Buttons â”€â”€ */
 .btnPrimary {
   display: flex; align-items: center; gap: 5px;
   padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer;
@@ -55,7 +55,7 @@
   display: flex; align-items: center; padding: 4px;
 }
 
-/* ── Empty state ── */
+/* â”€â”€ Empty state â”€â”€ */
 .emptyState {
   flex: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 8px; color: #94a3b8;
@@ -70,7 +70,7 @@
 }
 .hint { font-size: 13px; color: #94a3b8; }
 
-/* ── Chart list ── */
+/* â”€â”€ Chart list â”€â”€ */
 .chartList { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
 .newChartBtnInline {
   display: flex; align-items: center; gap: 5px;
@@ -88,7 +88,7 @@
 .chartCardMeta  { font-size: 12px; color: #94a3b8; }
 .chartCardActions { display: flex; align-items: center; gap: 8px; }
 
-/* ── Overlay / Modal ── */
+/* â”€â”€ Overlay / Modal â”€â”€ */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.4);
   display: flex; align-items: center; justify-content: center; z-index: 1200;
@@ -114,13 +114,13 @@
   padding: 14px 20px; border-top: 1px solid #e2e8f0; gap: 8px;
 }
 
-/* ── Info bar ── */
+/* â”€â”€ Info bar â”€â”€ */
 .infoBar {
   background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
   padding: 10px 14px; font-size: 12.5px; color: #92400e; margin-bottom: 16px;
 }
 
-/* ── Nutrition grid ── */
+/* â”€â”€ Nutrition grid â”€â”€ */
 .nutriGrid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
 }
@@ -139,7 +139,7 @@
   color: #94a3b8; border-left: 1px solid #e2e8f0; white-space: nowrap;
 }
 
-/* ── Form helpers ── */
+/* â”€â”€ Form helpers â”€â”€ */
 .formRow {
   display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
 }
@@ -159,7 +159,7 @@
 .endLabel { font-size: 13px; color: #374151; }
 .endVal   { font-size: 13px; font-weight: 600; color: #1e293b; }
 
-/* ── Chips (food groups) ── */
+/* â”€â”€ Chips (food groups) â”€â”€ */
 .chipWrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .chip {
   padding: 5px 12px; border-radius: 20px; font-size: 13px; cursor: pointer;
@@ -167,10 +167,10 @@
 }
 .chipActive { border-color: var(--color-primary); background: var(--color-primary-bg, #f5f3ff); color: var(--color-primary); font-weight: 600; }
 
-/* ── Section label ── */
+/* â”€â”€ Section label â”€â”€ */
 .sectionLabel { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; }
 
-/* ── Food library ── */
+/* â”€â”€ Food library â”€â”€ */
 .libTabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid #e2e8f0; }
 .libTabBtn {
   padding: 8px 16px; border: none; background: none; font-size: 13px;
@@ -211,21 +211,21 @@
   font-size: 12px; color: var(--color-primary); border: none; background: none; cursor: pointer; padding: 2px 6px;
 }
 
-/* ── Template ── */
+/* â”€â”€ Template â”€â”€ */
 .templateRow {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 0; border-bottom: 1px solid #f1f5f9;
 }
 .templateName { font-size: 13px; font-weight: 500; }
 
-/* ── AI Loading Animation ── */
+/* â”€â”€ AI Loading Animation â”€â”€ */
 .aiLoadingWrap {
   display: flex; flex-direction: column; align-items: center;
   padding: 32px 20px; gap: 16px;
 }
 .aiLoadingOrb {
   width: 72px; height: 72px; border-radius: 50%;
-  background: linear-gradient(135deg, #7c3aed, #2563eb, #06b6d4);
+  background: linear-gradient(135deg, #7c3aed, #7c3aed, #06b6d4);
   background-size: 200% 200%;
   animation: orbPulse 2s ease-in-out infinite, orbSpin 3s linear infinite;
   box-shadow: 0 0 30px rgba(124,58,237,.4);
@@ -272,7 +272,7 @@
   40%          { transform: scale(1);   opacity: 1;  }
 }
 
-/* ── AI Meal Plan ── */
+/* â”€â”€ AI Meal Plan â”€â”€ */
 .aiSection { margin-bottom: 18px; }
 .aiInputRow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .aiInputField { display: flex; flex-direction: column; gap: 5px; }
@@ -330,7 +330,7 @@
 .aiMealItemKcal    { font-size: 12px; color: #64748b; min-width: 55px; text-align: right; }
 .aiMealInstr { font-size: 12px; color: #64748b; font-style: italic; margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0; }
 
-/* ── Editor layout ── */
+/* â”€â”€ Editor layout â”€â”€ */
 .editor { display: flex; flex-direction: column; height: 100%; background: #f8fafc; }
 
 .editorHeader {
@@ -355,7 +355,7 @@
 
 .editorLeft { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
 
-/* ── Day plan tabs ── */
+/* â”€â”€ Day plan tabs â”€â”€ */
 .dayTabs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .dayTab {
   padding: 6px 14px; border-radius: 7px 7px 0 0; border: 1.5px solid #e2e8f0;
@@ -368,7 +368,7 @@
   background: var(--color-primary-bg, #f5f3ff); color: var(--color-primary); cursor: pointer; display: flex; align-items: center;
 }
 
-/* ── Meal list ── */
+/* â”€â”€ Meal list â”€â”€ */
 .mealList { display: flex; flex-direction: column; gap: 12px; }
 .mealCard {
   background: #fff; border-radius: 10px; border: 1px solid #e2e8f0;
@@ -388,7 +388,7 @@
 }
 .mealDelBtn:hover { color: #ef4444; }
 
-/* ── Food items in meal ── */
+/* â”€â”€ Food items in meal â”€â”€ */
 .foodItemsList { margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
 .foodItemRow {
   display: flex; align-items: center; gap: 8px;
@@ -413,7 +413,7 @@
 .foodItemDel { border: none; background: none; color: #fca5a5; cursor: pointer; padding: 2px; }
 .foodItemDel:hover { color: #ef4444; }
 
-/* ── Meal totals ── */
+/* â”€â”€ Meal totals â”€â”€ */
 .mealTotals {
   display: flex; align-items: center; gap: 12px; margin-top: 8px;
   font-size: 12px; color: #64748b; flex-wrap: wrap;
@@ -432,7 +432,7 @@
   background: var(--color-primary-bg, #f5f3ff); color: var(--color-primary); font-size: 13px; cursor: pointer; width: fit-content;
 }
 
-/* ── Food search ── */
+/* â”€â”€ Food search â”€â”€ */
 .foodSearchWrap { position: relative; margin-bottom: 4px; }
 .foodSearchInput {
   display: flex; align-items: center; gap: 8px;
@@ -463,7 +463,7 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Nutrition Tracker sidebar ── */
+/* â”€â”€ Nutrition Tracker sidebar â”€â”€ */
 .tracker {
   width: 240px; min-width: 240px; background: #fff;
   border-left: 1px solid #e2e8f0; padding: 20px 16px;
@@ -487,7 +487,7 @@
 }
 .trackerBarFill { height: 100%; border-radius: 99px; transition: width .3s; }
 
-/* ── Editor footer ── */
+/* â”€â”€ Editor footer â”€â”€ */
 .editorFooter {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 20px; background: #1e3a5f; gap: 8px;
@@ -495,3 +495,4 @@
 .editorFooter .btnClear {
   color: #93c5fd; border-color: #3b82f6; background: transparent;
 }
+

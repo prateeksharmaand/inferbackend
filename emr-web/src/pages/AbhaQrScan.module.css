@@ -1,4 +1,4 @@
-.container {
+﻿.container {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -62,7 +62,7 @@
 }
 
 .primaryBtn:hover:not(:disabled) {
-  background: #2563eb;
+  background: #7c3aed;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
@@ -233,7 +233,7 @@
 
 .successInfo p {
   margin: 8px 0;
-  color: #1e40af;
+  color: #6d28d9;
 }
 
 .successScreen h2 {
@@ -269,3 +269,4 @@
     height: 200px;
   }
 }
+

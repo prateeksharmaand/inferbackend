@@ -1,4 +1,4 @@
-/* ── Calculator grid (matches vitals grid style) ── */
+﻿/* â”€â”€ Calculator grid (matches vitals grid style) â”€â”€ */
 .rows {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -38,7 +38,7 @@
 }
 .rowBtn:hover { background: var(--color-primary); color: #fff; }
 
-/* ── Modal overlay ── */
+/* â”€â”€ Modal overlay â”€â”€ */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   display: flex; align-items: center; justify-content: center;
@@ -61,7 +61,7 @@
 .mHead {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   padding: 16px 20px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  background: linear-gradient(135deg, #eff6ff 0%, #ede9fe 100%);
 }
 .mHeadLeft { display: flex; align-items: flex-start; gap: 10px; }
 .mIcon {
@@ -82,14 +82,14 @@
   display: flex; flex: 1; overflow: hidden; min-height: 0;
 }
 
-/* Left pane — inputs */
+/* Left pane â€” inputs */
 .mLeft {
   width: 340px; flex-shrink: 0; overflow-y: auto;
   padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;
   border-right: 1px solid #e2e8f0;
 }
 
-/* Right pane — info tabs */
+/* Right pane â€” info tabs */
 .infoPanel {
   flex: 1; display: flex; flex-direction: column; overflow: hidden;
   background: #fafafa;
@@ -201,7 +201,7 @@
   font-size: 13px; font-weight: 600; transition: background .12s;
   height: 44px;
 }
-.mCalcBtn:hover { background: var(--color-primary-dk, #1d4ed8); }
+.mCalcBtn:hover { background: var(--color-primary-dk, #6d28d9); }
 
 /* Description + formula section */
 .mInfo {
@@ -226,3 +226,4 @@
   font-size: 11px; color: #1e293b; margin: 0;
   white-space: pre-wrap; line-height: 1.6;
 }
+
