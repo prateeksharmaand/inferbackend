@@ -194,23 +194,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER IF NOT EXISTS trigger_update_labs_timestamp
+-- PG 15 compatible: IF NOT EXISTS on triggers requires PG 16+
+-- Use DROP + CREATE pattern instead
+DROP TRIGGER IF EXISTS trigger_update_labs_timestamp ON laboratories;
+CREATE TRIGGER trigger_update_labs_timestamp
 BEFORE UPDATE ON laboratories
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
-CREATE TRIGGER IF NOT EXISTS trigger_update_results_timestamp
+DROP TRIGGER IF EXISTS trigger_update_results_timestamp ON lab_test_results;
+CREATE TRIGGER trigger_update_results_timestamp
 BEFORE UPDATE ON lab_test_results
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
 -- ============================================
--- DATA GRANTS
+-- DATA GRANTS (role created if missing)
 -- ============================================
+
+DO $$ BEGIN
+  CREATE ROLE emr_app_role NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON laboratories TO emr_app_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON lab_test_results TO emr_app_role;
-GRANT SELECT, INSERT, UPDATE, DELETE ON lab_anomalies TO emr_app_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON lab_audit_logs TO emr_app_role;
-GRANT SELECT, INSERT, UPDATE, DELETE ON encrypted_files TO emr_app_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emr_app_role;
