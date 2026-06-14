@@ -135,15 +135,9 @@ const deletePatient = async (req, res) => {
 // ── Care contexts ─────────────────────────────────────────────────────────────
 
 const addCareContext = async (req, res) => {
-  const { display, hi_type, fhir_content } = req.body;
+  const { display, hi_type } = req.body;
   if (!display) return res.status(400).json({ error: 'display required' });
   const refNum = `REF-${hip.uuid().slice(0, 8).toUpperCase()}`;
-  const { rows } = await pool.query(
-    `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content)
-     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-    [req.params.id, refNum, display, hi_type ?? 'OPConsultation', fhir_content ?? null]
-  );
-  const careCtx = rows[0];
 
   // Create sample FHIR Bundle for this care context
   const transactionId = hip.uuid();
@@ -290,7 +284,15 @@ const addCareContext = async (req, res) => {
     ],
   };
 
-  // Insert FHIR bundle into health_records
+  // Insert care context WITH fhir_content so it's used instead of buildFhirBundle
+  const { rows } = await pool.query(
+    `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content)
+     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [patientId, refNum, display, hi_type ?? 'OPConsultation', JSON.stringify(fhirBundle)]
+  );
+  const careCtx = rows[0];
+
+  // Also insert into health_records for audit/history
   try {
     await pool.query(
       `INSERT INTO health_records (transaction_id, care_context_id, fhir_bundle, received_at, hi_type)
