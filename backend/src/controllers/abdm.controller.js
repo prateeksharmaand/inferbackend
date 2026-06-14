@@ -448,9 +448,12 @@ const consentOnInit = async (req, res) => {
       updateResult = await pool.query(
         `UPDATE emr_consent_requests
            SET abdm_request_id=$1, updated_at=NOW()
-         WHERE abdm_request_id IS NULL AND status='REQUESTED'
-         ORDER BY created_at DESC
-         LIMIT 1`,
+         WHERE id = (
+           SELECT id FROM emr_consent_requests
+           WHERE abdm_request_id IS NULL AND status='REQUESTED'
+           ORDER BY created_at DESC
+           LIMIT 1
+         )`,
         [abdmConsentId]
       );
     }
