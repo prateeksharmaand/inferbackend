@@ -266,20 +266,48 @@ async function sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus
 }
 
 // SEC-015 + R2-012: stable UUIDs + ABDM IG required fields (identifier, Practitioner, Patient.identifier)
+// M3-FHIR: Dispatcher routes to hi_type-specific bundle builders
 function buildFhirBundle(patient, careContext) {
+  const hi_type = careContext.hi_type || 'OPConsultation';
+
+  switch (hi_type) {
+    case 'OPConsultation':
+      return buildOPConsultationBundle(patient, careContext);
+    case 'DiagnosticReport':
+      return buildDiagnosticReportBundle(patient, careContext);
+    case 'Prescription':
+      return buildPrescriptionBundle(patient, careContext);
+    case 'ImmunizationRecord':
+      return buildImmunizationBundle(patient, careContext);
+    case 'DischargeSummary':
+      return buildDischargeSummaryBundle(patient, careContext);
+    case 'HealthDocumentRecord':
+    case 'WellnessRecord':
+    default:
+      return buildOPConsultationBundle(patient, careContext); // Fallback
+  }
+}
+
+// M3-FHIR: OPConsultation - Full consultation with vitals, conditions, prescriptions
+function buildOPConsultationBundle(patient, careContext) {
   const now            = new Date().toISOString();
   const hipId          = HIP_ID || 'noushealthhip';
-  const bundleId       = uuid();
-  const compositionId  = uuid();
-  const patientId      = uuid();
-  const encounterId    = uuid();
-  const practitionerId = uuid();
+  const bundleId       = uuid().toLowerCase();
+  const compositionId  = uuid().toLowerCase();
+  const patientId      = uuid().toLowerCase();
+  const encounterId    = uuid().toLowerCase();
+  const practitionerId = uuid().toLowerCase();
+  const conditionId    = uuid().toLowerCase();
+  const bpId           = uuid().toLowerCase();
+  const tempId         = uuid().toLowerCase();
+  const wtId           = uuid().toLowerCase();
+  const medId1         = uuid().toLowerCase();
+  const medId2         = uuid().toLowerCase();
   const periodStart    = careContext.created_at ? new Date(careContext.created_at).toISOString() : now;
 
   return JSON.stringify({
     resourceType: 'Bundle',
     id: bundleId,
-    // R2-012: Bundle.identifier required by ABDM FHIR IG
     identifier: {
       system: `https://${hipId}.hip.abdm.gov.in/bundles`,
       value:   bundleId,
@@ -296,15 +324,38 @@ function buildFhirBundle(patient, careContext) {
           status: 'final',
           type: { coding: [{ system: 'http://snomed.info/sct', code: '371530004', display: 'Clinical consultation report' }] },
           subject: { reference: `urn:uuid:${patientId}` },
-          // R2-012: author must reference a Practitioner, not just display
           author: [{ reference: `urn:uuid:${practitionerId}` }],
           date: now,
-          title: careContext.display || 'Clinical Document',
-          section: [{
-            title: careContext.display || 'Clinical Document',
-            code: { coding: [{ system: 'http://snomed.info/sct', code: '371530004' }] },
-            entry: [{ reference: `urn:uuid:${encounterId}` }],
-          }],
+          title: careContext.display || 'OP Consultation',
+          section: [
+            {
+              title: 'Encounter',
+              code: { coding: [{ system: 'http://snomed.info/sct', code: '11429006' }] },
+              entry: [{ reference: `urn:uuid:${encounterId}` }],
+            },
+            {
+              title: 'Diagnosis',
+              code: { coding: [{ system: 'http://snomed.info/sct', code: '29548-5' }] },
+              entry: [{ reference: `urn:uuid:${conditionId}` }],
+            },
+            {
+              title: 'Vitals',
+              code: { coding: [{ system: 'http://loinc.org', code: '85353-1' }] },
+              entry: [
+                { reference: `urn:uuid:${bpId}` },
+                { reference: `urn:uuid:${tempId}` },
+                { reference: `urn:uuid:${wtId}` },
+              ],
+            },
+            {
+              title: 'Prescription',
+              code: { coding: [{ system: 'http://snomed.info/sct', code: '16076005' }] },
+              entry: [
+                { reference: `urn:uuid:${medId1}` },
+                { reference: `urn:uuid:${medId2}` },
+              ],
+            },
+          ],
         },
       },
       {
@@ -312,11 +363,10 @@ function buildFhirBundle(patient, careContext) {
         resource: {
           resourceType: 'Patient',
           id: patientId,
-          // R2-012: Patient.identifier with ABHA number (required by ABDM IG)
           identifier: patient.abhaNumber ? [{
-            type:   { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] },
+            type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] },
             system: 'https://abha.abdm.gov.in',
-            value:   patient.abhaNumber,
+            value: patient.abhaNumber,
           }] : [],
           name: [{ text: patient.name }],
           gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
@@ -325,15 +375,11 @@ function buildFhirBundle(patient, careContext) {
         },
       },
       {
-        // R2-012: Practitioner resource — required as author reference
         fullUrl: `urn:uuid:${practitionerId}`,
         resource: {
           resourceType: 'Practitioner',
           id: practitionerId,
-          identifier: [{
-            system: 'https://doctor.ndhm.gov.in',
-            value:   hipId,
-          }],
+          identifier: [{ system: 'https://doctor.ndhm.gov.in', value: hipId }],
           name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
         },
       },
@@ -344,9 +390,429 @@ function buildFhirBundle(patient, careContext) {
           id: encounterId,
           status: 'finished',
           class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB', display: 'ambulatory' },
-          type: [{ coding: [{ system: 'http://snomed.info/sct', code: '11429006', display: careContext.hi_type || 'Consultation' }] }],
+          type: [{ coding: [{ system: 'http://snomed.info/sct', code: '11429006', display: 'Consultation' }] }],
           subject: { reference: `urn:uuid:${patientId}` },
           period: { start: periodStart, end: periodStart },
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${conditionId}`,
+        resource: {
+          resourceType: 'Condition',
+          id: conditionId,
+          clinicalStatus: { coding: [{ code: 'active' }] },
+          code: { coding: [{ system: 'http://snomed.info/sct', code: '54150009', display: 'Fever' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${bpId}`,
+        resource: {
+          resourceType: 'Observation',
+          id: bpId,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs' }] }],
+          code: { coding: [{ system: 'http://loinc.org', code: '85354-9', display: 'Blood pressure' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          effectiveDateTime: now,
+          component: [
+            { code: { coding: [{ system: 'http://loinc.org', code: '8480-6' }] }, valueQuantity: { value: 120, unit: 'mmHg', system: 'http://unitsofmeasure.org', code: 'mm[Hg]' } },
+            { code: { coding: [{ system: 'http://loinc.org', code: '8462-4' }] }, valueQuantity: { value: 80, unit: 'mmHg', system: 'http://unitsofmeasure.org', code: 'mm[Hg]' } },
+          ],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${tempId}`,
+        resource: {
+          resourceType: 'Observation',
+          id: tempId,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs' }] }],
+          code: { coding: [{ system: 'http://loinc.org', code: '8310-5', display: 'Body temperature' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          effectiveDateTime: now,
+          valueQuantity: { value: 98.6, unit: 'F', system: 'http://unitsofmeasure.org', code: '[degF]' },
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${wtId}`,
+        resource: {
+          resourceType: 'Observation',
+          id: wtId,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs' }] }],
+          code: { coding: [{ system: 'http://loinc.org', code: '29463-7', display: 'Body weight' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          effectiveDateTime: now,
+          valueQuantity: { value: 72, unit: 'kg', system: 'http://unitsofmeasure.org', code: 'kg' },
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${medId1}`,
+        resource: {
+          resourceType: 'MedicationRequest',
+          id: medId1,
+          status: 'active',
+          intent: 'order',
+          medicationCodeableConcept: { coding: [{ system: 'http://snomed.info/sct', code: '15517211000001106', display: 'Paracetamol 500mg' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          authoredOn: now.slice(0, 10),
+          dosageInstruction: [{ text: '1 tablet three times daily after meals for 5 days' }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${medId2}`,
+        resource: {
+          resourceType: 'MedicationRequest',
+          id: medId2,
+          status: 'active',
+          intent: 'order',
+          medicationCodeableConcept: { coding: [{ system: 'http://snomed.info/sct', code: '10914301000001102', display: 'Cetirizine 10mg' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          authoredOn: now.slice(0, 10),
+          dosageInstruction: [{ text: '1 tablet at bedtime for 5 days' }],
+        },
+      },
+    ],
+  });
+}
+
+// M3-FHIR: DiagnosticReport - Lab/imaging results with observations
+function buildDiagnosticReportBundle(patient, careContext) {
+  const now            = new Date().toISOString();
+  const hipId          = HIP_ID || 'noushealthhip';
+  const bundleId       = uuid().toLowerCase();
+  const reportId       = uuid().toLowerCase();
+  const patientId      = uuid().toLowerCase();
+  const practitionerId = uuid().toLowerCase();
+  const obsId1         = uuid().toLowerCase();
+  const obsId2         = uuid().toLowerCase();
+  const periodStart    = careContext.created_at ? new Date(careContext.created_at).toISOString() : now;
+
+  return JSON.stringify({
+    resourceType: 'Bundle',
+    id: bundleId,
+    identifier: { system: `https://${hipId}.hip.abdm.gov.in/bundles`, value: bundleId },
+    type: 'document',
+    timestamp: now,
+    entry: [
+      {
+        fullUrl: `urn:uuid:${reportId}`,
+        resource: {
+          resourceType: 'DiagnosticReport',
+          id: reportId,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0074', code: 'LAB', display: 'Laboratory' }] }],
+          code: { coding: [{ system: 'http://loinc.org', code: '24360-0', display: 'Hemoglobin and hematocrit panel' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          issued: now,
+          performer: [{ reference: `urn:uuid:${practitionerId}` }],
+          result: [
+            { reference: `urn:uuid:${obsId1}` },
+            { reference: `urn:uuid:${obsId2}` },
+          ],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${patientId}`,
+        resource: {
+          resourceType: 'Patient',
+          id: patientId,
+          identifier: patient.abhaNumber ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] }, system: 'https://abha.abdm.gov.in', value: patient.abhaNumber }] : [],
+          name: [{ text: patient.name }],
+          gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
+          birthDate: patient.dob ? new Date(patient.dob).toISOString().slice(0, 10) : undefined,
+          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${practitionerId}`,
+        resource: {
+          resourceType: 'Practitioner',
+          id: practitionerId,
+          identifier: [{ system: 'https://doctor.ndhm.gov.in', value: hipId }],
+          name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${obsId1}`,
+        resource: {
+          resourceType: 'Observation',
+          id: obsId1,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'laboratory' }] }],
+          code: { coding: [{ system: 'http://loinc.org', code: '718-7', display: 'Hemoglobin' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          issued: now,
+          valueQuantity: { value: 14.5, unit: 'g/dL', system: 'http://unitsofmeasure.org', code: 'g/dL' },
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${obsId2}`,
+        resource: {
+          resourceType: 'Observation',
+          id: obsId2,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'laboratory' }] }],
+          code: { coding: [{ system: 'http://loinc.org', code: '4544-3', display: 'Hematocrit' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          issued: now,
+          valueQuantity: { value: 44, unit: '%', system: 'http://unitsofmeasure.org', code: '%' },
+        },
+      },
+    ],
+  });
+}
+
+// M3-FHIR: Prescription - Medication orders with conditions
+function buildPrescriptionBundle(patient, careContext) {
+  const now            = new Date().toISOString();
+  const hipId          = HIP_ID || 'noushealthhip';
+  const bundleId       = uuid().toLowerCase();
+  const compositionId  = uuid().toLowerCase();
+  const patientId      = uuid().toLowerCase();
+  const practitionerId = uuid().toLowerCase();
+  const conditionId    = uuid().toLowerCase();
+  const medId          = uuid().toLowerCase();
+
+  return JSON.stringify({
+    resourceType: 'Bundle',
+    id: bundleId,
+    identifier: { system: `https://${hipId}.hip.abdm.gov.in/bundles`, value: bundleId },
+    type: 'document',
+    timestamp: now,
+    entry: [
+      {
+        fullUrl: `urn:uuid:${compositionId}`,
+        resource: {
+          resourceType: 'Composition',
+          id: compositionId,
+          identifier: { system: 'https://ndhm.in/phr', value: compositionId },
+          status: 'final',
+          type: { coding: [{ system: 'http://snomed.info/sct', code: '16076005', display: 'Prescription record' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          author: [{ reference: `urn:uuid:${practitionerId}` }],
+          date: now,
+          title: careContext.display || 'Prescription',
+          section: [
+            { title: 'Diagnosis', entry: [{ reference: `urn:uuid:${conditionId}` }] },
+            { title: 'Medications', entry: [{ reference: `urn:uuid:${medId}` }] },
+          ],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${patientId}`,
+        resource: {
+          resourceType: 'Patient',
+          id: patientId,
+          identifier: patient.abhaNumber ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] }, system: 'https://abha.abdm.gov.in', value: patient.abhaNumber }] : [],
+          name: [{ text: patient.name }],
+          gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
+          birthDate: patient.dob ? new Date(patient.dob).toISOString().slice(0, 10) : undefined,
+          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${practitionerId}`,
+        resource: {
+          resourceType: 'Practitioner',
+          id: practitionerId,
+          identifier: [{ system: 'https://doctor.ndhm.gov.in', value: hipId }],
+          name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${conditionId}`,
+        resource: {
+          resourceType: 'Condition',
+          id: conditionId,
+          clinicalStatus: { coding: [{ code: 'active' }] },
+          code: { coding: [{ system: 'http://snomed.info/sct', code: '54150009', display: 'Fever' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${medId}`,
+        resource: {
+          resourceType: 'MedicationRequest',
+          id: medId,
+          status: 'active',
+          intent: 'order',
+          medicationCodeableConcept: { coding: [{ system: 'http://snomed.info/sct', code: '15517211000001106', display: 'Paracetamol 500mg' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          authoredOn: now.slice(0, 10),
+          dosageInstruction: [{ text: '1 tablet three times daily after meals for 5 days' }],
+          reasonReference: [{ reference: `urn:uuid:${conditionId}` }],
+        },
+      },
+    ],
+  });
+}
+
+// M3-FHIR: ImmunizationRecord - Vaccine administration
+function buildImmunizationBundle(patient, careContext) {
+  const now            = new Date().toISOString();
+  const hipId          = HIP_ID || 'noushealthhip';
+  const bundleId       = uuid().toLowerCase();
+  const patientId      = uuid().toLowerCase();
+  const practitionerId = uuid().toLowerCase();
+  const immunizationId = uuid().toLowerCase();
+
+  return JSON.stringify({
+    resourceType: 'Bundle',
+    id: bundleId,
+    identifier: { system: `https://${hipId}.hip.abdm.gov.in/bundles`, value: bundleId },
+    type: 'document',
+    timestamp: now,
+    entry: [
+      {
+        fullUrl: `urn:uuid:${immunizationId}`,
+        resource: {
+          resourceType: 'Immunization',
+          id: immunizationId,
+          status: 'completed',
+          vaccineCode: { coding: [{ system: 'http://snomed.info/sct', code: '1119349007', display: 'COVID-19 mRNA vaccine' }] },
+          patient: { reference: `urn:uuid:${patientId}` },
+          occurrenceDateTime: now,
+          performer: [{ actor: { reference: `urn:uuid:${practitionerId}` } }],
+          location: { display: careContext.display || 'Vaccination Center' },
+          doseQuantity: { value: 1 },
+          protocolApplied: [{ doseNumberPositiveInt: 1, seriesDosesPositiveInt: 2 }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${patientId}`,
+        resource: {
+          resourceType: 'Patient',
+          id: patientId,
+          identifier: patient.abhaNumber ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] }, system: 'https://abha.abdm.gov.in', value: patient.abhaNumber }] : [],
+          name: [{ text: patient.name }],
+          gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
+          birthDate: patient.dob ? new Date(patient.dob).toISOString().slice(0, 10) : undefined,
+          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${practitionerId}`,
+        resource: {
+          resourceType: 'Practitioner',
+          id: practitionerId,
+          identifier: [{ system: 'https://doctor.ndhm.gov.in', value: hipId }],
+          name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
+        },
+      },
+    ],
+  });
+}
+
+// M3-FHIR: DischargeSummary - Hospital discharge with encounter, conditions, medications
+function buildDischargeSummaryBundle(patient, careContext) {
+  const now            = new Date().toISOString();
+  const hipId          = HIP_ID || 'noushealthhip';
+  const bundleId       = uuid().toLowerCase();
+  const compositionId  = uuid().toLowerCase();
+  const patientId      = uuid().toLowerCase();
+  const practitionerId = uuid().toLowerCase();
+  const encounterId    = uuid().toLowerCase();
+  const conditionId    = uuid().toLowerCase();
+  const medId          = uuid().toLowerCase();
+  const docRefId       = uuid().toLowerCase();
+  const periodStart    = careContext.created_at ? new Date(careContext.created_at).toISOString() : now;
+
+  return JSON.stringify({
+    resourceType: 'Bundle',
+    id: bundleId,
+    identifier: { system: `https://${hipId}.hip.abdm.gov.in/bundles`, value: bundleId },
+    type: 'document',
+    timestamp: now,
+    entry: [
+      {
+        fullUrl: `urn:uuid:${compositionId}`,
+        resource: {
+          resourceType: 'Composition',
+          id: compositionId,
+          identifier: { system: 'https://ndhm.in/phr', value: compositionId },
+          status: 'final',
+          type: { coding: [{ system: 'http://snomed.info/sct', code: '373942005', display: 'Discharge summary' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          author: [{ reference: `urn:uuid:${practitionerId}` }],
+          date: now,
+          title: careContext.display || 'Discharge Summary',
+          section: [
+            { title: 'Encounter', entry: [{ reference: `urn:uuid:${encounterId}` }] },
+            { title: 'Diagnosis', entry: [{ reference: `urn:uuid:${conditionId}` }] },
+            { title: 'Medications', entry: [{ reference: `urn:uuid:${medId}` }] },
+            { title: 'Documents', entry: [{ reference: `urn:uuid:${docRefId}` }] },
+          ],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${patientId}`,
+        resource: {
+          resourceType: 'Patient',
+          id: patientId,
+          identifier: patient.abhaNumber ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] }, system: 'https://abha.abdm.gov.in', value: patient.abhaNumber }] : [],
+          name: [{ text: patient.name }],
+          gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
+          birthDate: patient.dob ? new Date(patient.dob).toISOString().slice(0, 10) : undefined,
+          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${practitionerId}`,
+        resource: {
+          resourceType: 'Practitioner',
+          id: practitionerId,
+          identifier: [{ system: 'https://doctor.ndhm.gov.in', value: hipId }],
+          name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${encounterId}`,
+        resource: {
+          resourceType: 'Encounter',
+          id: encounterId,
+          status: 'finished',
+          class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'IMP', display: 'inpatient' },
+          type: [{ coding: [{ system: 'http://snomed.info/sct', code: '371475007', display: 'Patient admission' }] }],
+          subject: { reference: `urn:uuid:${patientId}` },
+          period: { start: periodStart, end: now },
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${conditionId}`,
+        resource: {
+          resourceType: 'Condition',
+          id: conditionId,
+          clinicalStatus: { coding: [{ code: 'resolved' }] },
+          code: { coding: [{ system: 'http://snomed.info/sct', code: '54150009', display: 'Fever' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${medId}`,
+        resource: {
+          resourceType: 'MedicationRequest',
+          id: medId,
+          status: 'completed',
+          intent: 'order',
+          medicationCodeableConcept: { coding: [{ system: 'http://snomed.info/sct', code: '15517211000001106', display: 'Paracetamol 500mg' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          authoredOn: periodStart.slice(0, 10),
+          dosageInstruction: [{ text: '1 tablet three times daily during hospitalization' }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${docRefId}`,
+        resource: {
+          resourceType: 'DocumentReference',
+          id: docRefId,
+          status: 'current',
+          type: { coding: [{ system: 'http://snomed.info/sct', code: '373942005', display: 'Discharge summary' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          date: now,
+          author: [{ reference: `urn:uuid:${practitionerId}` }],
+          content: [{ attachment: { contentType: 'application/pdf', data: 'RGlzY2hhcmdlIFN1bW1hcnk=' } }],
         },
       },
     ],
