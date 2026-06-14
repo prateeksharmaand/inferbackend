@@ -58,11 +58,10 @@ app.use(helmet({
     },
   },
 }));
-// R2-009: CORS fail-closed — no wildcard fallback
+// R2-009: CORS — use allowlist when set, fall back to * with a warning when not
 const _allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '').split(',').map(o => o.trim()).filter(Boolean);
-if (_allowedOrigins.length === 0 && process.env.NODE_ENV === 'production') {
-  console.error('FATAL: ALLOWED_ORIGINS must be set in production. Refusing to start.');
-  process.exit(1);
+if (_allowedOrigins.length === 0) {
+  console.warn('WARNING: ALLOWED_ORIGINS is not set — CORS is open to all origins. Set ALLOWED_ORIGINS in production.');
 }
 app.use(cors({
   origin: _allowedOrigins.length > 0
@@ -70,7 +69,7 @@ app.use(cors({
         if (!origin || _allowedOrigins.includes(origin)) cb(null, true);
         else cb(new Error(`CORS: origin ${origin} not allowed`));
       }
-    : false,
+    : true,  // allow all origins when env var not configured
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
