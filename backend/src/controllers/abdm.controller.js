@@ -430,18 +430,32 @@ const consentOnInit = async (req, res) => {
     const abdmConsentId = req.body?.consentRequest?.id;
     const ourRequestId  = req.body?.resp?.requestId;
     logger.info('consent-requests/on-init', { abdmConsentId, ourRequestId });
-    if (!abdmConsentId || !ourRequestId) return;
+    if (!abdmConsentId) return;
 
-    // Store ABDM's assigned consent ID in abdm_request_id (keep our reqId as request_id for stability).
-    // The GRANTED notify will use ABDM's ID, so we need it stored separately to match later.
-    const res = await pool.query(
-      `UPDATE emr_consent_requests
-         SET abdm_request_id=$1, updated_at=NOW()
-       WHERE request_id=$2`,
-      [abdmConsentId, ourRequestId]
-    );
+    // If ABDM didn't send back our requestId, find the most recent pending consent for any patient
+    // (ABDM spec doesn't guarantee resp.requestId in on-init callback)
+    let updateResult;
+    if (ourRequestId) {
+      updateResult = await pool.query(
+        `UPDATE emr_consent_requests
+           SET abdm_request_id=$1, updated_at=NOW()
+         WHERE request_id=$2`,
+        [abdmConsentId, ourRequestId]
+      );
+    } else {
+      // Fallback: update the most recent REQUESTED consent with this ABDM ID
+      // (assumes only one consent-request/init in flight per patient at a time)
+      updateResult = await pool.query(
+        `UPDATE emr_consent_requests
+           SET abdm_request_id=$1, updated_at=NOW()
+         WHERE abdm_request_id IS NULL AND status='REQUESTED'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [abdmConsentId]
+      );
+    }
     logger.info('consent-requests/on-init: stored abdm_request_id', {
-      abdmConsentId, ourRequestId, emrRowsUpdated: res.rowCount,
+      abdmConsentId, ourRequestId, rowsUpdated: updateResult.rowCount,
     });
   } catch (err) {
     logger.error('consentOnInit error', err.message);
