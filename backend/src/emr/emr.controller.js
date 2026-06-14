@@ -398,18 +398,14 @@ const registerAbhaPatient = async (req, res) => {
 
   if (!name) return res.status(400).json({ error: 'name is required' });
 
-  // 1. Find existing patient by ABHA number or address
-  const { rows: existing } = await pool.query(
-    `SELECT * FROM emr_patients WHERE abha_number=$1 OR abha_address=$2 LIMIT 1`,
-    [abhaNumber || null, abhaAddress || null]
-  );
+  // 1. Resolve patient via abha_mappings — ABHA Number is the primary identity key
+  const { patient: found, matchedBy } = await AbhaIdentity.findPatient(pool, { abhaNumber, abhaAddress });
 
   let patient;
   let isNew = false;
 
-  if (existing.length) {
-    // Update existing — refresh ABHA fields and mark linked
-    const pt = existing[0];
+  if (found) {
+    // Update demographics if richer data came in via QR
     const { rows: updated } = await pool.query(
       `UPDATE emr_patients
          SET abha_number=$1, abha_address=$2,
@@ -421,20 +417,23 @@ const registerAbhaPatient = async (req, res) => {
              is_abdm_linked=true, abdm_linked_at=NOW()
        WHERE id=$8 RETURNING *`,
       [abhaNumber||null, abhaAddress||null, name, gender||null,
-       dob||null, phoneNumber||null, address ? JSON.stringify(address) : null, pt.id]
+       dob||null, phoneNumber||null, address ? JSON.stringify(address) : null, found.id]
     );
     patient = updated[0];
+    // Attach the new ABHA address to the existing patient's mappings
+    await AbhaIdentity.attachAbha(pool, found.id, { abhaNumber, abhaAddress, source: 'qr' });
   } else {
-    // Create new patient
+    // Truly new patient — create with proper mapping
     const { rows: created } = await pool.query(
       `INSERT INTO emr_patients
-         (name, mobile, dob, gender, abha_number, abha_address, address, is_abdm_linked, abdm_linked_at)
-       VALUES ($1,$2,$3::date,$4,$5,$6,$7::jsonb,true,NOW()) RETURNING *`,
+         (name, mobile, dob, gender, abha_number, abha_address, address, is_abdm_linked, abdm_linked_at, clinic_id)
+       VALUES ($1,$2,$3::date,$4,$5,$6,$7::jsonb,true,NOW(),$8) RETURNING *`,
       [name, phoneNumber||null, dob||null, gender||'M', abhaNumber||null, abhaAddress||null,
-       address ? JSON.stringify(address) : null]
+       address ? JSON.stringify(address) : null, req.emrUser?.clinic_id || null]
     );
     patient = created[0];
     isNew = true;
+    await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source: 'qr' });
   }
 
   // 2. Create care context if encounter details provided

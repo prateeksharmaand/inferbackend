@@ -9,6 +9,7 @@ const DB_MIGRATIONS_DIR = path.join(__dirname, '../src/db/migrations');
 
 const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, 'security_hardening_20260614.sql'),
+  path.join(__dirname, 'abha_identity_20260614.sql'),   // abha_mappings table
 ];
 
 async function runMigrations(pool, logger) {

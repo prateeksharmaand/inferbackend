@@ -3,6 +3,7 @@ const logger      = require('../utils/logger');
 const hip         = require('./hip.service');
 const crypto      = require('crypto');
 const bcrypt      = require('bcryptjs');
+const AbhaIdentity = require('./abha.identity');
 
 // ── ABDM gateway → HIP: care-context discovery ───────────────────────────────
 
@@ -93,11 +94,11 @@ const handleLinkInit = async (req, res) => {
     const patientId    = patient?.id ?? req.body.abhaAddress ?? req.body.patientId ?? '';
     logger.info('HIP link/init', { requestId, transactionId, careContextCount: careContexts.length });
 
-    const { rows } = await pool.query(
-      `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
-      [patientId]
-    );
-    const pt = rows[0] ?? null;
+    // Check abha_mappings first (supports multiple ABHA addresses per patient)
+    const { patient: foundPt } = await AbhaIdentity.findPatient(pool, {
+      abhaNumber: patientId, abhaAddress: patientId,
+    });
+    const pt = foundPt ?? null;
 
     // R2-011: supersede ALL pending sessions for this patient (expired or not)
     // so the unique index never blocks the new INSERT
