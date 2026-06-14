@@ -122,7 +122,11 @@ const getPatient = async (req, res) => {
     `SELECT * FROM emr_care_contexts WHERE patient_id=$1 ORDER BY created_at DESC`,
     [patient.id]
   );
-  res.json({ ...patient, care_contexts: ctxs });
+  const { rows: abhaAddrs } = await pool.query(
+    `SELECT DISTINCT abha_address FROM abha_mappings WHERE patient_id=$1 AND status='active' AND abha_address IS NOT NULL ORDER BY linked_at DESC`,
+    [patient.id]
+  );
+  res.json({ ...patient, care_contexts: ctxs, abha_addresses: abhaAddrs.map(r => r.abha_address) });
 };
 
 const updatePatient = async (req, res) => {

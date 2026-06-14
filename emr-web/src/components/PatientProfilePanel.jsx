@@ -122,7 +122,7 @@ function PastVisits({ history, loading, currentId }) {
 }
 
 // ── Patient Overview ──────────────────────────────────────────────────────────
-function PatientOverview({ appt, history }) {
+function PatientOverview({ appt, history, abhaAddresses }) {
   const age    = fmtAge(appt.patient_dob);
   const gender = appt.patient_gender === 'M' ? 'Male' : appt.patient_gender === 'F' ? 'Female' : appt.patient_gender;
   const totalVisits = history.length;
@@ -148,6 +148,22 @@ function PatientOverview({ appt, history }) {
           <span className={styles.overviewValue}>{r.value}</span>
         </div>
       ))}
+      {abhaAddresses.length > 1 && (
+        <div className={styles.overviewRow}>
+          <span className={styles.overviewLabel}>ABHA Address</span>
+          <select style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--color-border)', fontSize: 13, fontFamily: 'inherit' }}>
+            {abhaAddresses.map(addr => (
+              <option key={addr} value={addr}>{addr}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      {abhaAddresses.length === 1 && (
+        <div className={styles.overviewRow}>
+          <span className={styles.overviewLabel}>ABHA Address</span>
+          <span className={styles.overviewValue}>{abhaAddresses[0]}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -591,6 +607,7 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
   const [recLoading,     setRecLoading]     = useState(true);
   const [medHistory,     setMedHistory]     = useState(appt.medical_history || []);
   const [savingMH,       setSavingMH]       = useState(false);
+  const [abhaAddresses,  setAbhaAddresses]  = useState([]);
 
   useEffect(() => {
     const mobile = appt.patient_mobile;
@@ -614,6 +631,17 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
         .catch(() => setRecLoading(false));
     } else {
       setRecLoading(false);
+    }
+
+    // Fetch ABHA addresses if patient has an ID
+    if (appt.emr_patient_id || appt.patient_id) {
+      api.get(`/patients/${appt.emr_patient_id || appt.patient_id}`)
+        .then(patient => {
+          if (patient.abha_addresses?.length > 0) {
+            setAbhaAddresses(patient.abha_addresses);
+          }
+        })
+        .catch(() => {});
     }
   }, [appt.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -669,7 +697,7 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
               <PastVisits history={history} loading={histLoading} currentId={appt.id} />
             )}
             {tab === 'Patient Overview' && (
-              <PatientOverview appt={appt} history={history} />
+              <PatientOverview appt={appt} history={history} abhaAddresses={abhaAddresses} />
             )}
             {tab === 'Treatments' && (
               <Treatments history={history} />

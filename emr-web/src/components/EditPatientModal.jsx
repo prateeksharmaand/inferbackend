@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserCog, X, Check } from 'lucide-react';
 import { api } from '../api/client';
 import styles from './BookAppointmentModal.module.css';
@@ -14,6 +14,7 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
     patient_dob:    appt.patient_dob    ? appt.patient_dob.slice(0, 10) : '',
     patient_gender: appt.patient_gender || 'M',
     patient_abha:   appt.patient_abha   || '',
+    patient_abha_address: appt.patient_abha_address || '',
     visit_type:     appt.visit_type     || 'OPConsultation',
     channel:        appt.channel        || 'walk_in',
     notes:          appt.notes          || '',
@@ -21,8 +22,22 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
   const [medicalHistory, setMedicalHistory] = useState(
     normalizeMedHistory(appt.medical_history)
   );
+  const [abhaAddresses, setAbhaAddresses] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
+
+  // Fetch ABHA addresses if patient has ABHA number
+  useEffect(() => {
+    if (appt.emr_patient_id || appt.patient_id) {
+      api.get(`/patients/${appt.emr_patient_id || appt.patient_id}`)
+        .then(patient => {
+          if (patient.abha_addresses && patient.abha_addresses.length > 0) {
+            setAbhaAddresses(patient.abha_addresses);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [appt.emr_patient_id, appt.patient_id]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -81,6 +96,18 @@ export default function EditPatientModal({ appt, onClose, onSaved }) {
               <input value={form.patient_abha}
                 onChange={e => set('patient_abha', e.target.value)} placeholder="12-3456-7890-1234" />
             </div>
+            {abhaAddresses.length > 1 && (
+              <div className={styles.field}>
+                <label>ABHA Address</label>
+                <select value={form.patient_abha_address}
+                  onChange={e => set('patient_abha_address', e.target.value)}>
+                  <option value="">Select address...</option>
+                  {abhaAddresses.map(addr => (
+                    <option key={addr} value={addr}>{addr}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className={styles.field}>
               <label>Visit Type</label>
               <select value={form.visit_type} onChange={e => set('visit_type', e.target.value)}>
