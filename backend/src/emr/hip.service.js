@@ -46,22 +46,54 @@ const HIECM   = process.env.ABDM_HIECM_URL   || 'https://dev.abdm.gov.in/api/hie
 const CLIENT_ID     = process.env.ABDM_CLIENT_ID;
 const CLIENT_SECRET = process.env.ABDM_CLIENT_SECRET;
 const HIP_ID        = process.env.ABDM_HIP_ID || CLIENT_ID;
+// SEC-025: environment-driven CM ID — 'sbx' for sandbox, 'abdm' for production
+const CM_ID = process.env.ABDM_CM_ID || (process.env.NODE_ENV === 'production' ? 'abdm' : 'sbx');
+
+// R2-001: SSRF protection — allowed domains for health data push
+const _ABDM_KNOWN_PUSH_DOMAINS = [
+  'abdm.gov.in', 'ndhm.gov.in', 'dev.abdm.gov.in',
+  'sandbox.abdm.gov.in', 'healthlocker.abdm.gov.in',
+];
+const _EXTRA_PUSH_DOMAINS = (process.env.ABDM_DATAPUSH_ALLOWED_HOSTS || '')
+  .split(',').map(h => h.trim()).filter(Boolean);
+const _ALLOWED_PUSH_DOMAINS = [..._ABDM_KNOWN_PUSH_DOMAINS, ..._EXTRA_PUSH_DOMAINS];
+
+const _BLOCKED_PREFIXES = [
+  '127.', '10.', '192.168.', '169.254.',
+  '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.',
+  '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.',
+  '172.28.', '172.29.', '172.30.', '172.31.',
+];
+const _BLOCKED_HOSTS = ['localhost', 'postgres', 'fhir', 'redis', 'whisper', '::1'];
+
+function validateDataPushUrl(urlStr) {
+  let parsed;
+  try { parsed = new URL(urlStr); } catch {
+    throw new Error(`dataPushUrl is not a valid URL`);
+  }
+  if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+    throw new Error(`dataPushUrl must use HTTPS in production`);
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (_BLOCKED_HOSTS.includes(host) || _BLOCKED_PREFIXES.some(p => host.startsWith(p))) {
+    throw new Error(`dataPushUrl targets a blocked internal host: ${host}`);
+  }
+  const allowed = _ALLOWED_PUSH_DOMAINS.some(d => host === d || host.endsWith(`.${d}`));
+  if (!allowed) throw new Error(`dataPushUrl host not in allowlist: ${host}`);
+}
 
 let _token = null;
 let _tokenExpiry = 0;
 
-function uuid() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = (Math.random() * 16) | 0;
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
+// R2-004: cryptographically secure UUID (replaces Math.random version)
+const { randomUUID } = require('crypto');
+function uuid() { return randomUUID(); }
 
 async function getToken() {
   if (_token && Date.now() < _tokenExpiry) return _token;
   const res = await axios.post(`${HIECM}/gateway/v3/sessions`,
     { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
-    { headers: { 'Content-Type': 'application/json', 'X-CM-ID': 'sbx', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
+    { headers: { 'Content-Type': 'application/json', 'X-CM-ID': CM_ID, 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
   );
   _token = res.data.accessToken;
   _tokenExpiry = Date.now() + ((res.data.expiresIn ?? 300) - 30) * 1000;
@@ -74,7 +106,7 @@ async function gwGet(path) {
     const res = await axios.get(`${GATEWAY}${path}`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-CM-ID': 'sbx',
+        'X-CM-ID': CM_ID,
         'REQUEST-ID': uuid(),
         TIMESTAMP: new Date().toISOString(),
       },
@@ -93,13 +125,19 @@ async function gwPost(path, body) {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'X-CM-ID': 'sbx',
+        'X-CM-ID': CM_ID,
         'REQUEST-ID': uuid(),
         TIMESTAMP: new Date().toISOString(),
       },
     });
   } catch (err) {
-    logger.error('HIP gateway callback failed', { path, status: err.response?.status, body: err.response?.data });
+    // R2-015: log only error metadata, not full response body
+    logger.error('HIP gateway callback failed', {
+      path,
+      status: err.response?.status,
+      errorCode: err.response?.data?.error?.code,
+      errorMsg:  err.response?.data?.error?.message,
+    });
     throw err;
   }
 }
@@ -111,7 +149,7 @@ async function hiecmPost(path, body) {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'X-CM-ID': 'sbx',
+        'X-CM-ID': CM_ID,
         'X-HIP-ID': HIP_ID,
         'REQUEST-ID': uuid(),
         TIMESTAMP: new Date().toISOString(),
@@ -137,7 +175,8 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber }) {
     },
     response: { requestId },
   };
-  logger.info('on-share request body', body);
+  // R2-008: never log tokenNumber
+  logger.info('on-share ack sending', { requestId, hasAbhaAddress: !!abhaAddress });
   await hiecmPost('/patient-share/v3/on-share', body);
 }
 
@@ -182,18 +221,6 @@ async function sendLinkInitResult({ requestId, transactionId, linkRefNumber }) {
   });
 }
 
-async function sendOtpSms({ abhaAddress, otp }) {
-  await gwPost('/v0.5/patients/sms/notify', {
-    requestId: uuid(),
-    timestamp: new Date().toISOString(),
-    notification: {
-      phoneNo: null,
-      hip: { id: HIP_ID, name: HIP_ID },
-      abhaAddress,
-      message: `Your OTP for linking health records with ${HIP_ID} is ${otp}. Valid for 10 minutes.`,
-    },
-  });
-}
 
 async function sendLinkConfirmResult({ requestId, patientId, careContexts }) {
   const mapped = careContexts.map(c => ({
@@ -224,50 +251,88 @@ async function sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus
   });
 }
 
+// SEC-015 + R2-012: stable UUIDs + ABDM IG required fields (identifier, Practitioner, Patient.identifier)
 function buildFhirBundle(patient, careContext) {
-  const now = new Date().toISOString();
+  const now            = new Date().toISOString();
+  const hipId          = HIP_ID || 'infer-hip';
+  const bundleId       = uuid();
+  const compositionId  = uuid();
+  const patientId      = uuid();
+  const encounterId    = uuid();
+  const practitionerId = uuid();
+  const periodStart    = careContext.created_at ? new Date(careContext.created_at).toISOString() : now;
+
   return JSON.stringify({
     resourceType: 'Bundle',
-    id: uuid(),
+    id: bundleId,
+    // R2-012: Bundle.identifier required by ABDM FHIR IG
+    identifier: {
+      system: `https://${hipId}.hip.abdm.gov.in/bundles`,
+      value:   bundleId,
+    },
     type: 'document',
     timestamp: now,
     entry: [
       {
-        fullUrl: `urn:uuid:${uuid()}`,
+        fullUrl: `urn:uuid:${compositionId}`,
         resource: {
           resourceType: 'Composition',
+          id: compositionId,
+          identifier: { system: 'https://ndhm.in/phr', value: compositionId },
           status: 'final',
-          type: { coding: [{ system: 'http://snomed.info/sct', code: '371530004', display: careContext.display }] },
-          subject: { reference: `Patient/${uuid()}`, display: patient.name },
+          type: { coding: [{ system: 'http://snomed.info/sct', code: '371530004', display: 'Clinical consultation report' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          // R2-012: author must reference a Practitioner, not just display
+          author: [{ reference: `urn:uuid:${practitionerId}` }],
           date: now,
-          author: [{ display: 'EMR Test HIP' }],
-          title: careContext.display,
+          title: careContext.display || 'Clinical Document',
           section: [{
-            title: careContext.display,
+            title: careContext.display || 'Clinical Document',
             code: { coding: [{ system: 'http://snomed.info/sct', code: '371530004' }] },
-            entry: [{ reference: `Encounter/${uuid()}` }],
+            entry: [{ reference: `urn:uuid:${encounterId}` }],
           }],
         },
       },
       {
-        fullUrl: `urn:uuid:${uuid()}`,
+        fullUrl: `urn:uuid:${patientId}`,
         resource: {
           resourceType: 'Patient',
+          id: patientId,
+          // R2-012: Patient.identifier with ABHA number (required by ABDM IG)
+          identifier: patient.abhaNumber ? [{
+            type:   { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] },
+            system: 'https://abha.abdm.gov.in',
+            value:   patient.abhaNumber,
+          }] : [],
           name: [{ text: patient.name }],
           gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
-          birthDate: patient.dob ?? undefined,
-          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile }] : [],
+          birthDate: patient.dob ? patient.dob.toString().slice(0, 10) : undefined,
+          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
         },
       },
       {
-        fullUrl: `urn:uuid:${uuid()}`,
+        // R2-012: Practitioner resource — required as author reference
+        fullUrl: `urn:uuid:${practitionerId}`,
+        resource: {
+          resourceType: 'Practitioner',
+          id: practitionerId,
+          identifier: [{
+            system: 'https://doctor.ndhm.gov.in',
+            value:   hipId,
+          }],
+          name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${encounterId}`,
         resource: {
           resourceType: 'Encounter',
+          id: encounterId,
           status: 'finished',
-          class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
-          type: [{ coding: [{ system: 'http://snomed.info/sct', code: '11429006', display: careContext.hi_type }] }],
-          subject: { display: patient.name },
-          period: { start: careContext.created_at ?? now, end: careContext.created_at ?? now },
+          class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB', display: 'ambulatory' },
+          type: [{ coding: [{ system: 'http://snomed.info/sct', code: '11429006', display: careContext.hi_type || 'Consultation' }] }],
+          subject: { reference: `urn:uuid:${patientId}` },
+          period: { start: periodStart, end: periodStart },
         },
       },
     ],
@@ -311,8 +376,10 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
   // Encode private key as big-endian 32-byte base64 (matches Fidelius ECPrivateKey.getD())
   const hipPrivBase64 = Buffer.from(hipScalar.toString(16).padStart(64, '0'), 'hex').toString('base64');
 
-  // Write params one-per-line; --filepath avoids shell arg-length limits on large FHIR bundles
-  const tmpFile = path.join(os.tmpdir(), `fidelius-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.txt`);
+  // SEC-012: write PHI to a restricted subdirectory, delete synchronously after use
+  const tmpDir = path.join(os.tmpdir(), 'fidelius-hip');
+  fs.mkdirSync(tmpDir, { recursive: true, mode: 0o700 });
+  const tmpFile = path.join(tmpDir, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.txt`);
   fs.writeFileSync(tmpFile, [
     'e',                           // command must be first line when using -f
     plaintext,
@@ -320,34 +387,37 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     hiuNonceBase64,                // requester nonce (HIU)
     hipPrivBase64,                 // sender private key (HIP)
     hiuPubKeyBase64,               // requester public key (HIU) — raw 65-byte 04||X||Y
-  ].join('\n'));
+  ].join('\n'), { mode: 0o600 }); // owner-only read
 
   try {
     const raw = await _callFidelius(['-f', tmpFile]);
-    // fidelius-cli returns {"encryptedData":"<base64>"} — extract the value
     const encryptedData = (JSON.parse(raw)).encryptedData ?? raw;
     logger.info('[ENCRYPT] fidelius-cli encrypt ok', { plaintextLen: plaintext.length, encLen: encryptedData.length });
     return {
       encryptedData,
-      hipPublicKey: _buildSpki(hipPubBytes).toString('base64'), // SPKI DER with correct BC25519 Gy
+      hipPublicKey: _buildSpki(hipPubBytes).toString('base64'),
       hipNonce:     hipNonce.toString('base64'),
     };
   } catch (err) {
-    logger.warn('[ENCRYPT] fidelius-cli encrypt failed', { error: err.message });
-    return { encryptedData: Buffer.from(plaintext).toString('base64'), hipPublicKey: null, hipNonce: null };
+    // R2-005: NEVER fall back to base64 — that is unencrypted PHI.
+    logger.error('[ENCRYPT] fidelius-cli encrypt FAILED — aborting health data push', { error: err.message });
+    throw new Error(`Fidelius encryption failed: ${err.message}`);
   } finally {
-    fs.unlink(tmpFile, () => {});
+    // SEC-012: synchronous delete — guaranteed cleanup even on thrown errors
+    try { fs.unlinkSync(tmpFile); } catch (e) {
+      logger.error('CRITICAL: failed to delete fidelius PHI tmpfile', { tmpFile, error: e.message });
+    }
   }
 }
 
 async function pushHealthData({ dataPushUrl, transactionId, careContexts, patient, keyMaterial }) {
-  console.log('[PUSH] pushHealthData called', {
-    dataPushUrl,
+  // SEC-010: no PHI, key material values, or dataPushUrl in logs
+  logger.info('[PUSH] pushHealthData called', {
     transactionId,
     careContextCount: careContexts?.length,
     cryptoAlg: keyMaterial?.cryptoAlg,
     curve: keyMaterial?.curve,
-    keyValueLen: keyMaterial?.dhPublicKey?.keyValue ? Buffer.from(keyMaterial.dhPublicKey.keyValue, 'base64').length : 0,
+    hasKeyValue: !!keyMaterial?.dhPublicKey?.keyValue,
     hasNonce: !!keyMaterial?.nonce,
   });
   const hiuNonce  = keyMaterial?.nonce ?? '';
@@ -359,7 +429,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       ? ctx.fhir_content
       : buildFhirBundle(patient, ctx); // already returns JSON.stringify'd string
 
-    const checksum = crypto.createHash('md5').update(fhir).digest('hex');
+    const checksum = crypto.createHash('sha256').update(fhir).digest('hex');
     let content;
 
     if (hiuPubKey && hiuNonce) {
@@ -387,13 +457,21 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries };
   if (respondingKeyMaterial) pushBody.keyMaterial = respondingKeyMaterial;
 
-  logger.info('HIP transfer payload', { payload: JSON.stringify(pushBody) });
+  // SEC-010: never log encrypted health payload
+  logger.info('HIP transfer payload ready', { transactionId, entryCount: entries.length, encrypted: !!respondingKeyMaterial });
+
+  // R2-001: validate URL before calling (SSRF protection)
+  validateDataPushUrl(dataPushUrl);
 
   // Small delay to ensure ABDM has registered the transaction before we push
   await new Promise(r => setTimeout(r, 3000));
 
-  await axios.post(dataPushUrl, pushBody);
+  // R2-010: 30-second timeout to prevent indefinite hangs
+  await axios.post(dataPushUrl, pushBody, {
+    timeout: 30_000,
+    headers: { 'Content-Type': 'application/json' },
+  });
   logger.info('HIP health data pushed', { transactionId, entries: entries.length, encrypted: !!respondingKeyMaterial });
 }
 
-module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendOtpSms, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
+module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };

@@ -9,10 +9,11 @@ const logger   = require('../utils/logger');
 const listPatients = async (req, res) => {
   const { q } = req.query;
   const clinicId = req.emrUser?.clinic_id;
+  // SEC-009: no SQL interpolation — uhidSub uses $3 parameter (passed below)
   const uhidSub = clinicId
     ? `(SELECT a.uhid FROM emr_appointments a
         WHERE a.patient_mobile = p.mobile AND a.uhid IS NOT NULL AND a.uhid != ''
-          AND a.clinic_id = ${parseInt(clinicId, 10)}
+          AND a.clinic_id = $3
         ORDER BY a.created_at DESC LIMIT 1) AS uhid`
     : `NULL AS uhid`;
 
@@ -112,8 +113,13 @@ const updatePatient = async (req, res) => {
 };
 
 const deletePatient = async (req, res) => {
-  await pool.query(`DELETE FROM emr_patients WHERE id=$1`, [req.params.id]);
-  res.json({ message: 'Deleted' });
+  // SEC-018: soft delete — retain records per medical data retention requirements
+  const { rowCount } = await pool.query(
+    `UPDATE emr_patients SET deleted_at=NOW(), deleted_by_id=$1 WHERE id=$2 AND deleted_at IS NULL`,
+    [req.emrUser.id, req.params.id]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Patient not found' });
+  res.json({ message: 'Patient deactivated' });
 };
 
 // ── Care contexts ─────────────────────────────────────────────────────────────
@@ -139,12 +145,20 @@ const deleteCareContext = async (req, res) => {
 // ── Pending OTPs (EMR staff sees these to relay to patient) ──────────────────
 
 const pendingOtps = async (req, res) => {
+  // R2-002: explicit columns — otp/otp_hash NEVER returned to client
   const { rows } = await pool.query(
-    `SELECT s.*, p.name AS patient_name, p.mobile AS patient_mobile
+    `SELECT
+       s.id, s.link_ref_number, s.transaction_id,
+       s.care_contexts, s.otp_expires_at, s.status,
+       s.otp_attempt_count, s.created_at,
+       p.name AS patient_name, p.mobile AS patient_mobile
      FROM hip_link_sessions s
      LEFT JOIN emr_patients p ON p.id = s.patient_id
-     WHERE s.status='pending_otp' AND s.otp_expires_at > NOW()
-     ORDER BY s.created_at DESC`
+     WHERE s.status='pending_otp'
+       AND s.otp_expires_at > NOW()
+       AND (p.clinic_id = $1 OR p.clinic_id IS NULL)
+     ORDER BY s.created_at DESC`,
+    [req.emrUser.clinic_id]
   );
   res.json(rows);
 };
@@ -251,14 +265,16 @@ const createConsentRequest = async (req, res) => {
 };
 
 const listConsentRequests = async (req, res) => {
+  const hiuId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+  // SEC-011: scope PHR app consents to this clinic's HIU ID only
   const { rows } = await pool.query(
     `SELECT request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, status, transaction_id, artefacts, created_at, updated_at, 'emr' AS source
      FROM emr_consent_requests WHERE clinic_id=$1
      UNION ALL
      SELECT request_id, NULL AS patient_abha, NULL AS hip_id, hiu_id, purpose, NULL AS hi_types, status, transaction_id, NULL AS artefacts, created_at, updated_at, 'app' AS source
-     FROM consent_requests
+     FROM consent_requests WHERE hiu_id=$2
      ORDER BY created_at DESC LIMIT 100`,
-    [req.emrUser.clinic_id]
+    [req.emrUser.clinic_id, hiuId]
   );
   res.json(rows);
 };
@@ -324,7 +340,7 @@ async function _pullHealthData(requestId, clinicId) {
       ? (typeof ctx.fhir_content === 'string' ? ctx.fhir_content : JSON.stringify(ctx.fhir_content))
       : hip.buildFhirBundle(patient, careContext);
     const content  = Buffer.from(fhir).toString('base64');
-    const checksum = crypto.createHash('md5').update(fhir).digest('hex');
+    const checksum = crypto.createHash('sha256').update(fhir).digest('hex');
 
     await pool.query(
       `INSERT INTO health_records (transaction_id, care_context_reference, content, media, checksum)
@@ -621,7 +637,9 @@ const abhaVerifyConfirm = async (req, res) => {
         [abhaNum, abhaAddr, req.params.id]
       );
     }
-    res.json({ profile, xToken });
+    // SEC-013: xToken is a session credential — never expose to client
+    // Store in DB and return opaque session key if multi-step flow needs it
+    res.json({ profile });
   } catch (err) {
     res.status(err.status || 502).json({ error: err.message });
   }
@@ -780,7 +798,8 @@ const abhaLoginVerifyOtp = async (req, res) => {
     if (xToken) {
       try { profile = await abdmSvc.getAbhaProfile(xToken); } catch (_) {}
     }
-    res.json({ ...verifyResult, xToken, profile });
+    // SEC-013: xToken never returned to client
+    res.json({ profile });
   } catch (err) {
     res.status(err.status || 502).json({ error: err.message });
   }

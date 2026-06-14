@@ -4,8 +4,14 @@ const crypto   = require('crypto');
 const nodemailer = require('nodemailer');
 const { pool } = require('../config/database');
 
-const JWT_SECRET  = process.env.JWT_SECRET || 'infer-emr-secret';
+const JWT_SECRET  = (() => {
+  const s = process.env.JWT_SECRET;
+  if (!s || s.length < 32) throw new Error('FATAL: JWT_SECRET must be set and be at least 32 characters');
+  return s;
+})();
 const JWT_EXPIRES = '12h';
+const BCRYPT_ROUNDS = 12;
+const MIN_PASSWORD_LENGTH = 12;
 
 function sign(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
@@ -59,7 +65,7 @@ const registerClinic = async (req, res) => {
   if (!clinic_name || !admin_email || !admin_password)
     return res.status(400).json({ error: 'clinic_name, admin_email, admin_password required' });
 
-  const hash = await bcrypt.hash(admin_password, 10);
+  const hash = await bcrypt.hash(admin_password, BCRYPT_ROUNDS);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -132,7 +138,7 @@ const addDoctor = async (req, res) => {
     }
   }
 
-  const hash = await bcrypt.hash(password, 10);
+  const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const { rows } = await pool.query(
     `INSERT INTO emr_doctors (clinic_id, name, email, password_hash, specialization, qualification, registration_no, google_review_link)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, name, email, specialization, google_review_link`,
@@ -282,7 +288,7 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   const { token, role = 'staff', new_password } = req.body;
   if (!token || !new_password) return res.status(400).json({ error: 'token and new_password required' });
-  if (new_password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (new_password.length < MIN_PASSWORD_LENGTH) return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
 
   const { rows } = await pool.query(
     `SELECT email FROM emr_password_resets WHERE token=$1 AND role=$2 AND expires_at > NOW()`,
@@ -292,7 +298,7 @@ const resetPassword = async (req, res) => {
 
   const { email } = rows[0];
   const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
-  const hash  = await bcrypt.hash(new_password, 10);
+  const hash  = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
 
   await pool.query(`UPDATE ${table} SET password_hash=$1 WHERE email=$2`, [hash, email]);
   await pool.query(`DELETE FROM emr_password_resets WHERE email=$1 AND role=$2`, [email, role]);
@@ -304,7 +310,7 @@ const resetPassword = async (req, res) => {
 const changePassword = async (req, res) => {
   const { current_password, new_password } = req.body;
   if (!current_password || !new_password) return res.status(400).json({ error: 'current_password and new_password required' });
-  if (new_password.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  if (new_password.length < MIN_PASSWORD_LENGTH) return res.status(400).json({ error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters` });
 
   const { id, role } = req.emrUser;
   const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
@@ -315,7 +321,7 @@ const changePassword = async (req, res) => {
   const ok = await bcrypt.compare(current_password, rows[0].password_hash);
   if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
 
-  const hash = await bcrypt.hash(new_password, 10);
+  const hash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
   await pool.query(`UPDATE ${table} SET password_hash=$1 WHERE id=$2`, [hash, id]);
 
   res.json({ message: 'Password changed successfully.' });

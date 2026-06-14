@@ -1,5 +1,27 @@
-const router  = require('express').Router();
+const router    = require('express').Router();
+const rateLimit = require('express-rate-limit');
 const { emrAuth } = require('./emr.middleware');
+
+// SEC-023: tight rate limit for all ABHA OTP generation endpoints (3 per 10 min per IP)
+const otpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many OTP requests. Please wait 10 minutes before trying again.' },
+  keyGenerator: (req) => req.ip + ':otp',
+});
+
+// Login endpoints already have the global authLimiter in server.js (10/15min)
+// but add an extra tight limiter on the EMR login path
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  keyGenerator: (req) => req.ip + ':' + (req.body?.email || ''),
+});
 const auth      = require('./emr.auth.controller');
 const labStaff  = require('./emr.labstaff.controller');
 const emr     = require('./emr.controller');
@@ -21,7 +43,7 @@ const rxpublic    = require('./emr.rxpublic.controller');
 const subscription = require('./emr.subscription.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
-router.post('/auth/login',            auth.login);
+router.post('/auth/login',            loginLimiter, auth.login);
 router.post('/auth/register-clinic',  auth.registerClinic);
 router.post('/auth/lab/login',        labStaff.loginStaff);
 router.post('/auth/forgot-password',  auth.forgotPassword);
@@ -89,17 +111,17 @@ router.delete('/patients/:id',                     emr.deletePatient);
 router.post  ('/patients/:id/care-contexts',       emr.addCareContext);
 router.delete('/patients/:id/care-contexts/:ctxId',emr.deleteCareContext);
 
-// ABHA Creation (M1)
-router.post('/patients/:id/abha/create-otp',        emr.abhaCreateOtp);
+// ABHA Creation (M1) — OTP endpoints rate-limited
+router.post('/patients/:id/abha/create-otp',        otpLimiter, emr.abhaCreateOtp);
 router.post('/patients/:id/abha/create-verify',     emr.abhaCreateVerify);
-router.post('/patients/:id/abha/mobile-otp',        emr.abhaCreateMobileOtp);
+router.post('/patients/:id/abha/mobile-otp',        otpLimiter, emr.abhaCreateMobileOtp);
 router.post('/patients/:id/abha/mobile-verify',     emr.abhaCreateMobileVerify);
 router.post('/patients/:id/abha/suggestions',       emr.abhaGetSuggestions);
 router.post('/patients/:id/abha/set-address',       emr.abhaSetAddress);
 router.get ('/patients/:id/abha/card',              emr.abhaGetCard);
 
 // ABHA Verification / Linking (M1)
-router.post('/patients/:id/abha/verify-otp',        emr.abhaVerifyOtp);
+router.post('/patients/:id/abha/verify-otp',        otpLimiter, emr.abhaVerifyOtp);
 router.post('/patients/:id/abha/verify-confirm',    emr.abhaVerifyConfirm);
 
 // Queues
@@ -168,21 +190,21 @@ router.get   ('/profile-shares',                        emr.listProfileShares);
 router.patch ('/profile-shares/:id/dismiss',            emr.dismissProfileShare);
 router.post  ('/profile-shares/:id/link-patient',       emr.linkProfileShareToPatient);
 
-// Add Patient via Aadhaar (standalone)
-router.post('/abha/aadhaar-otp',          emr.abhaCreateOtp);
+// Add Patient via Aadhaar (standalone) — OTP endpoints rate-limited
+router.post('/abha/aadhaar-otp',          otpLimiter, emr.abhaCreateOtp);
 router.post('/abha/aadhaar-verify',       emr.abhaCreateVerify);
-router.post('/abha/aadhaar-mobile-otp',   emr.abhaCreateMobileOtp);
+router.post('/abha/aadhaar-mobile-otp',   otpLimiter, emr.abhaCreateMobileOtp);
 router.post('/abha/aadhaar-mobile-verify',emr.abhaCreateMobileVerify);
 router.post('/abha/aadhaar-suggestions',  emr.abhaGetSuggestions);
 router.post('/abha/aadhaar-set-address',  emr.abhaAadhaarSetAddress);
 router.post('/abha/aadhaar-finalize',     emr.abhaAadhaarCreate);
 
 // Add Patient via ABHA (standalone — no existing patient needed)
-router.post('/abha/request-otp',   emr.abhaAddOtp);
+router.post('/abha/request-otp',   otpLimiter, emr.abhaAddOtp);
 router.post('/abha/verify-create', emr.abhaAddCreate);
 
 // Login with ABHA (patient verification at point of care)
-router.post('/abha/login-request-otp',  emr.abhaLoginRequestOtp);
+router.post('/abha/login-request-otp',  otpLimiter, emr.abhaLoginRequestOtp);
 router.post('/abha/login-verify-otp',   emr.abhaLoginVerifyOtp);
 router.post('/abha/login-update-mobile',emr.abhaLoginUpdateMobile);
 router.post('/abha/login-link-patient', emr.abhaLoginLinkPatient);
@@ -379,6 +401,16 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
     console.error('Lab reports error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// R2-006: authenticated file download — medical documents require valid EMR JWT
+router.get('/uploads/:filename', (req, res) => {
+  const fs        = require('fs');
+  const pathMod   = require('path');
+  const filename  = pathMod.basename(req.params.filename); // prevent path traversal
+  const filePath  = pathMod.join(__dirname, '../../uploads', filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+  res.sendFile(filePath);
 });
 
 // Analytics dashboards

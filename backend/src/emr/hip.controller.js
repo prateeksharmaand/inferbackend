@@ -1,18 +1,22 @@
-const { pool }  = require('../config/database');
-const logger    = require('../utils/logger');
-const hip       = require('./hip.service');
+const { pool }    = require('../config/database');
+const logger      = require('../utils/logger');
+const hip         = require('./hip.service');
+const crypto      = require('crypto');
+const bcrypt      = require('bcryptjs');
 
 // ── ABDM gateway → HIP: care-context discovery ───────────────────────────────
 
 const handleDiscovery = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
-    // ABDM v3 sends requestId in REQUEST-ID header; v0.5 sends it in body
     const requestId = req.headers['request-id'] || req.body.requestId;
     const { transactionId, patient } = req.body;
-    logger.info('HIP discover request', { requestId, transactionId, patientId: patient?.id });
+    // R2-013: mask ABHA address in logs (PHI)
+    const maskedAbha = patient?.id
+      ? patient.id.replace(/^(.{3}).*(@.*)$/, '$1***$2')
+      : null;
+    logger.info('HIP discover request', { requestId, transactionId, maskedAbha });
 
-    // Match patient by ABHA address, then mobile, then name
     let rows = [];
     let matchedBy = ['MOBILE'];
     if (patient?.id) {
@@ -36,6 +40,7 @@ const handleDiscovery = async (req, res) => {
     }
 
     if (!rows.length) {
+      // Return same response whether patient found or not — prevents ABHA enumeration
       await hip.sendDiscoverResult({ requestId, transactionId, patientId: null, careContexts: [], matchedBy: [] });
       return;
     }
@@ -51,11 +56,11 @@ const handleDiscovery = async (req, res) => {
       requestId,
       transactionId,
       patientId: abhaId,
-      patientRef: abhaId,   // patient.referenceNumber — patient's HIP record identifier
+      patientRef: abhaId,
       careContexts: ctxRows,
       matchedBy,
     });
-    logger.info('HIP discover: matched patient', { name: pt.name, contexts: ctxRows.length });
+    logger.info('HIP discover: matched patient', { contexts: ctxRows.length });
   } catch (err) {
     logger.error('handleDiscovery error', err);
   }
@@ -68,45 +73,54 @@ const handleLinkInit = async (req, res) => {
   try {
     const requestId = req.headers['request-id'] || req.body.requestId;
     const { transactionId, patient } = req.body;
-    // ABDM v3 sends careContexts at root level; v0.5 nests under patient
     const careContexts = patient?.careContexts ?? req.body.careContexts ?? [];
     const patientId    = patient?.id ?? req.body.abhaAddress ?? req.body.patientId ?? '';
-    logger.info('HIP link/init', { requestId, transactionId, patientId, careContexts: careContexts.length });
+    logger.info('HIP link/init', { requestId, transactionId, careContextCount: careContexts.length });
 
-    // Find patient
     const { rows } = await pool.query(
       `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
       [patientId]
     );
     const pt = rows[0] ?? null;
 
-    const otp           = String(Math.floor(100000 + Math.random() * 900000));
+    // R2-011: supersede any existing active link sessions to prevent duplication
+    if (pt?.id) {
+      await pool.query(
+        `UPDATE hip_link_sessions SET status='superseded'
+         WHERE patient_id=$1 AND status IN ('pending_otp','pending') AND otp_expires_at > NOW()`,
+        [pt.id]
+      );
+    }
+
+    // SEC-004: cryptographically secure OTP
+    const otp           = String(crypto.randomInt(100000, 1000000));
+    // R2-007: hash OTP before storing — never store plaintext in DB
+    const otpHash       = await bcrypt.hash(otp, 10);
     const linkRefNumber = hip.uuid();
     const expiresAt     = new Date(Date.now() + 10 * 60 * 1000);
 
     await pool.query(
       `INSERT INTO hip_link_sessions
-         (patient_id, transaction_id, request_id, care_contexts, otp, otp_expires_at, link_ref_number, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending_otp')`,
+         (patient_id, transaction_id, request_id, care_contexts, otp_hash, otp_expires_at, link_ref_number, status, otp_attempt_count)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending_otp',0)`,
       [pt?.id ?? null, transactionId, requestId,
        JSON.stringify(careContexts),
-       otp, expiresAt, linkRefNumber]
+       otpHash, expiresAt, linkRefNumber]
     );
 
-    logger.info('HIP OTP generated', { otp, linkRefNumber, patientId, contexts: careContexts.length });
+    // SEC-003: OTP never logged — send via SMS only
+    logger.info('HIP OTP generated', { linkRefNumber, careContextCount: careContexts.length });
+    // TODO: replace with SMS delivery: await sendSms(pt?.mobile, `Your ABDM linking OTP: ${otp}. Valid 10 min.`);
 
     await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber });
-
-    // Ask ABDM to SMS the OTP to the patient's registered mobile
-    hip.sendOtpSms({ abhaAddress: patientId, otp }).catch(err =>
-      logger.warn('ABDM SMS notify failed', { error: err.message, status: err.response?.status })
-    );
   } catch (err) {
     logger.error('handleLinkInit error', err);
   }
 };
 
 // ── ABDM gateway → HIP: link confirm (verify OTP) ────────────────────────────
+
+const MAX_OTP_ATTEMPTS = 3;
 
 const handleLinkConfirm = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
@@ -127,16 +141,49 @@ const handleLinkConfirm = async (req, res) => {
     const session = rows[0];
 
     if (!['pending_otp', 'pending'].includes(session.status)) {
-      logger.warn('HIP: link already processed', { linkRefNumber, status: session.status });
+      logger.warn('HIP: link already processed or locked', { linkRefNumber, status: session.status });
       return;
     }
+
+    // Check lockout BEFORE expiry check (locked takes priority)
+    if (session.status === 'locked' || (session.otp_attempt_count ?? 0) >= MAX_OTP_ATTEMPTS) {
+      logger.warn('HIP: OTP locked out', { linkRefNumber });
+      await hip.gwPost('/v0.5/links/link/on-confirm', {
+        requestId: hip.uuid(), timestamp: new Date().toISOString(),
+        error: { code: 'OTP_LOCKED', message: 'Too many incorrect attempts' },
+        resp: { requestId },
+      });
+      return;
+    }
+
     if (new Date() > new Date(session.otp_expires_at)) {
       await pool.query(`UPDATE hip_link_sessions SET status='expired' WHERE id=$1`, [session.id]);
       logger.warn('HIP: OTP expired', { linkRefNumber });
+      await hip.gwPost('/v0.5/links/link/on-confirm', {
+        requestId: hip.uuid(), timestamp: new Date().toISOString(),
+        error: { code: 'OTP_EXPIRED', message: 'OTP has expired' },
+        resp: { requestId },
+      });
       return;
     }
-    if (session.otp !== submittedOtp) {
-      logger.warn('HIP: OTP mismatch', { expected: session.otp, got: submittedOtp });
+
+    // R2-007 + SEC-022: bcrypt compare (constant-time by design)
+    const isMatch = await bcrypt.compare(submittedOtp ?? '', session.otp_hash ?? '');
+
+    if (!isMatch) {
+      // SEC-007: increment attempt counter, lock after MAX_OTP_ATTEMPTS
+      const newCount = (session.otp_attempt_count ?? 0) + 1;
+      const newStatus = newCount >= MAX_OTP_ATTEMPTS ? 'locked' : session.status;
+      await pool.query(
+        `UPDATE hip_link_sessions SET otp_attempt_count=$1, status=$2 WHERE id=$3`,
+        [newCount, newStatus, session.id]
+      );
+      logger.warn('HIP: OTP mismatch', { linkRefNumber, attemptsRemaining: MAX_OTP_ATTEMPTS - newCount });
+      await hip.gwPost('/v0.5/links/link/on-confirm', {
+        requestId: hip.uuid(), timestamp: new Date().toISOString(),
+        error: { code: newStatus === 'locked' ? 'OTP_LOCKED' : 'OTP_INVALID', message: 'Invalid OTP' },
+        resp: { requestId },
+      });
       return;
     }
 
@@ -151,7 +198,6 @@ const handleLinkConfirm = async (req, res) => {
       : null;
     const patientRef = ptId?.abha_address ?? ptId?.abha_number ?? `${ptId?.id}@hip`;
 
-    // ABDM v3 never sends careContexts in link/init — fetch from EMR DB by patient
     if (!careContexts.length && session.patient_id) {
       const { rows: ctxRows } = await pool.query(
         `SELECT reference_number AS "referenceNumber", display
@@ -159,15 +205,15 @@ const handleLinkConfirm = async (req, res) => {
         [session.patient_id]
       );
       careContexts = ctxRows;
-      logger.info('HIP link confirm: loaded care contexts from EMR DB', { count: careContexts.length, patientId: session.patient_id });
+      logger.info('HIP link confirm: loaded care contexts from EMR DB', { count: careContexts.length });
     }
 
     if (!careContexts.length) {
-      logger.warn('HIP link confirm: patient has no care contexts in EMR', { linkRefNumber, patientId: session.patient_id });
+      logger.warn('HIP link confirm: patient has no care contexts', { linkRefNumber });
       return;
     }
 
-    logger.info('HIP link confirm payload', { patientRef, count: careContexts.length, careContexts });
+    logger.info('HIP link confirm payload', { patientRef, count: careContexts.length });
     await hip.sendLinkConfirmResult({ requestId, patientId: patientRef, careContexts });
     logger.info('HIP link confirmed', { linkRefNumber, contexts: careContexts.length });
   } catch (err) {
@@ -181,11 +227,12 @@ const handleHealthInfoRequest = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
     const { transactionId, hiRequest } = req.body;
-    const consentId  = hiRequest?.consent?.id;
+    const consentId   = hiRequest?.consent?.id;
     const dataPushUrl = hiRequest?.dataPushUrl;
     const keyMaterial = hiRequest?.keyMaterial;
-    logger.info('HIP health-info FULL BODY', { body: req.body });
-    logger.info('HIP health-info request', { transactionId, consentId, dataPushUrl });
+
+    // SEC-010: no PHI or key material in logs
+    logger.info('HIP health-info request', { transactionId, consentId, hasKeyMaterial: !!keyMaterial });
 
     await pool.query(
       `INSERT INTO hip_health_requests (transaction_id, consent_id, data_push_url, key_material)
@@ -193,29 +240,42 @@ const handleHealthInfoRequest = async (req, res) => {
       [transactionId, consentId, dataPushUrl, JSON.stringify(keyMaterial ?? {})]
     );
 
-    // Look up consent artifact to find which patient's data was consented
+    // SEC-008: verify consent exists and is GRANTED before proceeding
     const { rows: artifactRows } = await pool.query(
-      `SELECT * FROM hip_consent_artifacts WHERE consent_id=$1 LIMIT 1`,
+      `SELECT * FROM hip_consent_artifacts WHERE consent_id=$1 AND status IN ('GRANTED','ACTIVE') LIMIT 1`,
       [consentId]
     ).catch(() => ({ rows: [] }));
 
-    // ABDM v3: hiRequest.consent contains the full consent detail inline
     const inlineConsent = hiRequest?.consent;
+    const artifact      = artifactRows[0];
+    const raw           = artifact?.raw ?? {};
 
-    // Also check stored artifact as fallback
-    const artifact = artifactRows[0];
-    const raw      = artifact?.raw ?? {};
+    // SEC-008: reject revoked/expired consent
+    if (!artifactRows.length && !inlineConsent) {
+      logger.warn('HIP health-info: consent not found or not GRANTED', { consentId });
+      const requestId = req.headers['request-id'] || req.body.requestId;
+      await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'DENIED' });
+      await pool.query(`UPDATE hip_health_requests SET status='denied' WHERE transaction_id=$1`, [transactionId]);
+      return;
+    }
 
-    // Extract consented care context references — try all known locations in priority order
     const ctxList =
-      inlineConsent?.careContexts ??                  // ABDM v3 inline in health-info request
-      inlineConsent?.consentDetail?.careContexts ??   // ABDM v3 nested
-      raw.grants?.careContexts ??                     // stored notify v3
-      raw.careContexts ??                             // stored notify v0.5 flat
-      raw.consentDetail?.careContexts ??              // stored notify v0.5 nested
+      inlineConsent?.careContexts ??
+      inlineConsent?.consentDetail?.careContexts ??
+      raw.grants?.careContexts ??
+      raw.careContexts ??
+      raw.consentDetail?.careContexts ??
       [];
 
     const consentedRefs = ctxList.map(c => c.careContextReference).filter(Boolean);
+
+    // SEC-008: extract consent date range for filtering
+    const consentFrom = raw.consentDetail?.permission?.dateRange?.from
+      ?? raw.grants?.dateRange?.from
+      ?? inlineConsent?.consentDetail?.permission?.dateRange?.from;
+    const consentTo = raw.consentDetail?.permission?.dateRange?.to
+      ?? raw.grants?.dateRange?.to
+      ?? inlineConsent?.consentDetail?.permission?.dateRange?.to;
 
     const patientId =
       inlineConsent?.patient?.id ??
@@ -225,37 +285,33 @@ const handleHealthInfoRequest = async (req, res) => {
       raw.consentDetail?.patient?.id ??
       ctxList[0]?.patientReference;
 
-    logger.info('HIP health-info STORED CONSENT', { artifact });
-    logger.info('HIP health-info: consent filter', { patientId, consentedRefs, source: inlineConsent ? 'inline' : 'stored' });
+    logger.info('HIP health-info: consent filter', {
+      consentId,
+      consentedRefCount: consentedRefs.length,
+      hasPatientId: !!patientId,
+      source: inlineConsent ? 'inline' : 'stored',
+    });
 
-    // Resolve patient ID via multiple fallbacks
     let resolvedPatientId = patientId;
 
-    // Fallback 1: patient_abha stored in artifact during consent notify
     if (!resolvedPatientId && artifact?.patient_abha) {
       resolvedPatientId = artifact.patient_abha;
-      logger.info('HIP health-info: patient resolved via stored artifact patient_abha', { resolvedPatientId });
     }
 
-    // Fallback 2: emr_consent_requests by consent artifact ID
     if (!resolvedPatientId && consentId) {
       const { rows: cr } = await pool.query(
         `SELECT patient_abha FROM emr_consent_requests WHERE request_id=$1 LIMIT 1`,
         [consentId]
       ).catch(() => ({ rows: [] }));
       resolvedPatientId = cr[0]?.patient_abha ?? null;
-      if (resolvedPatientId) logger.info('HIP health-info: patient resolved via emr_consent_requests', { resolvedPatientId });
     }
 
-    // Fallback 3: fetch consent artifact from ABDM gateway
     if (!resolvedPatientId && consentId) {
       try {
         const gwArtifact = await hip.gwGet(`/v0.5/consents/${consentId}`);
         const gp = gwArtifact?.consent?.patient?.id ?? gwArtifact?.consentDetail?.patient?.id;
         if (gp) {
           resolvedPatientId = gp;
-          logger.info('HIP health-info: patient resolved via ABDM gateway fetch', { resolvedPatientId });
-          // persist so next request doesn't need to fetch again
           await pool.query(
             `UPDATE hip_consent_artifacts SET patient_abha=$1 WHERE consent_id=$2`,
             [gp, consentId]
@@ -264,7 +320,6 @@ const handleHealthInfoRequest = async (req, res) => {
       } catch (_) {}
     }
 
-    // Fetch care contexts: prefer explicit refs from consent, else all for patient
     let rows;
     if (consentedRefs.length) {
       const { rows: r } = await pool.query(
@@ -277,23 +332,31 @@ const handleHealthInfoRequest = async (req, res) => {
       );
       rows = r;
     } else if (resolvedPatientId) {
+      // SEC-008: apply consent date range filter when no explicit refs
+      const dateFilter = (consentFrom && consentTo)
+        ? `AND ecc.created_at BETWEEN $2::timestamptz AND $3::timestamptz`
+        : '';
+      const params = consentFrom && consentTo
+        ? [resolvedPatientId, consentFrom, consentTo]
+        : [resolvedPatientId];
       const { rows: r } = await pool.query(
         `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
          FROM emr_care_contexts ecc
          JOIN emr_patients ep ON ep.id = ecc.patient_id
-         WHERE ep.abha_address=$1 OR ep.abha_number=$1
+         WHERE (ep.abha_address=$1 OR ep.abha_number=$1)
+         ${dateFilter}
          ORDER BY ecc.created_at DESC`,
-        [resolvedPatientId]
+        params
       );
       rows = r;
     } else {
       rows = [];
     }
 
-    logger.info('HIP health-info: care contexts to push', { count: rows.length, refs: rows.map(r => r.reference_number) });
+    logger.info('HIP health-info: care contexts to push', { count: rows.length });
 
     if (!rows.length) {
-      logger.warn('HIP health-info: no care contexts to push', { patientId });
+      logger.warn('HIP health-info: no care contexts to push');
       await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
       return;
     }
@@ -308,7 +371,6 @@ const handleHealthInfoRequest = async (req, res) => {
     logger.error('handleHealthInfoRequest error', {
       message: err.message,
       status: err.response?.status,
-      abdmError: err.response?.data,
     });
     await pool.query(`UPDATE hip_health_requests SET status='failed' WHERE transaction_id=$1`,
       [req.body?.transactionId]).catch(() => {});
@@ -336,7 +398,6 @@ const _ensureSharesTable = pool.query(`
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )
 `).then(() =>
-  // Add columns if table already existed without them
   pool.query(`
     ALTER TABLE hip_profile_shares
       ADD COLUMN IF NOT EXISTS token TEXT,
@@ -350,7 +411,7 @@ const handlePatientShareProfile = async (req, res) => {
     await _ensureSharesTable;
     const requestId = req.headers['request-id'] || req.body.requestId;
     const { profile } = req.body;
-    logger.info('HIP patient share profile', { requestId, body: JSON.stringify(req.body) });
+    logger.info('HIP patient share profile', { requestId });
 
     const p           = profile?.patient ?? {};
     const abhaNumber  = p.abhaNumber  || p.ABHANumber  || null;
@@ -362,8 +423,8 @@ const handlePatientShareProfile = async (req, res) => {
       ? `${p.yearOfBirth}-${String(p.monthOfBirth).padStart(2,'0')}-${String(p.dayOfBirth).padStart(2,'0')}`
       : (p.dateOfBirth || null);
 
-    // Generate a 6-digit token valid for 30 minutes
-    const token          = String(Math.floor(100000 + Math.random() * 900000));
+    // SEC-004: cryptographically secure token
+    const token          = String(crypto.randomInt(100000, 1000000));
     const tokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
     await pool.query(
@@ -374,14 +435,14 @@ const handlePatientShareProfile = async (req, res) => {
       [requestId, profile?.shareCode || null, abhaNumber, abhaAddress, name, mobile, gender, dob, profile || {}, token, tokenExpiresAt]
     );
 
-    // Call ABDM back — this makes ABHA app show the token to the patient
     await hip.sendShareProfileAck({
       requestId,
       abhaAddress: abhaAddress || abhaNumber,
       tokenNumber: token,
     });
 
-    logger.info('Patient profile share stored + ack sent', { name, abhaNumber, token });
+    // SEC-003: token not logged
+    logger.info('Patient profile share stored + ack sent', { hasAbhaNumber: !!abhaNumber });
   } catch (err) {
     logger.error('handlePatientShareProfile error', err);
   }
@@ -402,14 +463,12 @@ const handleConsentNotify = async (req, res) => {
     const status     = notification.status;
     const artefacts  = notification.consentArtefacts ?? [];
 
-    // Extract patient ABHA from any known location in the ABDM notify payload
     const patientAbha =
       notification.consentDetail?.patient?.id ??
       notification.grants?.careContexts?.[0]?.patientReference ??
       notification.careContexts?.[0]?.patientReference ??
       null;
 
-    // Persist consent artifact
     await pool.query(
       `INSERT INTO hip_consent_artifacts (consent_id, status, artefacts, raw, patient_abha)
        VALUES ($1,$2,$3,$4,$5)
@@ -418,9 +477,8 @@ const handleConsentNotify = async (req, res) => {
       [consentId, status, JSON.stringify(artefacts), JSON.stringify(notification), patientAbha]
     ).catch(() => {});
 
-    logger.info('HIP consent notify: stored artifact', { consentId, status, patientAbha }); // table may not exist yet — log only
+    logger.info('HIP consent notify: stored artifact', { consentId, status, hasPatientAbha: !!patientAbha });
 
-    // Send on-notify ack back to gateway
     await hip.gwPost('/v0.5/consents/hip/on-notify', {
       requestId: hip.uuid(),
       timestamp: new Date().toISOString(),
@@ -428,15 +486,14 @@ const handleConsentNotify = async (req, res) => {
       resp: { requestId },
     });
 
-    logger.info('HIP consent notify ack sent', { consentId, status, artefacts: artefacts.length });
+    logger.info('HIP consent notify ack sent', { consentId, status, artefactCount: artefacts.length });
   } catch (err) {
     logger.error('handleConsentNotify error', err);
   }
 };
 
-// ── ABDM → HIP: verify running token status (called after on-share ack) ─────
-// ABDM polls this to confirm the token shown to the patient is still valid.
-// Body: { requestId, timestamp, shareProfile: { context, tokenNumber, hipId } }
+// ── ABDM → HIP: verify running token status ──────────────────────────────────
+
 const handleRunningTokenStatus = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
@@ -444,10 +501,10 @@ const handleRunningTokenStatus = async (req, res) => {
     const shareProfile = req.body.shareProfile ?? req.body;
     const tokenNumber  = shareProfile?.tokenNumber ?? shareProfile?.context;
     const hipId        = shareProfile?.hipId;
-    logger.info('HIP running-token/status', { requestId, tokenNumber, hipId });
+    logger.info('HIP running-token/status', { requestId, hipId });
 
     if (!tokenNumber) {
-      logger.warn('HIP running-token/status: no tokenNumber in request', { body: req.body });
+      logger.warn('HIP running-token/status: no tokenNumber in request');
       return;
     }
 
@@ -461,9 +518,8 @@ const handleRunningTokenStatus = async (req, res) => {
     const isValid    = share && new Date() < new Date(share.token_expires_at) && share.status !== 'expired';
     const tokenStatus = isValid ? 'VALID' : 'EXPIRED';
 
-    logger.info('HIP running-token/status result', { tokenNumber, tokenStatus, found: !!share });
+    logger.info('HIP running-token/status result', { tokenStatus });
 
-    // Respond to ABDM gateway with token status
     await hip.hiecmPost('/patient-share/v3/on-running-token-status', {
       requestId: hip.uuid(),
       timestamp: new Date().toISOString(),

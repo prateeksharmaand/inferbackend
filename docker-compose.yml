@@ -57,11 +57,17 @@ services:
   fhir:
     image: hapiproject/hapi:latest
     container_name: phr_fhir
+    # SEC-021: FHIR server is internal-only — not exposed to internet; backend reaches it via internal network
+    expose:
+      - "8080"
     environment:
       hapi.fhir.default_encoding: json
       hapi.fhir.fhir_version: R4
-      hapi.fhir.allow_external_references: "true"
-      hapi.fhir.expunge_enabled: "true"
+      hapi.fhir.allow_external_references: "false"
+      hapi.fhir.expunge_enabled: "false"
+      # Enable basic auth — use hapi-fhir application.yaml for full auth config
+      spring.security.user.name: ${FHIR_USER:-fhiruser}
+      spring.security.user.password: ${FHIR_PASSWORD}
     volumes:
       - fhir_data:/data/hapi
     depends_on:

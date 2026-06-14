@@ -1,7 +1,12 @@
 const crypto = require('crypto');
 
 const ALGORITHM = 'aes-256-cbc';
-const KEY = Buffer.from(process.env.ENCRYPTION_KEY || 'default32charencryptionkeyhere!!', 'utf8').slice(0, 32);
+const KEY = (() => {
+  const raw = process.env.ENCRYPTION_KEY;
+  if (!raw || Buffer.from(raw, 'utf8').length < 32)
+    throw new Error('FATAL: ENCRYPTION_KEY must be set and at least 32 UTF-8 bytes');
+  return Buffer.from(raw, 'utf8').slice(0, 32);
+})();
 
 function encrypt(text) {
   const iv = crypto.randomBytes(16);

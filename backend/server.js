@@ -19,6 +19,26 @@ const inboundWebhook = require('./src/emr/inbound/inbound.webhook.controller');
 const waWebhook      = require('./src/emr/inbound/whatsapp.webhook.controller');
 const { sendPendingReminders } = require('./src/emr/inbound/booking.orchestrator');
 
+// ── Startup environment validation (fail fast before any DB connections) ──────
+const REQUIRED_ENV = [
+  'JWT_SECRET', 'ENCRYPTION_KEY', 'DB_PASSWORD',
+  'ABDM_CLIENT_ID', 'ABDM_CLIENT_SECRET',
+];
+for (const k of REQUIRED_ENV) {
+  if (!process.env[k]) {
+    console.error(`FATAL: Required environment variable ${k} is not set. Refusing to start.`);
+    process.exit(1);
+  }
+}
+if ((process.env.JWT_SECRET ?? '').length < 32) {
+  console.error('FATAL: JWT_SECRET must be at least 32 characters. Refusing to start.');
+  process.exit(1);
+}
+if (Buffer.from(process.env.ENCRYPTION_KEY ?? '', 'utf8').length < 32) {
+  console.error('FATAL: ENCRYPTION_KEY must be at least 32 UTF-8 bytes. Refusing to start.');
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -38,9 +58,35 @@ app.use(helmet({
     },
   },
 }));
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*', credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] }));
+// R2-009: CORS fail-closed — no wildcard fallback
+const _allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '').split(',').map(o => o.trim()).filter(Boolean);
+if (_allowedOrigins.length === 0 && process.env.NODE_ENV === 'production') {
+  console.error('FATAL: ALLOWED_ORIGINS must be set in production. Refusing to start.');
+  process.exit(1);
+}
+app.use(cors({
+  origin: _allowedOrigins.length > 0
+    ? (origin, cb) => {
+        if (!origin || _allowedOrigins.includes(origin)) cb(null, true);
+        else cb(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    : false,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+}));
 app.use(compression());
-app.use(morgan('combined', { stream: { write: (msg) => logger.info(msg.trim()) } }));
+// R2-016: custom Morgan token that redacts sensitive query params (ABHA, tokens, OTPs)
+morgan.token('safe-url', (req) => {
+  try {
+    const u = new URL(req.url, 'http://x');
+    ['abha','abhaNumber','aadhaar','token','xToken','otp','mobile'].forEach(p => {
+      if (u.searchParams.has(p)) u.searchParams.set(p, '[REDACTED]');
+    });
+    return u.pathname + u.search;
+  } catch { return req.url; }
+});
+app.use(morgan(':method :safe-url :status :res[content-length] - :response-time ms',
+  { stream: { write: (msg) => logger.info(msg.trim()) } }));
 
 // Rate limiting
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: { error: 'Too many requests, please try again later.' } });
@@ -54,8 +100,8 @@ app.use((req, res, next) => {
 });
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files (encrypted uploads)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// R2-006: uploads are medical documents — served via authenticated endpoint in emr.routes.js only.
+// NEVER serve /uploads as unauthenticated static files.
 
 // EMR API routes (static UI served by nginx at emr.inferapp.online)
 app.use('/api/emr', require('./src/emr/emr.routes'));
@@ -82,86 +128,87 @@ app.use('/api', routes);
 // ABDM appends these fixed paths to whatever base URL is registered via PATCH /v1/bridges
 const abdmCtrl = require('./src/controllers/abdm.controller');
 const hipCtrl  = require('./src/emr/hip.controller');
+const { verifyAbdmCallback } = require('./src/emr/abdm.callback.auth');
 
 // ── HIU callbacks (gateway → our app acting as HIU) ──────────────────────────
 // M2: Discover care contexts result
-app.post('/v0.5/care-contexts/on-discover', abdmCtrl.onDiscover);
+app.post('/v0.5/care-contexts/on-discover', verifyAbdmCallback, abdmCtrl.onDiscover);
 
 // M2: Link init result (linkRefNumber returned)
-app.post('/v0.5/links/link/on-init', abdmCtrl.onLinkInit);
+app.post('/v0.5/links/link/on-init', verifyAbdmCallback, abdmCtrl.onLinkInit);
 
 // M2: Link confirm result (care contexts confirmed)
-app.post('/v0.5/links/link/on-confirm', abdmCtrl.onLinkConfirm);
+app.post('/v0.5/links/link/on-confirm', verifyAbdmCallback, abdmCtrl.onLinkConfirm);
 
 // M2: ABDM async callback after consent-requests/init — captures real consentRequest.id
-app.post('/v0.5/consent-requests/on-init', abdmCtrl.consentOnInit);
+app.post('/v0.5/consent-requests/on-init', verifyAbdmCallback, abdmCtrl.consentOnInit);
 
 // M2: Consent grant/revoke notification from CM → HIU
-app.post('/v0.5/consents/hiu/notify', abdmCtrl.consentNotify);
+app.post('/v0.5/consents/hiu/notify', verifyAbdmCallback, abdmCtrl.consentNotify);
 
 // M3: Consent callbacks CM → HIU (v3 paths — both with and without /api prefix)
-app.post('/api/v3/hiu/consent/request/on-init', abdmCtrl.consentOnInit);
-app.post('/v3/hiu/consent/request/on-init',     abdmCtrl.consentOnInit);
-app.post('/api/v3/hiu/consent/request/notify',  abdmCtrl.consentNotify);
-app.post('/v3/hiu/consent/request/notify',      abdmCtrl.consentNotify);
+app.post('/api/v3/hiu/consent/request/on-init', verifyAbdmCallback, abdmCtrl.consentOnInit);
+app.post('/v3/hiu/consent/request/on-init',     verifyAbdmCallback, abdmCtrl.consentOnInit);
+app.post('/api/v3/hiu/consent/request/notify',  verifyAbdmCallback, abdmCtrl.consentNotify);
+app.post('/v3/hiu/consent/request/notify',      verifyAbdmCallback, abdmCtrl.consentNotify);
 
-// M3: Health-info request acknowledgement CM → HIU (confirms CM received our request)
-app.post('/api/v3/hiu/health-information/on-request', (req, res) => {
+// M3: Health-info request acknowledgement CM → HIU
+app.post('/api/v3/hiu/health-information/on-request', verifyAbdmCallback, (req, res) => {
   const { hiRequest } = req.body;
   logger.info('HIU health-info on-request ack', { transactionId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
   res.status(202).json({ status: 'accepted' });
 });
-app.post('/v3/hiu/health-information/on-request', (req, res) => {
+app.post('/v3/hiu/health-information/on-request', verifyAbdmCallback, (req, res) => {
   const { hiRequest } = req.body;
   logger.info('HIU health-info on-request ack', { transactionId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
   res.status(202).json({ status: 'accepted' });
 });
 
 // M3: Consent artifact notification from CM → HIP (after patient approves)
-app.post('/v0.5/consents/hip/notify', hipCtrl.handleConsentNotify);
-app.post('/api/v3/hip/consent/request/notify',      hipCtrl.handleConsentNotify);
-app.post('/v3/hip/consent/request/notify',          hipCtrl.handleConsentNotify);
-app.post('/api/v3/consent/request/hip/notify',      hipCtrl.handleConsentNotify);
-app.post('/v3/consent/request/hip/notify',          hipCtrl.handleConsentNotify);
+app.post('/v0.5/consents/hip/notify',               verifyAbdmCallback, hipCtrl.handleConsentNotify);
+app.post('/api/v3/hip/consent/request/notify',      verifyAbdmCallback, hipCtrl.handleConsentNotify);
+app.post('/v3/hip/consent/request/notify',          verifyAbdmCallback, hipCtrl.handleConsentNotify);
+app.post('/api/v3/consent/request/hip/notify',      verifyAbdmCallback, hipCtrl.handleConsentNotify);
+app.post('/v3/consent/request/hip/notify',          verifyAbdmCallback, hipCtrl.handleConsentNotify);
 
-// M3: Acknowledgment that HIP received health-info request (status only, no data yet)
-app.post('/v0.5/health-information/hiu/on-request', (req, res) => {
+// M3: Acknowledgment that HIP received health-info request
+app.post('/v0.5/health-information/hiu/on-request', verifyAbdmCallback, (req, res) => {
   const { hiRequest } = req.body;
   logger.info('ABDM health-info on-request ack', { txnId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
   res.status(202).json({ status: 'accepted' });
 });
 
 // M3: Actual FHIR health data pushed from HIP → HIU
-app.post('/v0.5/health-information/transfer', abdmCtrl.healthInfoPush);
+app.post('/v0.5/health-information/transfer', verifyAbdmCallback, abdmCtrl.healthInfoPush);
 
 // ── HIP callbacks (gateway → our EMR acting as HIP) ──────────────────────────
 // v0.5 paths (ABDM gateway standard)
-app.post('/v0.5/care-contexts/discover',            hipCtrl.handleDiscovery);
-app.post('/v0.5/links/link/init',                   hipCtrl.handleLinkInit);
-app.post('/v0.5/links/link/confirm',                hipCtrl.handleLinkConfirm);
-app.post('/v0.5/health-information/hip/request',    hipCtrl.handleHealthInfoRequest);
-// v3 paths — both with and without /api prefix (ABDM calls /api/v3/... when bridge URL is registered without /api)
-app.post('/v3/hip/patient/care-context/discover',        hipCtrl.handleDiscovery);
-app.post('/api/v3/hip/patient/care-context/discover',    hipCtrl.handleDiscovery);
-app.post('/v3/hip/links/link/init',                      hipCtrl.handleLinkInit);
-app.post('/api/v3/hip/links/link/init',                  hipCtrl.handleLinkInit);
-app.post('/v3/hip/link/care-context/init',               hipCtrl.handleLinkInit);    // ABDM v3 actual path
-app.post('/api/v3/hip/link/care-context/init',           hipCtrl.handleLinkInit);    // ABDM v3 with /api prefix
-app.post('/v3/hip/links/link/confirm',                   hipCtrl.handleLinkConfirm);
-app.post('/api/v3/hip/links/link/confirm',               hipCtrl.handleLinkConfirm);
-app.post('/v3/hip/link/care-context/confirm',            hipCtrl.handleLinkConfirm); // ABDM v3 actual path
-app.post('/api/v3/hip/link/care-context/confirm',        hipCtrl.handleLinkConfirm); // ABDM v3 with /api prefix
-app.post('/v3/hip/health-information/request',           hipCtrl.handleHealthInfoRequest);
-app.post('/api/v3/hip/health-information/request',       hipCtrl.handleHealthInfoRequest);
-// M1: Patient shares profile by scanning facility QR (SHARE_PATIENT_PROFILE_701)
-app.post('/v3/hip/patient/share/profile',           hipCtrl.handlePatientShareProfile);
-app.post('/v3/hip/patient/share',                   hipCtrl.handlePatientShareProfile);
-app.post('/api/v3/hip/patient/share/profile',       hipCtrl.handlePatientShareProfile);
-app.post('/api/v3/hip/patient/share',               hipCtrl.handlePatientShareProfile);
+app.post('/v0.5/care-contexts/discover',            verifyAbdmCallback, hipCtrl.handleDiscovery);
+app.post('/v0.5/links/link/init',                   verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/v0.5/links/link/confirm',                verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/v0.5/health-information/hip/request',    verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
+// v3 paths — both with and without /api prefix
+app.post('/v3/hip/patient/care-context/discover',        verifyAbdmCallback, hipCtrl.handleDiscovery);
+app.post('/api/v3/hip/patient/care-context/discover',    verifyAbdmCallback, hipCtrl.handleDiscovery);
+app.post('/v3/hip/links/link/init',                      verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/api/v3/hip/links/link/init',                  verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/v3/hip/link/care-context/init',               verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/api/v3/hip/link/care-context/init',           verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/v3/hip/links/link/confirm',                   verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/api/v3/hip/links/link/confirm',               verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/v3/hip/link/care-context/confirm',            verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/api/v3/hip/link/care-context/confirm',        verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/v3/hip/health-information/request',           verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
+app.post('/api/v3/hip/health-information/request',       verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
+// M1: Patient shares profile by scanning facility QR
+app.post('/v3/hip/patient/share/profile',           verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
+app.post('/v3/hip/patient/share',                   verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
+app.post('/api/v3/hip/patient/share/profile',       verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
+app.post('/api/v3/hip/patient/share',               verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
 
-// M1: ABDM queries HIP to verify token shown to patient after QR scan is still valid
-app.post('/v3/hip/patient/running-token/status',     hipCtrl.handleRunningTokenStatus);
-app.post('/api/v3/hip/patient/running-token/status', hipCtrl.handleRunningTokenStatus);
+// M1: ABDM queries HIP to verify token shown to patient
+app.post('/v3/hip/patient/running-token/status',     verifyAbdmCallback, hipCtrl.handleRunningTokenStatus);
+app.post('/api/v3/hip/patient/running-token/status', verifyAbdmCallback, hipCtrl.handleRunningTokenStatus);
 
 // ── Meta WhatsApp Cloud API webhook (registered in Facebook Developer Console) ──
 // GET  = hub challenge verification  POST = inbound messages + status updates

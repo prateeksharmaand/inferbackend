@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'infer-emr-secret';
+const JWT_SECRET = (() => {
+  const s = process.env.JWT_SECRET;
+  if (!s || s.length < 32) throw new Error('FATAL: JWT_SECRET must be set and be at least 32 characters');
+  return s;
+})();
 
 function adminAuth(req, res, next) {
   const header = req.headers.authorization;
