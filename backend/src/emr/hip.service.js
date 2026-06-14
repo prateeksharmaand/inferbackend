@@ -499,6 +499,18 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     throw new Error(`Payload transactionId mismatch: ${pushBody.transactionId} !== ${transactionId}`);
   }
 
+  logger.debug('ABDM payload entries structure', {
+    transactionId,
+    entryCount: entries.length,
+    entryStructure: entries.length > 0 ? {
+      keys: Object.keys(entries[0]),
+      contentLength: entries[0].content?.length,
+      mediaType: entries[0].media,
+      checksum: entries[0].checksum?.slice(0, 16) + '...',
+      careContextReference: entries[0].careContextReference,
+    } : null,
+  });
+
   logger.info('ABDM Transaction Trace', {
     stage: 'transfer_payload_created',
     transactionId: pushBody.transactionId,
@@ -526,6 +538,24 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     hasKeyMaterial: !!pushBody.keyMaterial,
   });
 
+  const requestId = uuid();
+  const timestamp = new Date().toISOString();
+
+  logger.debug('ABDM POST details', {
+    transactionId: pushBody.transactionId,
+    payloadKeys: Object.keys(pushBody),
+    payloadType: typeof pushBody,
+    bodyLength: JSON.stringify(pushBody).length,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${pushToken?.slice(0, 20)}...`,
+      'X-CM-ID': CM_ID,
+      'X-HIP-ID': HIP_ID,
+      'REQUEST-ID': requestId,
+      'TIMESTAMP': timestamp,
+    },
+  });
+
   await axios.post(dataPushUrl, pushBody, {
     timeout: 30_000,
     headers: {
@@ -533,8 +563,8 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       'Authorization': `Bearer ${pushToken}`,
       'X-CM-ID':       CM_ID,
       'X-HIP-ID':      HIP_ID,
-      'REQUEST-ID':    uuid(),
-      'TIMESTAMP':     new Date().toISOString(),
+      'REQUEST-ID':    requestId,
+      'TIMESTAMP':     timestamp,
     },
   });
 
