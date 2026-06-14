@@ -275,24 +275,6 @@ async function sendLinkInitResult({ requestId, transactionId, linkRefNumber }) {
 }
 
 
-async function sendLinkConfirmResult({ requestId, patientId, careContexts }) {
-  const mapped = careContexts.map(c => ({
-    referenceNumber: c.referenceNumber ?? c.reference_number,
-    display: c.display,
-  }));
-  await gwPost('/v0.5/links/link/on-confirm', {
-    requestId: uuid(),
-    timestamp: new Date().toISOString(),
-    patient: {
-      referenceNumber: patientId,
-      display: patientId,
-      count: mapped.length,          // required by ABDM — must be 1–20
-      careContexts: mapped,
-    },
-    resp: { requestId },
-  });
-}
-
 // ── FHIR bundle generation ────────────────────────────────────────────────────
 
 async function sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus = 'ACKNOWLEDGED' }) {
@@ -1131,4 +1113,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   }
 }
 
-module.exports = { uuid, gwGet, gwPost, gwPostWithRetry, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendLinkConfirmResultWithRetry, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
+module.exports = { uuid, gwGet, gwPost, gwPostWithRetry, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResultWithRetry, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };

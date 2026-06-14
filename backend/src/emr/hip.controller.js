@@ -16,32 +16,33 @@ function _validateIds(requestId, transactionId) {
   }
 }
 
-// M3-SEC: Rate limiting for health-information requests (prevents DoS attacks)
-// Key: patient ABHA; Value: { count, resetTime }
-const _healthInfoRateLimits = new Map();
-const HEALTH_INFO_RATE_LIMIT = 10; // Max 10 requests per patient
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+// M3-SEC: DB-backed rate limiting for health-information requests (survives restarts)
+const HEALTH_INFO_RATE_LIMIT = parseInt(process.env.HEALTH_INFO_RATE_LIMIT || '10', 10);
+const RATE_LIMIT_WINDOW_MS   = parseInt(process.env.RATE_LIMIT_WINDOW_MS   || String(60 * 60 * 1000), 10);
 
-function checkHealthInfoRateLimit(patientAbha) {
-  const now = Date.now();
-  const entry = _healthInfoRateLimits.get(patientAbha);
-
-  if (!entry) {
-    _healthInfoRateLimits.set(patientAbha, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - 1 };
+async function checkHealthInfoRateLimit(patientAbha) {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO hip_rate_limits (key, count, window_start)
+       VALUES ($1, 1, NOW())
+       ON CONFLICT (key) DO UPDATE
+         SET count        = CASE WHEN hip_rate_limits.window_start < $2
+                                 THEN 1
+                                 ELSE hip_rate_limits.count + 1 END,
+             window_start = CASE WHEN hip_rate_limits.window_start < $2
+                                 THEN NOW()
+                                 ELSE hip_rate_limits.window_start END
+       RETURNING count`,
+      [patientAbha, windowStart]
+    );
+    const count = rows[0]?.count ?? 1;
+    return { allowed: count <= HEALTH_INFO_RATE_LIMIT, remaining: Math.max(0, HEALTH_INFO_RATE_LIMIT - count) };
+  } catch (err) {
+    // If rate limit table doesn't exist yet, allow and log
+    logger.warn('HIP rate limit check failed, allowing request', { error: err.message });
+    return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT };
   }
-
-  if (now > entry.resetTime) {
-    _healthInfoRateLimits.set(patientAbha, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - 1 };
-  }
-
-  if (entry.count >= HEALTH_INFO_RATE_LIMIT) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  entry.count++;
-  return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - entry.count };
 }
 
 // ── ABDM gateway → HIP: care-context discovery ───────────────────────────────
@@ -415,10 +416,37 @@ const handleHealthInfoRequest = async (req, res) => {
       return;
     }
 
+    // SEC-008: verify inline consent has required fields (no DB artifact → must have valid structure)
+    if (!artifact && inlineConsent) {
+      const consentId2  = inlineConsent?.id ?? inlineConsent?.consentId;
+      const hasPatient  = !!(inlineConsent?.patient?.id || inlineConsent?.consentDetail?.patient?.id);
+      const hasPurpose  = !!(inlineConsent?.purpose?.code || inlineConsent?.consentDetail?.purpose?.code);
+      const hasExpiry   = !!(inlineConsent?.permission?.dataEraseAt || inlineConsent?.consentDetail?.permission?.dataEraseAt);
+      if (!consentId2 || !hasPatient || !hasPurpose) {
+        logger.warn('HIP health-info: inline consent missing required fields', {
+          consentId, hasConsentId: !!consentId2, hasPatient, hasPurpose, hasExpiry,
+        });
+        const requestId = req.headers['request-id'] || req.body.requestId;
+        await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'DENIED' });
+        await pool.query(`UPDATE hip_health_requests SET status='denied' WHERE transaction_id=$1`, [transactionId]);
+        return;
+      }
+      // Verify inline consent dataEraseAt has not passed
+      const eraseAt = inlineConsent?.permission?.dataEraseAt ?? inlineConsent?.consentDetail?.permission?.dataEraseAt;
+      if (eraseAt && new Date(eraseAt) < new Date()) {
+        logger.warn('HIP health-info: inline consent expired', { consentId, eraseAt });
+        const requestId = req.headers['request-id'] || req.body.requestId;
+        await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'DENIED' });
+        await pool.query(`UPDATE hip_health_requests SET status='denied' WHERE transaction_id=$1`, [transactionId]);
+        return;
+      }
+      logger.info('HIP health-info: using inline consent (no stored artifact)', { consentId });
+    }
+
     // M3-SEC: Rate limit health-info requests per patient (prevents DoS)
     const patientAbha = artifact?.patient_abha || inlineConsent?.patient?.id;
     if (patientAbha) {
-      const rateCheck = checkHealthInfoRateLimit(patientAbha);
+      const rateCheck = await checkHealthInfoRateLimit(patientAbha);
       if (!rateCheck.allowed) {
         logger.warn('Health-info request rate limit exceeded', {
           patientAbha,
