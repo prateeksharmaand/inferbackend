@@ -68,11 +68,20 @@ const listPatients = async (req, res) => {
     return res.json([...regRows, ...unique].slice(0, 10));
   }
 
+  // Full-list path: uhidSub uses $1 here (not $3 — that's only in the search path)
+  const fullUhid = clinicId
+    ? `(SELECT a.uhid FROM emr_appointments a
+        WHERE a.patient_mobile = p.mobile AND a.uhid IS NOT NULL AND a.uhid != ''
+          AND a.clinic_id = $1
+        ORDER BY a.created_at DESC LIMIT 1) AS uhid`
+    : `NULL AS uhid`;
+
   const { rows } = await pool.query(
-    `SELECT p.*, COUNT(c.id)::int AS context_count, ${uhidSub}
+    `SELECT p.*, COUNT(c.id)::int AS context_count, ${fullUhid}
      FROM emr_patients p
      LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
-     GROUP BY p.id ORDER BY p.created_at DESC`
+     GROUP BY p.id ORDER BY p.created_at DESC`,
+    clinicId ? [parseInt(clinicId, 10)] : []
   );
   res.json(rows);
 };

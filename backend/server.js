@@ -51,7 +51,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-      'connect-src': ["'self'", 'https://api.inferapp.online', 'https://clinicaltables.nlm.nih.gov', 'https://cdn.jsdelivr.net'],
+      'connect-src': ["'self'", 'https://api.inferapp.online', 'https://clinicaltables.nlm.nih.gov', 'https://cdn.jsdelivr.net', 'wss://api.inferapp.online'],
       'script-src':  ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
       'style-src':   ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
       'font-src':    ["'self'", 'https://cdn.jsdelivr.net'],
