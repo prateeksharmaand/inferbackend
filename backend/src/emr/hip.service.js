@@ -474,7 +474,13 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   if (respondingKeyMaterial) pushBody.keyMaterial = respondingKeyMaterial;
 
   // SEC-010: never log encrypted health payload
-  logger.info('HIP transfer payload ready', { transactionId, entryCount: entries.length, encrypted: !!respondingKeyMaterial });
+  logger.info('HIP transfer payload ready', {
+    transactionId,
+    transactionIdType: typeof transactionId,
+    entryCount: entries.length,
+    encrypted: !!respondingKeyMaterial,
+    pushBodyKeys: Object.keys(pushBody),
+  });
 
   // R2-001: validate URL before calling (SSRF protection)
   validateDataPushUrl(dataPushUrl);
