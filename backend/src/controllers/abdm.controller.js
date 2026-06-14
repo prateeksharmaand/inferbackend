@@ -401,8 +401,19 @@ const createConsent = async (req, res) => {
     }
   );
 
-  // Consent is now tracked in emr_consent_requests only (single source of truth)
-  res.json(result);
+  // Track in emr_consent_requests (single source of truth)
+  const requestId = result.consentRequest?.id ?? abdm.uuid();
+  await pool.query(
+    `INSERT INTO emr_consent_requests (clinic_id, request_id, patient_abha, hiu_id, purpose, hi_types, status)
+     VALUES (
+       (SELECT MIN(id) FROM emr_clinics),
+       $1, $2, $3, $4, $5, 'REQUESTED'
+     )
+     ON CONFLICT (request_id) DO NOTHING`,
+    [requestId, rows[0].abha_address, hiuId, purpose, JSON.stringify(hiTypes)]
+  ).catch(err => logger.warn('createConsent: insert failed', { error: err.message }));
+
+  res.json({ ...result, requestId });
 };
 
 const getConsents = async (req, res) => {
