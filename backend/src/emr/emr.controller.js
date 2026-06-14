@@ -145,64 +145,164 @@ const addCareContext = async (req, res) => {
   );
   const careCtx = rows[0];
 
-  // Create sample FHIR resources for this care context
+  // Create sample FHIR Bundle for this care context
   const transactionId = hip.uuid();
   const patientId = req.params.id;
   const now = new Date().toISOString();
-  const sampleResources = [
-    {
-      resourceType: 'Condition',
-      id: hip.uuid(),
-      code: { coding: [{ system: 'http://snomed.info/sct', code: '15627015', display: 'Cough' }] },
-      subject: { reference: `Patient/${patientId}` },
-      recordedDate: now,
-      onsetDateTime: now,
-    },
-    {
-      resourceType: 'Observation',
-      id: hip.uuid(),
-      code: { coding: [{ system: 'http://loinc.org', code: '8480-6', display: 'Systolic blood pressure' }] },
-      valueQuantity: { value: 140, unit: 'mmHg', system: 'http://unitsofmeasure.org', code: 'mm[Hg]' },
-      subject: { reference: `Patient/${patientId}` },
-      effectiveDateTime: now,
-      status: 'final',
-    },
-    {
-      resourceType: 'MedicationRequest',
-      id: hip.uuid(),
-      medicationCodeableConcept: { coding: [{ system: 'http://snomed.info/sct', code: '27658006', display: 'Amoxicillin' }] },
-      subject: { reference: `Patient/${patientId}` },
-      authoredOn: now,
-      status: 'active',
-      intent: 'order',
-      dosageInstruction: [{ text: 'Take one tablet twice daily' }],
-    },
-    {
-      resourceType: 'DocumentReference',
-      id: hip.uuid(),
-      type: { coding: [{ system: 'http://loinc.org', code: '34117-2', display: 'History and Physical Note' }] },
-      subject: { reference: `Patient/${patientId}` },
-      date: now,
-      status: 'current',
-      content: [{
-        attachment: {
-          contentType: 'text/plain',
-          data: Buffer.from(`Sample consultation note for ${display}`).toString('base64'),
-        },
-      }],
-    },
-  ];
+  const docId = hip.uuid().slice(0, 8);
+  const patData = (await pool.query('SELECT name, gender, dob FROM emr_patients WHERE id=$1', [patientId])).rows[0];
 
-  // Insert sample resources into health_records
-  for (const resource of sampleResources) {
+  const fhirBundle = {
+    resourceType: 'Bundle',
+    type: 'document',
+    timestamp: now,
+    entry: [
+      {
+        resource: {
+          resourceType: 'Composition',
+          id: `comp-${docId}`,
+          status: 'final',
+          type: {
+            coding: [{
+              system: 'http://snomed.info/sct',
+              code: '371530004',
+              display: 'Clinical consultation report',
+            }],
+          },
+          subject: { reference: `Patient/${patientId}` },
+          date: now,
+          author: [{ reference: 'Practitioner/doc-1' }],
+          title: display,
+          section: [
+            {
+              title: 'Encounter',
+              entry: [{ reference: `Encounter/enc-${docId}` }],
+            },
+            {
+              title: 'Diagnosis',
+              entry: [{ reference: `Condition/cond-${docId}` }],
+            },
+            {
+              title: 'Vitals',
+              entry: [
+                { reference: `Observation/bp-${docId}` },
+                { reference: `Observation/temp-${docId}` },
+                { reference: `Observation/wt-${docId}` },
+              ],
+            },
+            {
+              title: 'Prescription',
+              entry: [
+                { reference: `MedicationRequest/med-1-${docId}` },
+                { reference: `MedicationRequest/med-2-${docId}` },
+              ],
+            },
+          ],
+        },
+      },
+      {
+        resource: {
+          resourceType: 'Patient',
+          id: `pat-${docId}`,
+          name: [{ text: patData?.name || 'Patient' }],
+          gender: patData?.gender?.toLowerCase() || 'unknown',
+          birthDate: patData?.dob ? patData.dob.toISOString().split('T')[0] : undefined,
+        },
+      },
+      {
+        resource: {
+          resourceType: 'Practitioner',
+          id: 'doc-1',
+          name: [{ text: 'Dr. Infer Care' }],
+        },
+      },
+      {
+        resource: {
+          resourceType: 'Encounter',
+          id: `enc-${docId}`,
+          status: 'finished',
+          class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
+          subject: { reference: `Patient/${patientId}` },
+          period: { start: now, end: new Date(Date.now() + 15 * 60_000).toISOString() },
+        },
+      },
+      {
+        resource: {
+          resourceType: 'Condition',
+          id: `cond-${docId}`,
+          clinicalStatus: { coding: [{ code: 'active' }] },
+          code: { text: 'Acute Upper Respiratory Infection' },
+          subject: { reference: `Patient/${patientId}` },
+        },
+      },
+      {
+        resource: {
+          resourceType: 'Observation',
+          id: `bp-${docId}`,
+          status: 'final',
+          code: { text: 'Blood Pressure' },
+          valueString: '120/80 mmHg',
+          subject: { reference: `Patient/${patientId}` },
+        },
+      },
+      {
+        resource: {
+          resourceType: 'Observation',
+          id: `temp-${docId}`,
+          status: 'final',
+          code: { text: 'Body Temperature' },
+          valueQuantity: { value: 98.6, unit: 'F' },
+          subject: { reference: `Patient/${patientId}` },
+        },
+      },
+      {
+        resource: {
+          resourceType: 'Observation',
+          id: `wt-${docId}`,
+          status: 'final',
+          code: { text: 'Body Weight' },
+          valueQuantity: { value: 72, unit: 'kg' },
+          subject: { reference: `Patient/${patientId}` },
+        },
+      },
+      {
+        resource: {
+          resourceType: 'MedicationRequest',
+          id: `med-1-${docId}`,
+          status: 'active',
+          intent: 'order',
+          medicationCodeableConcept: { text: 'Paracetamol 500 mg' },
+          subject: { reference: `Patient/${patientId}` },
+          dosageInstruction: [{ text: '1 tablet three times daily after meals for 5 days' }],
+        },
+      },
+      {
+        resource: {
+          resourceType: 'MedicationRequest',
+          id: `med-2-${docId}`,
+          status: 'active',
+          intent: 'order',
+          medicationCodeableConcept: { text: 'Cetirizine 10 mg' },
+          subject: { reference: `Patient/${patientId}` },
+          dosageInstruction: [{ text: '1 tablet at bedtime for 5 days' }],
+        },
+      },
+    ],
+  };
+
+  // Insert FHIR bundle into health_records
+  try {
     await pool.query(
       `INSERT INTO health_records (transaction_id, care_context_id, fhir_bundle, received_at, hi_type)
        VALUES ($1, $2, $3, $4, $5)`,
-      [transactionId, careCtx.id, JSON.stringify(resource), now, resource.resourceType]
-    ).catch(err => logger.warn('Failed to insert sample FHIR resource', { error: err.message, resourceType: resource.resourceType }));
+      [transactionId, careCtx.id, JSON.stringify(fhirBundle), now, 'OPConsultation']
+    );
+    logger.info('Created sample FHIR bundle', { careContextId: careCtx.id, resourceCount: fhirBundle.entry.length });
+  } catch (err) {
+    logger.warn('Failed to insert sample FHIR bundle', { error: err.message });
   }
 
-  res.status(201).json({ ...careCtx, sampleResourcesCreated: sampleResources.length });
+  res.status(201).json({ ...careCtx, sampleBundleCreated: true, bundleEntries: fhirBundle.entry.length });
 };
 
 const deleteCareContext = async (req, res) => {
