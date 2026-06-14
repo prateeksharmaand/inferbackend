@@ -72,6 +72,37 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_link_sessions_one_active_per_patient
   ON hip_link_sessions(patient_id)
   WHERE status IN ('pending_otp', 'pending');
 
+-- ── ABDM Identity: abha_mappings table ───────────────────────────────────────
+-- Allows one patient to have multiple ABHA addresses (all backed by one ABHA number)
+CREATE TABLE IF NOT EXISTS abha_mappings (
+  id           SERIAL PRIMARY KEY,
+  patient_id   INTEGER NOT NULL REFERENCES emr_patients(id) ON DELETE CASCADE,
+  abha_number  VARCHAR(50),
+  abha_address VARCHAR(100),
+  status       VARCHAR(20) NOT NULL DEFAULT 'active',
+  source       VARCHAR(50),                          -- 'aadhaar','mobile','qr','manual'
+  linked_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_abha_map_number_patient
+  ON abha_mappings(patient_id, abha_number) WHERE abha_number IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_abha_map_address_patient
+  ON abha_mappings(patient_id, abha_address) WHERE abha_address IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_abha_map_number
+  ON abha_mappings(abha_number)  WHERE abha_number  IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_abha_map_address
+  ON abha_mappings(abha_address) WHERE abha_address IS NOT NULL;
+
+-- Back-fill from existing emr_patients rows that already have ABHA columns
+INSERT INTO abha_mappings (patient_id, abha_number, abha_address, source)
+SELECT id, abha_number, abha_address, 'legacy'
+FROM emr_patients
+WHERE (abha_number IS NOT NULL OR abha_address IS NOT NULL)
+ON CONFLICT DO NOTHING;
+
 -- ── R3-007: SHA-256 hash for share token (replaces plaintext storage) ─────────
 ALTER TABLE hip_profile_shares
   ADD COLUMN IF NOT EXISTS token_hash TEXT;

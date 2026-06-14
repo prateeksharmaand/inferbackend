@@ -20,10 +20,21 @@ const handleDiscovery = async (req, res) => {
     let rows = [];
     let matchedBy = ['MOBILE'];
     if (patient?.id) {
+      // Check abha_mappings first (supports multiple ABHA addresses per patient)
       ({ rows } = await pool.query(
-        `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
+        `SELECT p.* FROM emr_patients p
+         JOIN abha_mappings m ON m.patient_id = p.id
+         WHERE (m.abha_address=$1 OR m.abha_number=$1) AND m.status='active'
+         LIMIT 1`,
         [patient.id]
       ));
+      // Fallback: legacy columns
+      if (!rows.length) {
+        ({ rows } = await pool.query(
+          `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
+          [patient.id]
+        ));
+      }
       if (rows.length) matchedBy = ['ABHA_ID'];
     }
     if (!rows.length && patient?.verifiedIdentifiers?.length) {
