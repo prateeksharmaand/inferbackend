@@ -499,6 +499,16 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     throw new Error(`Payload transactionId mismatch: ${pushBody.transactionId} !== ${transactionId}`);
   }
 
+  // M3-DEBUG: Log exact payload structure for ABDM compliance verification
+  logger.debug('ABDM payload structure', {
+    transactionId,
+    pageNumber: pushBody.pageNumber,
+    pageCount: pushBody.pageCount,
+    entryCount: entries.length,
+    hasKeyMaterial: !!pushBody.keyMaterial,
+    payloadFields: Object.keys(pushBody),
+  });
+
   logger.debug('ABDM payload entries structure', {
     transactionId,
     entryCount: entries.length,
@@ -510,6 +520,19 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       careContextReference: entries[0].careContextReference,
     } : null,
   });
+
+  // M3-DEBUG: Log responding keyMaterial structure for ABDM spec compliance
+  if (respondingKeyMaterial) {
+    logger.debug('ABDM responding keyMaterial structure', {
+      transactionId,
+      cryptoAlg: respondingKeyMaterial.cryptoAlg,
+      curve: respondingKeyMaterial.curve,
+      dhPublicKeyFields: respondingKeyMaterial.dhPublicKey ? Object.keys(respondingKeyMaterial.dhPublicKey) : null,
+      dhPublicKeyExpiry: respondingKeyMaterial.dhPublicKey?.expiry,
+      dhPublicKeyValueLength: respondingKeyMaterial.dhPublicKey?.keyValue?.length,
+      nonceLength: respondingKeyMaterial.nonce?.length,
+    });
+  }
 
   logger.info('ABDM Transaction Trace', {
     stage: 'transfer_payload_created',
@@ -556,23 +579,51 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     },
   });
 
-  await axios.post(dataPushUrl, pushBody, {
-    timeout: 30_000,
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${pushToken}`,
-      'X-CM-ID':       CM_ID,
-      'X-HIP-ID':      HIP_ID,
-      'REQUEST-ID':    requestId,
-      'TIMESTAMP':     timestamp,
-    },
-  });
+  try {
+    const response = await axios.post(dataPushUrl, pushBody, {
+      timeout: 30_000,
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${pushToken}`,
+        'X-CM-ID':       CM_ID,
+        'X-HIP-ID':      HIP_ID,
+        'REQUEST-ID':    requestId,
+        'TIMESTAMP':     timestamp,
+      },
+      validateStatus: () => true, // Don't throw on any status code
+    });
 
-  logger.info('ABDM Transaction Trace', {
-    stage: 'transfer_response_received',
-    transactionId,
-    status: 'success',
-  });
+    logger.info('ABDM health-data push response', {
+      transactionId,
+      statusCode: response.status,
+      statusText: response.statusText,
+      responseData: response.data,
+    });
+
+    if (response.status !== 202 && response.status !== 200) {
+      throw new Error(`ABDM returned ${response.status}: ${JSON.stringify(response.data)}`);
+    }
+
+    logger.info('ABDM Transaction Trace', {
+      stage: 'transfer_response_received',
+      transactionId,
+      status: 'success',
+      statusCode: response.status,
+    });
+  } catch (postErr) {
+    logger.error('ABDM health-data push failed', {
+      transactionId,
+      error: postErr.message,
+      statusCode: postErr.response?.status,
+      responseData: postErr.response?.data,
+      requestPayloadKeys: Object.keys(pushBody),
+      headers: {
+        'X-CM-ID': CM_ID,
+        'X-HIP-ID': HIP_ID,
+      },
+    });
+    throw postErr; // Re-throw to caller
+  }
 }
 
 module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
