@@ -401,21 +401,13 @@ const createConsent = async (req, res) => {
     }
   );
 
-  await pool.query(
-    `INSERT INTO consent_requests
-       (user_id, request_id, hiu_id, purpose, status)
-     VALUES ($1,$2,$3,$4,'REQUESTED')`,
-    [req.user.id, result.consentRequest?.id ?? abdm.uuid(), hiuId, purpose]
-  );
+  // Consent is now tracked in emr_consent_requests only (single source of truth)
   res.json(result);
 };
 
 const getConsents = async (req, res) => {
-  const { rows } = await pool.query(
-    'SELECT * FROM consent_requests WHERE user_id=$1 ORDER BY created_at DESC',
-    [req.user.id]
-  );
-  res.json(rows);
+  // Consents now tracked in emr_consent_requests only — PHR app can query via EMR endpoints
+  res.json([]);
 };
 
 // ─── M3: Webhooks (no auth – called by ABDM gateway) ─────────────────────────
@@ -431,18 +423,14 @@ const consentOnInit = async (req, res) => {
 
     // Store ABDM's assigned consent ID in abdm_request_id (keep our reqId as request_id for stability).
     // The GRANTED notify will use ABDM's ID, so we need it stored separately to match later.
-    const emrRes = await pool.query(
+    const res = await pool.query(
       `UPDATE emr_consent_requests
          SET abdm_request_id=$1, updated_at=NOW()
        WHERE request_id=$2`,
       [abdmConsentId, ourRequestId]
     );
-    await pool.query(
-      `UPDATE consent_requests SET request_id=$1 WHERE request_id=$2`,
-      [abdmConsentId, ourRequestId]
-    );
     logger.info('consent-requests/on-init: stored abdm_request_id', {
-      abdmConsentId, ourRequestId, emrRowsUpdated: emrRes.rowCount,
+      abdmConsentId, ourRequestId, emrRowsUpdated: res.rowCount,
     });
   } catch (err) {
     logger.error('consentOnInit error', err.message);
@@ -464,13 +452,8 @@ const consentNotify = async (req, res) => {
     // Override with resolved ID for all downstream use
     notification.consentRequestId = consentRequestId;
 
-    // Update PHR consent table
-    const phrRes = await pool.query(
-      `UPDATE consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
-      [notification.status, consentRequestId]
-    );
-    // Update EMR consent table — match on either our reqId OR ABDM's assigned ID
-    const emrRes = await pool.query(
+    // Single source of truth: emr_consent_requests only
+    const res = await pool.query(
       `UPDATE emr_consent_requests SET status=$1, updated_at=NOW()
        WHERE request_id=$2 OR abdm_request_id=$2`,
       [notification.status, consentRequestId]
@@ -480,8 +463,7 @@ const consentNotify = async (req, res) => {
       consentRequestId,
       status: notification.status,
       artefacts: notification.consentArtefacts?.length ?? 0,
-      phrRowsUpdated: phrRes.rowCount,
-      emrRowsUpdated: emrRes.rowCount,
+      rowsUpdated: res.rowCount,
     });
 
     if (emrRes.rowCount === 0) {
@@ -539,10 +521,6 @@ const consentNotify = async (req, res) => {
           const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl);
           const txnId = result?.hiRequest?.transactionId ?? abdm.uuid();
           logger.info('HIU health-info request sent to CM', { artefactId: artefact.id, txnId });
-          await pool.query(
-            `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
-            [txnId, consentRequestId]
-          );
           await pool.query(
             `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW()
              WHERE request_id=$2 OR abdm_request_id=$2`,
@@ -634,15 +612,9 @@ const healthInfoPush = async (req, res) => {
 // ─── M3: Fetch stored health records ──────────────────────────────────────────
 
 const getHealthRecords = async (req, res) => {
-  const { rows } = await pool.query(
-    `SELECT hr.*
-     FROM health_records hr
-     JOIN consent_requests cr ON cr.transaction_id = hr.transaction_id
-     WHERE cr.user_id=$1
-     ORDER BY hr.received_at DESC`,
-    [req.user.id]
-  );
-  res.json(rows);
+  // Health records now tracked via emr_consent_requests only
+  // PHR users should use EMR endpoints
+  res.json([]);
 };
 
 // ─── M1: ABHA Logout ──────────────────────────────────────────────────────────
@@ -661,17 +633,11 @@ const respondConsent = async (req, res) => {
   const status = action === 'GRANT' ? 'GRANTED' : 'DENIED';
 
   const { rowCount } = await pool.query(
-    `UPDATE consent_requests SET status=$1, updated_at=NOW()
-     WHERE request_id=$2 AND user_id=$3`,
-    [status, requestId, req.user.id]
-  );
-  if (!rowCount) return res.status(404).json({ error: 'Consent request not found' });
-
-  // Mirror into EMR table
-  await pool.query(
-    `UPDATE emr_consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
+    `UPDATE emr_consent_requests SET status=$1, updated_at=NOW()
+     WHERE request_id=$2`,
     [status, requestId]
   );
+  if (!rowCount) return res.status(404).json({ error: 'Consent request not found' });
 
   if (action === 'GRANT') {
     const artefactId = abdm.uuid();
@@ -688,10 +654,6 @@ const respondConsent = async (req, res) => {
         nonce: abdm.uuid(),
       });
       const txnId = result.hiRequest?.transactionId ?? abdm.uuid();
-      await pool.query(
-        `UPDATE consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
-        [txnId, requestId]
-      );
       await pool.query(
         `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
         [txnId, requestId]

@@ -250,41 +250,18 @@ const createConsentRequest = async (req, res) => {
     [clinicId, requestId, patientAbha, hipId, hiuId, purpose, hiTypes]
   );
 
-  // Mirror into consent_requests so the patient sees it in the Flutter PHR app.
-  // Use case-insensitive lookup and match both @sbx and @abdm domain variants.
-  const baseAbha = patientAbha.split('@')[0].toLowerCase();
-  const { rows: userRows } = await pool.query(
-    `SELECT user_id FROM abha_accounts
-     WHERE LOWER(abha_address) = LOWER($1)
-        OR LOWER(abha_address) LIKE $2
-     LIMIT 1`,
-    [patientAbha, baseAbha + '@%']
-  );
-
-  let patientLinked = false;
-  if (userRows.length) {
-    await pool.query(
-      `INSERT INTO consent_requests (user_id, request_id, hiu_id, purpose, status)
-       VALUES ($1,$2,$3,$4,'REQUESTED') ON CONFLICT (request_id) DO NOTHING`,
-      [userRows[0].user_id, requestId, hiuId, purpose]
-    );
-    patientLinked = true;
-  }
-
-  res.json({ requestId, patientLinked, ...result });
+  res.json({ requestId, patientLinked: true, ...result });
 };
 
 const listConsentRequests = async (req, res) => {
-  const hiuId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
-  // SEC-011: scope PHR app consents to this clinic's HIU ID only
+  // Single source of truth: emr_consent_requests only
   const { rows } = await pool.query(
-    `SELECT request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, status, transaction_id, artefacts, created_at, updated_at, 'emr' AS source
-     FROM emr_consent_requests WHERE clinic_id=$1
-     UNION ALL
-     SELECT request_id, NULL AS patient_abha, NULL AS hip_id, hiu_id, purpose, NULL AS hi_types, status, transaction_id, NULL AS artefacts, created_at, updated_at, 'app' AS source
-     FROM consent_requests WHERE hiu_id=$2
-     ORDER BY created_at DESC LIMIT 100`,
-    [req.emrUser.clinic_id, hiuId]
+    `SELECT request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, status, transaction_id, artefacts, created_at, updated_at
+     FROM emr_consent_requests
+     WHERE clinic_id=$1
+     ORDER BY updated_at DESC
+     LIMIT 100`,
+    [req.emrUser.clinic_id]
   );
   res.json(rows);
 };
@@ -297,19 +274,12 @@ const respondConsent = async (req, res) => {
 
   const status = action === 'GRANT' ? 'GRANTED' : 'DENIED';
 
-  // Update EMR table
   const { rowCount } = await pool.query(
     `UPDATE emr_consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2 AND clinic_id=$3`,
     [status, requestId, req.emrUser.clinic_id]
   );
-  // Also update PHR table if it exists there
-  await pool.query(
-    `UPDATE consent_requests SET status=$1, updated_at=NOW() WHERE request_id=$2`,
-    [status, requestId]
-  );
-
-  if (rowCount === 0 && action === 'GRANT') {
-    // Came from PHR app — still continue with health info fetch
+  if (rowCount === 0) {
+    return res.status(404).json({ error: 'Consent request not found' });
   }
 
   if (action === 'GRANT') {
@@ -382,8 +352,6 @@ const getConsentHealthRecords = async (req, res) => {
      FROM health_records hr
      WHERE hr.transaction_id IN (
        SELECT transaction_id FROM emr_consent_requests WHERE clinic_id=$1 AND transaction_id IS NOT NULL
-       UNION
-       SELECT transaction_id FROM consent_requests WHERE transaction_id IS NOT NULL
      )
      ORDER BY hr.received_at DESC LIMIT 100`,
     [req.emrUser.clinic_id]
