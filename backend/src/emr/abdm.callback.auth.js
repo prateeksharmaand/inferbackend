@@ -87,8 +87,9 @@ async function verifyAbdmCallback(req, res, next) {
       const pem = _jwkToPem(jwk);
       payload   = jwt.verify(token, pem, {
         algorithms: ['RS256', 'RS512'],
+        // R3-005: production must only accept tokens from production ABDM issuer, NOT sandbox
         ...(process.env.NODE_ENV === 'production' && {
-          issuer: ['https://dev.abdm.gov.in', 'https://abdm.gov.in', 'https://sandbox.abdm.gov.in'],
+          issuer: ['https://abdm.gov.in', 'https://healthlocker.abdm.gov.in'],
         }),
       });
     } else {

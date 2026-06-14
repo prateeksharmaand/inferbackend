@@ -42,8 +42,8 @@ if (Buffer.from(process.env.ENCRYPTION_KEY ?? '', 'utf8').length < 32) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust Nginx reverse proxy (required for rate-limit + X-Forwarded-For)
-app.set('trust proxy', 1);
+// R3-014: trust only the specific proxy CIDR, not blindly "1 hop"
+app.set('trust proxy', process.env.TRUST_PROXY_CIDR || '127.0.0.1');
 
 // Security middleware
 app.use(helmet({
@@ -103,6 +103,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // R2-006: uploads are medical documents — served via authenticated endpoint in emr.routes.js only.
 // NEVER serve /uploads as unauthenticated static files.
 
+// R3-017: request correlation ID — every request gets a traceable ID
+const { randomUUID: _ruuid } = require('crypto');
+app.use((req, res, next) => {
+  const reqId = req.headers['x-request-id'] || req.headers['request-id'] || _ruuid();
+  req.requestId = reqId;
+  res.setHeader('X-Request-ID', reqId);
+  next();
+});
+
 // EMR API routes (static UI served by nginx at emr.inferapp.online)
 app.use('/api/emr', require('./src/emr/emr.routes'));
 
@@ -118,8 +127,8 @@ app.get('/api/track/open',         track.trackOpen);
 app.get('/api/track/opened-leads', track.getOpenedLeads);
 app.post('/api/track/register',    track.registerLead);
 
-// Health check
-app.get('/health', (_, res) => res.json({ status: 'healthy', timestamp: new Date().toISOString(), version: process.env.npm_package_version || '1.0.0' }));
+// Health check — R3-012: no version disclosure
+app.get('/health', (_, res) => res.json({ status: 'healthy', timestamp: new Date().toISOString() }));
 
 // API Routes
 app.use('/api', routes);

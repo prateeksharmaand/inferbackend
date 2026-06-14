@@ -46,8 +46,13 @@ const handleDiscovery = async (req, res) => {
     }
 
     const pt = rows[0];
+    // R3-010: select only metadata columns — fhir_content not needed for discovery
     const { rows: ctxRows } = await pool.query(
-      `SELECT * FROM emr_care_contexts WHERE patient_id=$1 ORDER BY created_at DESC`,
+      `SELECT id, reference_number, display, hi_type, created_at
+       FROM emr_care_contexts
+       WHERE patient_id=$1
+       ORDER BY created_at DESC
+       LIMIT 20`,
       [pt.id]
     );
 
@@ -240,9 +245,17 @@ const handleHealthInfoRequest = async (req, res) => {
       [transactionId, consentId, dataPushUrl, JSON.stringify(keyMaterial ?? {})]
     );
 
-    // SEC-008: verify consent exists and is GRANTED before proceeding
+    // SEC-008 + R3-009: verify consent exists, is GRANTED, and not expired (dataEraseAt)
     const { rows: artifactRows } = await pool.query(
-      `SELECT * FROM hip_consent_artifacts WHERE consent_id=$1 AND status IN ('GRANTED','ACTIVE') LIMIT 1`,
+      `SELECT * FROM hip_consent_artifacts
+       WHERE consent_id=$1
+         AND status IN ('GRANTED','ACTIVE')
+         AND (
+           (raw->'consentDetail'->'permission'->>'dataEraseAt') IS NULL
+           OR (raw->'consentDetail'->'permission'->>'dataEraseAt')::timestamptz > NOW()
+           OR (raw->'permission'->>'dataEraseAt')::timestamptz > NOW()
+         )
+       LIMIT 1`,
       [consentId]
     ).catch(() => ({ rows: [] }));
 
@@ -364,7 +377,14 @@ const handleHealthInfoRequest = async (req, res) => {
     const requestId = req.headers['request-id'] || req.body.requestId;
     await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'ACKNOWLEDGED' });
 
-    const patient = { name: rows[0].name, mobile: rows[0].mobile, dob: rows[0].dob, gender: rows[0].gender };
+    // R3-002: include abhaNumber so FHIR bundle Patient.identifier is populated (ABDM IG)
+    const patient = {
+      name:       rows[0].name,
+      mobile:     rows[0].mobile,
+      dob:        rows[0].dob,
+      gender:     rows[0].gender,
+      abhaNumber: rows[0].abha_number ?? rows[0].abha_address ?? null,
+    };
     await hip.pushHealthData({ dataPushUrl, transactionId, careContexts: rows, patient, keyMaterial });
     await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
   } catch (err) {
@@ -425,14 +445,16 @@ const handlePatientShareProfile = async (req, res) => {
 
     // SEC-004: cryptographically secure token
     const token          = String(crypto.randomInt(100000, 1000000));
+    // R3-007: store SHA-256 hash, never plaintext
+    const tokenHash      = crypto.createHash('sha256').update(token).digest('hex');
     const tokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
     await pool.query(
       `INSERT INTO hip_profile_shares
-         (request_id, share_code, abha_number, abha_address, name, mobile, gender, dob, raw_profile, token, token_expires_at)
+         (request_id, share_code, abha_number, abha_address, name, mobile, gender, dob, raw_profile, token_hash, token_expires_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        ON CONFLICT (request_id) DO NOTHING`,
-      [requestId, profile?.shareCode || null, abhaNumber, abhaAddress, name, mobile, gender, dob, profile || {}, token, tokenExpiresAt]
+      [requestId, profile?.shareCode || null, abhaNumber, abhaAddress, name, mobile, gender, dob, profile || {}, tokenHash, tokenExpiresAt]
     );
 
     await hip.sendShareProfileAck({
@@ -459,8 +481,26 @@ const handleConsentNotify = async (req, res) => {
 
     if (!notification) return;
 
-    const consentId  = notification.consentId  ?? notification.consentRequestId;
-    const status     = notification.status;
+    // R3-011: validate required fields and known status values
+    const consentId = notification.consentId ?? notification.consentRequestId;
+    const status    = notification.status;
+    if (!consentId || !status) {
+      logger.warn('HIP consent notify: missing consentId or status', { requestId });
+      return;
+    }
+    const VALID_STATUSES = ['GRANTED', 'DENIED', 'REVOKED', 'EXPIRED'];
+    if (!VALID_STATUSES.includes(status)) {
+      logger.warn('HIP consent notify: unknown status — ignoring', { status, consentId });
+      return;
+    }
+
+    // R3-011: cap raw JSON size to 64KB
+    const rawJson = JSON.stringify(notification);
+    if (rawJson.length > 65536) {
+      logger.warn('HIP consent notify: payload exceeds 64KB limit', { size: rawJson.length, consentId });
+      return;
+    }
+
     const artefacts  = notification.consentArtefacts ?? [];
 
     const patientAbha =
@@ -508,10 +548,12 @@ const handleRunningTokenStatus = async (req, res) => {
       return;
     }
 
+    // R3-007: look up by SHA-256 hash of token, not plaintext
+    const tokenHash = crypto.createHash('sha256').update(String(tokenNumber)).digest('hex');
     const { rows } = await pool.query(
-      `SELECT token, token_expires_at, status FROM hip_profile_shares
-       WHERE token=$1 ORDER BY created_at DESC LIMIT 1`,
-      [String(tokenNumber)]
+      `SELECT token_hash, token_expires_at, status FROM hip_profile_shares
+       WHERE token_hash=$1 ORDER BY created_at DESC LIMIT 1`,
+      [tokenHash]
     );
 
     const share      = rows[0];

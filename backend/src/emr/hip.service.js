@@ -14,8 +14,9 @@ const FIDELIUS_CP  = `${FIDELIUS_JAR}:${FIDELIUS_DIR}/lib/*`;
 
 function _callFidelius(args) {
   return new Promise((resolve, reject) => {
+    // R3-004: 30-second timeout prevents server from hanging on stuck JVM
     execFile('java', ['-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args],
-      { maxBuffer: 10 * 1024 * 1024 },
+      { maxBuffer: 10 * 1024 * 1024, timeout: 30_000, killSignal: 'SIGKILL' },
       (err, stdout, stderr) => {
         if (err) return reject(new Error(stderr?.trim() || err.message));
         resolve(stdout.trim());
@@ -84,6 +85,7 @@ function validateDataPushUrl(urlStr) {
 
 let _token = null;
 let _tokenExpiry = 0;
+let _tokenRefreshPromise = null; // R3-016: prevents concurrent token fetches under burst load
 
 // R2-004: cryptographically secure UUID (replaces Math.random version)
 const { randomUUID } = require('crypto');
@@ -91,13 +93,19 @@ function uuid() { return randomUUID(); }
 
 async function getToken() {
   if (_token && Date.now() < _tokenExpiry) return _token;
-  const res = await axios.post(`${HIECM}/gateway/v3/sessions`,
-    { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
-    { headers: { 'Content-Type': 'application/json', 'X-CM-ID': CM_ID, 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() } }
-  );
-  _token = res.data.accessToken;
-  _tokenExpiry = Date.now() + ((res.data.expiresIn ?? 300) - 30) * 1000;
-  return _token;
+  if (_tokenRefreshPromise) return _tokenRefreshPromise;
+
+  _tokenRefreshPromise = (async () => {
+    const res = await axios.post(`${HIECM}/gateway/v3/sessions`,
+      { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
+      { headers: { 'Content-Type': 'application/json', 'X-CM-ID': CM_ID, 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() }, timeout: 10_000 }
+    );
+    _token = res.data.accessToken;
+    _tokenExpiry = Date.now() + ((res.data.expiresIn ?? 300) - 30) * 1000;
+    return _token;
+  })().finally(() => { _tokenRefreshPromise = null; });
+
+  return _tokenRefreshPromise;
 }
 
 async function gwGet(path) {
@@ -157,7 +165,13 @@ async function hiecmPost(path, body) {
     });
     return res.data;
   } catch (err) {
-    logger.error('HIP HIECM callback failed', { path, status: err.response?.status, body: err.response?.data });
+    // R3-001: never log full response body — may contain PHI or credentials
+    logger.error('HIP HIECM callback failed', {
+      path,
+      status:    err.response?.status,
+      errorCode: err.response?.data?.error?.code,
+      errorMsg:  err.response?.data?.error?.message,
+    });
     throw err;
   }
 }
@@ -448,7 +462,8 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
         };
       }
     } else {
-      content = Buffer.from(fhir).toString('base64');
+      // R3-003: ABDM M3 mandates encryption. No keyMaterial = reject, not base64.
+      throw new Error('HIU keyMaterial missing — cannot push unencrypted health data per ABDM M3 spec');
     }
 
     return { content, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };

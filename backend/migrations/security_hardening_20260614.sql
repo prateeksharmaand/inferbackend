@@ -72,4 +72,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_link_sessions_one_active_per_patient
   ON hip_link_sessions(patient_id)
   WHERE status IN ('pending_otp', 'pending');
 
+-- ── R3-007: SHA-256 hash for share token (replaces plaintext storage) ─────────
+ALTER TABLE hip_profile_shares
+  ADD COLUMN IF NOT EXISTS token_hash TEXT;
+
+-- Index for fast lookup by hash
+CREATE INDEX IF NOT EXISTS idx_profile_shares_token_hash
+  ON hip_profile_shares(token_hash);
+
+-- Once new code is deployed: drop the old plaintext column in a follow-up migration
+-- ALTER TABLE hip_profile_shares DROP COLUMN IF EXISTS token;
+
+-- ── R3-008: create view for soft-delete transparency ──────────────────────────
+CREATE OR REPLACE VIEW active_patients AS
+  SELECT * FROM emr_patients WHERE deleted_at IS NULL;
+
+-- ── R3-015: abdm xtoken session store (if not already created in prior migration) ─
+CREATE TABLE IF NOT EXISTS abdm_xtoken_sessions (
+  id          SERIAL PRIMARY KEY,
+  session_key TEXT UNIQUE NOT NULL,
+  xtoken      TEXT NOT NULL,
+  patient_id  INT  REFERENCES emr_patients(id) ON DELETE CASCADE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_abdm_xtoken_key ON abdm_xtoken_sessions(session_key);
+CREATE INDEX IF NOT EXISTS idx_abdm_xtoken_exp ON abdm_xtoken_sessions(expires_at);
+
 COMMIT;
