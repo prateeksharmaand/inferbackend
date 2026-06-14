@@ -24,18 +24,20 @@ const listPatients = async (req, res) => {
     const cid    = parseInt(clinicId, 10);
 
     // 1. Search the patient registry (name, mobile, ABHA, or UHID from appointments)
+    // SEC-018: exclude soft-deleted patients
     const { rows: regRows } = await pool.query(
       `SELECT p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
               COUNT(DISTINCT c.id)::int AS context_count, ${uhidSub}
        FROM emr_patients p
        LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
-       WHERE LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
+       WHERE p.deleted_at IS NULL
+         AND (LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
           OR EXISTS (
             SELECT 1 FROM emr_appointments ax
             WHERE ax.patient_mobile = p.mobile
               AND LOWER(ax.uhid) LIKE $1
               AND ax.clinic_id = $3
-          )
+          ))
        GROUP BY p.id ORDER BY p.name LIMIT 10`,
       [term, prefix, cid]
     );
@@ -70,6 +72,7 @@ const listPatients = async (req, res) => {
   }
 
   // Full-list path: uhidSub uses $1 here (not $3 — that's only in the search path)
+  // SEC-018: exclude soft-deleted patients
   const fullUhid = clinicId
     ? `(SELECT a.uhid FROM emr_appointments a
         WHERE a.patient_mobile = p.mobile AND a.uhid IS NOT NULL AND a.uhid != ''
@@ -81,6 +84,7 @@ const listPatients = async (req, res) => {
     `SELECT p.*, COUNT(c.id)::int AS context_count, ${fullUhid}
      FROM emr_patients p
      LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
+     WHERE p.deleted_at IS NULL
      GROUP BY p.id ORDER BY p.created_at DESC`,
     clinicId ? [parseInt(clinicId, 10)] : []
   );
