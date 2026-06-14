@@ -92,16 +92,6 @@ async function attachAbha(pool, patientId, { abhaNumber, abhaAddress, source = '
     [patientId, abhaNumber ?? null, abhaAddress ?? null, source]
   );
 
-  // If address not yet in any row for this patient, add a separate mapping row
-  if (abhaAddress && abhaNumber) {
-    await pool.query(
-      `INSERT INTO abha_mappings (patient_id, abha_number, abha_address, status, source)
-       VALUES ($1, $2, $3, 'active', $4)
-       ON CONFLICT DO NOTHING`,
-      [patientId, abhaNumber, abhaAddress, source]
-    ).catch(() => {}); // ignore if unique constraint fires on same combo
-  }
-
   // Keep legacy columns in sync for backward compat
   await pool.query(
     `UPDATE emr_patients
