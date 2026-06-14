@@ -986,11 +986,36 @@ const abhaLoginVerifyOtp = async (req, res) => {
   if (!otp || !txnId) return res.status(400).json({ error: 'otp and txnId required' });
   try {
     const verifyResult = await abdmSvc.loginVerifyOtp(otp, txnId);
-    const xToken = verifyResult.token || verifyResult.tokens?.token || null;
+
+    // ABDM v3 /login/verify already returns full profile in accounts[].
+    // The token in the response is a short-lived Transfer token NOT suitable
+    // for /profile/account — using it causes ABDM-1094 "X-token expired".
+    // Extract profile directly from the verify response instead.
+    const account = verifyResult.accounts?.[0] ?? null;
     let profile = null;
-    if (xToken) {
-      try { profile = await abdmSvc.getAbhaProfile(xToken); } catch (_) {}
+    if (account) {
+      profile = {
+        name:                 account.name,
+        ABHANumber:           account.ABHANumber,
+        preferredAbhaAddress: account.preferredAbhaAddress,
+        mobile:               account.mobile,
+        dob:                  account.dob,
+        gender:               account.gender,
+        profilePhoto:         account.profilePhoto,
+        kycVerified:          account.kycVerified,
+        status:               account.status,
+      };
+      logger.info('ABHA login verified', {
+        abhaNumber: account.ABHANumber,
+        kycVerified: account.kycVerified,
+        status: account.status,
+      });
+    } else {
+      logger.warn('ABHA login verify: no accounts in response', {
+        keys: Object.keys(verifyResult || {}),
+      });
     }
+
     // SEC-013: xToken never returned to client
     res.json({ profile });
   } catch (err) {
