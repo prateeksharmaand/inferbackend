@@ -369,7 +369,8 @@ async function generateMobileLoginOtp(mobile) {
 
 async function verifyMobileLoginOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
-  return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
+  // ABDM v3: endpoint is /profile/login/verify (NOT /profile/login/verify/otp)
+  return abhaReq('POST', `${ABHA_BASE}/profile/login/verify`, {
     scope: ['abha-login', 'mobile-verify'],
     authData: {
       authMethods: ['otp'],
@@ -431,7 +432,8 @@ async function loginRequestOtp(abhaNumber) {
 
 async function loginVerifyOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
-  return abhaReq('POST', `${ABHA_BASE}/profile/login/verify/otp`, {
+  // ABDM v3: endpoint is /profile/login/verify (NOT /profile/login/verify/otp)
+  return abhaReq('POST', `${ABHA_BASE}/profile/login/verify`, {
     scope: ['abha-login', 'mobile-verify'],
     authData: {
       authMethods: ['otp'],
