@@ -22,7 +22,7 @@ async function findByAbhaNumber(pool, abhaNumber) {
   const { rows } = await pool.query(
     `SELECT p.* FROM emr_patients p
      JOIN abha_mappings m ON m.patient_id = p.id
-     WHERE m.abha_number = $1 AND m.status = 'active'
+     WHERE m.abha_number = $1 AND m.status = 'active' AND p.deleted_at IS NULL
      ORDER BY m.linked_at ASC LIMIT 1`,
     [abhaNumber]
   );
@@ -45,7 +45,7 @@ async function findByAbhaAddress(pool, abhaAddress) {
   const { rows } = await pool.query(
     `SELECT p.* FROM emr_patients p
      JOIN abha_mappings m ON m.patient_id = p.id
-     WHERE m.abha_address = $1 AND m.status = 'active'
+     WHERE m.abha_address = $1 AND m.status = 'active' AND p.deleted_at IS NULL
      ORDER BY m.linked_at ASC LIMIT 1`,
     [abhaAddress]
   );
@@ -136,10 +136,10 @@ async function resolveOrCreatePatient(pool, {
     return { patient: rows[0], created: false, matchedBy };
   }
 
-  // Create new patient
+  // Create new patient with deleted_at = NULL (ensure not deleted)
   const { rows } = await pool.query(
-    `INSERT INTO emr_patients (name, mobile, dob, gender, abha_number, abha_address, clinic_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    `INSERT INTO emr_patients (name, mobile, dob, gender, abha_number, abha_address, clinic_id, deleted_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,NULL) RETURNING *`,
     [name, mobile ?? null, dob ?? null, gender ?? null,
      abhaNumber ?? null, abhaAddress ?? null, clinicId ?? null]
   );

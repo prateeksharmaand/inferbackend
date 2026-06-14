@@ -55,7 +55,7 @@ exports.listClinics = async (req, res) => {
     `SELECT c.*,
             sp.key AS plan_key, sp.display_name AS plan_name,
             cs.status AS sub_status, cs.expires_at, cs.billing_cycle,
-            (SELECT COUNT(*)::int FROM emr_patients   WHERE clinic_id = c.id) AS patient_count,
+            (SELECT COUNT(*)::int FROM emr_patients   WHERE clinic_id = c.id AND deleted_at IS NULL) AS patient_count,
             (SELECT COUNT(*)::int FROM emr_appointments WHERE clinic_id = c.id) AS appointment_count,
             (SELECT COUNT(*)::int FROM emr_doctors     WHERE clinic_id = c.id AND is_active = true) AS doctor_count
      FROM emr_clinics c
@@ -88,7 +88,7 @@ exports.getClinic = async (req, res) => {
   const [doctors, staff, patients, appts] = await Promise.all([
     pool.query(`SELECT id, name, email, specialization, is_active FROM emr_doctors WHERE clinic_id = $1 ORDER BY name`, [id]),
     pool.query(`SELECT id, name, email, role, is_active FROM emr_clinic_staff WHERE clinic_id = $1 ORDER BY name`, [id]),
-    pool.query(`SELECT COUNT(*)::int AS n FROM emr_patients WHERE clinic_id = $1`, [id]),
+    pool.query(`SELECT COUNT(*)::int AS n FROM emr_patients WHERE clinic_id = $1 AND deleted_at IS NULL`, [id]),
     pool.query(`SELECT COUNT(*)::int AS n FROM emr_appointments WHERE clinic_id = $1`, [id]),
   ]);
 
@@ -249,7 +249,7 @@ exports.getStats = async (req, res) => {
       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int                AS new_this_month
     FROM emr_clinics`),
 
-    pool.query(`SELECT COUNT(*)::int AS total FROM emr_patients`),
+    pool.query(`SELECT COUNT(*)::int AS total FROM emr_patients WHERE deleted_at IS NULL`),
 
     pool.query(`SELECT
       sp.key AS plan_key, sp.display_name, COUNT(cs.id)::int AS count

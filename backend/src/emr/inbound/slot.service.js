@@ -96,7 +96,7 @@ async function bookSlot(clinicId, doctorId, dateStr, timeStr, patientData, chann
   let emrPatientId = null;
   if (patientData.patient_mobile) {
     const { rows: [existing] } = await pool.query(
-      `SELECT id FROM emr_patients WHERE mobile = $1 AND clinic_id IS NOT DISTINCT FROM $2 LIMIT 1`,
+      `SELECT id FROM emr_patients WHERE mobile = $1 AND deleted_at IS NULL AND clinic_id IS NOT DISTINCT FROM $2 LIMIT 1`,
       // Note: emr_patients has no clinic_id; match by mobile globally within clinic via appointments
       [patientData.patient_mobile]
     );

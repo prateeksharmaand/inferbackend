@@ -53,14 +53,14 @@ const handleDiscovery = async (req, res) => {
       ({ rows } = await pool.query(
         `SELECT p.* FROM emr_patients p
          JOIN abha_mappings m ON m.patient_id = p.id
-         WHERE (m.abha_address=$1 OR m.abha_number=$1) AND m.status='active'
+         WHERE (m.abha_address=$1 OR m.abha_number=$1) AND m.status='active' AND p.deleted_at IS NULL
          LIMIT 1`,
         [patient.id]
       ));
       // Fallback: legacy columns
       if (!rows.length) {
         ({ rows } = await pool.query(
-          `SELECT * FROM emr_patients WHERE abha_address=$1 OR abha_number=$1 LIMIT 1`,
+          `SELECT * FROM emr_patients WHERE (abha_address=$1 OR abha_number=$1) AND deleted_at IS NULL LIMIT 1`,
           [patient.id]
         ));
       }
@@ -72,7 +72,7 @@ const handleDiscovery = async (req, res) => {
         .map(i => i.value);
       if (mobiles.length) {
         ({ rows } = await pool.query(
-          `SELECT * FROM emr_patients WHERE mobile = ANY($1) LIMIT 1`,
+          `SELECT * FROM emr_patients WHERE mobile = ANY($1) AND deleted_at IS NULL LIMIT 1`,
           [mobiles]
         ));
         if (rows.length) matchedBy = ['MOBILE'];
@@ -243,7 +243,7 @@ const handleLinkConfirm = async (req, res) => {
     if (!Array.isArray(careContexts)) careContexts = Object.values(careContexts);
 
     const ptId = session.patient_id
-      ? (await pool.query(`SELECT abha_address, abha_number, id FROM emr_patients WHERE id=$1`, [session.patient_id]))
+      ? (await pool.query(`SELECT abha_address, abha_number, id FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`, [session.patient_id]))
           .rows[0]
       : null;
     const patientRef = ptId?.abha_address ?? ptId?.abha_number ?? `${ptId?.id}@hip`;

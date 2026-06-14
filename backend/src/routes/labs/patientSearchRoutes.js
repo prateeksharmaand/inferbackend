@@ -173,7 +173,7 @@ router.post('/', verifyLabToken, async (req, res) => {
  */
 router.get('/debug/all', verifyLabToken, async (req, res) => {
   try {
-    const { rows } = await pool.query(`SELECT id, name, mobile FROM emr_patients ORDER BY name LIMIT 50`);
+    const { rows } = await pool.query(`SELECT id, name, mobile FROM emr_patients WHERE deleted_at IS NULL ORDER BY name LIMIT 50`);
     res.json({ total: rows.length, patients: rows });
   } catch (err) {
     res.status(500).json({ error: err.message });

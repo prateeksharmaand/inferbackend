@@ -153,7 +153,7 @@ const addCareContext = async (req, res) => {
   const patientId = req.params.id;
   const now = new Date().toISOString();
   const docId = hip.uuid().slice(0, 8);
-  const patData = (await pool.query('SELECT name, gender, dob FROM emr_patients WHERE id=$1', [patientId])).rows[0];
+  const patData = (await pool.query('SELECT name, gender, dob FROM emr_patients WHERE id=$1 AND deleted_at IS NULL', [patientId])).rows[0];
 
   const patId = `pat-${docId}`;
   const practId = `doc-${docId}`;

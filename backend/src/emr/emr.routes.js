@@ -231,7 +231,7 @@ router.get('/patients/:id/lab-results', async (req, res) => {
     );
     if (direct.length > 0) return res.json(direct);
     // Fallback: find user by mobile matching emr_patient
-    const { rows: ep } = await pool.query(`SELECT mobile FROM emr_patients WHERE id=$1`, [req.params.id]);
+    const { rows: ep } = await pool.query(`SELECT mobile FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`, [req.params.id]);
     if (!ep.length || !ep[0].mobile) return res.json([]);
     const { rows } = await pool.query(
       `SELECT r.*, l.facility_name AS lab_name
@@ -264,7 +264,7 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
       const { rows: uhidRows2 } = await pool.query(
         `SELECT MAX(uhid) AS uhid FROM emr_appointments WHERE uhid IS NOT NULL AND (
           emr_patient_id::text = $1 OR patient_mobile IN (
-            SELECT mobile FROM emr_patients WHERE id::text = $1
+            SELECT mobile FROM emr_patients WHERE id::text = $1 AND deleted_at IS NULL
           )
         )`,
         [req.params.id]
