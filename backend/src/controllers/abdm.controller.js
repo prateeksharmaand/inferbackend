@@ -2,6 +2,38 @@ const abdm   = require('../services/abdm.service');
 const { pool } = require('../config/database');
 const logger = require('../utils/logger');
 
+// M3-SEC: Rate limiting for health-info requests (prevents DoS attacks)
+// Key: consentId + patient ABHA; Value: { count, resetTime }
+const _healthInfoRateLimits = new Map();
+const HEALTH_INFO_RATE_LIMIT = 10; // Max 10 requests per patient
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkHealthInfoRateLimit(key) {
+  const now = Date.now();
+  const entry = _healthInfoRateLimits.get(key);
+
+  if (!entry) {
+    // First request - initialize
+    _healthInfoRateLimits.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - 1 };
+  }
+
+  if (now > entry.resetTime) {
+    // Window expired - reset
+    _healthInfoRateLimits.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - 1 };
+  }
+
+  // Within window - check limit
+  if (entry.count >= HEALTH_INFO_RATE_LIMIT) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  // Increment and allow
+  entry.count++;
+  return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - entry.count };
+}
+
 // ─── M1: Aadhaar OTP ─────────────────────────────────────────────────────────
 
 const aadhaarGenerateOtp = async (req, res) => {

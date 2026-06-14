@@ -5,6 +5,34 @@ const crypto      = require('crypto');
 const bcrypt      = require('bcryptjs');
 const AbhaIdentity = require('./abha.identity');
 
+// M3-SEC: Rate limiting for health-information requests (prevents DoS attacks)
+// Key: patient ABHA; Value: { count, resetTime }
+const _healthInfoRateLimits = new Map();
+const HEALTH_INFO_RATE_LIMIT = 10; // Max 10 requests per patient
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkHealthInfoRateLimit(patientAbha) {
+  const now = Date.now();
+  const entry = _healthInfoRateLimits.get(patientAbha);
+
+  if (!entry) {
+    _healthInfoRateLimits.set(patientAbha, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - 1 };
+  }
+
+  if (now > entry.resetTime) {
+    _healthInfoRateLimits.set(patientAbha, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - 1 };
+  }
+
+  if (entry.count >= HEALTH_INFO_RATE_LIMIT) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: HEALTH_INFO_RATE_LIMIT - entry.count };
+}
+
 // ── ABDM gateway → HIP: care-context discovery ───────────────────────────────
 
 const handleDiscovery = async (req, res) => {
@@ -336,6 +364,26 @@ const handleHealthInfoRequest = async (req, res) => {
       await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'DENIED' });
       await pool.query(`UPDATE hip_health_requests SET status='denied' WHERE transaction_id=$1`, [transactionId]);
       return;
+    }
+
+    // M3-SEC: Rate limit health-info requests per patient (prevents DoS)
+    const patientAbha = artifact?.patient_abha || inlineConsent?.patient?.id;
+    if (patientAbha) {
+      const rateCheck = checkHealthInfoRateLimit(patientAbha);
+      if (!rateCheck.allowed) {
+        logger.warn('Health-info request rate limit exceeded', {
+          patientAbha,
+          transactionId,
+          limit: HEALTH_INFO_RATE_LIMIT,
+          window: '1 hour',
+        });
+        // Return DENIED instead of blocking (per ABDM async pattern)
+        const requestId = req.headers['request-id'] || req.body.requestId;
+        await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'DENIED' });
+        await pool.query(`UPDATE hip_health_requests SET status='rate_limited' WHERE transaction_id=$1`, [transactionId]);
+        return;
+      }
+      logger.debug('Health-info rate limit check', { patientAbha, remaining: rateCheck.remaining });
     }
 
     const ctxList =
