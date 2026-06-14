@@ -933,8 +933,15 @@ const abhaAddCreate = async (req, res) => {
     const abhaNum  = profile.ABHANumber  || profile.abhaNumber  || null;
     const abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
     const name     = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
-    const dob      = profile.dob || profile.dateOfBirth ||
-      (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
+    // ABDM returns dob as DD-MM-YYYY; convert to YYYY-MM-DD for PostgreSQL
+    const rawDob = profile.dob || profile.dateOfBirth || null;
+    const dob = rawDob
+      ? (rawDob.match(/^\d{2}-\d{2}-\d{4}$/)
+          ? rawDob.split('-').reverse().join('-')   // DD-MM-YYYY → YYYY-MM-DD
+          : rawDob)
+      : (profile.yearOfBirth
+          ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}`
+          : null);
 
     const result = await AbhaIdentity.resolveOrCreatePatient(pool, {
       abhaNumber: abhaNum, abhaAddress: abhaAddr,
@@ -1044,7 +1051,10 @@ const abhaLoginLinkPatient = async (req, res) => {
     const abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
     const name     = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
     const mobile   = profile.mobile || null;
-    const dob      = profile.dateOfBirth || (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
+    const rawDob2  = profile.dateOfBirth || profile.dob || null;
+    const dob      = rawDob2
+      ? (rawDob2.match(/^\d{2}-\d{2}-\d{4}$/) ? rawDob2.split('-').reverse().join('-') : rawDob2)
+      : (profile.yearOfBirth ? `${profile.yearOfBirth}-${String(profile.monthOfBirth||1).padStart(2,'0')}-${String(profile.dayOfBirth||1).padStart(2,'0')}` : null);
 
     const result = await AbhaIdentity.resolveOrCreatePatient(pool, {
       abhaNumber: abhaNum, abhaAddress: abhaAddr,
