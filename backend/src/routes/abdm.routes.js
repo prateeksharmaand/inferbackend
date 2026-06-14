@@ -44,8 +44,9 @@ router.get('/consents',                     auth, ctrl.getConsents);
 router.post('/consents/:requestId/respond', auth, ctrl.respondConsent);
 
 // ── M3: Callbacks – called by ABDM gateway (no auth) ─────────────────────────
-router.post('/consent/notify',     ctrl.consentNotify);
-router.post('/health-info/push',   ctrl.healthInfoPush);
+router.post('/consent/notify',            ctrl.consentNotify);
+router.post('/consent-request/on-status', ctrl.consentNotify);  // ABDM spec endpoint
+router.post('/health-info/push',          ctrl.healthInfoPush);
 
 // ── M3: View fetched health records ──────────────────────────────────────────
 router.get('/health-records', auth, ctrl.getHealthRecords);
