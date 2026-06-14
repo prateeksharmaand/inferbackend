@@ -94,10 +94,22 @@ const listPatients = async (req, res) => {
 const createPatient = async (req, res) => {
   const { name, mobile, dob, gender, abha_number, abha_address } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
+
+  // Use ABHA resolution to prevent duplicate patients with same ABHA number
+  if (abha_number || abha_address) {
+    const result = await AbhaIdentity.resolveOrCreatePatient(pool, {
+      abhaNumber: abha_number, abhaAddress: abha_address,
+      name, mobile: mobile ?? null, gender: gender ?? 'M', dob: dob ?? null,
+      clinicId: req.emrUser?.clinic_id, source: 'manual',
+    });
+    return res.status(result.created ? 201 : 200).json(result.patient);
+  }
+
+  // Fallback: create patient without ABHA (no dedup possible)
   const { rows } = await pool.query(
-    `INSERT INTO emr_patients (name, mobile, dob, gender, abha_number, abha_address)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [name, mobile ?? null, dob ?? null, gender ?? 'M', abha_number ?? null, abha_address ?? null]
+    `INSERT INTO emr_patients (name, mobile, dob, gender, deleted_at)
+     VALUES ($1,$2,$3,$4,NULL) RETURNING *`,
+    [name, mobile ?? null, dob ?? null, gender ?? 'M']
   );
   res.status(201).json(rows[0]);
 };
