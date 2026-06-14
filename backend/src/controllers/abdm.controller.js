@@ -736,13 +736,182 @@ const healthInfoPush = async (req, res) => {
   }
 };
 
-// ─── M3: Fetch stored health records ──────────────────────────────────────────
+// ─── M3: Fetch & decrypt stored health records ────────────────────────────────
 
 const getHealthRecords = async (req, res) => {
-  // Health records now tracked via emr_consent_requests only
-  // PHR users should use EMR endpoints
-  res.json([]);
+  const { consentId, transactionId, decrypt } = req.query;
+
+  if (!consentId && !transactionId) {
+    return res.status(400).json({ error: 'consentId or transactionId required' });
+  }
+
+  try {
+    // M3: Query health records by consentId or transactionId
+    let query = `SELECT * FROM health_records WHERE `;
+    let params = [];
+
+    if (transactionId) {
+      query += `transaction_id = $1`;
+      params = [transactionId];
+    } else {
+      // If only consentId provided, find transactionId first
+      const { rows: txRows } = await pool.query(
+        'SELECT DISTINCT transaction_id FROM hip_health_requests WHERE consent_id=$1',
+        [consentId]
+      ).catch(() => ({ rows: [] }));
+
+      if (!txRows.length) {
+        return res.json({ records: [], message: 'No health records found for consent' });
+      }
+
+      const txIds = txRows.map(r => r.transaction_id);
+      query += `transaction_id = ANY($1::text[])`;
+      params = [txIds];
+    }
+
+    query += ` ORDER BY received_at DESC`;
+    const { rows: records } = await pool.query(query, params);
+
+    if (!records.length) {
+      return res.json({ records: [], message: 'No health records found' });
+    }
+
+    logger.info('Fetched health records', {
+      consentId,
+      transactionId,
+      recordCount: records.length,
+      decrypt: decrypt === 'true',
+    });
+
+    // M3: If decrypt requested, decrypt all entries using HIU's private key
+    if (decrypt === 'true') {
+      const crypto = require('crypto');
+      const decryptedRecords = [];
+
+      for (const record of records) {
+        try {
+          // Retrieve HIU private key
+          const hiuKeyEntry = consentId ? abdm.getHiuKey(consentId) : null;
+
+          if (!hiuKeyEntry) {
+            logger.warn('HIU key not found — cannot decrypt', {
+              transactionId: record.transaction_id,
+              consentId,
+            });
+            // Return encrypted content if key unavailable
+            decryptedRecords.push({
+              ...record,
+              decrypted: false,
+              error: 'HIU key not available for decryption',
+            });
+            continue;
+          }
+
+          // For encrypted entries, we would need the HIP's public key and nonce
+          // which should be stored or recoverable. For now, return with flag.
+          // In production, retrieve HIP's keyMaterial from hip_health_requests
+          const { rows: hhrRows } = await pool.query(
+            'SELECT key_material FROM hip_health_requests WHERE transaction_id=$1',
+            [record.transaction_id]
+          ).catch(() => ({ rows: [] }));
+
+          const hipKeyMaterial = hhrRows[0]?.key_material;
+          if (!hipKeyMaterial) {
+            decryptedRecords.push({
+              ...record,
+              decrypted: false,
+              error: 'HIP key material not available',
+            });
+            continue;
+          }
+
+          const hipPubKey = hipKeyMaterial.dhPublicKey?.keyValue;
+          const hipNonce = hipKeyMaterial.nonce;
+
+          if (!hipPubKey || !hipNonce) {
+            decryptedRecords.push({
+              ...record,
+              decrypted: false,
+              error: 'HIP key material incomplete',
+            });
+            continue;
+          }
+
+          // Decrypt entry using Curve25519 ECDH
+          const decrypted = abdm.decryptHipEntry(record.content, hipPubKey, hipNonce, hiuKeyEntry);
+
+          if (!decrypted) {
+            decryptedRecords.push({
+              ...record,
+              decrypted: false,
+              error: 'Decryption failed',
+            });
+            continue;
+          }
+
+          // Verify checksum
+          const computedChecksum = crypto.createHash('md5').update(decrypted).digest('hex');
+          const checksumValid = computedChecksum === record.checksum;
+
+          if (!checksumValid) {
+            logger.warn('Decrypted content checksum mismatch', {
+              transactionId: record.transaction_id,
+              expected: record.checksum,
+              computed: computedChecksum,
+            });
+          }
+
+          // Parse FHIR bundle if applicable
+          let fhirBundle = null;
+          if (record.media === 'application/fhir+json') {
+            try {
+              fhirBundle = JSON.parse(decrypted);
+            } catch (parseErr) {
+              logger.warn('Failed to parse FHIR bundle', {
+                transactionId: record.transaction_id,
+                error: parseErr.message,
+              });
+            }
+          }
+
+          decryptedRecords.push({
+            ...record,
+            content: fhirBundle || decrypted, // Return parsed FHIR or plaintext
+            decrypted: true,
+            checksumValid,
+          });
+        } catch (err) {
+          logger.error('Error decrypting health record', {
+            transactionId: record.transaction_id,
+            error: err.message,
+          });
+          decryptedRecords.push({
+            ...record,
+            decrypted: false,
+            error: err.message,
+          });
+        }
+      }
+
+      return res.json({
+        records: decryptedRecords,
+        totalRecords: decryptedRecords.length,
+        decryptedCount: decryptedRecords.filter(r => r.decrypted).length,
+      });
+    }
+
+    // Return encrypted records as-is (for backup/audit purposes)
+    res.json({
+      records,
+      totalRecords: records.length,
+      note: 'Records are encrypted. Use ?decrypt=true to decrypt.',
+    });
+  } catch (err) {
+    logger.error('getHealthRecords error', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch health records' });
+  }
 };
+
 
 // ─── M1: ABHA Logout ──────────────────────────────────────────────────────────
 
