@@ -443,7 +443,8 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       ? ctx.fhir_content
       : buildFhirBundle(patient, ctx); // already returns JSON.stringify'd string
 
-    const checksum = crypto.createHash('sha256').update(fhir).digest('hex');
+    // ABDM wire format requires MD5 checksum (spec §4.3.2)
+    const checksum = crypto.createHash('md5').update(fhir).digest('hex');
     let content;
 
     if (hiuPubKey && hiuNonce) {
@@ -452,11 +453,11 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       if (hipPublicKey && hipNonce && !respondingKeyMaterial) {
         respondingKeyMaterial = {
           cryptoAlg: 'ECDH',
-          curve: 'curve25519',
+          curve: 'Curve25519',           // capital C — matches ABDM spec exactly
           dhPublicKey: {
             expiry: new Date(Date.now() + 3600_000).toISOString(),
             parameters: 'Curve25519/32ByteNonce',
-            keyValue: hipPublicKey, // SPKI DER with explicit BC25519 params
+            keyValue: hipPublicKey,       // SPKI DER with explicit BC25519 params
           },
           nonce: hipNonce,
         };
@@ -481,10 +482,18 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   // Small delay to ensure ABDM has registered the transaction before we push
   await new Promise(r => setTimeout(r, 3000));
 
-  // R2-010: 30-second timeout to prevent indefinite hangs
+  // Add gateway auth headers — ABDM dataPushUrl requires Bearer token + CM-ID
+  const pushToken = await getToken();
   await axios.post(dataPushUrl, pushBody, {
     timeout: 30_000,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${pushToken}`,
+      'X-CM-ID':       CM_ID,
+      'X-HIP-ID':      HIP_ID,
+      'REQUEST-ID':    uuid(),
+      'TIMESTAMP':     new Date().toISOString(),
+    },
   });
   logger.info('HIP health data pushed', { transactionId, entries: entries.length, encrypted: !!respondingKeyMaterial });
 }
