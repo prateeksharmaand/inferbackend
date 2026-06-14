@@ -320,7 +320,7 @@ function buildFhirBundle(patient, careContext) {
           }] : [],
           name: [{ text: patient.name }],
           gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
-          birthDate: patient.dob ? patient.dob.toString().slice(0, 10) : undefined,
+          birthDate: patient.dob ? new Date(patient.dob).toISOString().slice(0, 10) : undefined,
           telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
         },
       },
