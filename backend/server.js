@@ -87,9 +87,9 @@ morgan.token('safe-url', (req) => {
 app.use(morgan(':method :safe-url :status :res[content-length] - :response-time ms',
   { stream: { write: (msg) => logger.info(msg.trim()) } }));
 
-// Rate limiting
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: { error: 'Too many requests, please try again later.' } });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many auth attempts.' } });
+// Rate limiting — strict on auth/OTP, generous on normal API usage
+const limiter     = rateLimit({ windowMs: 15 * 60 * 1000, max: 1500, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests.' } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20,   standardHeaders: true, legacyHeaders: false, message: { error: 'Too many auth attempts.' } });
 app.use('/api/auth', authLimiter);
 app.use('/api', limiter);
 
