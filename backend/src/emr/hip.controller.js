@@ -5,6 +5,17 @@ const crypto      = require('crypto');
 const bcrypt      = require('bcryptjs');
 const AbhaIdentity = require('./abha.identity');
 
+// BLOCKER-4 fix: UUID format validation for request-ID and transaction-ID
+const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function _validateIds(requestId, transactionId) {
+  if (requestId && !_UUID_RE.test(requestId)) {
+    logger.warn('HIP: invalid request-id format', { requestId: String(requestId).slice(0, 36) });
+  }
+  if (transactionId && !_UUID_RE.test(transactionId)) {
+    logger.warn('HIP: invalid transaction-id format', { transactionId: String(transactionId).slice(0, 36) });
+  }
+}
+
 // M3-SEC: Rate limiting for health-information requests (prevents DoS attacks)
 // Key: patient ABHA; Value: { count, resetTime }
 const _healthInfoRateLimits = new Map();
@@ -40,6 +51,7 @@ const handleDiscovery = async (req, res) => {
   try {
     const requestId = req.headers['request-id'] || req.body.requestId;
     const { transactionId, patient } = req.body;
+    _validateIds(requestId, transactionId);
     // R2-013: mask ABHA address in logs (PHI)
     const maskedAbha = patient?.id
       ? patient.id.replace(/^(.{3}).*(@.*)$/, '$1***$2')
@@ -80,8 +92,13 @@ const handleDiscovery = async (req, res) => {
     }
 
     if (!rows.length) {
-      // Return same response whether patient found or not — prevents ABHA enumeration
-      await hip.sendDiscoverResult({ requestId, transactionId, patientId: null, careContexts: [], matchedBy: [] });
+      // BLOCKER-2 fix: send explicit error callback, not silent null
+      await hip.gwPost('/v0.5/care-contexts/on-discover', {
+        requestId: hip.uuid(), timestamp: new Date().toISOString(),
+        transactionId,
+        error: { code: 'PATIENT_NOT_FOUND', message: 'No patient found matching the provided identifiers' },
+        resp: { requestId },
+      }).catch(e => logger.warn('HIP discover not-found callback failed', { error: e.message }));
       return;
     }
 
@@ -118,6 +135,7 @@ const handleLinkInit = async (req, res) => {
   try {
     const requestId = req.headers['request-id'] || req.body.requestId;
     const { transactionId, patient } = req.body;
+    _validateIds(requestId, transactionId);
     const careContexts = patient?.careContexts ?? req.body.careContexts ?? [];
     const patientId    = patient?.id ?? req.body.abhaAddress ?? req.body.patientId ?? '';
     logger.info('HIP link/init', { requestId, transactionId, careContextCount: careContexts.length });
@@ -177,6 +195,7 @@ const handleLinkConfirm = async (req, res) => {
   try {
     const requestId = req.headers['request-id'] || req.body.requestId;
     const { transactionId, confirmation } = req.body;
+    _validateIds(requestId, transactionId);
     const { linkRefNumber, token: submittedOtp } = confirmation ?? {};
     logger.info('HIP link/confirm', { requestId, linkRefNumber });
 
@@ -190,30 +209,30 @@ const handleLinkConfirm = async (req, res) => {
     }
     const session = rows[0];
 
-    if (!['pending_otp', 'pending'].includes(session.status)) {
-      logger.warn('HIP: link already processed or locked', { linkRefNumber, status: session.status });
-      return;
-    }
-
-    // Check lockout BEFORE expiry check (locked takes priority)
-    if (session.status === 'locked' || (session.otp_attempt_count ?? 0) >= MAX_OTP_ATTEMPTS) {
-      logger.warn('HIP: OTP locked out', { linkRefNumber });
-      await hip.gwPost('/v0.5/links/link/on-confirm', {
-        requestId: hip.uuid(), timestamp: new Date().toISOString(),
-        error: { code: 'OTP_LOCKED', message: 'Too many incorrect attempts' },
-        resp: { requestId },
-      });
-      return;
-    }
-
+    // BLOCKER-1 fix: check expiry FIRST, then lockout — prevents orphaned locked sessions
     if (new Date() > new Date(session.otp_expires_at)) {
       await pool.query(`UPDATE hip_link_sessions SET status='expired' WHERE id=$1`, [session.id]);
       logger.warn('HIP: OTP expired', { linkRefNumber });
-      await hip.gwPost('/v0.5/links/link/on-confirm', {
+      await hip.gwPostWithRetry('/v0.5/links/link/on-confirm', {
         requestId: hip.uuid(), timestamp: new Date().toISOString(),
-        error: { code: 'OTP_EXPIRED', message: 'OTP has expired' },
+        error: { code: 'OTP_EXPIRED', message: 'OTP has expired. Please initiate linking again.' },
         resp: { requestId },
       });
+      return;
+    }
+
+    if (session.status === 'locked' || (session.otp_attempt_count ?? 0) >= MAX_OTP_ATTEMPTS) {
+      logger.warn('HIP: OTP locked out', { linkRefNumber });
+      await hip.gwPostWithRetry('/v0.5/links/link/on-confirm', {
+        requestId: hip.uuid(), timestamp: new Date().toISOString(),
+        error: { code: 'OTP_LOCKED', message: 'Too many incorrect attempts. Please initiate linking again.' },
+        resp: { requestId },
+      });
+      return;
+    }
+
+    if (!['pending_otp', 'pending'].includes(session.status)) {
+      logger.warn('HIP: link already processed', { linkRefNumber, status: session.status });
       return;
     }
 
@@ -260,11 +279,41 @@ const handleLinkConfirm = async (req, res) => {
 
     if (!careContexts.length) {
       logger.warn('HIP link confirm: patient has no care contexts', { linkRefNumber });
+      await hip.gwPostWithRetry('/v0.5/links/link/on-confirm', {
+        requestId: hip.uuid(), timestamp: new Date().toISOString(),
+        error: { code: 'CARE_CONTEXT_NOT_FOUND', message: 'No care contexts available for this patient' },
+        resp: { requestId },
+      });
       return;
     }
 
+    // BLOCKER-3 fix: validate confirmed care contexts exist in EMR DB for this patient
+    if (session.patient_id) {
+      const requestedRefs = careContexts
+        .map(c => c.careContextReference ?? c.referenceNumber ?? c.reference_number)
+        .filter(Boolean);
+      if (requestedRefs.length) {
+        const { rows: validCtxs } = await pool.query(
+          `SELECT reference_number FROM emr_care_contexts
+           WHERE patient_id=$1 AND reference_number = ANY($2::text[])`,
+          [session.patient_id, requestedRefs]
+        );
+        if (validCtxs.length !== requestedRefs.length) {
+          logger.warn('HIP link confirm: care context mismatch', {
+            requested: requestedRefs.length, found: validCtxs.length, linkRefNumber,
+          });
+          // Use only verified contexts to prevent linking phantom references
+          const validRefs = new Set(validCtxs.map(r => r.reference_number));
+          careContexts = careContexts.filter(c => {
+            const ref = c.careContextReference ?? c.referenceNumber ?? c.reference_number;
+            return validRefs.has(ref);
+          });
+        }
+      }
+    }
+
     logger.info('HIP link confirm payload', { patientRef, count: careContexts.length });
-    await hip.sendLinkConfirmResult({ requestId, patientId: patientRef, careContexts });
+    await hip.sendLinkConfirmResultWithRetry({ requestId, patientId: patientRef, careContexts });
     logger.info('HIP link confirmed', { linkRefNumber, contexts: careContexts.length });
   } catch (err) {
     logger.error('handleLinkConfirm error', err);

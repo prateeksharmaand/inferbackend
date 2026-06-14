@@ -150,6 +150,45 @@ async function gwPost(path, body) {
   }
 }
 
+// BLOCKER-5 fix: exponential-backoff retry for critical gateway callbacks
+async function gwPostWithRetry(path, body, maxRetries = 3) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await gwPost(path, body);
+    } catch (err) {
+      lastErr = err;
+      const isClientError = err.response?.status >= 400 && err.response?.status < 500;
+      if (isClientError) break; // 4xx errors won't succeed on retry
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 500; // 1s, 2s, 4s
+        logger.warn('HIP gateway retry', { path, attempt, delay, status: err.response?.status });
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  logger.error('HIP gateway callback failed after retries', { path, maxRetries });
+  throw lastErr;
+}
+
+async function sendLinkConfirmResultWithRetry({ requestId, patientId, careContexts }) {
+  const mapped = careContexts.map(c => ({
+    referenceNumber: c.referenceNumber ?? c.reference_number,
+    display: c.display,
+  }));
+  await gwPostWithRetry('/v0.5/links/link/on-confirm', {
+    requestId: uuid(),
+    timestamp: new Date().toISOString(),
+    patient: {
+      referenceNumber: patientId,
+      display: patientId,
+      count: mapped.length,
+      careContexts: mapped,
+    },
+    resp: { requestId },
+  });
+}
+
 async function hiecmPost(path, body) {
   const token = await getToken();
   try {
@@ -1092,4 +1131,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   }
 }
 
-module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
+module.exports = { uuid, gwGet, gwPost, gwPostWithRetry, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendLinkConfirmResultWithRetry, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
