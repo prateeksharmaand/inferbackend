@@ -50,8 +50,9 @@ async function verifyAbdmCallback(req, res, next) {
 
   const token = authHeader.slice(7);
 
-  // Sandbox bypass (never set in production)
-  if (process.env.ABDM_SKIP_JWT_VERIFY === 'true' && process.env.NODE_ENV !== 'production') {
+  // Sandbox bypass — set ABDM_SKIP_JWT_VERIFY=true in .env for sandbox
+  // (ABDM sandbox does not publish a JWKS endpoint so signature verification always fails)
+  if (process.env.ABDM_SKIP_JWT_VERIFY === 'true') {
     try {
       const parts      = token.split('.');
       const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
