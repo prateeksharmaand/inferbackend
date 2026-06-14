@@ -352,17 +352,7 @@ const addCareContext = async (req, res) => {
   );
   const careCtx = rows[0];
 
-  // Also insert into health_records for audit/history
-  try {
-    await pool.query(
-      `INSERT INTO health_records (transaction_id, care_context_id, fhir_bundle, received_at, hi_type)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [transactionId, careCtx.id, JSON.stringify(fhirBundle), now, 'OPConsultation']
-    );
-    logger.info('Created sample FHIR bundle', { careContextId: careCtx.id, resourceCount: fhirBundle.entry.length });
-  } catch (err) {
-    logger.warn('Failed to insert sample FHIR bundle', { error: err.message });
-  }
+  logger.info('Created sample FHIR bundle', { careContextId: careCtx.id, resourceCount: fhirBundle.entry.length });
 
   res.status(201).json({ ...careCtx, sampleBundleCreated: true, bundleEntries: fhirBundle.entry.length });
 };
