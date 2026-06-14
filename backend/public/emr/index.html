@@ -2052,9 +2052,9 @@ async function loadConsents() {
   } catch(e) { tbody.innerHTML = `<tr><td colspan="8" class="text-danger p-3">${e.message}</td></tr>`; }
 }
 
-// Auto-refresh consent list every 15 s so status updates when patient grants in PHR app
+// Auto-refresh consent list every 15 s — only when logged in and on consents page
 setInterval(() => {
-  if (document.getElementById('consents-tbody')) loadConsents();
+  if (emrToken && document.getElementById('consents-tbody') && document.querySelector('#page-consents.active')) loadConsents();
 }, 15000);
 
 async function fetchConsentData(requestId, btn) {
