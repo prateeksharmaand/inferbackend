@@ -310,7 +310,8 @@ async function abhaReq(method, url, data = null, xToken = null) {
     'REQUEST-ID': uuid(),
     TIMESTAMP: new Date().toISOString(),
   };
-  if (xToken) headers['X-Token'] = xToken;   // no 'Bearer' prefix for X-Token
+  // ABDM v3 profile endpoints require "Bearer" prefix on X-Token
+  if (xToken) headers['X-Token'] = xToken.startsWith('Bearer ') ? xToken : `Bearer ${xToken}`;
 
   const cfg = { method, url, headers };
   if (data) cfg.data = data;
@@ -433,13 +434,23 @@ async function loginRequestOtp(abhaNumber) {
 async function loginVerifyOtp(otp, txnId) {
   const encOtp = await rsaEncrypt(otp);
   // ABDM v3: endpoint is /profile/login/verify (NOT /profile/login/verify/otp)
-  return abhaReq('POST', `${ABHA_BASE}/profile/login/verify`, {
+  const result = await abhaReq('POST', `${ABHA_BASE}/profile/login/verify`, {
     scope: ['abha-login', 'mobile-verify'],
     authData: {
       authMethods: ['otp'],
       otp: { txnId, otpValue: encOtp },
     },
   });
+  // Debug: log response structure so we can verify token field names
+  logger.info('ABHA login verify response keys', {
+    keys: Object.keys(result || {}),
+    hasToken: !!result?.token,
+    hasTokens: !!result?.tokens,
+    tokenType: typeof result?.token,
+    tokensTokenType: typeof result?.tokens?.token,
+    tokenPrefix: result?.token?.slice(0, 20),
+  });
+  return result;
 }
 
 // ─── M1: ABHA Profile & Card ──────────────────────────────────────────────────
@@ -453,7 +464,7 @@ async function getAbhaPngCard(xToken) {
   const res = await abdmAxios.get(`${ABHA_BASE}/profile/account/abha-card`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      'X-Token': `Bearer ${xToken}`,
+      'X-Token': xToken.startsWith('Bearer ') ? xToken : `Bearer ${xToken}`,
       'X-CM-ID': 'sbx',
       'REQUEST-ID': uuid(),
       TIMESTAMP: new Date().toISOString(),
@@ -472,7 +483,7 @@ async function getAbhaSuggestions(xToken, txnId) {
     const res = await abdmAxios.get(`${ABHA_BASE}/enrollment/enrol/suggestion`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-Token': xToken,
+        'X-Token': xToken.startsWith('Bearer ') ? xToken : `Bearer ${xToken}`,
         'TRANSACTION_ID': txnId,
         'X-CM-ID': 'sbx',
         'REQUEST-ID': uuid(),
