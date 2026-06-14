@@ -1,13 +1,138 @@
 import { useState, useEffect } from 'react';
-import { Trash2, User, Phone, ChevronRight, QrCode } from 'lucide-react';
+import { Trash2, QrCode, X, Download, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import styles from './Patients.module.css';
 
+// ── Facility QR Modal ─────────────────────────────────────────────────────────
+// Patients scan this QR with ABDM PHR app → profile is shared to HIP
+function FacilityQrModal({ onClose }) {
+  const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'infer-hip';
+
+  // ABDM deep-link for patient profile sharing (SHARE_PATIENT_PROFILE_701)
+  const qrValue = `https://phrsbx.abdm.gov.in/share/profile?hip-id=${encodeURIComponent(hipId)}&counter=1`;
+
+  const handlePrint = () => window.print();
+
+  const handleDownload = () => {
+    const svg = document.getElementById('facility-qr-svg');
+    if (!svg) return;
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svg);
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `abdm-facility-qr-${hipId}.svg`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000,
+      }}
+    >
+      <div style={{
+        background: '#fff', borderRadius: 16, padding: 32, width: 360,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center', position: 'relative',
+      }}>
+        {/* Close */}
+        <button
+          onClick={onClose}
+          style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+        >
+          <X size={18} />
+        </button>
+
+        {/* Header */}
+        <div style={{ marginBottom: 6 }}>
+          <QrCode size={22} style={{ color: '#7c3aed', marginBottom: 6 }} />
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Facility QR Code</h3>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>
+            Patient scans this with ABDM PHR app to share their profile
+          </p>
+        </div>
+
+        {/* HIP ID badge */}
+        <div style={{
+          display: 'inline-block', background: '#f0f9ff', border: '1px solid #bae6fd',
+          borderRadius: 8, padding: '3px 12px', fontSize: 11, color: '#0284c7',
+          fontWeight: 600, marginBottom: 20,
+        }}>
+          HIP ID: {hipId}
+        </div>
+
+        {/* QR Code */}
+        <div style={{
+          background: '#fff', border: '2px solid #e2e8f0', borderRadius: 12,
+          padding: 16, display: 'inline-block', marginBottom: 20,
+        }}>
+          <QRCodeSVG
+            id="facility-qr-svg"
+            value={qrValue}
+            size={220}
+            level="H"
+            includeMargin={false}
+            imageSettings={{
+              src: '/vite.svg',
+              x: undefined, y: undefined,
+              height: 32, width: 32,
+              excavate: true,
+            }}
+          />
+        </div>
+
+        {/* Instructions */}
+        <div style={{
+          background: '#faf5ff', border: '1px solid #e9d5ff',
+          borderRadius: 8, padding: '10px 14px', marginBottom: 20, textAlign: 'left',
+        }}>
+          <p style={{ margin: 0, fontSize: 11, color: '#6d28d9', lineHeight: 1.7 }}>
+            <strong>How to use:</strong><br />
+            1. Display this QR at your reception desk<br />
+            2. Patient opens ABDM PHR app → Scan QR<br />
+            3. Patient's profile appears in <strong>Pending OTPs</strong>
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={handleDownload}
+            style={{
+              flex: 1, padding: '9px 0', borderRadius: 8, border: '1.5px solid #7c3aed',
+              background: '#fff', color: '#7c3aed', fontWeight: 600, fontSize: 13,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            <Download size={14} /> Download SVG
+          </button>
+          <button
+            onClick={handlePrint}
+            style={{
+              flex: 1, padding: '9px 0', borderRadius: 8, border: 'none',
+              background: '#7c3aed', color: '#fff', fontWeight: 600, fontSize: 13,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            <Printer size={14} /> Print
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Patients Page ────────────────────────────────────────────────────────
 export default function Patients() {
-  const [patients, setPatients] = useState([]);
-  const [search,   setSearch]   = useState('');
-  const [deleting, setDeleting] = useState(null);
+  const [patients,   setPatients]   = useState([]);
+  const [search,     setSearch]     = useState('');
+  const [deleting,   setDeleting]   = useState(null);
+  const [showFacQr,  setShowFacQr]  = useState(false);
   const navigate = useNavigate();
 
   const load = () => api.get('/patients').then(setPatients).catch(() => {});
@@ -36,9 +161,29 @@ export default function Patients() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h2>Patients</h2>
-        <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
-          value={search} onChange={e => setSearch(e.target.value)} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Facility QR button */}
+          <button
+            onClick={() => setShowFacQr(true)}
+            title="Show ABDM Facility QR Code"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 8,
+              border: '1.5px solid #7c3aed', background: '#faf5ff',
+              color: '#7c3aed', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            <QrCode size={15} /> Facility QR
+          </button>
+          <input
+            className={styles.search}
+            placeholder="Search by name, mobile or ABHA…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
+
       <div className={styles.table}>
         <div className={styles.thead}>
           <span>Name</span><span>Mobile</span><span>ABHA</span><span>Gender</span><span>Care Contexts</span><span>Action</span>
@@ -63,6 +208,8 @@ export default function Patients() {
         ))}
         {filtered.length === 0 && <p className={styles.empty}>No patients found</p>}
       </div>
+
+      {/* ABHA QR scan FAB */}
       <button
         className={styles.fab}
         onClick={() => navigate('/abha-qr-scan')}
@@ -71,6 +218,9 @@ export default function Patients() {
         <QrCode size={22} />
         <span>ABHA QR</span>
       </button>
+
+      {/* Facility QR modal */}
+      {showFacQr && <FacilityQrModal onClose={() => setShowFacQr(false)} />}
     </div>
   );
 }
