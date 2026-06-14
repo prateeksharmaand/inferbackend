@@ -135,8 +135,13 @@ const deletePatient = async (req, res) => {
 // ── Care contexts ─────────────────────────────────────────────────────────────
 
 const addCareContext = async (req, res) => {
-  const { display, hi_type } = req.body;
+  let { display, hi_type } = req.body;
   if (!display) return res.status(400).json({ error: 'display required' });
+
+  // ABDM validation: display must be <= 255 chars, no special chars, alphanumeric + spaces/hyphens only
+  display = display.trim().substring(0, 255).replace(/[^a-zA-Z0-9\s\-]/g, '');
+  if (!display) return res.status(400).json({ error: 'display contains only invalid characters' });
+
   const refNum = `REF-${hip.uuid().slice(0, 8).toUpperCase()}`;
 
   // Create sample FHIR Bundle for this care context
