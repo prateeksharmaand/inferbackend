@@ -248,19 +248,53 @@ const handleLinkConfirm = async (req, res) => {
 const handleHealthInfoRequest = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
-    const { transactionId, hiRequest } = req.body;
+    // CRITICAL: Extract transactionId with validation
+    const rawTransactionId = req.body?.transactionId;
+    if (!rawTransactionId) {
+      logger.error('ABDM Transaction Trace', {
+        stage: 'request_received',
+        error: 'Missing transactionId in request body',
+        bodyKeys: Object.keys(req.body || {}),
+      });
+      return;
+    }
+
+    // Validate transactionId is a UUID string
+    const transactionIdRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof rawTransactionId !== 'string' || !transactionIdRegex.test(rawTransactionId)) {
+      logger.error('ABDM Transaction Trace', {
+        stage: 'request_received',
+        error: 'Invalid transactionId format',
+        transactionId: rawTransactionId,
+        type: typeof rawTransactionId,
+      });
+      return;
+    }
+
+    const transactionId = rawTransactionId; // Now validated
+    const { hiRequest } = req.body;
     const consentId   = hiRequest?.consent?.id;
     const dataPushUrl = hiRequest?.dataPushUrl;
     const keyMaterial = hiRequest?.keyMaterial;
 
-    // SEC-010: no PHI or key material in logs
-    logger.info('HIP health-info request', { transactionId, consentId, hasKeyMaterial: !!keyMaterial });
+    logger.info('ABDM Transaction Trace', {
+      stage: 'request_received',
+      transactionId,
+      consentId,
+      hasKeyMaterial: !!keyMaterial,
+    });
 
     await pool.query(
       `INSERT INTO hip_health_requests (transaction_id, consent_id, data_push_url, key_material)
        VALUES ($1,$2,$3,$4) ON CONFLICT (transaction_id) DO NOTHING`,
       [transactionId, consentId, dataPushUrl, JSON.stringify(keyMaterial ?? {})]
     );
+
+    logger.info('ABDM Transaction Trace', {
+      stage: 'transaction_saved',
+      transactionId,
+      consentId,
+    });
 
     // SEC-008 + R3-009: verify consent exists, is GRANTED, and not expired (dataEraseAt)
     const { rows: artifactRows } = await pool.query(
@@ -402,16 +436,35 @@ const handleHealthInfoRequest = async (req, res) => {
       gender:     rows[0].gender,
       abhaNumber: rows[0].abha_number ?? rows[0].abha_address ?? null,
     };
+
+    logger.info('ABDM Transaction Trace', {
+      stage: 'bundle_generated',
+      transactionId,
+      careContextCount: rows.length,
+      dataPushUrl: dataPushUrl ? 'present' : 'missing',
+    });
+
     await hip.pushHealthData({ dataPushUrl, transactionId, careContexts: rows, patient, keyMaterial });
+
+    logger.info('ABDM Transaction Trace', {
+      stage: 'transfer_request_sent',
+      transactionId,
+    });
+
     await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
   } catch (err) {
     logger.error('handleHealthInfoRequest error', {
       message:   err.message,
       status:    err.response?.status,
-      abdmError: JSON.stringify(err.response?.data),   // ← show exactly what ABDM rejected
+      abdmError: JSON.stringify(err.response?.data),
+      transactionId: transactionId || 'UNKNOWN',
     });
-    await pool.query(`UPDATE hip_health_requests SET status='failed' WHERE transaction_id=$1`,
-      [req.body?.transactionId]).catch(() => {});
+    // Use the validated transactionId from scope, fallback to req.body if error happened during validation
+    const txId = transactionId || req.body?.transactionId;
+    if (txId) {
+      await pool.query(`UPDATE hip_health_requests SET status='failed' WHERE transaction_id=$1`,
+        [txId]).catch(() => {});
+    }
   }
 };
 

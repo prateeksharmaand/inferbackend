@@ -425,14 +425,22 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
 }
 
 async function pushHealthData({ dataPushUrl, transactionId, careContexts, patient, keyMaterial }) {
-  // SEC-010: no PHI, key material values, or dataPushUrl in logs
-  logger.info('[PUSH] pushHealthData called', {
+  // CRITICAL: Validate transactionId at entry point
+  if (!transactionId) {
+    throw new Error('Missing ABDM transactionId in pushHealthData');
+  }
+  if (typeof transactionId !== 'string') {
+    throw new Error(`Invalid transactionId type: ${typeof transactionId} (expected string)`);
+  }
+  const transactionIdRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!transactionIdRegex.test(transactionId)) {
+    throw new Error(`Invalid transactionId UUID format: ${transactionId}`);
+  }
+
+  logger.info('ABDM Transaction Trace', {
+    stage: 'encryption_started',
     transactionId,
     careContextCount: careContexts?.length,
-    cryptoAlg: keyMaterial?.cryptoAlg,
-    curve: keyMaterial?.curve,
-    hasKeyValue: !!keyMaterial?.dhPublicKey?.keyValue,
-    hasNonce: !!keyMaterial?.nonce,
   });
   const hiuNonce  = keyMaterial?.nonce ?? '';
   const hiuPubKey = keyMaterial?.dhPublicKey?.keyValue;
@@ -470,16 +478,27 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     return { content, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
   }));
 
+  logger.info('ABDM Transaction Trace', {
+    stage: 'encryption_completed',
+    transactionId,
+    entriesCount: entries.length,
+  });
+
   const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries };
   if (respondingKeyMaterial) pushBody.keyMaterial = respondingKeyMaterial;
 
-  // SEC-010: never log encrypted health payload
-  logger.info('HIP transfer payload ready', {
-    transactionId,
-    transactionIdType: typeof transactionId,
-    entryCount: entries.length,
-    encrypted: !!respondingKeyMaterial,
-    pushBodyKeys: Object.keys(pushBody),
+  // CRITICAL: Verify transactionId in payload matches what we received
+  if (pushBody.transactionId !== transactionId) {
+    throw new Error(`Payload transactionId mismatch: ${pushBody.transactionId} !== ${transactionId}`);
+  }
+
+  logger.info('ABDM Transaction Trace', {
+    stage: 'transfer_payload_created',
+    transactionId: pushBody.transactionId,
+    pageNumber: pushBody.pageNumber,
+    pageCount: pushBody.pageCount,
+    entriesCount: pushBody.entries?.length,
+    hasKeyMaterial: !!pushBody.keyMaterial,
   });
 
   // R2-001: validate URL before calling (SSRF protection)
@@ -490,6 +509,16 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
 
   // Add gateway auth headers — ABDM dataPushUrl requires Bearer token + CM-ID
   const pushToken = await getToken();
+
+  logger.info('ABDM Final Transfer Payload', {
+    url: dataPushUrl,
+    transactionId: pushBody.transactionId,
+    pageNumber: pushBody.pageNumber,
+    pageCount: pushBody.pageCount,
+    entriesCount: pushBody.entries?.length,
+    hasKeyMaterial: !!pushBody.keyMaterial,
+  });
+
   await axios.post(dataPushUrl, pushBody, {
     timeout: 30_000,
     headers: {
@@ -501,7 +530,12 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       'TIMESTAMP':     new Date().toISOString(),
     },
   });
-  logger.info('HIP health data pushed', { transactionId, entries: entries.length, encrypted: !!respondingKeyMaterial });
+
+  logger.info('ABDM Transaction Trace', {
+    stage: 'transfer_response_received',
+    transactionId,
+    status: 'success',
+  });
 }
 
 module.exports = { uuid, gwGet, gwPost, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResult, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
