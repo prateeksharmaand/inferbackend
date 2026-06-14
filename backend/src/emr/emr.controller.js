@@ -146,15 +146,30 @@ const addCareContext = async (req, res) => {
   const docId = hip.uuid().slice(0, 8);
   const patData = (await pool.query('SELECT name, gender, dob FROM emr_patients WHERE id=$1', [patientId])).rows[0];
 
+  const patId = `pat-${docId}`;
+  const practId = `doc-${docId}`;
+  const encId = `enc-${docId}`;
+  const condId = `cond-${docId}`;
+  const bpId = `bp-${docId}`;
+  const tempId = `temp-${docId}`;
+  const wtId = `wt-${docId}`;
+  const med1Id = `med-1-${docId}`;
+  const med2Id = `med-2-${docId}`;
+
+  const genderMap = { 'M': 'male', 'F': 'female', 'm': 'male', 'f': 'female' };
+  const genderValue = genderMap[patData?.gender] || 'unknown';
+
   const fhirBundle = {
     resourceType: 'Bundle',
+    id: hip.uuid(),
     type: 'document',
     timestamp: now,
     entry: [
       {
+        fullUrl: `urn:uuid:${hip.uuid().slice(0, 8)}-comp`,
         resource: {
           resourceType: 'Composition',
-          id: `comp-${docId}`,
+          id: hip.uuid().slice(0, 8),
           status: 'final',
           type: {
             coding: [{
@@ -163,121 +178,151 @@ const addCareContext = async (req, res) => {
               display: 'Clinical consultation report',
             }],
           },
-          subject: { reference: `Patient/${patientId}` },
+          subject: { reference: `urn:uuid:${patId}` },
           date: now,
-          author: [{ reference: 'Practitioner/doc-1' }],
+          author: [{ reference: `urn:uuid:${practId}` }],
           title: display,
           section: [
             {
               title: 'Encounter',
-              entry: [{ reference: `Encounter/enc-${docId}` }],
+              entry: [{ reference: `urn:uuid:${encId}` }],
             },
             {
               title: 'Diagnosis',
-              entry: [{ reference: `Condition/cond-${docId}` }],
+              entry: [{ reference: `urn:uuid:${condId}` }],
             },
             {
               title: 'Vitals',
               entry: [
-                { reference: `Observation/bp-${docId}` },
-                { reference: `Observation/temp-${docId}` },
-                { reference: `Observation/wt-${docId}` },
+                { reference: `urn:uuid:${bpId}` },
+                { reference: `urn:uuid:${tempId}` },
+                { reference: `urn:uuid:${wtId}` },
               ],
             },
             {
               title: 'Prescription',
               entry: [
-                { reference: `MedicationRequest/med-1-${docId}` },
-                { reference: `MedicationRequest/med-2-${docId}` },
+                { reference: `urn:uuid:${med1Id}` },
+                { reference: `urn:uuid:${med2Id}` },
               ],
             },
           ],
         },
       },
       {
+        fullUrl: `urn:uuid:${patId}`,
         resource: {
           resourceType: 'Patient',
-          id: `pat-${docId}`,
+          id: patId,
           name: [{ text: patData?.name || 'Patient' }],
-          gender: patData?.gender?.toLowerCase() || 'unknown',
+          gender: genderValue,
           birthDate: patData?.dob ? patData.dob.toISOString().split('T')[0] : undefined,
         },
       },
       {
+        fullUrl: `urn:uuid:${practId}`,
         resource: {
           resourceType: 'Practitioner',
-          id: 'doc-1',
+          id: practId,
           name: [{ text: 'Dr. Infer Care' }],
         },
       },
       {
+        fullUrl: `urn:uuid:${encId}`,
         resource: {
           resourceType: 'Encounter',
-          id: `enc-${docId}`,
+          id: encId,
           status: 'finished',
-          class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB' },
-          subject: { reference: `Patient/${patientId}` },
+          class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB', display: 'ambulatory' },
+          type: [{
+            coding: [{
+              system: 'http://snomed.info/sct',
+              code: '11429006',
+              display: 'Consultation',
+            }],
+          }],
+          subject: { reference: `urn:uuid:${patId}` },
           period: { start: now, end: new Date(Date.now() + 15 * 60_000).toISOString() },
         },
       },
       {
+        fullUrl: `urn:uuid:${condId}`,
         resource: {
           resourceType: 'Condition',
-          id: `cond-${docId}`,
+          id: condId,
           clinicalStatus: { coding: [{ code: 'active' }] },
-          code: { text: 'Acute Upper Respiratory Infection' },
-          subject: { reference: `Patient/${patientId}` },
+          code: { coding: [{ system: 'http://snomed.info/sct', code: '54150009', display: 'Fever' }] },
+          subject: { reference: `urn:uuid:${patId}` },
         },
       },
       {
+        fullUrl: `urn:uuid:${bpId}`,
         resource: {
           resourceType: 'Observation',
-          id: `bp-${docId}`,
+          id: bpId,
           status: 'final',
-          code: { text: 'Blood Pressure' },
-          valueString: '120/80 mmHg',
-          subject: { reference: `Patient/${patientId}` },
+          code: { coding: [{ system: 'http://loinc.org', code: '85354-9', display: 'Blood pressure' }] },
+          subject: { reference: `urn:uuid:${patId}` },
+          effectiveDateTime: now,
+          component: [
+            {
+              code: { coding: [{ system: 'http://loinc.org', code: '8480-6', display: 'Systolic' }] },
+              valueQuantity: { value: 120, unit: 'mmHg', system: 'http://unitsofmeasure.org', code: 'mm[Hg]' },
+            },
+            {
+              code: { coding: [{ system: 'http://loinc.org', code: '8462-4', display: 'Diastolic' }] },
+              valueQuantity: { value: 80, unit: 'mmHg', system: 'http://unitsofmeasure.org', code: 'mm[Hg]' },
+            },
+          ],
         },
       },
       {
+        fullUrl: `urn:uuid:${tempId}`,
         resource: {
           resourceType: 'Observation',
-          id: `temp-${docId}`,
+          id: tempId,
           status: 'final',
-          code: { text: 'Body Temperature' },
-          valueQuantity: { value: 98.6, unit: 'F' },
-          subject: { reference: `Patient/${patientId}` },
+          code: { coding: [{ system: 'http://loinc.org', code: '8310-5', display: 'Body temperature' }] },
+          subject: { reference: `urn:uuid:${patId}` },
+          effectiveDateTime: now,
+          valueQuantity: { value: 98.6, unit: 'F', system: 'http://unitsofmeasure.org', code: '[degF]' },
         },
       },
       {
+        fullUrl: `urn:uuid:${wtId}`,
         resource: {
           resourceType: 'Observation',
-          id: `wt-${docId}`,
+          id: wtId,
           status: 'final',
-          code: { text: 'Body Weight' },
-          valueQuantity: { value: 72, unit: 'kg' },
-          subject: { reference: `Patient/${patientId}` },
+          code: { coding: [{ system: 'http://loinc.org', code: '29463-7', display: 'Body weight' }] },
+          subject: { reference: `urn:uuid:${patId}` },
+          effectiveDateTime: now,
+          valueQuantity: { value: 72, unit: 'kg', system: 'http://unitsofmeasure.org', code: 'kg' },
         },
       },
       {
+        fullUrl: `urn:uuid:${med1Id}`,
         resource: {
           resourceType: 'MedicationRequest',
-          id: `med-1-${docId}`,
+          id: med1Id,
           status: 'active',
           intent: 'order',
-          medicationCodeableConcept: { text: 'Paracetamol 500 mg' },
-          subject: { reference: `Patient/${patientId}` },
+          medicationCodeableConcept: { coding: [{ system: 'http://snomed.info/sct', code: '15517211000001106', display: 'Paracetamol 500 mg' }] },
+          subject: { reference: `urn:uuid:${patId}` },
+          authoredOn: now.split('T')[0],
           dosageInstruction: [{ text: '1 tablet three times daily after meals for 5 days' }],
         },
       },
       {
+        fullUrl: `urn:uuid:${med2Id}`,
         resource: {
           resourceType: 'MedicationRequest',
-          id: `med-2-${docId}`,
+          id: med2Id,
           status: 'active',
           intent: 'order',
-          medicationCodeableConcept: { text: 'Cetirizine 10 mg' },
-          subject: { reference: `Patient/${patientId}` },
+          medicationCodeableConcept: { coding: [{ system: 'http://snomed.info/sct', code: '10914301000001102', display: 'Cetirizine 10 mg' }] },
+          subject: { reference: `urn:uuid:${patId}` },
+          authoredOn: now.split('T')[0],
           dosageInstruction: [{ text: '1 tablet at bedtime for 5 days' }],
         },
       },
