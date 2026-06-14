@@ -970,11 +970,11 @@ const abdmUpdateBridge = async (req, res) => {
 // ── Login with ABHA ───────────────────────────────────────────────────────────
 
 const abhaLoginRequestOtp = async (req, res) => {
-  const { loginId, otpSystem } = req.body;
+  const { loginId } = req.body;
   if (!loginId) return res.status(400).json({ error: 'loginId required' });
-  const system = otpSystem === 'aadhaar' ? 'aadhaar' : 'abdm';
   try {
-    const result = await abdmSvc.loginRequestAbhaOtp(loginId, 'abha-number', system);
+    // loginRequestAbhaOtp handles all validation, scope, and otpSystem internally
+    const result = await abdmSvc.loginRequestAbhaOtp(loginId);
     res.json(result);
   } catch (err) {
     res.status(err.status || 502).json({ error: err.message });

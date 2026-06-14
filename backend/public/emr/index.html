@@ -1607,16 +1607,21 @@ async function lwaNext() {
     const err = document.getElementById('lwa-s1-err');
     err.style.display = 'none';
     const loginId = document.getElementById('lwa-loginid').value.trim();
-    if (!loginId) { err.textContent = 'Enter your ABHA Number or ABHA Address.'; err.style.display = ''; return; }
+    if (!loginId) { err.textContent = 'Enter your 14-digit ABHA Number (e.g. 91-1000-4008-7627).'; err.style.display = ''; return; }
+    // Validate ABHA number format before sending
+    const digitsOnly = loginId.replace(/-/g, '');
+    if (!/^\d{14}$/.test(digitsOnly)) {
+      err.textContent = 'Invalid ABHA number. Enter 14 digits, e.g. 91-1000-4008-7627.';
+      err.style.display = '';
+      return;
+    }
     btn.disabled = true; btn.textContent = 'Sending OTP…';
     try {
-      const res = await api('POST', '/abha/login-request-otp', { loginId, otpSystem: _abhaLogin.method === 'aadhaar' ? 'aadhaar' : 'abdm' });
+      const res = await api('POST', '/abha/login-request-otp', { loginId });
       _abhaLogin.txnId = res.txnId || res.transactionId;
       _abhaLogin.step = 2;
       _lwaShowStep(2);
-      document.getElementById('lwa-otp-hint').textContent = _abhaLogin.method === 'aadhaar'
-        ? 'OTP sent to your Aadhaar-linked mobile.'
-        : 'OTP sent to your ABHA communication mobile.';
+      document.getElementById('lwa-otp-hint').textContent = 'OTP sent to your ABHA-linked mobile number.';
       btn.textContent = 'Verify OTP';
       _lwaStartResendTimer();
     } catch(e) { err.textContent = e.message || 'Failed to send OTP'; err.style.display = ''; }

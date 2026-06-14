@@ -381,19 +381,41 @@ async function verifyMobileLoginOtp(otp, txnId) {
 // ─── Login with ABHA (Aadhaar OTP or Mobile OTP, via ABHA Number or Address) ──
 
 async function loginRequestAbhaOtp(loginId) {
-  // ABDM v3: loginHint 'abha-address' is invalid; valid: mobile|aadhaar|abha-number|email|password|index
+  if (!loginId || !loginId.trim()) {
+    const err = new Error('loginId is required');
+    err.status = 400;
+    throw err;
+  }
   if (loginId.includes('@')) {
     const err = new Error('ABHA address login not supported. Please use your 14-digit ABHA number.');
     err.status = 400;
     throw err;
   }
-  // /profile/login/request/otp expects PLAIN abha-number (e.g. "91-1000-4008-7627")
-  // NOT RSA-encrypted — only enrollment endpoints use encryption
-  return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
-    scope: ['abha-login', 'aadhaar-verify'],
+
+  // Validate ABHA number format: 14 digits, with or without dashes (XX-XXXX-XXXX-XXXX)
+  const clean = loginId.trim();
+  const digitsOnly = clean.replace(/-/g, '');
+  if (!/^\d{14}$/.test(digitsOnly)) {
+    const err = new Error('Invalid ABHA number format. Use 14 digits, e.g. 91-1000-4008-7627');
+    err.status = 400;
+    throw err;
+  }
+
+  // /profile/login/request/otp: plain ABHA number, NOT RSA-encrypted
+  // CRITICAL: scope must be 'mobile-verify' + otpSystem 'abdm' for ABHA number login.
+  // 'aadhaar-verify' + 'aadhaar' is only for Aadhaar enrollment, NOT for ABHA login.
+  logger.info('ABHA login OTP request', {
     loginHint: 'abha-number',
-    loginId: loginId.trim(),  // plain, with or without dashes — ABDM accepts both
-    otpSystem: 'aadhaar',
+    scope: 'abha-login,mobile-verify',
+    otpSystem: 'abdm',
+    last4: digitsOnly.slice(-4),
+  });
+
+  return abhaReq('POST', `${ABHA_BASE}/profile/login/request/otp`, {
+    scope: ['abha-login', 'mobile-verify'],
+    loginHint: 'abha-number',
+    loginId: clean,   // plain, with or without dashes — ABDM accepts both formats
+    otpSystem: 'abdm',
   });
 }
 
