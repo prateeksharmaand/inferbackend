@@ -380,6 +380,34 @@ const getLinkedCareContexts = async (req, res) => {
   res.json(rows);
 };
 
+const unlinkCareContext = async (req, res) => {
+  const { contextRef } = req.params;
+  if (!contextRef) return res.status(400).json({ error: 'contextRef required' });
+
+  try {
+    // M2: Delete linked care context
+    const { rowCount } = await pool.query(
+      'DELETE FROM linked_care_contexts WHERE user_id=$1 AND reference_number=$2',
+      [req.user.id, contextRef]
+    );
+
+    if (!rowCount) {
+      return res.status(404).json({ error: 'Care context not found or not linked' });
+    }
+
+    logger.info('Care context unlinked', {
+      userId: req.user.id,
+      contextRef,
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({ message: 'Care context unlinked successfully', contextRef });
+  } catch (err) {
+    logger.error('unlinkCareContext error', { error: err.message, contextRef });
+    res.status(500).json({ error: 'Failed to unlink care context' });
+  }
+};
+
 // ─── M2: Consent management ───────────────────────────────────────────────────
 
 const createConsent = async (req, res) => {
@@ -623,13 +651,67 @@ const healthInfoPush = async (req, res) => {
 
     for (const entry of entries) {
       let content = entry.content;
+      let plaintext = null;
+
+      // M3-SEC: Decrypt entry if keyMaterial provided
       if (hipPubKey && hipNonce && hiuKeyEntry) {
         const decrypted = abdm.decryptHipEntry(content, hipPubKey, hipNonce, hiuKeyEntry);
         if (decrypted) {
+          plaintext = decrypted; // Keep plaintext for checksum verification
           content = Buffer.from(decrypted).toString('base64');
           logger.info('HIU decrypted health record', { transactionId, careContextReference: entry.careContextReference });
         } else {
           logger.warn('HIU decrypt failed — storing raw content', { transactionId });
+        }
+      }
+
+      // M3-SEC: Verify MD5 checksum if we have plaintext (ABDM spec §4.3.2)
+      if (plaintext && entry.checksum) {
+        const crypto = require('crypto');
+        const computedChecksum = crypto.createHash('md5').update(plaintext).digest('hex');
+        if (computedChecksum !== entry.checksum) {
+          logger.error('Checksum mismatch — rejecting entry', {
+            transactionId,
+            careContextReference: entry.careContextReference,
+            expected: entry.checksum,
+            computed: computedChecksum,
+          });
+          continue; // Skip this entry due to checksum mismatch
+        }
+        logger.info('Checksum verified', {
+          transactionId,
+          careContextReference: entry.careContextReference,
+          checksum: entry.checksum.slice(0, 16) + '...',
+        });
+      }
+
+      // M3-FHIR: Validate FHIR bundle structure
+      if (plaintext && entry.media === 'application/fhir+json') {
+        try {
+          const bundle = JSON.parse(plaintext);
+          // Validate required Bundle fields per FHIR R4
+          if (!bundle.resourceType || bundle.resourceType !== 'Bundle') {
+            throw new Error('Invalid resourceType: expected Bundle');
+          }
+          if (!Array.isArray(bundle.entry)) {
+            throw new Error('Invalid entry: expected array');
+          }
+          if (!bundle.timestamp || isNaN(new Date(bundle.timestamp).getTime())) {
+            throw new Error('Invalid timestamp: expected ISO8601 datetime');
+          }
+          logger.info('FHIR bundle validated', {
+            transactionId,
+            careContextReference: entry.careContextReference,
+            resourceType: bundle.resourceType,
+            entryCount: bundle.entry.length,
+          });
+        } catch (validationErr) {
+          logger.error('FHIR bundle validation failed — rejecting entry', {
+            transactionId,
+            careContextReference: entry.careContextReference,
+            error: validationErr.message,
+          });
+          continue; // Skip this entry due to FHIR validation failure
         }
       }
 
@@ -638,6 +720,7 @@ const healthInfoPush = async (req, res) => {
         careContextReference: entry.careContextReference,
         media: entry.media,
         contentLen: content?.length,
+        checksumVerified: !!plaintext && !!entry.checksum,
       });
       await pool.query(
         `INSERT INTO health_records
@@ -753,7 +836,7 @@ module.exports = {
   linkInit,             onLinkInit,     linkStatus,
   linkConfirm,          onLinkConfirm,  confirmStatus,
   getAvailableCareContexts,
-  linkCareContexts,     getLinkedCareContexts,
+  linkCareContexts,     getLinkedCareContexts,  unlinkCareContext,
   createConsent, getConsents, respondConsent,
   consentOnInit, consentNotify, healthInfoPush,
   getHealthRecords,

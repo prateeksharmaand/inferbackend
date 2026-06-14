@@ -37,6 +37,7 @@ router.post('/links/link/on-confirm',                      ctrl.onLinkConfirm); 
 router.get('/care-contexts/available', auth, ctrl.getAvailableCareContexts); // fetch from HIP for this patient
 router.post('/care-contexts/link',     auth, ctrl.linkCareContexts);
 router.get('/care-contexts',           auth, ctrl.getLinkedCareContexts);
+router.delete('/care-contexts/:contextRef', auth, ctrl.unlinkCareContext);  // M2: Unlink care context
 
 // ── M2: Consent management ────────────────────────────────────────────────────
 router.post('/consents',                    auth, ctrl.createConsent);
