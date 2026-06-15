@@ -590,23 +590,27 @@
 }
 .postVisitEndBtn:hover { background: #b91c1c; }
 
-/* Print media â€” portal-based, hides entire React app and shows only the prescription */
+/* Print media — portal-based, hides entire React app and shows only the prescription */
 @media print {
   @page { size: A4 portrait; margin: 10mm; }
+  body * { visibility: hidden !important; }
   #root { display: none !important; }
   #rx-print-portal {
-    position: static !important;
+    position: fixed !important;
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
     opacity: 1 !important;
-    z-index: auto !important;
+    z-index: 99999 !important;
     pointer-events: auto !important;
-    background: #fff;
+    background: #fff !important;
+    visibility: visible !important;
   }
+  #rx-print-portal,
+  #rx-print-portal * { visibility: visible !important; }
   /* Remove shadow/border-radius from paper in print */
   #rx-print-portal .rxPaper,
-  #rx-print-portal [class*="rxPaper"] {
+  #rx-print-portal [class*=”rxPaper”] {
     box-shadow: none !important;
     border-radius: 0 !important;
     width: 100% !important;
