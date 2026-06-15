@@ -32,10 +32,11 @@ async function fetchLOINC(query) {
 
 async function fetchRxTerms(query) {
   try {
-    // Use backend /medicines endpoint — returns Indian brands + NLM generics merged
-    const r = await fetch(`/api/emr/autocomplete/medicines?q=${encodeURIComponent(query)}`);
+    const r = await fetch(`${NLM}/rxterms/v3/search?terms=${encodeURIComponent(query)}&ef=STRENGTHS_AND_FORMS&maxList=12`);
     const data = await r.json();
-    return data.map(m => ({ name: m.name, strength: m.strength || '', label: m.name }));
+    const rows = data[3] || [];
+    const strengths = (data[2] && data[2].STRENGTHS_AND_FORMS) || [];
+    return rows.map((row, i) => ({ name: row[0], strength: (strengths[i] || []).join(', '), label: row[0] }));
   } catch { return []; }
 }
 

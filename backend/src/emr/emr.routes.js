@@ -54,10 +54,9 @@ router.post('/auth/forgot-password',  auth.forgotPassword);
 router.post('/auth/reset-password',   auth.resetPassword);
 
 // Autocomplete proxy (ICD-10 / RxTerms via NLM — public, avoids CSP)
-router.get('/autocomplete/icd10',     ac.searchICD10);
-router.get('/autocomplete/rxterms',   ac.searchRxTerms);
-router.get('/autocomplete/medicines', ac.searchMedicines);
-router.get('/autocomplete/ping',      ac.ping);
+router.get('/autocomplete/icd10',   ac.searchICD10);
+router.get('/autocomplete/rxterms', ac.searchRxTerms);
+router.get('/autocomplete/ping',    ac.ping);
 
 // Scribe health — public so ops can check without a token
 router.get('/scribe/status', scribe.status);
