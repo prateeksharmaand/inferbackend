@@ -9,7 +9,8 @@
     "migrate": "node migrations/run.js",
     "seed": "node migrations/seed.js",
     "backfill:ranges": "node scripts/backfill-ranges.js",
-    "backfill:ranges:fix": "node scripts/backfill-ranges.js --fix"
+    "backfill:ranges:fix": "node scripts/backfill-ranges.js --fix",
+    "import:drugs": "node scripts/import_india_drugs.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

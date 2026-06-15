@@ -1,7 +1,7 @@
-const axios = require('axios');
+const axios    = require('axios');
+const { pool } = require('../config/database');
 
-const NLM     = 'https://clinicaltables.nlm.nih.gov/api';
-const FDA_URL = 'https://api.fda.gov/drug/label.json';
+const NLM = 'https://clinicaltables.nlm.nih.gov/api';
 
 // Popular Indian brand names → generic mapping (covers most common prescriptions)
 const INDIAN_BRANDS = [
@@ -274,47 +274,76 @@ const searchICD10 = async (req, res) => {
   }
 };
 
-// GET /api/emr/autocomplete/medicines?q=dolo
-// Fans out to: Indian brand index (local) + NLM RxTerms (US generics)
-// Results: Indian brands first, then US generics, deduped by name
+// GET /api/emr/autocomplete/medicines?q=dolo&category=homeopathy
+// Priority: DB catalog (50k–200k rows) → local INDIAN_BRANDS fallback → NLM generics
 const searchMedicines = async (req, res) => {
-  const q = (req.query.q || '').trim().toLowerCase();
+  const q        = (req.query.q || '').trim();
+  const category = (req.query.category || '').trim().toLowerCase() || null; // optional filter
   if (!q || q.length < 2) return res.json([]);
 
-  // 1. Match against Indian brand list (instant, local)
-  const indianMatches = INDIAN_BRANDS
-    .filter(b => b.name.toLowerCase().includes(q))
-    .slice(0, 8)
+  // 1. DB catalog query (trigram similarity for typo-tolerance)
+  let dbResults = [];
+  try {
+    const params = [`%${q}%`];
+    const catClause = category ? `AND category = $2` : '';
+    if (category) params.push(category);
+
+    const { rows } = await pool.query(
+      `SELECT brand_name AS name,
+              COALESCE(generic_name, '') AS strength,
+              dosage_form, category,
+              similarity(brand_name, $1) AS sim
+       FROM   drug_catalog
+       WHERE  is_active = TRUE
+         AND  (brand_name ILIKE $1 OR generic_name ILIKE $1)
+         ${catClause}
+       ORDER  BY sim DESC, brand_name
+       LIMIT  12`,
+      params,
+    );
+    dbResults = rows.map(r => ({
+      name:     r.name,
+      strength: [r.strength, r.dosage_form].filter(Boolean).join(' · '),
+      source:   r.category === 'homeopathy' ? 'HOMEO' : 'IN',
+    }));
+  } catch {
+    // DB not available / table not yet created — fall through to local list
+  }
+
+  // 2. Fallback: local INDIAN_BRANDS list (when DB is empty or unavailable)
+  const seen = new Set(dbResults.map(m => m.name.toLowerCase()));
+  const localMatches = INDIAN_BRANDS
+    .filter(b => b.name.toLowerCase().includes(q.toLowerCase()) && !seen.has(b.name.toLowerCase()))
+    .slice(0, 6)
     .map(b => ({ name: b.name, strength: b.generic, source: 'IN' }));
 
-  // 2. NLM RxTerms (US generics — covers most international generics too)
+  // 3. NLM RxTerms for generic/international names
   let nlmResults = [];
-  try {
-    const { data } = await axios.get(`${NLM}/rxterms/v3/search`, {
-      params: { terms: q, ef: 'STRENGTHS_AND_FORMS', maxList: 10 },
-      timeout: 6000,
-    });
-    const rows      = data[3] || [];
-    const strengths = (data[2] && data[2].STRENGTHS_AND_FORMS) || [];
-    nlmResults = rows.map((row, i) => ({
-      name:     row[0],
-      strength: (strengths[i] || []).join(', '),
-      source:   'NLM',
-    }));
-  } catch {}
+  if (!category || category === 'allopathy') {
+    try {
+      const { data } = await axios.get(`${NLM}/rxterms/v3/search`, {
+        params: { terms: q, ef: 'STRENGTHS_AND_FORMS', maxList: 8 },
+        timeout: 5000,
+      });
+      const rows      = data[3] || [];
+      const strengths = (data[2] && data[2].STRENGTHS_AND_FORMS) || [];
+      const nlmSeen   = new Set([...dbResults, ...localMatches].map(m => m.name.toLowerCase()));
+      nlmResults = rows
+        .map((row, i) => ({
+          name:     row[0],
+          strength: (strengths[i] || []).join(', '),
+          source:   'NLM',
+        }))
+        .filter(m => !nlmSeen.has(m.name.toLowerCase()));
+    } catch {}
+  }
 
-  // Merge: Indian brands first, then NLM — dedupe by lowercase name
-  const seen = new Set(indianMatches.map(m => m.name.toLowerCase()));
-  const merged = [
-    ...indianMatches,
-    ...nlmResults.filter(m => !seen.has(m.name.toLowerCase())),
-  ].slice(0, 15);
-
+  const merged = [...dbResults, ...localMatches, ...nlmResults].slice(0, 15);
   res.json(merged);
 };
 
-// Keep old endpoint for backwards compatibility
-const searchRxTerms = async (req, res) => searchMedicines(req, res);
+// Keep old endpoint alias for backwards compatibility
+const searchRxTerms = (req, res) => searchMedicines(req, res);
 
 // GET /api/emr/autocomplete/ping — connectivity test
 const ping = async (req, res) => {
