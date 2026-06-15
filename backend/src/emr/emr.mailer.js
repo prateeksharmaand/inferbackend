@@ -53,25 +53,41 @@ async function sendAppointmentConfirmation({ to, patientName, clinicName, date, 
   });
 }
 
-// ── Prescription email (HTML body passed from frontend) ───────────────────────
-async function sendPrescription({ to, patientName, clinicName, htmlContent }) {
+// ── Prescription email — built from appointment/encounter data ────────────────
+async function sendPrescriptionFromAppt({ to, patientName, clinicName, appt }) {
   if (!to) return;
   const mailer = buildMailer();
+  const dateStr = appt?.appointment_date
+    ? new Date(appt.appointment_date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : new Date().toLocaleDateString('en-IN');
+
   await mailer.sendMail({
     from: FROM, to,
     subject: `Your Prescription — ${clinicName}`,
     html: `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-      <div style="background:#2563eb;padding:20px 24px;border-radius:10px 10px 0 0;">
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+      <div style="background:#2563eb;padding:20px 24px;">
         <h2 style="color:#fff;margin:0;font-size:20px;">${clinicName}</h2>
-        <p style="color:#bfdbfe;margin:4px 0 0;font-size:13px;">Prescription for ${patientName}</p>
+        <p style="color:#bfdbfe;margin:4px 0 0;font-size:13px;">Prescription — ${dateStr}</p>
       </div>
-      <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;overflow:hidden;">
-        ${htmlContent}
+      <div style="padding:24px;">
+        <p style="margin:0 0 6px;font-size:15px;">Dear <strong>${patientName}</strong>,</p>
+        <p style="margin:0 0 16px;color:#475569;font-size:13px;">
+          Your prescription from <strong>${clinicName}</strong> has been shared below.
+          Please follow the instructions provided by your doctor.
+        </p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
+          ${appt?.uhid ? `<tr><td style="padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;width:38%;">UHID</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${appt.uhid}</td></tr>` : ''}
+          <tr><td style="padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Date</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${dateStr}</td></tr>
+          ${appt?.token_number ? `<tr><td style="padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Token</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">#${appt.token_number}</td></tr>` : ''}
+        </table>
+        <p style="margin:0;font-size:12px;color:#94a3b8;">
+          To view or print the full prescription, please log in to the patient portal or contact the clinic.
+        </p>
       </div>
-      <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:16px;">
+      <div style="padding:12px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">
         Sent by Infer EMR · support@inferapp.online
-      </p>
+      </div>
     </div>`,
   });
 }
@@ -121,4 +137,4 @@ async function sendReceipt({ to, patientName, clinicName, receiptData }) {
   });
 }
 
-module.exports = { sendAppointmentConfirmation, sendPrescription, sendReceipt };
+module.exports = { sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt };

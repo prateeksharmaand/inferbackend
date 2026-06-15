@@ -941,20 +941,13 @@ export default function WriteRx() {
     const email = appt?.patient_email || prompt('Enter patient email address:');
     if (!email || !email.includes('@')) { if (email !== null) alert('Invalid email address'); return; }
 
-    const el = document.getElementById('rx-print-area');
-    if (!el) { alert('Prescription not ready'); return; }
-
-    // Get simplified HTML of prescription content for email
-    const htmlContent = el.innerHTML;
-
     try {
       await api.post('/email/prescription', {
         to:             email,
         patient_name:   appt?.patient_name,
-        html_content:   htmlContent,
         appointment_id: appt?.id,
       });
-      alert(`Prescription sent to ${email}`);
+      alert(`Prescription notification sent to ${email}`);
     } catch (e) {
       alert('Failed to send email: ' + (e.message || 'Unknown error'));
     }
