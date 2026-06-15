@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS whatsapp_messages (
 
   -- Direction & identity
   direction        VARCHAR(8)   NOT NULL CHECK (direction IN ('inbound', 'outbound')),
-  wamid            VARCHAR(255),                    -- Meta message ID (wa_message_id)
+  wamid            VARCHAR(255) UNIQUE,              -- Meta message ID (wa_message_id)
   phone_number_id  VARCHAR(64),                     -- WhatsApp Business number that sent/received
   from_number      VARCHAR(32),                     -- sender  (E.164, e.g. +919876543210)
   to_number        VARCHAR(32),                     -- recipient

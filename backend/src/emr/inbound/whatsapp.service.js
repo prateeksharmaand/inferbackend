@@ -65,8 +65,6 @@ function parseInboundMessages(body) {
         const contacts = value.contacts || [];
 
         for (const msg of (value.messages || [])) {
-          // Only handle text messages for the AI booking flow.
-          // Interactive (button/list) replies come as interactive.button_reply or list_reply.
           let text = '';
           if (msg.type === 'text') {
             text = msg.text?.body || '';
@@ -77,18 +75,21 @@ function parseInboundMessages(body) {
           } else if (msg.type === 'button') {
             text = msg.button?.text || '';
           }
-
-          if (!text.trim()) continue;
+          // Non-text types (image, audio, document, sticker, reaction, etc.)
+          // are captured with empty text so they still get logged to the DB.
 
           const contact = contacts.find(c => c.wa_id === msg.from);
           results.push({
-            messageId:  msg.id,
-            from:       `+${msg.from}`,
-            to:         toNumber ? `+${toNumber.replace(/^\+/, '')}` : null,
+            messageId:    msg.id,
+            from:         `+${msg.from}`,
+            to:           toNumber ? `+${toNumber.replace(/^\+/, '')}` : null,
             phoneNumberId: value.metadata?.phone_number_id,
-            text:       text.trim(),
-            senderName: contact?.profile?.name || null,
-            timestamp:  msg.timestamp,
+            text:         text.trim(),
+            messageType:  msg.type || 'text',
+            mediaId:      msg.image?.id || msg.audio?.id || msg.document?.id || msg.video?.id || null,
+            senderName:   contact?.profile?.name || null,
+            timestamp:    msg.timestamp,
+            raw:          msg,
           });
         }
       }

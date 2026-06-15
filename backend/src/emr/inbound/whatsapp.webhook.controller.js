@@ -44,49 +44,50 @@ const handle = async (req, res) => {
     ).catch(() => {});
   }
 
-  // Handle inbound text messages
+  // Handle inbound messages (all types)
   const messages = wa.parseInboundMessages(req.body);
   for (const msg of messages) {
-    logger.info(`[WhatsApp] inbound from ${msg.from}: "${msg.text}"`);
+    logger.info(`[WhatsApp] inbound ${msg.messageType} from ${msg.from}: "${msg.text || '(no text)'}"`);
 
-    // Persist inbound message
+    // Persist inbound message — safe timestamp cast, ON CONFLICT on wamid unique constraint
+    const waTs = msg.timestamp ? new Date(Number(msg.timestamp) * 1000).toISOString() : null;
     await pool.query(
       `INSERT INTO whatsapp_messages
          (direction, wamid, phone_number_id, from_number, to_number,
-          message_type, body, sender_name, delivery_status, wa_timestamp, raw_payload)
-       VALUES ('inbound', $1, $2, $3, $4, 'text', $5, $6, 'delivered', to_timestamp($7::bigint), $8::jsonb)
-       ON CONFLICT DO NOTHING`,
+          message_type, body, media_id, sender_name, delivery_status, wa_timestamp, raw_payload)
+       VALUES ('inbound', $1, $2, $3, $4, $5, $6, $7, $8, 'delivered', $9::timestamptz, $10::jsonb)
+       ON CONFLICT (wamid) DO NOTHING`,
       [
         msg.messageId, msg.phoneNumberId, msg.from, msg.to,
-        msg.text, msg.senderName || null,
-        msg.timestamp || null,
-        JSON.stringify({ from: msg.from, text: msg.text, messageId: msg.messageId }),
+        msg.messageType || 'text',
+        msg.text || null,
+        msg.mediaId || null,
+        msg.senderName || null,
+        waTs,
+        JSON.stringify(msg.raw || { from: msg.from, text: msg.text, messageId: msg.messageId }),
       ]
-    ).catch(e => logger.warn('[WhatsApp] log insert failed', e.message));
+    ).catch(e => logger.error('[WhatsApp] inbound log INSERT failed:', e.message));
 
     // Mark as read (shows double blue tick to patient)
     await wa.markRead(msg.phoneNumberId, msg.messageId).catch(() => {});
 
-    // Resolve clinic from the WhatsApp number that received the message
+    // Only run AI orchestrator for text-based messages
+    if (!msg.text) continue;
+
     const toNumber = msg.to || msg.phoneNumberId;
 
-    let replyText = null;
     try {
       const result = await orchestrator.handleInboundMessage(
         'whatsapp',
         msg.from,
         msg.text,
         toNumber,
-        // Pass phoneNumberId so we can send replies via correct number
         { phoneNumberId: msg.phoneNumberId, senderName: msg.senderName }
       );
 
-      // Send the AI reply back via WhatsApp Cloud API
       if (result?.replyText && msg.phoneNumberId) {
         const sent = await wa.sendText(msg.phoneNumberId, msg.from, result.replyText);
-        replyText = result.replyText;
 
-        // Persist outbound reply
         await pool.query(
           `INSERT INTO whatsapp_messages
              (direction, wamid, phone_number_id, from_number, to_number,
@@ -96,14 +97,13 @@ const handle = async (req, res) => {
             sent?.messages?.[0]?.id || null,
             msg.phoneNumberId,
             msg.to || null, msg.from,
-            replyText, msg.messageId,
-            JSON.stringify({ replyTo: msg.messageId, text: replyText }),
+            result.replyText, msg.messageId,
+            JSON.stringify({ replyTo: msg.messageId, text: result.replyText }),
           ]
-        ).catch(e => logger.warn('[WhatsApp] outbound log failed', e.message));
+        ).catch(e => logger.error('[WhatsApp] outbound log INSERT failed:', e.message));
       }
     } catch (err) {
-      logger.error('[WhatsApp] orchestrator error', err.message);
-      // Best-effort fallback reply
+      logger.error('[WhatsApp] orchestrator error:', err.message);
       if (msg.phoneNumberId) {
         const fallback = 'Sorry, something went wrong. Please try again or call us directly.';
         const sent = await wa.sendText(msg.phoneNumberId, msg.from, fallback).catch(() => null);
