@@ -274,6 +274,26 @@ export default function CreateReceiptModal({ appt, user, rxImages = {}, onClose,
   const addRow    = () => setRows(rs => [...rs, emptyItem()]);
   const removeRow = (idx) => { if (rows.length > 1) setRows(rs => rs.filter((_, i) => i !== idx)); };
 
+  const QUICK_SERVICES = [
+    { label: 'Consultation', amount: '' },
+    { label: 'Lab Charges', amount: '' },
+    { label: 'Medicine', amount: '' },
+    { label: 'Procedure', amount: '' },
+    { label: 'Dressing', amount: '' },
+    { label: 'Follow-up', amount: '' },
+  ];
+
+  const hasAnyService = rows.some(r => r.service_name.trim());
+
+  const addQuickService = (svc) => {
+    const emptyIdx = rows.findIndex(r => !r.service_name.trim());
+    if (emptyIdx >= 0) {
+      updateRow(emptyIdx, { service_name: svc.label, amount: svc.amount });
+    } else {
+      setRows(rs => [...rs, { ...emptyItem(), service_name: svc.label, amount: svc.amount }]);
+    }
+  };
+
   const resetForm = () => {
     setRows([emptyItem(), emptyItem()]); setAddlDiscount(''); setPaymode('Cash');
     setAmountPaid(''); setPaymentId(''); setPaymentStatus('Unbilled');
@@ -390,6 +410,33 @@ export default function CreateReceiptModal({ appt, user, rxImages = {}, onClose,
               <span className={styles.colTotal}>TOTAL</span>
               <span className={styles.colDel}></span>
             </div>
+            {/* Quick-add preset chips — shown when no service filled yet */}
+            {!hasAnyService && (
+              <div style={{
+                padding: '12px 0 8px',
+                display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
+              }}>
+                <span style={{ fontSize: 12, color: 'var(--color-text-2)', fontWeight: 600 }}>Quick add:</span>
+                {QUICK_SERVICES.map(svc => (
+                  <button
+                    key={svc.label}
+                    type="button"
+                    onClick={() => addQuickService(svc)}
+                    style={{
+                      padding: '5px 12px', borderRadius: 20,
+                      border: '1.5px dashed var(--color-primary)',
+                      background: 'var(--color-badge-blue)',
+                      color: 'var(--color-primary)',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}
+                  >
+                    + {svc.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {rows.map((row, idx) => (
               <div key={idx} className={styles.tableRow}>
                 <div className={styles.colService}>
