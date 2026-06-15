@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, ChevronDown, CheckCircle, Printer, Download, Send, MessageCircle, Pencil } from 'lucide-react';
 import { api } from '../api/client';
+import { track } from '../lib/mixpanel';
 import styles from './CreateReceiptModal.module.css';
 
 const PAYMODES = ['Cash', 'UPI', 'Card', 'Net Banking', 'Cheque', 'Other'];
@@ -303,6 +304,14 @@ export default function CreateReceiptModal({ appt, user, rxImages = {}, onClose,
       });
       setSavedReceipt(saved);
       onSaved?.(saved);
+      track('payment_created', {
+        clinic_id:    user?.clinic_id,
+        receipt_id:   saved.id,
+        grand_total:  saved.grand_total ?? 0,
+        paymode,
+        payment_status: paymentStatus,
+        items_count:  filledRows.length,
+      });
       // Auto-send receipt to patient email if available
       const email = appt?.patient_email;
       if (email) {

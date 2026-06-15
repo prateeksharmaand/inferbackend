@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { identifyUser, resetUser, track } from '../lib/mixpanel';
 
 const AuthContext = createContext(null);
 
@@ -10,7 +11,13 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const t = localStorage.getItem('emr_token');
     const u = localStorage.getItem('emr_user');
-    if (t && u) { setToken(t); setUser(JSON.parse(u)); }
+    if (t && u) {
+      const parsed = JSON.parse(u);
+      setToken(t);
+      setUser(parsed);
+      // Re-identify on every page reload while logged in
+      identifyUser(parsed);
+    }
     setReady(true);
   }, []);
 
@@ -19,6 +26,8 @@ export function AuthProvider({ children }) {
     localStorage.setItem('emr_user',  JSON.stringify(userObj));
     setToken(tokenStr);
     setUser(userObj);
+    identifyUser(userObj);
+    track('login', { clinic_id: userObj.clinic_id, doctor_name: userObj.name });
   };
 
   const logout = () => {
@@ -26,6 +35,8 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('emr_user');
     setToken(null);
     setUser(null);
+    track('logout');
+    resetUser();
   };
 
   return (

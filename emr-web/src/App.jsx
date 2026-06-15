@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
+import { trackPage } from './lib/mixpanel';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { QueueDateProvider } from './context/QueueDateContext';
@@ -52,6 +54,15 @@ function AdminProtected({ children }) {
   return admin ? children : <Navigate to="/admin/login" replace />;
 }
 
+function PageTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    const name = location.pathname.replace(/\/\d+/g, '/:id').replace(/^\//, '') || 'home';
+    trackPage(name, { path: location.pathname });
+  }, [location.pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <QueueDateProvider>
@@ -60,6 +71,7 @@ export default function App() {
     <AdminAuthProvider>
       <Toaster />
       <BrowserRouter basename="/opd">
+        <PageTracker />
         <Routes>
           {/* Clinic Routes */}
           <Route path="/login"          element={<Login />} />

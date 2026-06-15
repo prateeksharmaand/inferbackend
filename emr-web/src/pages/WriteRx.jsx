@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { track } from '../lib/mixpanel';
 import { RX_LANGUAGES, getLang, translateTiming, translateFrequency, translateDuration, translateDose } from '../data/rxTranslations';
 import ConfigureInferPadModal from '../components/ConfigureInferPadModal';
 import MedicalRecordsTab from '../components/MedicalRecordsTab';
@@ -1060,6 +1061,15 @@ export default function WriteRx() {
         rx_language:          form.rx_language  || '',
       });
       setShowPostVisit(true);
+      track('prescription_saved', {
+        clinic_id:        user?.clinic_id,
+        appointment_id:   appointmentId,
+        patient_name:     appt?.patient_name,
+        medications_count: form.medications?.length ?? 0,
+        has_diagnosis:    (form.diagnosis?.length ?? 0) > 0,
+        has_lab_tests:    (form.lab_investigations?.length ?? 0) > 0,
+        has_follow_up:    !!form.next_visit_date,
+      });
     } catch (err) {
       setError(err.message);
       setSaving(false);
