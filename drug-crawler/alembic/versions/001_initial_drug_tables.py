@@ -19,7 +19,12 @@ depends_on = None
 
 def upgrade() -> None:
     # ── prefix_status_enum ────────────────────────────────────────────────────
-    op.execute("CREATE TYPE prefix_status_enum AS ENUM ('pending', 'processing', 'done', 'failed')")
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE prefix_status_enum AS ENUM ('pending', 'processing', 'done', 'failed');
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$
+    """)
 
     # ── drugs ─────────────────────────────────────────────────────────────────
     op.create_table(
@@ -36,10 +41,10 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
-    op.create_index("idx_drugs_name", "drugs", ["name"])
-    op.create_index("idx_drugs_manufacturer", "drugs", ["manufacturer_name"])
-    op.create_index("idx_drugs_generic_id", "drugs", ["generic_id"])
-    op.create_index("idx_drugs_product_type", "drugs", ["product_type"])
+    op.create_index("idx_drugs_name", "drugs", ["name"], if_not_exists=True)
+    op.create_index("idx_drugs_manufacturer", "drugs", ["manufacturer_name"], if_not_exists=True)
+    op.create_index("idx_drugs_generic_id", "drugs", ["generic_id"], if_not_exists=True)
+    op.create_index("idx_drugs_product_type", "drugs", ["product_type"], if_not_exists=True)
 
     # ── crawl_prefixes ────────────────────────────────────────────────────────
     op.create_table(
@@ -57,8 +62,8 @@ def upgrade() -> None:
         sa.Column("error_message", sa.Text()),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
-    op.create_index("idx_prefix_status", "crawl_prefixes", ["status"])
-    op.create_index("idx_prefix_depth", "crawl_prefixes", ["depth"])
+    op.create_index("idx_prefix_status", "crawl_prefixes", ["status"], if_not_exists=True)
+    op.create_index("idx_prefix_depth", "crawl_prefixes", ["depth"], if_not_exists=True)
 
     # ── crawl_stats ───────────────────────────────────────────────────────────
     op.create_table(
