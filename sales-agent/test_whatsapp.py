@@ -13,5 +13,7 @@ lead = {
 }
 
 print("Sending Day 4 WhatsApp to 9650269758...")
-result = send_whatsapp(lead, step=4)
-print("Result:", "✓ Sent" if result else "✗ Failed")
+success, message = send_whatsapp(lead, step=4)
+print("Result:", "✓ Sent" if success else "✗ Failed")
+if message:
+    print("Message logged to CRM:\n", message)
