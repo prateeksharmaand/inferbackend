@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { generatePrescriptionPDF } = require('./emr.pdfgen');
 
 function buildMailer() {
   const port   = parseInt(process.env.SMTP_PORT || '587');
@@ -53,13 +54,17 @@ async function sendAppointmentConfirmation({ to, patientName, clinicName, date, 
   });
 }
 
-// ── Prescription email — built from appointment/encounter data ────────────────
-async function sendPrescriptionFromAppt({ to, patientName, clinicName, appt }) {
+// ── Prescription email with PDF attachment ────────────────────────────────────
+async function sendPrescriptionFromAppt({ to, patientName, clinicName, clinicAddress, doctorName, appt, encounter }) {
   if (!to) return;
-  const mailer = buildMailer();
+  const mailer  = buildMailer();
   const dateStr = appt?.appointment_date
-    ? new Date(appt.appointment_date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(appt.appointment_date.toString().slice(0, 10) + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
     : new Date().toLocaleDateString('en-IN');
+
+  // Generate PDF
+  const pdfBuffer = await generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, doctorName });
+  const filename  = `Prescription_${(patientName || 'Patient').replace(/\s+/g, '_')}_${appt?.appointment_date?.toString?.().slice(0,10) || 'today'}.pdf`;
 
   await mailer.sendMail({
     from: FROM, to,
@@ -71,24 +76,24 @@ async function sendPrescriptionFromAppt({ to, patientName, clinicName, appt }) {
         <p style="color:#bfdbfe;margin:4px 0 0;font-size:13px;">Prescription — ${dateStr}</p>
       </div>
       <div style="padding:24px;">
-        <p style="margin:0 0 6px;font-size:15px;">Dear <strong>${patientName}</strong>,</p>
+        <p style="margin:0 0 10px;font-size:15px;">Dear <strong>${patientName}</strong>,</p>
         <p style="margin:0 0 16px;color:#475569;font-size:13px;">
-          Your prescription from <strong>${clinicName}</strong> has been shared below.
+          Your prescription from <strong>${clinicName}</strong> is attached as a PDF.
           Please follow the instructions provided by your doctor.
         </p>
         <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
           ${appt?.uhid ? `<tr><td style="padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;width:38%;">UHID</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${appt.uhid}</td></tr>` : ''}
           <tr><td style="padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Date</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">${dateStr}</td></tr>
           ${appt?.token_number ? `<tr><td style="padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Token</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">#${appt.token_number}</td></tr>` : ''}
+          ${doctorName ? `<tr><td style="padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Doctor</td><td style="padding:6px 10px;border:1px solid #e2e8f0;">Dr. ${doctorName}</td></tr>` : ''}
         </table>
-        <p style="margin:0;font-size:12px;color:#94a3b8;">
-          To view or print the full prescription, please log in to the patient portal or contact the clinic.
-        </p>
+        <p style="margin:0;font-size:12px;color:#94a3b8;">📎 Prescription PDF is attached to this email.</p>
       </div>
       <div style="padding:12px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">
         Sent by Infer EMR · support@inferapp.online
       </div>
     </div>`,
+    attachments: [{ filename, content: pdfBuffer, contentType: 'application/pdf' }],
   });
 }
 

@@ -183,7 +183,7 @@ router.post('/email/prescription', async (req, res) => {
   const { to, patient_name, appointment_id } = req.body;
   if (!to) return res.status(400).json({ error: 'to is required' });
   try {
-    const { rows: [clinic] } = await pool.query(`SELECT name FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
+    const { rows: [clinic] } = await pool.query(`SELECT name, address FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
     const { rows: [appt]   } = appointment_id
       ? await pool.query(`SELECT * FROM emr_appointments WHERE id=$1 AND clinic_id=$2`, [appointment_id, req.emrUser.clinic_id])
       : { rows: [null] };
@@ -193,14 +193,25 @@ router.post('/email/prescription', async (req, res) => {
         [to, appointment_id, req.emrUser.clinic_id]);
     }
 
-    // Respond immediately — send email in background
+    // Fetch encounter and clinic details for PDF
+    const { rows: [encounter] } = appointment_id
+      ? await pool.query(`SELECT * FROM emr_encounters WHERE appointment_id=$1`, [appointment_id])
+      : { rows: [null] };
+    const { rows: [doctor] } = appt?.doctor_id
+      ? await pool.query(`SELECT name FROM emr_doctors WHERE id=$1`, [appt.doctor_id])
+      : { rows: [null] };
+
+    // Respond immediately — generate PDF and send email in background
     res.json({ ok: true, queued: true });
 
     mailer.sendPrescriptionFromAppt({
       to,
-      patientName: patient_name || appt?.patient_name || 'Patient',
-      clinicName:  clinic?.name || 'Clinic',
+      patientName:   patient_name || appt?.patient_name || 'Patient',
+      clinicName:    clinic?.name || 'Clinic',
+      clinicAddress: clinic?.address || '',
+      doctorName:    doctor?.name || appt?.doctor_name || '',
       appt,
+      encounter,
     }).catch(e => console.error('[email] prescription send failed:', e.message));
 
   } catch (e) {
