@@ -676,12 +676,15 @@ export default function WriteRx() {
     if (!user) return;
     const cid = user.clinic_id || 'default';
     const uid = user.id        || 'default';
-    setRxImages({
+    const reload = () => setRxImages({
       headerImg:        localStorage.getItem(`rx_header_${cid}`)        || '',
       footerImg:        localStorage.getItem(`rx_footer_${cid}`)        || '',
       googleReviewLink: localStorage.getItem(`rx_google_review_${cid}`) || '',
       signatureImg:     localStorage.getItem(`rx_sig_${uid}_${cid}`)    || '',
     });
+    reload();
+    window.addEventListener('storage', reload);
+    return () => window.removeEventListener('storage', reload);
   }, [user?.clinic_id, user?.id]);
 
   useEffect(() => {
