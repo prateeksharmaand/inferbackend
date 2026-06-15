@@ -9,7 +9,7 @@ const transcribe = [
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'audio_file required' });
     try {
-      const language       = req.body.language       || 'auto';
+      const language       = 'en'; // English only
       const specialization = req.body.specialization || 'general';
       const drugFormulary  = req.body.drugFormulary  || '';
       const text = await scribe.transcribeAudio(req.file.buffer, req.file.mimetype, language, specialization, drugFormulary);
