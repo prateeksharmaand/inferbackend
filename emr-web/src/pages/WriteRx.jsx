@@ -748,7 +748,7 @@ export default function WriteRx() {
           calc_results:         data.calc_results  || {},
         }));
         if (searchParams.get('print') === '1') {
-          setTimeout(() => window.print(), 600);
+          setTimeout(() => handlePrint(), 800);
         }
       }
     }).catch(() => {});
@@ -819,7 +819,40 @@ export default function WriteRx() {
   };
 
   const handlePrint = () => {
-    window.print();
+    // Inject a runtime print style that wins over all CSS module conflicts.
+    // Uses display:none on sibling body children (not visibility) so nothing can override it.
+    const existing = document.getElementById('rx-print-override');
+    if (existing) existing.remove();
+    const style = document.createElement('style');
+    style.id = 'rx-print-override';
+    style.textContent = `
+      @media print {
+        @page { size: A4 portrait; margin: 10mm; }
+        body > *:not(#rx-print-portal) { display: none !important; }
+        #rx-print-portal {
+          display: block !important;
+          position: fixed !important;
+          left: 0 !important; top: 0 !important;
+          width: 100% !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+          z-index: 99999 !important;
+          background: #fff !important;
+        }
+        #rx-print-portal * {
+          visibility: visible !important;
+        }
+        #rx-print-portal img {
+          display: block !important;
+          max-width: 100% !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => style.remove(), 1000);
+    }, 100);
   };
 
   function checkMandatory() {
@@ -1171,7 +1204,7 @@ export default function WriteRx() {
           <PostVisitScreen
             form={form} appt={appt} user={user} rxImages={rxImages}
             onBookAgain={handleBookAgain}
-            onPrint={() => window.print()}
+            onPrint={handlePrint}
             onGoogleReview={() => {
               const link = user?.google_review_link || rxImages.googleReviewLink;
               link ? window.open(link, '_blank') : alert('No Google review link set. Add it in Settings → Doctors → Edit your profile.');
