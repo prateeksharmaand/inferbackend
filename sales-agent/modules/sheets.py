@@ -33,7 +33,7 @@ _client = None
 _sheet  = None
 
 HEADERS = ["name", "email", "specialty", "clinic", "city",
-           "status", "step", "next_send_date", "last_sent_date", "notes", "whatsapp_log", "email_opened"]
+           "status", "step", "next_send_date", "last_sent_date", "notes", "whatsapp_log", "email_opened", "whatsapp_message"]
 
 
 def _get_sheet():
@@ -55,6 +55,8 @@ def ensure_headers():
             sheet.update_cell(1, 11, "whatsapp_log")
         if len(first_row) < 12:
             sheet.update_cell(1, 12, "email_opened")
+        if len(first_row) < 13:
+            sheet.update_cell(1, 13, "whatsapp_message")
 
 
 def get_existing_emails() -> set:
@@ -130,14 +132,19 @@ def update_lead(row_index: int, step: int, next_send_date: str, status: str = "a
     sheet.update_cell(row_index, 9, today)
 
 
-def log_whatsapp(row_index: int, step: int):
-    """Appends a WhatsApp sent log entry to column K."""
+def log_whatsapp(row_index: int, step: int, message: str = ""):
+    """Appends a WhatsApp sent log entry to column K and writes message body to column M."""
     sheet   = _get_sheet()
     today   = date.today().isoformat()
     current = sheet.cell(row_index, 11).value or ""
     entry   = f"Day {step}: sent {today}"
     updated = f"{current} | {entry}" if current else entry
     sheet.update_cell(row_index, 11, updated)
+    if message:
+        existing_msg = sheet.cell(row_index, 13).value or ""
+        new_entry    = f"[Day {step} | {today}] {message}"
+        combined     = f"{existing_msg}\n{new_entry}" if existing_msg else new_entry
+        sheet.update_cell(row_index, 13, combined)
 
 
 def has_opened_email(lead: dict) -> bool:

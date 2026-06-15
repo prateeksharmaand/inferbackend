@@ -54,19 +54,34 @@ def _send(to_phone: str, template_name: str, components: list) -> bool:
         return False
 
 
-def send_whatsapp(lead: dict, step: int) -> bool:
+# Human-readable renderings of Meta-approved templates (mirrors what the recipient sees)
+TEMPLATE_BODIES = {
+    4: (
+        "Hi {doctor_name}, hope your {specialty} practice at {clinic_name} is going well! "
+        "We wanted to follow up on our earlier email about Infer EMR — a simple, AI-powered "
+        "system built for clinics like yours. Would love to show you a quick 10-min demo. "
+        "Just reply YES and we'll set it up at your convenience. 🙏"
+    ),
+    14: (
+        "Hi {doctor_name}, this is our final follow-up from Infer EMR. "
+        "If you ever want to explore how {clinic_name} can go paperless and save hours every week, "
+        "we're just a message away. Wishing you and your patients the very best! 🌟"
+    ),
+}
+
+
+def send_whatsapp(lead: dict, step: int) -> tuple[bool, str]:
     """
     Sends WhatsApp message for Day 4 or Day 14.
-    lead must have 'phone' field in the notes or a dedicated column.
+    Returns (success: bool, rendered_message: str).
     """
     template_name = TEMPLATES.get(step)
     if not template_name:
-        return False  # Only Day 4 and Day 14
+        return False, ""
 
     # Extract phone from lead
     phone = str(lead.get("phone", "")).strip()
     if not phone:
-        # Try to extract from notes field
         notes = lead.get("notes", "")
         match = re.search(r"Phone:\s*([\d\s\-\+]+)", notes)
         if match:
@@ -74,7 +89,7 @@ def send_whatsapp(lead: dict, step: int) -> bool:
 
     if not phone:
         print(f"  ⚠ WhatsApp skipped — no phone for {lead.get('clinic', '')}")
-        return False
+        return False, ""
 
     # Normalize phone — remove spaces, dashes, +
     phone = re.sub(r"[\s\-\(\)]", "", phone)
@@ -109,6 +124,14 @@ def send_whatsapp(lead: dict, step: int) -> bool:
             ]
         }]
     else:
-        return False
+        return False, ""
 
-    return _send(phone, template_name, components)
+    # Render the human-readable version of the message for CRM logging
+    rendered = TEMPLATE_BODIES.get(step, "").format(
+        doctor_name=doctor_name,
+        clinic_name=clinic_name,
+        specialty=specialty,
+    )
+
+    success = _send(phone, template_name, components)
+    return success, rendered if success else ""

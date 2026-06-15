@@ -390,17 +390,6 @@ export default function CreateReceiptModal({ appt, user, rxImages = {}, onClose,
               <span className={styles.colTotal}>TOTAL</span>
               <span className={styles.colDel}></span>
             </div>
-            <div style={{ padding: '8px 0 4px', textAlign: 'right' }}>
-              <a
-                href="/settings?tab=services"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontSize: 12, color: 'var(--color-primary)', textDecoration: 'none' }}
-              >
-                + Add services from Settings
-              </a>
-            </div>
-
             {rows.map((row, idx) => (
               <div key={idx} className={styles.tableRow}>
                 <div className={styles.colService}>
