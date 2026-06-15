@@ -19,6 +19,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     patient_dob:     prefill.patient_dob    || '',
     patient_gender:  prefill.patient_gender || 'M',
     patient_abha:    prefill.patient_abha   || '',
+    patient_email:   prefill.patient_email  || '',
     uhid:            prefill.uhid           || '',
     queue_id:        '',
     doctor_id:       '',
@@ -108,6 +109,10 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
             <div className={styles.field}>
               <label>ABHA ID</label>
               <input value={form.patient_abha} onChange={e => set('patient_abha', e.target.value)} placeholder="12-3456-7890-1234" />
+            </div>
+            <div className={styles.field}>
+              <label>Email Address <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>(for appointment & prescription)</span></label>
+              <input type="email" value={form.patient_email} onChange={e => set('patient_email', e.target.value)} placeholder="patient@email.com" />
             </div>
             <div className={styles.field}>
               <label>UHID</label>

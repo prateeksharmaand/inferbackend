@@ -303,6 +303,13 @@ export default function CreateReceiptModal({ appt, user, rxImages = {}, onClose,
       });
       setSavedReceipt(saved);
       onSaved?.(saved);
+      // Auto-send receipt to patient email if available
+      const email = appt?.patient_email;
+      if (email) {
+        api.post('/email/receipt', {
+          to: email, patient_name: appt.patient_name, receipt_id: saved.id,
+        }).catch(() => {});
+      }
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   };

@@ -1,5 +1,6 @@
-const { pool } = require('../config/database');
-const fhir     = require('../services/fhir.service');
+const { pool }  = require('../config/database');
+const fhir      = require('../services/fhir.service');
+const { sendAppointmentConfirmation } = require('./emr.mailer');
 
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
   'rescheduled','follow_up','parked','no_show','aborted'];
@@ -49,7 +50,7 @@ const listAppointments = async (req, res) => {
 const createAppointment = async (req, res) => {
   const {
     queue_id, doctor_id, emr_patient_id,
-    patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
+    patient_name, patient_mobile, patient_dob, patient_gender, patient_abha, patient_email,
     visit_type, channel, appointment_date, appointment_time, notes, tags, uhid, medical_history,
   } = req.body;
 
@@ -66,13 +67,13 @@ const createAppointment = async (req, res) => {
   const { rows } = await pool.query(
     `INSERT INTO emr_appointments
        (queue_id, clinic_id, doctor_id, emr_patient_id,
-        patient_name, patient_mobile, patient_dob, patient_gender, patient_abha,
+        patient_name, patient_mobile, patient_dob, patient_gender, patient_abha, patient_email,
         token_number, visit_type, channel, appointment_date, appointment_time, notes, tags, uhid, medical_history)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
     [
       queue_id || null, req.emrUser.clinic_id, doctor_id || null, emr_patient_id || null,
       patient_name, patient_mobile || null,
-      patient_dob || null, patient_gender || null, patient_abha || null,
+      patient_dob || null, patient_gender || null, patient_abha || null, patient_email || null,
       tok.next_token, visit_type || 'OPConsultation',
       channel || 'walk_in',
       appointment_date || new Date().toISOString().slice(0, 10),
@@ -86,6 +87,22 @@ const createAppointment = async (req, res) => {
   fhir.pushAppointmentBundle(created).catch(err =>
     console.error('[FHIR] appointment push failed:', err.message)
   );
+
+  // Send appointment confirmation email if patient has email
+  if (patient_email) {
+    const { rows: [clinic] } = await pool.query(`SELECT name FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
+    const { rows: [doc] }    = await pool.query(`SELECT name FROM emr_doctors WHERE id=$1`, [doctor_id || null]).catch(() => ({ rows: [] }));
+    sendAppointmentConfirmation({
+      to:          patient_email,
+      patientName: patient_name,
+      clinicName:  clinic?.name || 'Clinic',
+      date:        created.appointment_date,
+      time:        created.appointment_time,
+      doctor:      doc?.name,
+      tokenNo:     created.token_number,
+    }).catch(e => console.error('[email] appointment confirmation failed:', e.message));
+  }
+
   res.status(201).json(created);
 };
 

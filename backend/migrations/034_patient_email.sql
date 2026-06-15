@@ -1,0 +1,3 @@
+ALTER TABLE emr_patients     ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE emr_appointments ADD COLUMN IF NOT EXISTS patient_email VARCHAR(255);
+ALTER TABLE emr_receipts     ADD COLUMN IF NOT EXISTS patient_email VARCHAR(255);

@@ -1,6 +1,7 @@
 const router    = require('express').Router();
 const rateLimit = require('express-rate-limit');
 const { emrAuth } = require('./emr.middleware');
+const { pool }  = require('../config/database');
 
 // SEC-023: tight rate limit for all ABHA OTP generation endpoints (3 per 10 min per IP)
 const otpLimiter = rateLimit({
@@ -30,6 +31,7 @@ const appt    = require('./emr.appointment.controller');
 const tags    = require('./emr.tags.controller');
 const uhid    = require('./emr.uhid.controller');
 const theme   = require('./emr.theme.controller');
+const mailer  = require('./emr.mailer');
 const svc     = require('./emr.services.controller');
 const rec     = require('./emr.receipts.controller');
 const docs    = require('./emr.documents.controller');
@@ -175,6 +177,35 @@ router.patch('/receipts/:id', rec.updateReceipt);
 // Theme Settings
 router.get  ('/settings/theme',  theme.getTheme);
 router.patch('/settings/theme',  theme.updateTheme);
+
+// Patient email notifications
+router.post('/email/prescription', async (req, res) => {
+  try {
+    const { to, patient_name, html_content, appointment_id } = req.body;
+    if (!to || !html_content) return res.status(400).json({ error: 'to and html_content required' });
+    const { rows: [clinic] } = await pool.query(`SELECT name FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
+    // Save email to appointment
+    if (appointment_id) {
+      await pool.query(`UPDATE emr_appointments SET patient_email=$1 WHERE id=$2 AND clinic_id=$3`,
+        [to, appointment_id, req.emrUser.clinic_id]);
+    }
+    await mailer.sendPrescription({ to, patientName: patient_name, clinicName: clinic?.name || 'Clinic', htmlContent: html_content });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/email/receipt', async (req, res) => {
+  try {
+    const { to, patient_name, receipt_id } = req.body;
+    if (!to || !receipt_id) return res.status(400).json({ error: 'to and receipt_id required' });
+    const { rows: [clinic]   } = await pool.query(`SELECT name FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
+    const { rows: [receipt]  } = await pool.query(`SELECT * FROM emr_receipts WHERE id=$1 AND clinic_id=$2`, [receipt_id, req.emrUser.clinic_id]);
+    if (!receipt) return res.status(404).json({ error: 'Receipt not found' });
+    await pool.query(`UPDATE emr_receipts SET patient_email=$1 WHERE id=$2`, [to, receipt_id]);
+    await mailer.sendReceipt({ to, patientName: patient_name || receipt.patient_name, clinicName: clinic?.name || 'Clinic', receiptData: receipt });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // UHID Settings
 router.get ('/settings/uhid',          uhid.getSettings);

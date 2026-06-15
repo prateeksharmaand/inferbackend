@@ -554,9 +554,9 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
 }
 
 // ── Post-visit screen (shown after Finish Prescription) ───────────────────────
-function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint, onDownload, onGoogleReview, onBillPatient, onEndVisit }) {
+function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint, onDownload, onSendEmail, onGoogleReview, onBillPatient, onEndVisit }) {
   const actions = [
-    { icon: <Share2     size={20} />, label: 'Send Attachment',    onClick: onPrint,         color: '#6366f1' },
+    { icon: <Share2     size={20} />, label: 'Send Attachment',    onClick: onSendEmail,     color: '#6366f1' },
     { icon: <Calendar   size={20} />, label: 'Book Slot Again',    onClick: onBookAgain,     color: '#0891b2' },
     { icon: <Printer    size={20} />, label: 'Print',              onClick: onPrint,         color: '#059669' },
     { icon: <Download   size={20} />, label: 'Download',           onClick: onDownload,      color: '#7c3aed' },
@@ -937,6 +937,29 @@ export default function WriteRx() {
     win.focus();
   };
 
+  const handleSendEmail = async () => {
+    const email = appt?.patient_email || prompt('Enter patient email address:');
+    if (!email || !email.includes('@')) { if (email !== null) alert('Invalid email address'); return; }
+
+    const el = document.getElementById('rx-print-area');
+    if (!el) { alert('Prescription not ready'); return; }
+
+    // Get simplified HTML of prescription content for email
+    const htmlContent = el.innerHTML;
+
+    try {
+      await api.post('/email/prescription', {
+        to:             email,
+        patient_name:   appt?.patient_name,
+        html_content:   htmlContent,
+        appointment_id: appt?.id,
+      });
+      alert(`Prescription sent to ${email}`);
+    } catch (e) {
+      alert('Failed to send email: ' + (e.message || 'Unknown error'));
+    }
+  };
+
   const handleDownload = () => {
     const patientName = appt?.patient_name?.replace(/\s+/g, '_') || 'Prescription';
     const html = buildPrintHTML(`${patientName}_Rx`, false);
@@ -1299,6 +1322,7 @@ export default function WriteRx() {
             onBookAgain={handleBookAgain}
             onPrint={handlePrint}
             onDownload={handleDownload}
+            onSendEmail={handleSendEmail}
             onGoogleReview={() => {
               const link = user?.google_review_link || rxImages.googleReviewLink;
               link ? window.open(link, '_blank') : alert('No Google review link set. Add it in Settings → Doctors → Edit your profile.');
