@@ -767,9 +767,9 @@ const abhaCreateMobileVerify = async (req, res) => {
 const abhaGetSuggestions = async (req, res) => {
   const { xToken, txnId } = req.body;
   if (!xToken) return res.status(400).json({ error: 'xToken required' });
-  if (!txnId) return res.status(400).json({ error: 'txnId required' });
+  // txnId is optional — ABDM suggestions endpoint only requires X-Token
   try {
-    const result = await abdmSvc.getAbhaSuggestions(xToken, txnId);
+    const result = await abdmSvc.getAbhaSuggestions(xToken, txnId || null);
     res.json(result);
   } catch (err) {
     res.status(err.status || 502).json({ error: err.message });
