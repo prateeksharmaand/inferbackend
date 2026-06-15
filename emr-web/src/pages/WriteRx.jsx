@@ -22,6 +22,7 @@ import ScribePanel from '../components/ScribePanel';
 import PatientContextPanel from '../components/PatientContextPanel';
 import AssessmentPanel from '../components/AssessmentPanel';
 import { getMandatoryFields, MANDATORY_FIELDS, getPrintSections } from './settings/InferPadSettings';
+import toast from 'react-hot-toast';
 import styles from './WriteRx.module.css';
 
 // ── Language picker (bottom bar) ─────────────────────────────────────────────
@@ -942,14 +943,19 @@ export default function WriteRx() {
   };
 
   const handlePrint = () => {
-    if (appt?.id) { openPdfWindow(appt.id); return; }
-    const html = buildPrintHTML('Prescription', true);
-    if (!html) { window.print(); return; }
-    const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
+    try {
+      if (appt?.id) { openPdfWindow(appt.id); toast.success('Opening print…'); return; }
+      const html = buildPrintHTML('Prescription', true);
+      if (!html) { window.print(); toast.success('Sent to printer'); return; }
+      const win = window.open('', '_blank', 'width=900,height=700');
+      if (!win) { toast.error('Pop-up blocked — please allow pop-ups for this site'); return; }
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      toast.success('Opening print…');
+    } catch {
+      toast.error('Print failed');
+    }
   };
 
   const handleSendEmail = async () => {
@@ -975,6 +981,7 @@ export default function WriteRx() {
     if (appt?.id) {
       const token = localStorage.getItem('emr_token');
       const name  = `Rx_${(appt.patient_name || 'Patient').replace(/\s+/g, '_')}.pdf`;
+      const tid = toast.loading('Downloading PDF…');
       fetch(`/api/emr/appointments/${appt.id}/prescription.pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then(r => r.blob()).then(b => {
@@ -982,17 +989,23 @@ export default function WriteRx() {
         a.href = URL.createObjectURL(b);
         a.download = name;
         a.click();
-      }).catch(() => alert('Could not download PDF'));
+        toast.success('PDF downloaded', { id: tid });
+      }).catch(() => toast.error('Could not download PDF', { id: tid }));
       return;
     }
-    const patientName = appt?.patient_name?.replace(/\s+/g, '_') || 'Prescription';
-    const html = buildPrintHTML(`${patientName}_Rx`, false);
-    if (!html) return;
-    const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
+    try {
+      const patientName = appt?.patient_name?.replace(/\s+/g, '_') || 'Prescription';
+      const html = buildPrintHTML(`${patientName}_Rx`, false);
+      if (!html) return;
+      const win = window.open('', '_blank', 'width=900,height=700');
+      if (!win) { toast.error('Pop-up blocked — please allow pop-ups for this site'); return; }
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      toast.success('Prescription ready to save');
+    } catch {
+      toast.error('Download failed');
+    }
   };
 
   function checkMandatory() {

@@ -22,6 +22,31 @@ function dataUrlToBuffer(dataUrl) {
   return Buffer.from(base64, 'base64');
 }
 
+// Read actual pixel dimensions from a PNG or JPEG buffer without any extra package
+function getImageDimensions(buf) {
+  try {
+    if (!buf || buf.length < 24) return null;
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
+      // PNG: IHDR always starts at byte 8; width at 16, height at 20
+      return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+    }
+    if (buf[0] === 0xFF && buf[1] === 0xD8) {
+      // JPEG: scan for SOF0–SOF3 markers
+      let i = 2;
+      while (i < buf.length - 8) {
+        if (buf[i] !== 0xFF) break;
+        const marker = buf[i + 1];
+        if (marker >= 0xC0 && marker <= 0xC3) {
+          return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+        }
+        const segLen = buf.readUInt16BE(i + 2);
+        i += 2 + segLen;
+      }
+    }
+  } catch {}
+  return null;
+}
+
 function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, doctorName, headerImg, footerImg, signatureImg }) {
   return new Promise((resolve, reject) => {
     const doc  = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true });
@@ -39,16 +64,27 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
     const footerBuf = dataUrlToBuffer(footerImg);
     const sigBuf    = dataUrlToBuffer(signatureImg);
 
+    // Pre-calculate footer rendered height so content knows where to stop
+    const footerDims = footerBuf ? getImageDimensions(footerBuf) : null;
+    const footerRenderedH = (footerDims && footerDims.width > 0)
+      ? Math.round((PW / footerDims.width) * footerDims.height)
+      : 70;
+
     // ── Header ────────────────────────────────────────────────────────────────
     let headerHeight = 0;
     if (headerBuf) {
       try {
         doc.image(headerBuf, 0, 0, { width: PW });
-        headerHeight = (doc.y || 80);
+        // Calculate actual rendered height from pixel dimensions to avoid overlap
+        const dims = getImageDimensions(headerBuf);
+        if (dims && dims.width > 0) {
+          headerHeight = Math.round((PW / dims.width) * dims.height);
+        } else {
+          headerHeight = doc.y > 10 ? doc.y : 100;
+        }
         doc.y = headerHeight + 8;
       } catch {}
-    }
-    if (!headerBuf) {
+    } else {
       doc.rect(40, 40, W, 60).fill(PRIMARY);
       doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text(clinicName || 'Clinic', 56, 52);
       if (clinicAddress) doc.fontSize(9).font('Helvetica').fillColor('#bfdbfe').text(clinicAddress, 56, 72);
@@ -81,8 +117,9 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
     doc.y += 10;
 
     // ── Helper: section heading ───────────────────────────────────────────────
+    const contentBottom = doc.page.height - footerRenderedH - 20;
     function section(title) {
-      if (doc.y > doc.page.height - 120) doc.addPage();
+      if (doc.y > contentBottom - 40) doc.addPage();
       doc.fillColor(PRIMARY).fontSize(9).font('Helvetica-Bold')
         .text(title.toUpperCase(), 40, doc.y, { continued: false });
       doc.moveTo(40, doc.y + 2).lineTo(doc.page.width - 40, doc.y + 2)
@@ -151,7 +188,7 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
       doc.y = row0 + 16;
 
       meds.forEach((m, i) => {
-        if (doc.y > doc.page.height - 80) doc.addPage();
+        if (doc.y > contentBottom - 40) doc.addPage();
         const ry = doc.y;
         if (i % 2 === 1) doc.rect(40, ry, W, 18).fill('#f8fafc');
         doc.fillColor('#1e293b').fontSize(8.5).font('Helvetica');
@@ -200,7 +237,7 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
 
     // ── Signature (last page only) ────────────────────────────────────────────
     if (sigBuf) {
-      if (doc.y > doc.page.height - 140) doc.addPage();
+      if (doc.y > contentBottom - 100) doc.addPage();
       doc.moveDown(1);
       try {
         doc.image(sigBuf, 40, doc.y, { height: 50 });
@@ -217,7 +254,7 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
     for (let i = 0; i < totalPages; i++) {
       doc.switchToPage(i);
       if (footerBuf) {
-        const footY = doc.page.height - 70;
+        const footY = doc.page.height - footerRenderedH;
         try { doc.image(footerBuf, 0, footY, { width: PW }); } catch {}
       } else {
         const footY = doc.page.height - 40;
