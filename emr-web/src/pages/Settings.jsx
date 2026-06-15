@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, UserRound, LayoutList, FlaskConical, Zap, KeyRound } from 'lucide-react';
+import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, UserRound, LayoutList, FlaskConical, Zap, KeyRound, Palette } from 'lucide-react';
 import UhidSettings from './settings/UhidSettings';
 import CustomAttributes from './settings/CustomAttributes';
 import ServicesSettings from './settings/ServicesSettings';
@@ -9,6 +9,7 @@ import QueuesSettings from './settings/QueuesSettings';
 import LabStaffSettings from './settings/LabStaffSettings';
 import SubscriptionSettings from './settings/SubscriptionSettings';
 import ChangePassword from './settings/ChangePassword';
+import ThemeSettings from './settings/ThemeSettings';
 import styles from './Settings.module.css';
 
 const TABS = [
@@ -20,6 +21,7 @@ const TABS = [
   { key: 'tags',         Icon: Tag,            label: 'Custom Attributes' },
   { key: 'services',     Icon: Stethoscope,    label: 'Services' },
   { key: 'inferpad',     Icon: LayoutTemplate, label: 'InferPad' },
+  { key: 'theme',        Icon: Palette,        label: 'Theme' },
   { key: 'password',     Icon: KeyRound,       label: 'Change Password' },
 ];
 
@@ -58,6 +60,7 @@ export default function Settings() {
         {tab === 'tags'         && <CustomAttributes />}
         {tab === 'services'     && <ServicesSettings />}
         {tab === 'inferpad'     && <InferPadSettings />}
+        {tab === 'theme'        && <ThemeSettings />}
         {tab === 'password'     && <ChangePassword />}
       </div>
     </div>

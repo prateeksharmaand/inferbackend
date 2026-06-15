@@ -27,7 +27,7 @@ export function SubscriptionProvider({ children }) {
   // Returns true if resource is within limits (or plan is unlimited)
   const canUse = useCallback((resource) => {
     if (!sub || !usage) return true; // allow while loading
-    if (sub.plan_key === 'pro' && sub.status === 'active') return true;
+    if (sub.plan_key === 'pro' && (sub.status === 'active' || sub.status === 'trial')) return true;
     const limitMap = {
       patients:      sub.max_patients,
       appointments:  sub.max_appointments,
@@ -51,7 +51,7 @@ export function SubscriptionProvider({ children }) {
     return { used, limit, pct: limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0 };
   }, [sub, usage]);
 
-  const isPro = sub?.plan_key === 'pro' && sub?.status === 'active';
+  const isPro = sub?.plan_key === 'pro' && (sub?.status === 'active' || sub?.status === 'trial');
 
   return (
     <SubscriptionContext.Provider value={{ sub, usage, loading, isPro, canUse, usageStat, refresh }}>

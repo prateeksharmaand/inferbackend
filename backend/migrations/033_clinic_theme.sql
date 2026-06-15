@@ -1,0 +1,2 @@
+ALTER TABLE emr_clinics
+  ADD COLUMN IF NOT EXISTS theme_color VARCHAR(7) DEFAULT '#2563eb';

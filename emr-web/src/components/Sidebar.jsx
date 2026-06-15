@@ -1,15 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutList, Mic2, CreditCard, BarChart2, ShieldPlus, Settings, LogOut, PhoneIncoming } from 'lucide-react';
+import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 const NAV = [
   { to: '/queue',    Icon: LayoutList,    label: 'Queue' },
   { to: '/voice',    Icon: Mic2,          label: 'Infer Voice AI' },
-  { to: '/inbound',  Icon: PhoneIncoming, label: 'Inbound Booking' },
   { to: '/payments', Icon: CreditCard,    label: 'Payments' },
   { to: '/analytics',Icon: BarChart2,     label: 'Analytics' },
-  { to: '/abha',     Icon: ShieldPlus,    label: 'ABHA' },
   { to: '/settings', Icon: Settings,      label: 'Settings' },
 ];
 

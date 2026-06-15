@@ -534,6 +534,7 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS status       VARCHAR(20)  NOT NULL DEFAULT 'active'`);
     await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS notes        TEXT`);
+    await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS theme_color  VARCHAR(7)   DEFAULT '#2563eb'`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS admin_audit_logs (
         id          SERIAL PRIMARY KEY,

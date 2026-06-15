@@ -226,7 +226,7 @@ exports.proOnlyCheck = (feature) => async (req, res, next) => {
     const sub = await getSubscription(clinicId);
 
     // Allow if pro and active/not expired
-    if (sub?.plan_key === 'pro' && sub.status === 'active') {
+    if (sub?.plan_key === 'pro' && (sub.status === 'active' || sub.status === 'trial')) {
       if (!sub.expires_at || new Date(sub.expires_at) >= new Date()) return next();
     }
 
@@ -250,7 +250,7 @@ exports.subscriptionCheck = (resource) => async (req, res, next) => {
     if (!clinicId) return next();
 
     const sub = await getSubscription(clinicId);
-    if (!sub || sub.plan_key === 'pro' || sub.status !== 'active') return next();
+    if (!sub || sub.plan_key === 'pro' || sub.status === 'active' || sub.status === 'trial') return next();
 
     // Check expiry
     if (sub.expires_at && new Date(sub.expires_at) < new Date()) {

@@ -29,6 +29,7 @@ const queue   = require('./emr.queue.controller');
 const appt    = require('./emr.appointment.controller');
 const tags    = require('./emr.tags.controller');
 const uhid    = require('./emr.uhid.controller');
+const theme   = require('./emr.theme.controller');
 const svc     = require('./emr.services.controller');
 const rec     = require('./emr.receipts.controller');
 const docs    = require('./emr.documents.controller');
@@ -170,6 +171,10 @@ router.get  ('/receipts',     rec.listReceipts);
 router.post ('/receipts',     rec.createReceipt);
 router.get  ('/receipts/:id', rec.getReceipt);
 router.patch('/receipts/:id', rec.updateReceipt);
+
+// Theme Settings
+router.get  ('/settings/theme',  theme.getTheme);
+router.patch('/settings/theme',  theme.updateTheme);
 
 // UHID Settings
 router.get ('/settings/uhid',          uhid.getSettings);
