@@ -1,12 +1,13 @@
 const axios = require('axios');
 
-const FHIR_BASE = process.env.FHIR_BASE_URL || 'http://fhir:8080/fhir';
+const FHIR_BASE    = process.env.FHIR_BASE_URL; // undefined = FHIR disabled
+const FHIR_ENABLED = !!FHIR_BASE;
 
-const fhirClient = axios.create({
+const fhirClient = FHIR_ENABLED ? axios.create({
   baseURL: FHIR_BASE,
   headers: { 'Content-Type': 'application/fhir+json', Accept: 'application/fhir+json' },
   timeout: 10_000,
-});
+}) : null;
 
 // LOINC codes for vitals
 const VITAL_LOINC = {
@@ -150,6 +151,7 @@ function diagnosticObservations(labResults, patientRef, encounterRef) {
 
 // Build a FHIR R4 transaction Bundle and POST it to HAPI FHIR
 async function pushEncounterBundle(appt, encounter) {
+  if (!FHIR_ENABLED) return;
   const patientId    = `urn:uuid:patient-${appt.id}`;
   const encounterId  = `urn:uuid:encounter-${appt.id}`;
   const appointmentId = `urn:uuid:appointment-${appt.id}`;
@@ -188,6 +190,7 @@ async function pushEncounterBundle(appt, encounter) {
 
 // Push Patient + Appointment only (on appointment creation)
 async function pushAppointmentBundle(appt) {
+  if (!FHIR_ENABLED) return;
   const patientId     = `urn:uuid:patient-appt-${appt.id}`;
   const appointmentId = `urn:uuid:appointment-${appt.id}`;
 
