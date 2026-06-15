@@ -554,12 +554,12 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
 }
 
 // ── Post-visit screen (shown after Finish Prescription) ───────────────────────
-function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint, onGoogleReview, onBillPatient, onEndVisit }) {
+function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint, onDownload, onGoogleReview, onBillPatient, onEndVisit }) {
   const actions = [
     { icon: <Share2     size={20} />, label: 'Send Attachment',    onClick: onPrint,         color: '#6366f1' },
     { icon: <Calendar   size={20} />, label: 'Book Slot Again',    onClick: onBookAgain,     color: '#0891b2' },
     { icon: <Printer    size={20} />, label: 'Print',              onClick: onPrint,         color: '#059669' },
-    { icon: <Download   size={20} />, label: 'Download',           onClick: onPrint,         color: '#7c3aed' },
+    { icon: <Download   size={20} />, label: 'Download',           onClick: onDownload,      color: '#7c3aed' },
     { icon: <CreditCard size={20} />, label: 'Send Payment Link',  onClick: () => {},        color: '#d97706' },
     { icon: <FileText   size={20} />, label: 'Bill Patient',       onClick: onBillPatient,   color: '#dc2626' },
     { icon: <Star       size={20} />, label: 'Send Google Review', onClick: onGoogleReview,  color: '#ca8a04' },
@@ -819,40 +819,71 @@ export default function WriteRx() {
   };
 
   const handlePrint = () => {
-    // Inject a runtime print style that wins over all CSS module conflicts.
-    // Uses display:none on sibling body children (not visibility) so nothing can override it.
-    const existing = document.getElementById('rx-print-override');
-    if (existing) existing.remove();
-    const style = document.createElement('style');
-    style.id = 'rx-print-override';
-    style.textContent = `
-      @media print {
-        @page { size: A4 portrait; margin: 10mm; }
-        body > *:not(#rx-print-portal) { display: none !important; }
-        #rx-print-portal {
-          display: block !important;
-          position: fixed !important;
-          left: 0 !important; top: 0 !important;
-          width: 100% !important;
-          opacity: 1 !important;
-          visibility: visible !important;
-          z-index: 99999 !important;
-          background: #fff !important;
-        }
-        #rx-print-portal * {
-          visibility: visible !important;
-        }
-        #rx-print-portal img {
-          display: block !important;
-          max-width: 100% !important;
-        }
+    // Find the rendered prescription element (visible in post-visit, or portal in writing mode)
+    const el = document.getElementById('rx-print-area') || document.querySelector('#rx-print-portal > div');
+    if (!el) { window.print(); return; }
+
+    // Collect all CSS from every stylesheet in the document (includes hashed CSS module classes)
+    let css = '@page { size: A4 portrait; margin: 10mm; }\n';
+    try {
+      for (const sheet of document.styleSheets) {
+        try {
+          for (const rule of sheet.cssRules) css += rule.cssText + '\n';
+        } catch {}
       }
-    `;
-    document.head.appendChild(style);
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => style.remove(), 1000);
-    }, 100);
+    } catch {}
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
+
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Prescription</title>
+  <style>
+    ${css}
+    body { margin: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+    img { max-width: 100%; display: block; }
+  </style>
+</head>
+<body>${el.outerHTML}</body>
+</html>`);
+    win.document.close();
+    win.focus();
+    // Small delay so images/fonts load before print dialog
+    setTimeout(() => { win.print(); win.close(); }, 600);
+  };
+
+  const handleDownload = () => {
+    const el = document.getElementById('rx-print-area') || document.querySelector('#rx-print-portal > div');
+    if (!el) return;
+    let css = '@page { size: A4 portrait; margin: 10mm; }\n';
+    try {
+      for (const sheet of document.styleSheets) {
+        try { for (const rule of sheet.cssRules) css += rule.cssText + '\n'; } catch {}
+      }
+    } catch {}
+    const patientName = appt?.patient_name?.replace(/\s+/g, '_') || 'Prescription';
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${patientName}_Rx</title>
+  <style>
+    ${css}
+    body { margin: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+    img { max-width: 100%; display: block; }
+  </style>
+</head>
+<body>${el.outerHTML}</body>
+</html>`);
+    win.document.close();
+    win.focus();
+    // User saves via Ctrl+P → Save as PDF
+    setTimeout(() => win.print(), 600);
   };
 
   function checkMandatory() {
@@ -1205,6 +1236,7 @@ export default function WriteRx() {
             form={form} appt={appt} user={user} rxImages={rxImages}
             onBookAgain={handleBookAgain}
             onPrint={handlePrint}
+            onDownload={handleDownload}
             onGoogleReview={() => {
               const link = user?.google_review_link || rxImages.googleReviewLink;
               link ? window.open(link, '_blank') : alert('No Google review link set. Add it in Settings → Doctors → Edit your profile.');
