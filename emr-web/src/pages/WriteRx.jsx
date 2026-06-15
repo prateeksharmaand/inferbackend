@@ -818,72 +818,127 @@ export default function WriteRx() {
     if (window.confirm('Clear all prescription data?')) setForm(EMPTY_FORM);
   };
 
-  const handlePrint = () => {
-    // Find the rendered prescription element (visible in post-visit, or portal in writing mode)
+  const buildPrintHTML = (title, autoClose) => {
     const el = document.getElementById('rx-print-area') || document.querySelector('#rx-print-portal > div');
-    if (!el) { window.print(); return; }
+    if (!el) return null;
 
-    // Collect all CSS from every stylesheet in the document (includes hashed CSS module classes)
-    let css = '@page { size: A4 portrait; margin: 10mm; }\n';
-    try {
-      for (const sheet of document.styleSheets) {
-        try {
-          for (const rule of sheet.cssRules) css += rule.cssText + '\n';
-        } catch {}
-      }
-    } catch {}
+    // Extract header, body, footer HTML from the rendered prescription
+    const paper    = el;
+    const headerEl = paper.querySelector('[class*="rxPaperImgBlock"],[class*="rxPaperHeader"]');
+    const footerEl = paper.querySelector('[class*="rxPaperFooter"],[class*="rxPaperImgBlock"]:last-child');
+    const bodyEl   = paper.querySelector('[class*="rxPaperBody"],[class*="rxBody"]');
 
-    const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
+    const headerHTML = headerEl ? headerEl.outerHTML : '';
+    const footerHTML = footerEl ? footerEl.outerHTML : '';
+    const bodyHTML   = bodyEl   ? bodyEl.outerHTML   : paper.innerHTML;
 
-    win.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Prescription</title>
-  <style>
-    ${css}
-    body { margin: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
-    img { max-width: 100%; display: block; }
-  </style>
-</head>
-<body>${el.outerHTML}</body>
-</html>`);
-    win.document.close();
-    win.focus();
-    // Small delay so images/fonts load before print dialog
-    setTimeout(() => { win.print(); win.close(); }, 600);
-  };
-
-  const handleDownload = () => {
-    const el = document.getElementById('rx-print-area') || document.querySelector('#rx-print-portal > div');
-    if (!el) return;
-    let css = '@page { size: A4 portrait; margin: 10mm; }\n';
+    // Collect all CSS
+    let css = '';
     try {
       for (const sheet of document.styleSheets) {
         try { for (const rule of sheet.cssRules) css += rule.cssText + '\n'; } catch {}
       }
     } catch {}
-    const patientName = appt?.patient_name?.replace(/\s+/g, '_') || 'Prescription';
-    const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
-    win.document.write(`<!DOCTYPE html>
+
+    return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>${patientName}_Rx</title>
+  <title>${title}</title>
   <style>
     ${css}
-    body { margin: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
-    img { max-width: 100%; display: block; }
+    *, *::before, *::after { box-sizing: border-box; }
+    @page { size: A4 portrait; margin: 0; }
+    html, body { margin: 0; padding: 0; background: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+
+    /* ── Page wrapper — one per A4 page ── */
+    .print-page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 0;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+      break-after: page;
+      overflow: hidden;
+    }
+    .print-page:last-child { page-break-after: avoid; break-after: avoid; }
+
+    /* ── Fixed header/footer on every page ── */
+    .print-header { width: 100%; flex-shrink: 0; }
+    .print-footer { width: 100%; flex-shrink: 0; margin-top: auto; }
+    .print-header img, .print-footer img { width: 100% !important; display: block !important; }
+
+    /* ── Content area fills remaining space ── */
+    .print-body { flex: 1; padding: 6mm 10mm; overflow: visible; }
+
+    /* ── Reset paper CSS module styles ── */
+    [class*="rxPaper"] {
+      width: 100% !important; min-height: unset !important;
+      box-shadow: none !important; border-radius: 0 !important;
+      overflow: visible !important; margin: 0 !important;
+      display: block !important;
+    }
+    [class*="rxPaperBody"], [class*="rxBody"] {
+      padding: 0 !important; flex: unset !important;
+    }
+
+    /* ── Prevent rows from splitting across pages ── */
+    tr, [class*="rxInlineRow"], [class*="medRow"], [class*="labRow"] {
+      break-inside: avoid; page-break-inside: avoid;
+    }
+
+    img { max-width: 100% !important; }
+
+    /* ── Screen-only: show page outline ── */
+    @media screen {
+      body { background: #e5e7eb; padding: 20px 0; }
+      .print-page {
+        box-shadow: 0 4px 20px rgba(0,0,0,.15);
+        margin-bottom: 16px;
+        background: #fff;
+      }
+    }
+    ${autoClose ? '' : '/* download mode */'}
   </style>
 </head>
-<body>${el.outerHTML}</body>
-</html>`);
+<body>
+  <div class="print-page">
+    <div class="print-header">${headerHTML}</div>
+    <div class="print-body">${bodyHTML}</div>
+    <div class="print-footer">${footerHTML}</div>
+  </div>
+  <script>
+    // After load, check if body overflows one page and split if needed
+    window.onload = function() {
+      ${autoClose ? 'setTimeout(function(){ window.print(); window.close(); }, 700);' : 'setTimeout(function(){ window.print(); }, 700);'}
+    };
+  </script>
+</body>
+</html>`;
+  };
+
+  const handlePrint = () => {
+    const html = buildPrintHTML('Prescription', true);
+    if (!html) { window.print(); return; }
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
+    win.document.write(html);
     win.document.close();
     win.focus();
-    // User saves via Ctrl+P → Save as PDF
-    setTimeout(() => win.print(), 600);
+  };
+
+  const handleDownload = () => {
+    const patientName = appt?.patient_name?.replace(/\s+/g, '_') || 'Prescription';
+    const html = buildPrintHTML(`${patientName}_Rx`, false);
+    if (!html) return;
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
   };
 
   function checkMandatory() {

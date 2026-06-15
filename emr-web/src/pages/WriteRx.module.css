@@ -416,7 +416,7 @@
 /* â”€â”€ Prescription paper (preview + print) â”€â”€ */
 .rxPaper {
   background: #fff; width: 210mm; min-height: 297mm; margin: 0 auto;
-  padding: 0; border-radius: 8px; overflow: hidden;
+  padding: 0; border-radius: 8px; overflow: visible;
   box-shadow: 0 4px 24px rgba(0,0,0,.12);
   display: flex; flex-direction: column;
 }
@@ -539,7 +539,7 @@
 .postVisitBannerIcon { color: #16a34a; flex-shrink: 0; }
 
 .postVisitLayout {
-  display: flex; gap: 0; flex: 1; overflow: hidden;
+  display: flex; gap: 0; flex: 1; overflow: visible; min-height: 0;
 }
 
 /* Left: prescription */
