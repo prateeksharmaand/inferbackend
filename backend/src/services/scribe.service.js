@@ -8,7 +8,7 @@ const groqModel = () => process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
 const GROQ_LLM_MODEL = process.env.GROQ_LLM_MODEL || 'llama-3.3-70b-versatile';
 
 // Short clinical hint for Whisper — keeps initial_prompt small for speed
-const WHISPER_PROMPT_BASE = 'Medical consultation in English. Doctor speaking with patient. Clinical terms, drug names, dosages.';
+const WHISPER_PROMPT_BASE = 'Medical consultation. Doctor speaking with patient. Clinical terms, drug names, dosages. बुखार, खांसी, दर्द, दवाई, नब्ज, बीपी, शुगर, पेट, सिरदर्द.';
 
 const SPECIALIZATION_VOCAB = {
   cardiology:       'troponin, stent, angiography, pacemaker, atrial fibrillation, coronary artery disease, ejection fraction, echocardiogram, stress test, beta blocker, ACE inhibitor, warfarin, catheterization, cardiac enzymes',
@@ -192,8 +192,9 @@ function buildPatientContext(ctx) {
 // Single-pass prompt: clean the transcript AND extract SOAP in one LLM call.
 const MERGED_PROMPT =
   'You are a medical scribe. Given a raw speech-to-text transcript, perform two tasks in one response:\n' +
-  '1. CLEAN: Fix grammar and punctuation. Expand medical abbreviations (BP→blood pressure, SOB→shortness of breath, OD→once daily, BD→twice daily, TDS→three times daily, Hx→history, Rx→prescription). Correct obvious mis-transcriptions. The transcript is in English only.\n' +
+  '1. CLEAN: Fix grammar and punctuation. Expand medical abbreviations (BP→blood pressure, SOB→shortness of breath, OD→once daily, BD→twice daily, TDS→three times daily, Hx→history, Rx→prescription). Correct obvious mis-transcriptions. Translate everything to English preserving all clinical meaning. Use patient context (if provided) only to resolve ambiguous terms.\n' +
   '2. EXTRACT: Extract structured SOAP data from the cleaned transcript.\n' +
+  'The transcript may be in English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, or a mix.\n' +
   '- Use the patient context (if provided) to correctly attribute known vs. newly mentioned conditions.\n' +
   '- Prefer drug names from the clinic formulary when they match what was said.\n' +
   HALLUCINATION_GUARD + '\n' +
