@@ -819,20 +819,20 @@ export default function WriteRx() {
   };
 
   const buildPrintHTML = (title, autoClose) => {
+    // Use the visible post-visit element, or the hidden portal fallback
     const el = document.getElementById('rx-print-area') || document.querySelector('#rx-print-portal > div');
     if (!el) return null;
 
-    // Extract header, body, footer HTML from the rendered prescription
-    const paper    = el;
-    const headerEl = paper.querySelector('[class*="rxPaperImgBlock"],[class*="rxPaperHeader"]');
-    const footerEl = paper.querySelector('[class*="rxPaperFooter"],[class*="rxPaperImgBlock"]:last-child');
-    const bodyEl   = paper.querySelector('[class*="rxPaperBody"],[class*="rxBody"]');
-
+    // Identify header and footer children by DOM position (first and last direct children of rxPaper)
+    const children   = Array.from(el.children);
+    const headerEl   = children[0];
+    const footerEl   = children[children.length - 1];
+    const headerH    = headerEl ? headerEl.getBoundingClientRect().height : 0;
+    const footerH    = footerEl ? footerEl.getBoundingClientRect().height : 0;
     const headerHTML = headerEl ? headerEl.outerHTML : '';
     const footerHTML = footerEl ? footerEl.outerHTML : '';
-    const bodyHTML   = bodyEl   ? bodyEl.outerHTML   : paper.innerHTML;
 
-    // Collect all CSS
+    // Collect all CSS from the document (preserves hashed CSS module class names)
     let css = '';
     try {
       for (const sheet of document.styleSheets) {
@@ -840,80 +840,87 @@ export default function WriteRx() {
       }
     } catch {}
 
+    // Convert header/footer px height to mm for margin calculation
+    const pxToMm = px => Math.ceil(px * 0.2646) + 4;
+    const topMm    = headerH > 0 ? pxToMm(headerH) : 10;
+    const bottomMm = footerH > 0 ? pxToMm(footerH) : 10;
+
     return `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
   <title>${title}</title>
   <style>
     ${css}
     *, *::before, *::after { box-sizing: border-box; }
-    @page { size: A4 portrait; margin: 0; }
-    html, body { margin: 0; padding: 0; background: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
 
-    /* ── Page wrapper — one per A4 page ── */
-    .print-page {
-      width: 210mm;
-      min-height: 297mm;
-      padding: 0;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      page-break-after: always;
-      break-after: page;
-      overflow: hidden;
+    /* ── Page setup ── */
+    @page { size: A4 portrait; margin: ${topMm}mm 10mm ${bottomMm}mm 10mm; }
+
+    html, body {
+      margin: 0; padding: 0; background: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
     }
-    .print-page:last-child { page-break-after: avoid; break-after: avoid; }
 
-    /* ── Fixed header/footer on every page ── */
-    .print-header { width: 100%; flex-shrink: 0; }
-    .print-footer { width: 100%; flex-shrink: 0; margin-top: auto; }
-    .print-header img, .print-footer img { width: 100% !important; display: block !important; }
+    /* ── Fixed header repeats on every printed page ── */
+    #print-header-fixed {
+      position: fixed;
+      top: -${topMm}mm; left: -10mm; right: -10mm;
+      width: calc(100% + 20mm);
+      z-index: 1000;
+      background: #fff;
+      line-height: 0;
+    }
+    #print-header-fixed img { width: 100% !important; display: block !important; max-height: none !important; }
 
-    /* ── Content area fills remaining space ── */
-    .print-body { flex: 1; padding: 6mm 10mm; overflow: visible; }
+    /* ── Fixed footer repeats on every printed page ── */
+    #print-footer-fixed {
+      position: fixed;
+      bottom: -${bottomMm}mm; left: -10mm; right: -10mm;
+      width: calc(100% + 20mm);
+      z-index: 1000;
+      background: #fff;
+      line-height: 0;
+    }
+    #print-footer-fixed img { width: 100% !important; display: block !important; }
 
-    /* ── Reset paper CSS module styles ── */
-    [class*="rxPaper"] {
-      width: 100% !important; min-height: unset !important;
-      box-shadow: none !important; border-radius: 0 !important;
-      overflow: visible !important; margin: 0 !important;
+    /* ── Reset paper element ── */
+    #rx-print-area {
+      width: 100% !important;
+      min-height: unset !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      overflow: visible !important;
+      margin: 0 !important;
       display: block !important;
     }
-    [class*="rxPaperBody"], [class*="rxBody"] {
-      padding: 0 !important; flex: unset !important;
-    }
+    /* Hide the original header/footer inside the paper (we're using fixed ones) */
+    #rx-print-area > *:first-child,
+    #rx-print-area > *:last-child { visibility: hidden !important; height: 0 !important; overflow: hidden !important; padding: 0 !important; margin: 0 !important; }
 
-    /* ── Prevent rows from splitting across pages ── */
-    tr, [class*="rxInlineRow"], [class*="medRow"], [class*="labRow"] {
-      break-inside: avoid; page-break-inside: avoid;
-    }
+    /* ── Prevent rows splitting across pages ── */
+    tr { break-inside: avoid; page-break-inside: avoid; }
 
     img { max-width: 100% !important; }
-
-    /* ── Screen-only: show page outline ── */
-    @media screen {
-      body { background: #e5e7eb; padding: 20px 0; }
-      .print-page {
-        box-shadow: 0 4px 20px rgba(0,0,0,.15);
-        margin-bottom: 16px;
-        background: #fff;
-      }
-    }
-    ${autoClose ? '' : '/* download mode */'}
   </style>
 </head>
 <body>
-  <div class="print-page">
-    <div class="print-header">${headerHTML}</div>
-    <div class="print-body">${bodyHTML}</div>
-    <div class="print-footer">${footerHTML}</div>
-  </div>
+  <!-- Fixed header on every page -->
+  <div id="print-header-fixed">${headerHTML}</div>
+
+  <!-- Main prescription content -->
+  ${el.outerHTML}
+
+  <!-- Fixed footer on every page -->
+  <div id="print-footer-fixed">${footerHTML}</div>
+
   <script>
-    // After load, check if body overflows one page and split if needed
     window.onload = function() {
-      ${autoClose ? 'setTimeout(function(){ window.print(); window.close(); }, 700);' : 'setTimeout(function(){ window.print(); }, 700);'}
+      ${autoClose
+        ? 'setTimeout(function(){ window.print(); window.close(); }, 800);'
+        : 'setTimeout(function(){ window.print(); }, 800);'
+      }
     };
   </script>
 </body>
