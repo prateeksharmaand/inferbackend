@@ -506,6 +506,9 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const setOphtho = (field, val) => set('ophtho', { ...ophtho, [field]: val });
   const eyeRowProps = { ophtho, setOphtho, styles };
 
+  const ent    = form.ent || {};
+  const setEnt = (field, val) => set('ent', { ...ent, [field]: val });
+
   const fillSampleData = () => {
     setVital('bp_systolic',      '124');
     setVital('bp_diastolic',     '82');
@@ -968,6 +971,107 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
             </div>
           </ICard>
         );
+
+        // ── ENT sections ──────────────────────────────────────────────────────
+        if (key === 'ent_ear_exam') return (
+          <ICard key="ent_ear_exam" title="ENT - Ear Examination (RE / LE)" icon="👂" color="#0891b2">
+            {[
+              ['Pinna',           'pinna'],
+              ['External Auditory Canal (EAC)', 'eac'],
+              ['Tympanic Membrane (TM)', 'tm'],
+              ['Perforation',     'perforation'],
+              ['Discharge',       'discharge'],
+              ['Rinne Test',      'rinne'],
+              ['Weber Test',      'weber'],
+              ['Tuning Fork (512 Hz)', 'tuning_fork'],
+            ].map(([label, f]) => (
+              <div key={f} style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>{label}</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 4 }}>
+                  {['RE', 'LE'].map(eye => (
+                    <div key={eye}>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>{eye}</div>
+                      <input className={styles.cellInput} placeholder="—"
+                        value={ent[`ear_${eye}_${f}`] || ''}
+                        onChange={e => setEnt(`ear_${eye}_${f}`, e.target.value)}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}>
+              <label style={{ fontSize: 12, color: '#64748b' }}>Additional Ear Notes</label>
+              <textarea rows={2} placeholder="e.g. Bilateral wax impaction, CSOM left ear…"
+                value={ent.ear_notes || ''} onChange={e => setEnt('ear_notes', e.target.value)}
+                style={{ marginTop: 4, width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--color-border)' }} />
+            </div>
+          </ICard>
+        );
+
+        if (key === 'ent_nose_exam') return (
+          <ICard key="ent_nose_exam" title="ENT - Nose Examination" icon="👃" color="#0d9488">
+            {[
+              ['External Nose',         'ext_nose'],
+              ['Nasal Septum',          'septum'],
+              ['Inferior Turbinate',    'inf_turbinate'],
+              ['Middle Turbinate',      'mid_turbinate'],
+              ['Nasal Mucosa',          'mucosa'],
+              ['Nasal Discharge',       'discharge_nose'],
+              ['Nasal Polyp',           'polyp'],
+              ['DNS (Deviated Septum)', 'dns'],
+              ['Sinus Tenderness',      'sinus_tenderness'],
+              ['Smell / Anosmia',       'smell'],
+            ].map(([label, f]) => (
+              <div key={f} style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>{label}</label>
+                <input className={styles.cellInput} placeholder="—"
+                  value={ent[`nose_${f}`] || ''}
+                  onChange={e => setEnt(`nose_${f}`, e.target.value)}
+                />
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}>
+              <label style={{ fontSize: 12, color: '#64748b' }}>Additional Nose Notes</label>
+              <textarea rows={2} placeholder="e.g. DNS to right, Grade II inferior turbinate hypertrophy…"
+                value={ent.nose_notes || ''} onChange={e => setEnt('nose_notes', e.target.value)}
+                style={{ marginTop: 4, width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--color-border)' }} />
+            </div>
+          </ICard>
+        );
+
+        if (key === 'ent_throat_exam') return (
+          <ICard key="ent_throat_exam" title="ENT - Throat Examination" icon="🫁" color="#7c3aed">
+            {[
+              ['Tonsils',                'tonsils'],
+              ['Tonsillar Grade (I–IV)', 'tonsil_grade'],
+              ['Pharynx',               'pharynx'],
+              ['Post-Nasal Drip (PND)', 'pnd'],
+              ['Palate',                'palate'],
+              ['Uvula',                 'uvula'],
+              ['Tongue',                'tongue'],
+              ['Larynx / Epiglottis',   'larynx'],
+              ['Vocal Cords',           'vocal_cords'],
+              ['Subglottis',            'subglottis'],
+            ].map(([label, f]) => (
+              <div key={f} style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>{label}</label>
+                <input className={styles.cellInput} placeholder="—"
+                  value={ent[`throat_${f}`] || ''}
+                  onChange={e => setEnt(`throat_${f}`, e.target.value)}
+                />
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}>
+              <label style={{ fontSize: 12, color: '#64748b' }}>Additional Throat Notes</label>
+              <textarea rows={2} placeholder="e.g. B/L tonsil Grade II, follicular pharyngitis, no exudate…"
+                value={ent.throat_notes || ''} onChange={e => setEnt('throat_notes', e.target.value)}
+                style={{ marginTop: 4, width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--color-border)' }} />
+            </div>
+          </ICard>
+        );
+
         return null;
       })}
 

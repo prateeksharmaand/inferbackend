@@ -203,6 +203,7 @@ const EMPTY_FORM = {
   injections: [],       injInput: '',
   dental_chart: '',
   ophtho: {},
+  ent: {},
   custom_sections: [],
   canvasImage: '',
   vaccinations: {},
@@ -460,6 +461,25 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
               ? <RxInlineRow key={sec.key} label={sec.label} value={sec.val} />
               : null
           );
+        })()}
+
+        {/* ENT examination sections */}
+        {(() => {
+          const e = form.ent || {};
+          const earFields = [['Pinna','pinna'],['EAC','eac'],['Tympanic Membrane','tm'],['Perforation','perforation'],['Discharge','discharge'],['Rinne Test','rinne'],['Weber Test','weber'],['Tuning Fork','tuning_fork']];
+          const noseFields = [['External Nose','ext_nose'],['Nasal Septum','septum'],['Inferior Turbinate','inf_turbinate'],['Middle Turbinate','mid_turbinate'],['Nasal Mucosa','mucosa'],['Nasal Discharge','discharge_nose'],['Nasal Polyp','polyp'],['DNS','dns'],['Sinus Tenderness','sinus_tenderness'],['Smell (Anosmia)','smell']];
+          const throatFields = [['Tonsils','tonsils'],['Tonsillar Grade','tonsil_grade'],['Pharynx','pharynx'],['Post-Nasal Drip','pnd'],['Palate','palate'],['Uvula','uvula'],['Tongue','tongue'],['Larynx / Epiglottis','larynx'],['Vocal Cords','vocal_cords'],['Subglottis','subglottis']];
+          const earVal = earFields.map(([label,f]) => {
+            const re = e[`ear_RE_${f}`], le = e[`ear_LE_${f}`];
+            return (re||le) ? `${label}: RE: ${re||'—'} LE: ${le||'—'}` : null;
+          }).filter(Boolean).join('  ');
+          const noseVal = noseFields.map(([label,f]) => e[`nose_${f}`] ? `${label}: ${e[`nose_${f}`]}` : null).filter(Boolean).join('  ');
+          const throatVal = throatFields.map(([label,f]) => e[`throat_${f}`] ? `${label}: ${e[`throat_${f}`]}` : null).filter(Boolean).join('  ');
+          return [
+            inPrint('ent_ear_exam')    && earVal    && <RxInlineRow key="ent_ear_exam"    label="EAR EXAMINATION (RE/LE)" value={earVal} />,
+            inPrint('ent_nose_exam')   && noseVal   && <RxInlineRow key="ent_nose_exam"   label="NOSE EXAMINATION"        value={noseVal} />,
+            inPrint('ent_throat_exam') && throatVal && <RxInlineRow key="ent_throat_exam" label="THROAT EXAMINATION"      value={throatVal} />,
+          ];
         })()}
 
         {(form.custom_sections||[]).filter(s=>s.content).map(s=><RxInlineRow key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}

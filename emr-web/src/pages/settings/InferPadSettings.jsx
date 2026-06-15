@@ -130,6 +130,9 @@ export const INFERPAD_SECTIONS = [
   { key: 'ophtho_pachymetry',    label: 'Ophthalmology - Pachymetry',                 icon: '👁️' },
   { key: 'ophtho_amsler',        label: 'Ophthalmology - Amsler Grid',                icon: '👁️' },
   { key: 'ophtho_contact_lens',  label: 'Ophthalmology - Contact Lens',               icon: '👁️' },
+  { key: 'ent_ear_exam',        label: 'ENT - Ear Examination (RE/LE)',              icon: '👂' },
+  { key: 'ent_nose_exam',       label: 'ENT - Nose Examination',                    icon: '👃' },
+  { key: 'ent_throat_exam',     label: 'ENT - Throat Examination',                  icon: '🫁' },
 ];
 
 export function getSectionOrder(clinicId) {
@@ -169,6 +172,7 @@ const DEFAULT_PRINT_SECTIONS = [
   'ophtho_current_glass','ophtho_final_glass','ophtho_iop','ophtho_lacrimal',
   'ophtho_color_vision','ophtho_pmt','ophtho_k_reading','ophtho_eye_exam',
   'ophtho_pachymetry','ophtho_amsler','ophtho_contact_lens',
+  'ent_ear_exam','ent_nose_exam','ent_throat_exam',
 ];
 export function getPrintSections(clinicId) {
   try {
