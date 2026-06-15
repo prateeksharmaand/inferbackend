@@ -31,6 +31,7 @@ const appt    = require('./emr.appointment.controller');
 const tags    = require('./emr.tags.controller');
 const uhid    = require('./emr.uhid.controller');
 const theme   = require('./emr.theme.controller');
+const assets  = require('./emr.clinicassets.controller');
 const mailer  = require('./emr.mailer');
 const svc     = require('./emr.services.controller');
 const rec     = require('./emr.receipts.controller');
@@ -178,12 +179,45 @@ router.patch('/receipts/:id', rec.updateReceipt);
 router.get  ('/settings/theme',  theme.getTheme);
 router.patch('/settings/theme',  theme.updateTheme);
 
+// Clinic assets (header/footer/signature images)
+router.get  ('/settings/clinic-assets', assets.getAssets);
+router.patch('/settings/clinic-assets', assets.updateAssets);
+
+// Prescription PDF download — same PDF used for email
+const { generatePrescriptionPDF } = require('./emr.pdfgen');
+router.get('/appointments/:id/prescription.pdf', async (req, res) => {
+  try {
+    const { rows: [appt] } = await pool.query(
+      `SELECT a.*, d.name AS doctor_name FROM emr_appointments a LEFT JOIN emr_doctors d ON d.id=a.doctor_id WHERE a.id=$1 AND a.clinic_id=$2`,
+      [req.params.id, req.emrUser.clinic_id]
+    );
+    if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+    const { rows: [encounter] } = await pool.query(`SELECT * FROM emr_encounters WHERE appointment_id=$1`, [req.params.id]);
+    const { rows: [clinic] }   = await pool.query(`SELECT name, address, rx_header_img, rx_footer_img, rx_signature FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
+    const pdf = await generatePrescriptionPDF({
+      appt, encounter,
+      clinicName:    clinic?.name || 'Clinic',
+      clinicAddress: clinic?.address || '',
+      doctorName:    appt.doctor_name || '',
+      headerImg:     clinic?.rx_header_img  || '',
+      footerImg:     clinic?.rx_footer_img  || '',
+      signatureImg:  clinic?.rx_signature   || '',
+    });
+    const filename = `Rx_${appt.patient_name?.replace(/\s+/g,'_') || 'Patient'}_${appt.appointment_date?.toString().slice(0,10)}.pdf`;
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` });
+    res.send(pdf);
+  } catch (e) {
+    console.error('[pdf] generation failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Patient email notifications — fire-and-forget so SMTP delays never 500 the client
 router.post('/email/prescription', async (req, res) => {
   const { to, patient_name, appointment_id } = req.body;
   if (!to) return res.status(400).json({ error: 'to is required' });
   try {
-    const { rows: [clinic] } = await pool.query(`SELECT name, address FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
+    const { rows: [clinic] } = await pool.query(`SELECT name, address, rx_header_img, rx_footer_img, rx_signature FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
     const { rows: [appt]   } = appointment_id
       ? await pool.query(`SELECT * FROM emr_appointments WHERE id=$1 AND clinic_id=$2`, [appointment_id, req.emrUser.clinic_id])
       : { rows: [null] };
@@ -212,6 +246,9 @@ router.post('/email/prescription', async (req, res) => {
       doctorName:    doctor?.name || appt?.doctor_name || '',
       appt,
       encounter,
+      headerImg:    clinic?.rx_header_img  || '',
+      footerImg:    clinic?.rx_footer_img  || '',
+      signatureImg: clinic?.rx_signature   || '',
     }).catch(e => console.error('[email] prescription send failed:', e.message));
 
   } catch (e) {

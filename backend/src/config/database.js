@@ -534,7 +534,10 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS status       VARCHAR(20)  NOT NULL DEFAULT 'active'`);
     await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS notes        TEXT`);
-    await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS theme_color  VARCHAR(7)   DEFAULT '#2563eb'`);
+    await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS theme_color    VARCHAR(7)   DEFAULT '#2563eb'`);
+    await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS rx_header_img  TEXT`);
+    await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS rx_footer_img  TEXT`);
+    await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS rx_signature   TEXT`);
     await client.query(`ALTER TABLE emr_patients     ADD COLUMN IF NOT EXISTS email VARCHAR(255)`);
     await client.query(`ALTER TABLE emr_appointments ADD COLUMN IF NOT EXISTS patient_email VARCHAR(255)`);
     await client.query(`ALTER TABLE emr_receipts     ADD COLUMN IF NOT EXISTS patient_email VARCHAR(255)`);

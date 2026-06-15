@@ -14,7 +14,15 @@ function safeArr(val) {
 }
 
 // Generate prescription PDF buffer from appt + encounter data
-function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, doctorName }) {
+// Parse base64 data URL → Buffer (for pdfkit image embedding)
+function dataUrlToBuffer(dataUrl) {
+  if (!dataUrl || !dataUrl.startsWith('data:')) return null;
+  const base64 = dataUrl.split(',')[1];
+  if (!base64) return null;
+  return Buffer.from(base64, 'base64');
+}
+
+function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, doctorName, headerImg, footerImg, signatureImg }) {
   return new Promise((resolve, reject) => {
     const doc  = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true });
     const bufs = [];
@@ -22,23 +30,34 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
     doc.on('end',  () => resolve(Buffer.concat(bufs)));
     doc.on('error', reject);
 
-    const W       = doc.page.width - 80; // usable width
+    const W       = doc.page.width - 80;
+    const PW      = doc.page.width;
     const PRIMARY = '#2563eb';
     const GRAY    = '#64748b';
-    const LIGHT   = '#f8fafc';
+
+    const headerBuf = dataUrlToBuffer(headerImg);
+    const footerBuf = dataUrlToBuffer(footerImg);
+    const sigBuf    = dataUrlToBuffer(signatureImg);
 
     // ── Header ────────────────────────────────────────────────────────────────
-    doc.rect(40, 40, doc.page.width - 80, 60).fill(PRIMARY);
-    doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold')
-      .text(clinicName || 'Clinic', 56, 52);
-    if (clinicAddress) {
-      doc.fontSize(9).font('Helvetica').fillColor('#bfdbfe')
-        .text(clinicAddress, 56, 72);
+    let headerHeight = 0;
+    if (headerBuf) {
+      try {
+        doc.image(headerBuf, 0, 0, { width: PW });
+        headerHeight = (doc.y || 80);
+        doc.y = headerHeight + 8;
+      } catch {}
     }
-    doc.moveDown(0.5);
+    if (!headerBuf) {
+      doc.rect(40, 40, W, 60).fill(PRIMARY);
+      doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text(clinicName || 'Clinic', 56, 52);
+      if (clinicAddress) doc.fontSize(9).font('Helvetica').fillColor('#bfdbfe').text(clinicAddress, 56, 72);
+      doc.y = 110;
+    }
+    headerHeight = doc.y;
 
     // ── Patient info bar ──────────────────────────────────────────────────────
-    const barY = 110;
+    const barY = doc.y;
     doc.rect(40, barY, doc.page.width - 80, 36).fill('#f1f5f9');
     doc.fillColor('#1e293b').fontSize(10).font('Helvetica-Bold');
     doc.text(`${appt.patient_name || ''}`, 56, barY + 6);
@@ -179,15 +198,34 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
       doc.y += 10;
     }
 
+    // ── Signature (last page only) ────────────────────────────────────────────
+    if (sigBuf) {
+      if (doc.y > doc.page.height - 140) doc.addPage();
+      doc.moveDown(1);
+      try {
+        doc.image(sigBuf, 40, doc.y, { height: 50 });
+        doc.y += 56;
+      } catch {}
+      doc.fillColor(GRAY).fontSize(8).font('Helvetica')
+        .text(doctorName ? `Dr. ${doctorName}` : 'Doctor Signature', 40, doc.y);
+      doc.moveTo(40, doc.y - 2).lineTo(140, doc.y - 2).strokeColor(GRAY).lineWidth(0.5).stroke();
+      doc.y += 10;
+    }
+
     // ── Footer on every page ──────────────────────────────────────────────────
     const totalPages = doc.bufferedPageRange().count;
     for (let i = 0; i < totalPages; i++) {
       doc.switchToPage(i);
-      const footY = doc.page.height - 40;
-      doc.moveTo(40, footY - 6).lineTo(doc.page.width - 40, footY - 6).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
-      doc.fillColor(GRAY).fontSize(8).font('Helvetica')
-        .text(clinicName || 'Clinic', 40, footY, { width: W / 2 })
-        .text(`Page ${i + 1} of ${totalPages}`, 40, footY, { width: W, align: 'right' });
+      if (footerBuf) {
+        const footY = doc.page.height - 70;
+        try { doc.image(footerBuf, 0, footY, { width: PW }); } catch {}
+      } else {
+        const footY = doc.page.height - 40;
+        doc.moveTo(40, footY - 6).lineTo(PW - 40, footY - 6).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+        doc.fillColor(GRAY).fontSize(8).font('Helvetica')
+          .text(clinicName || 'Clinic', 40, footY, { width: W / 2 })
+          .text(`Page ${i + 1} of ${totalPages}`, 40, footY, { width: W, align: 'right' });
+      }
     }
 
     doc.end();

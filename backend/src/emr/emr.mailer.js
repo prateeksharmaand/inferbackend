@@ -55,7 +55,7 @@ async function sendAppointmentConfirmation({ to, patientName, clinicName, date, 
 }
 
 // ── Prescription email with PDF attachment ────────────────────────────────────
-async function sendPrescriptionFromAppt({ to, patientName, clinicName, clinicAddress, doctorName, appt, encounter }) {
+async function sendPrescriptionFromAppt({ to, patientName, clinicName, clinicAddress, doctorName, appt, encounter, headerImg, footerImg, signatureImg }) {
   if (!to) return;
   const mailer  = buildMailer();
   const dateStr = appt?.appointment_date
@@ -63,7 +63,7 @@ async function sendPrescriptionFromAppt({ to, patientName, clinicName, clinicAdd
     : new Date().toLocaleDateString('en-IN');
 
   // Generate PDF
-  const pdfBuffer = await generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, doctorName });
+  const pdfBuffer = await generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, doctorName, headerImg, footerImg, signatureImg });
   const filename  = `Prescription_${(patientName || 'Patient').replace(/\s+/g, '_')}_${appt?.appointment_date?.toString?.().slice(0,10) || 'today'}.pdf`;
 
   await mailer.sendMail({

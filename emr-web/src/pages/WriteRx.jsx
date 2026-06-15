@@ -927,7 +927,22 @@ export default function WriteRx() {
 </html>`;
   };
 
+  const openPdfWindow = (apptId) => {
+    const token = localStorage.getItem('emr_token');
+    const win   = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
+    // Fetch PDF with auth token and open in blob URL so print works
+    fetch(`/api/emr/appointments/${apptId}/prescription.pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.blob()).then(b => {
+      const url = URL.createObjectURL(b);
+      win.location.href = url;
+      setTimeout(() => { try { win.print(); } catch {} }, 1200);
+    }).catch(() => { win.close(); alert('Could not load PDF'); });
+  };
+
   const handlePrint = () => {
+    if (appt?.id) { openPdfWindow(appt.id); return; }
     const html = buildPrintHTML('Prescription', true);
     if (!html) { window.print(); return; }
     const win = window.open('', '_blank', 'width=900,height=700');
@@ -946,14 +961,30 @@ export default function WriteRx() {
         to:             email,
         patient_name:   appt?.patient_name,
         appointment_id: appt?.id,
+        header_img:     rxImages.headerImg   || '',
+        footer_img:     rxImages.footerImg   || '',
+        signature_img:  rxImages.signatureImg || '',
       });
-      alert(`Prescription notification sent to ${email}`);
+      alert(`Prescription sent to ${email}`);
     } catch (e) {
       alert('Failed to send email: ' + (e.message || 'Unknown error'));
     }
   };
 
   const handleDownload = () => {
+    if (appt?.id) {
+      const token = localStorage.getItem('emr_token');
+      const name  = `Rx_${(appt.patient_name || 'Patient').replace(/\s+/g, '_')}.pdf`;
+      fetch(`/api/emr/appointments/${appt.id}/prescription.pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.blob()).then(b => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = name;
+        a.click();
+      }).catch(() => alert('Could not download PDF'));
+      return;
+    }
     const patientName = appt?.patient_name?.replace(/\s+/g, '_') || 'Prescription';
     const html = buildPrintHTML(`${patientName}_Rx`, false);
     if (!html) return;

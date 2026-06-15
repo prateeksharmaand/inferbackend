@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { X, GripVertical, Upload, Trash2, Check, PenLine } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../api/client';
 import SignaturePad from './SignaturePad';
 import {
   INFERPAD_SECTIONS, MANDATORY_FIELDS,
@@ -144,10 +145,15 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   const [saved,        setSaved]        = useState(false);
   const [sigMsg,       setSigMsg]       = useState('');
 
-  const handleSaveAppearance = () => {
-    headerImg ? localStorage.setItem(key('header'), headerImg)         : localStorage.removeItem(key('header'));
-    footerImg ? localStorage.setItem(key('footer'), footerImg)         : localStorage.removeItem(key('footer'));
-    googleLink ? localStorage.setItem(key('google_review'), googleLink): localStorage.removeItem(key('google_review'));
+  const handleSaveAppearance = async () => {
+    headerImg ? localStorage.setItem(key('header'), headerImg)          : localStorage.removeItem(key('header'));
+    footerImg ? localStorage.setItem(key('footer'), footerImg)          : localStorage.removeItem(key('footer'));
+    googleLink ? localStorage.setItem(key('google_review'), googleLink) : localStorage.removeItem(key('google_review'));
+    // Persist images to DB so backend can use them for PDF/email
+    api.patch('/settings/clinic-assets', {
+      rx_header_img: headerImg  || null,
+      rx_footer_img: footerImg  || null,
+    }).catch(() => {});
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     window.dispatchEvent(new Event('storage'));
@@ -155,6 +161,8 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   const handleSaveSig = url => {
     localStorage.setItem(sigK(), url);
     setSignatureImg(url);
+    // Persist signature to DB
+    api.patch('/settings/clinic-assets', { rx_signature: url }).catch(() => {});
     setSigMsg('Signature saved!');
     setTimeout(() => setSigMsg(''), 2500);
   };
