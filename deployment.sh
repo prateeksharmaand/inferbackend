@@ -219,6 +219,75 @@ else
   warn "sales-agent/ directory not found — skipping"
 fi
 
+# ── Drug Crawler: install deps + run Alembic migration + ensure worker running ─
+log "Setting up drug crawler..."
+CRAWLER_DIR="$(pwd)/drug-crawler"
+
+if [ -d "$CRAWLER_DIR" ]; then
+  if [ ! -d "$CRAWLER_DIR/venv" ]; then
+    info "Creating drug-crawler virtual environment..."
+    python3 -m venv "$CRAWLER_DIR/venv"
+    "$CRAWLER_DIR/venv/bin/pip" install -q --upgrade pip
+  fi
+
+  info "Installing drug-crawler dependencies..."
+  "$CRAWLER_DIR/venv/bin/pip" install -q --upgrade pip
+  "$CRAWLER_DIR/venv/bin/pip" install -q -r "$CRAWLER_DIR/requirements.txt"
+  info "Drug-crawler dependencies installed: ✓"
+
+  if [ ! -f "$CRAWLER_DIR/.env" ]; then
+    warn "drug-crawler/.env not found — copy drug-crawler/.env.example and fill in EKA_COOKIES, EKA_CID, EKA_DOCID"
+  else
+    info "drug-crawler/.env: ✓"
+
+    # Run Alembic migrations (creates/updates drugs, crawl_prefixes, crawl_stats tables)
+    info "Running drug-crawler Alembic migrations..."
+    cd "$CRAWLER_DIR"
+    ./venv/bin/alembic upgrade head && info "Alembic migrations: ✓" || warn "Alembic migration failed — check drug-crawler logs"
+    cd - > /dev/null
+
+    # Start FastAPI admin server on port 8081 (if not already running)
+    CRAWLER_PID_FILE="$CRAWLER_DIR/crawler_api.pid"
+    if [ -f "$CRAWLER_PID_FILE" ] && kill -0 "$(cat "$CRAWLER_PID_FILE")" 2>/dev/null; then
+      info "Drug-crawler API already running (PID $(cat "$CRAWLER_PID_FILE")): ✓"
+    else
+      info "Starting drug-crawler API on :8081..."
+      cd "$CRAWLER_DIR"
+      nohup ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8081 --workers 1 \
+        >> "$CRAWLER_DIR/crawler_api.log" 2>&1 &
+      echo $! > "$CRAWLER_PID_FILE"
+      cd - > /dev/null
+      sleep 2
+      if kill -0 "$(cat "$CRAWLER_PID_FILE")" 2>/dev/null; then
+        info "Drug-crawler API started (PID $(cat "$CRAWLER_PID_FILE")): ✓"
+      else
+        warn "Drug-crawler API may have failed to start — check $CRAWLER_DIR/crawler_api.log"
+      fi
+    fi
+
+    # Start crawler worker (if not already running)
+    WORKER_PID_FILE="$CRAWLER_DIR/crawler_worker.pid"
+    if [ -f "$WORKER_PID_FILE" ] && kill -0 "$(cat "$WORKER_PID_FILE")" 2>/dev/null; then
+      info "Drug-crawler worker already running (PID $(cat "$WORKER_PID_FILE")): ✓"
+    else
+      info "Starting drug-crawler worker..."
+      cd "$CRAWLER_DIR"
+      nohup ./venv/bin/python -m app.workers.tasks \
+        >> "$CRAWLER_DIR/crawler_worker.log" 2>&1 &
+      echo $! > "$WORKER_PID_FILE"
+      cd - > /dev/null
+      sleep 2
+      if kill -0 "$(cat "$WORKER_PID_FILE")" 2>/dev/null; then
+        info "Drug-crawler worker started (PID $(cat "$WORKER_PID_FILE")): ✓"
+      else
+        warn "Drug-crawler worker may have failed — check $CRAWLER_DIR/crawler_worker.log"
+      fi
+    fi
+  fi
+else
+  warn "drug-crawler/ directory not found — skipping"
+fi
+
 # ── Tail recent logs ──────────────────────────────────────────────────────────
 log "Recent backend logs (last 30 lines):"
 echo "────────────────────────────────────────"
@@ -243,4 +312,8 @@ info "To watch nginx logs: docker compose logs -f nginx"
 info "To rollback:         git revert HEAD && bash deployment.sh"
 info "Agent logs:          tail -f sales-agent/agent.log"
 info "Run agent manually:  cd sales-agent && ./venv/bin/python agent.py"
+info "Crawler API:         http://localhost:8081/docs"
+info "Crawler stats:       http://localhost:8081/api/v1/stats"
+info "Crawler API logs:    tail -f drug-crawler/crawler_api.log"
+info "Crawler worker logs: tail -f drug-crawler/crawler_worker.log"
 echo ""
