@@ -55,12 +55,14 @@ def _send(to_phone: str, template_name: str, components: list) -> bool:
 
 
 # Human-readable renderings of Meta-approved templates (mirrors what the recipient sees)
+DEMO_LINK = "https://calendly.com/prateeksharmaand/30min"
+
 TEMPLATE_BODIES = {
     4: (
         "Hi {doctor_name}, hope your {specialty} practice at {clinic_name} is going well! "
         "We wanted to follow up on our earlier email about Infer EMR — a simple, AI-powered "
         "system built for clinics like yours. Would love to show you a quick 10-min demo. "
-        "Just reply YES and we'll set it up at your convenience. 🙏"
+        "👉 Book a slot here: " + DEMO_LINK + " 🙏"
     ),
     14: (
         "Hi {doctor_name}, this is our final follow-up from Infer EMR. "
@@ -113,6 +115,7 @@ def send_whatsapp(lead: dict, step: int) -> tuple[bool, str]:
                 {"type": "text", "text": doctor_name},
                 {"type": "text", "text": clinic_name},
                 {"type": "text", "text": specialty},
+                {"type": "text", "text": DEMO_LINK},   # {{4}} in Meta template
             ]
         }]
     elif step == 14:
