@@ -30,28 +30,8 @@ async function fetchLOINC(query) {
   } catch { return []; }
 }
 
-// Drug search: eka.care directly from browser first (avoids server-side 403),
-// then falls back to our backend proxy which hits NLM RxTerms.
+// Drug search: single backend call that proxies eka.care → NLM fallback
 async function fetchDrugs(query) {
-  // 1. Try eka.care directly (browser call — not blocked like server IPs)
-  try {
-    const r = await fetch(`https://mdb.eka.care/v1/drugs-and-labs?q=${encodeURIComponent(query)}`, { signal: AbortSignal.timeout(5000) });
-    if (r.ok) {
-      const data = await r.json();
-      const items = data?.data ?? data?.results ?? (Array.isArray(data) ? data : []);
-      const mapped = items.slice(0, 15).map(d => ({
-        name:         d.name         ?? d.drug_name   ?? d.label ?? '',
-        strength:     d.composition  ?? d.strength    ?? '',
-        type:         d.type         ?? d.drug_type   ?? '',
-        manufacturer: d.manufacturer ?? d.company     ?? '',
-        source:       'ekacare',
-        label:        d.name         ?? d.drug_name   ?? '',
-      })).filter(d => d.name);
-      if (mapped.length > 0) return mapped;
-    }
-  } catch { /* eka.care unavailable — fall through */ }
-
-  // 2. Fallback: our backend → NLM RxTerms
   try {
     const r = await fetch(`/api/emr/autocomplete/drugs?q=${encodeURIComponent(query)}`);
     if (!r.ok) throw new Error('non-200');
