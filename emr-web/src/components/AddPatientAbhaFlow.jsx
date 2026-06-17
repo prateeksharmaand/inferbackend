@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { AlertCircle, Check, ChevronRight, QrCode, Smartphone, CreditCard, Fingerprint } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { AlertCircle, Check, ChevronRight, QrCode, Smartphone, CreditCard, Fingerprint, Camera, Upload } from 'lucide-react';
+import jsQR from 'jsqr';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
@@ -28,6 +29,184 @@ function StepBadges({ steps, current }) {
           </span>
         );
       })}
+    </div>
+  );
+}
+
+// ── QR decode helper (same logic as AbhaQrScan page) ──────────────────────
+function decodeAbhaQr(text) {
+  try {
+    const json = JSON.parse(text);
+    if (json.hidn || json.abhaNumber || json.abhaAddress || json.hid) {
+      return {
+        abhaNumber:  json.hidn || json.abhaNumber || json.abha_number || '',
+        abhaAddress: json.hid  || json.abhaAddress || json.abha_address || '',
+        name:    json.name || [json.firstName, json.lastName].filter(Boolean).join(' ') || '',
+        gender:  json.gender || '',
+        dob:     json.dob || json.dateOfBirth || '',
+        mobile:  json.mobile || json.phone || '',
+        address: json.address || '',
+      };
+    }
+  } catch {
+    const parts = text.split('|').map(s => s.trim());
+    if (parts.length >= 2) {
+      return { abhaNumber: parts[0], abhaAddress: parts[1], name: parts[2] || '', gender: parts[3] || '', dob: parts[4] || '', mobile: parts[5] || '', address: '' };
+    }
+  }
+  return null;
+}
+
+// ── Scan QR sub-component ──────────────────────────────────────────────────
+function ScanQrTab({ onSuccess }) {
+  const [mode, setMode] = useState('choice'); // choice | camera | done
+  const [jsonText, setJsonText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [patient, setPatient] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const fileRef = useRef(null);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+  };
+
+  useEffect(() => () => stopCamera(), []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      setMode('camera');
+      // wait for videoRef to mount
+      setTimeout(() => {
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      }, 100);
+    } catch (err) { toast.error('Camera access denied: ' + err.message); }
+  };
+
+  useEffect(() => {
+    if (mode !== 'camera') return;
+    const interval = setInterval(() => {
+      if (!videoRef.current || !canvasRef.current) return;
+      const video = videoRef.current;
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const img = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, canvas.width, canvas.height);
+      if (code) {
+        const data = decodeAbhaQr(code.data);
+        if (data) { stopCamera(); handleScanned(data); }
+      }
+    }, 300);
+    return () => clearInterval(interval);
+  }, [mode]);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = img.width; canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        const imageData = canvas.getContext('2d').getImageData(0, 0, img.width, img.height);
+        const code = jsQR(imageData.data, img.width, img.height);
+        if (code) {
+          const data = decodeAbhaQr(code.data);
+          if (data) { handleScanned(data); return; }
+        }
+        toast.error('No valid ABHA QR found in image');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleParseJson = () => {
+    try {
+      const data = decodeAbhaQr(jsonText.trim());
+      if (!data) return toast.error('Could not parse ABHA data from JSON');
+      handleScanned(data);
+    } catch { toast.error('Invalid JSON'); }
+  };
+
+  const handleScanned = async (data) => {
+    stopCamera();
+    setLoading(true);
+    try {
+      const res = await api.post('/patients/register-abha', {
+        abhaNumber: data.abhaNumber, abhaAddress: data.abhaAddress,
+        name: data.name, gender: data.gender, dob: data.dob,
+        phoneNumber: data.mobile, address: data.address,
+      });
+      setPatient(res);
+      setMode('done');
+      toast.success('Patient registered!');
+    } catch (err) { toast.error(err.message); setMode('choice'); }
+    finally { setLoading(false); }
+  };
+
+  if (mode === 'done' && patient) return <PatientCard patient={patient} onSuccess={onSuccess} />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {mode === 'camera' && (
+        <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: '#000' }}>
+          <video ref={videoRef} autoPlay playsInline style={{ width: '100%', maxHeight: 260, display: 'block' }} />
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+            <div style={{ width: 160, height: 160, border: '3px solid #7c3aed', borderRadius: 12, boxShadow: '0 0 0 2000px rgba(0,0,0,0.4)' }} />
+          </div>
+          <button onClick={() => { stopCamera(); setMode('choice'); }}
+            style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: 6, color: '#fff', padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {mode === 'choice' && (
+        <>
+          {/* Scan area */}
+          <div style={{ border: '2px dashed #c4b5fd', borderRadius: 12, background: '#faf5ff', padding: '28px 20px', textAlign: 'center' }}>
+            <QrCode size={40} color="#7c3aed" style={{ marginBottom: 14 }} />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 12 }}>
+              <button onClick={startCamera}
+                style={{ padding: '8px 18px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Camera size={13} /> Use Camera
+              </button>
+              <button onClick={() => fileRef.current?.click()}
+                style={{ padding: '8px 18px', background: '#fff', color: '#7c3aed', border: '1.5px solid #7c3aed', borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Upload size={13} /> Upload QR Image
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
+            </div>
+            <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>or paste raw QR JSON below</p>
+          </div>
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+          {/* Paste JSON */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Paste QR JSON (optional)</label>
+            <textarea
+              style={{ ...inp, height: 90, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+              placeholder={'{"hidn":"91-1234-5678-9012","hid":"abc@abdm","name":"...","gender":"M",...}'}
+              value={jsonText} onChange={e => setJsonText(e.target.value)}
+            />
+          </div>
+          <button style={primaryBtn(loading || !jsonText.trim())} onClick={handleParseJson} disabled={loading || !jsonText.trim()}>
+            {loading ? 'Registering…' : '🔍 Parse & Load'}
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -91,7 +270,7 @@ function YesFlow({ onSuccess, onClose }) {
           <Smartphone size={13} /> Share Profile
         </button>
         <button style={tabStyle(tab === 'qr')} onClick={() => setTab('qr')}>
-          <QrCode size={13} /> Scan QR Code
+          <QrCode size={13} /> Scan Health ID
         </button>
       </div>
 
@@ -158,13 +337,7 @@ function YesFlow({ onSuccess, onClose }) {
       )}
 
       {/* Scan QR tab */}
-      {tab === 'qr' && (
-        <div style={{ textAlign: 'center', padding: '24px 0' }}>
-          <QrCode size={48} color="#7c3aed" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontSize: 13, color: '#475569', fontWeight: 600, margin: '0 0 6px' }}>Scan Patient's ABHA QR</p>
-          <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Use a QR scanner to scan the patient's ABHA card QR code.</p>
-        </div>
-      )}
+      {tab === 'qr' && <ScanQrTab onSuccess={onSuccess} />}
     </div>
   );
 }
