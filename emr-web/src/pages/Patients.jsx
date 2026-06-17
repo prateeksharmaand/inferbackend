@@ -72,18 +72,11 @@ function FacilityQrModal({ onClose }) {
           background: '#fff', border: '2px solid #e2e8f0', borderRadius: 12,
           padding: 16, display: 'inline-block', marginBottom: 20,
         }}>
-          <QRCodeSVG
+          <img
             id="facility-qr-svg"
-            value={qrValue}
-            size={220}
-            level="H"
-            includeMargin={false}
-            imageSettings={{
-              src: '/vite.svg',
-              x: undefined, y: undefined,
-              height: 32, width: 32,
-              excavate: true,
-            }}
+            src="https://emr.inferapp.online/facility-qr.svg"
+            alt="Facility QR"
+            style={{ width: 220, height: 220, display: 'block' }}
           />
         </div>
 
