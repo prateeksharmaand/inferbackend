@@ -48,7 +48,6 @@ export default function AbdmDashboard() {
       const res = await api.get('/abdm/dashboard');
       setData(res);
       setLastRefresh(new Date());
-      toast.success('Dashboard refreshed');
     } catch (err) {
       toast.error('Failed to load dashboard: ' + err.message);
     } finally {
