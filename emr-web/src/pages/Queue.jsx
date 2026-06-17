@@ -11,7 +11,6 @@ import PatientProfilePanel from '../components/PatientProfilePanel';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
 import DocAssistAI from '../components/DocAssistAI';
-import AbhaRegistrationModal from '../components/AbhaRegistrationModal';
 import styles from './Queue.module.css';
 
 const STATUS_TABS = ['Booked', 'Follow Ups', 'Others'];
@@ -88,7 +87,6 @@ export default function Queue() {
   const [loading,      setLoading]      = useState(true);
   const [viewMode,      setViewMode]      = useState('list');
   const [slotDuration,  setSlotDuration]  = useState(10);
-  const [showAddAbha,   setShowAddAbha]   = useState(false);
 
   // Column search
   const [leftSearch,      setLeftSearch]      = useState('');
@@ -271,17 +269,6 @@ export default function Queue() {
             </button>
           </div>
 
-          <button
-            onClick={() => setShowAddAbha(true)}
-            title="Add new patient via ABHA"
-            style={{
-              padding: '6px 14px', background: '#7c3aed', color: '#fff', border: 'none',
-              borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', marginLeft: 'auto',
-            }}
-          >
-            <Plus size={14} /> Add via ABHA
-          </button>
         </div>
       )}
 
@@ -540,7 +527,6 @@ export default function Queue() {
       )}
 
       {/* Add patient via ABHA modal */}
-      {showAddAbha && <AbhaRegistrationModal onClose={() => setShowAddAbha(false)} onSuccess={() => { setShowAddAbha(false); fetchBoard(); }} />}
     </div>
   );
 }
