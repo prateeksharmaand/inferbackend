@@ -557,11 +557,12 @@ function ConsentsTab({ appt }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function PatientContextPanel({ appt, onClose, rightOffset = 0, minimized = false, onMinimize = () => {} }) {
-  const [activeTab,  setActiveTab]  = useState('history');
-  const [history,    setHistory]    = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [labReports, setLabReports] = useState([]);
-  const [labLoading, setLabLoading] = useState(false);
+  const [activeTab,   setActiveTab]   = useState('history');
+  const [history,     setHistory]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [labReports,  setLabReports]  = useState([]);
+  const [labLoading,  setLabLoading]  = useState(false);
+  const [patientAbhaAddress, setPatientAbhaAddress] = useState('');
 
   const activeTabCfg = TABS.find(t => t.id === activeTab);
 
@@ -574,6 +575,15 @@ export default function PatientContextPanel({ appt, onClose, rightOffset = 0, mi
     api.get(`/patients/history?${qs}`)
       .then(rows => { setHistory(rows); setLoading(false); })
       .catch(() => setLoading(false));
+
+    // Fetch patient record to get abha_address (patient_abha on appt may be ABHA number)
+    if (appt.emr_patient_id) {
+      api.get(`/patients/${appt.emr_patient_id}`)
+        .then(p => setPatientAbhaAddress(p.abha_address || ''))
+        .catch(() => {});
+    } else {
+      setPatientAbhaAddress('');
+    }
   }, [appt?.id]); // eslint-disable-line
 
   // Fetch lab results when tab is opened or appt changes
@@ -625,11 +635,16 @@ export default function PatientContextPanel({ appt, onClose, rightOffset = 0, mi
               appt?.uhid ? `UHID: ${appt.uhid}` : null,
             ].filter(Boolean).join('  ·  ')}
           </div>
-          {(appt?.patient_abha) && (
-            <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {appt.patient_abha && (
+          {(patientAbhaAddress || appt?.patient_abha) && (
+            <div style={{ marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {patientAbhaAddress && (
                 <span style={{ fontSize: 10, color: '#7c3aed', fontFamily: 'monospace', fontWeight: 600 }}>
-                  ABHA: {appt.patient_abha}
+                  {patientAbhaAddress}
+                </span>
+              )}
+              {appt?.patient_abha && !appt.patient_abha.includes('@') && (
+                <span style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace' }}>
+                  {appt.patient_abha}
                 </span>
               )}
             </div>

@@ -495,17 +495,25 @@ export default function PatientDetail() {
             {hasAbha && <Badge color="green"><Shield size={10} /> ABHA Linked</Badge>}
             {careCtxs.length > 0 && <Badge color="purple"><FileText size={10} /> {careCtxs.length} Visit{careCtxs.length > 1 ? 's' : ''}</Badge>}
           </div>
-          <div style={{ display: 'flex', gap: 20, marginTop: 6, fontSize: 13, color: '#64748b', flexWrap: 'wrap' }}>
+          {(patient.abha_address || patient.abha_number) && (
+            <div style={{ display: 'flex', gap: 14, marginTop: 3, flexWrap: 'wrap' }}>
+              {patient.abha_address && (
+                <span style={{ fontSize: 12, color: '#7c3aed', fontFamily: 'monospace', fontWeight: 600 }}>
+                  {patient.abha_address}
+                </span>
+              )}
+              {patient.abha_number && (
+                <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>
+                  {patient.abha_number}
+                </span>
+              )}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 20, marginTop: 5, fontSize: 13, color: '#64748b', flexWrap: 'wrap' }}>
             {patient.mobile  && <span>📱 {patient.mobile}</span>}
             {patient.gender  && <span>{patient.gender === 'M' ? '♂ Male' : patient.gender === 'F' ? '♀ Female' : patient.gender}</span>}
             {patient.dob     && <span>🎂 {new Date(patient.dob).toLocaleDateString('en-IN')}</span>}
           </div>
-          {(patient.abha_number || patient.abha_address) && (
-            <div style={{ fontSize: 12, color: '#7c3aed', marginTop: 4, fontWeight: 600, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              {patient.abha_number  && <span>ABHA No: {patient.abha_number}</span>}
-              {patient.abha_address && <span>ABHA ID: {patient.abha_address}</span>}
-            </div>
-          )}
         </div>
         <button
           onClick={load}
