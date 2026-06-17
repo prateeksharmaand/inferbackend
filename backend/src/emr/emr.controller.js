@@ -553,6 +553,22 @@ const createConsentRequest = async (req, res) => {
   const clinicId = req.emrUser.clinic_id;
   const hiuId    = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
 
+  // ABDM consent-requests/init requires the ABHA Address (e.g. name@sbx), NOT the ABHA number.
+  // If the caller sent an ABHA number (no @), resolve the address from emr_patients.
+  let resolvedAbha = patientAbha;
+  if (!patientAbha.includes('@')) {
+    const { rows } = await pool.query(
+      `SELECT abha_address FROM emr_patients
+       WHERE (abha_number = $1 OR abha_address = $1) AND deleted_at IS NULL LIMIT 1`,
+      [patientAbha]
+    );
+    if (rows[0]?.abha_address) {
+      resolvedAbha = rows[0].abha_address;
+    } else {
+      return res.status(400).json({ error: 'Patient ABHA address not found. Link ABHA address first.' });
+    }
+  }
+
   // Always send all HI types — ABDM disables grant button if the requested hiTypes
   // don't include the hiType of the patient's linked care context.
   const resolvedHiTypes = ALL_HI_TYPES;
@@ -563,12 +579,12 @@ const createConsentRequest = async (req, res) => {
     to:   (toDate > now ? now : toDate).toISOString(), // ABDM: to must be present or past
   };
 
-  logger.info('EMR consent request', { patientAbha, hipId, hiuId, purpose, hiTypes: resolvedHiTypes, dateRange });
+  logger.info('EMR consent request', { resolvedAbha, hipId, hiuId, purpose, hiTypes: resolvedHiTypes, dateRange });
 
   let result = {};
   try {
     result = await abdmSvc.createConsentRequest(
-      patientAbha, hiuId, purpose, resolvedHiTypes,
+      resolvedAbha, hiuId, purpose, resolvedHiTypes,
       dateRange,
       { name: requesterName, identifierValue: requesterReg }
     );
@@ -586,7 +602,7 @@ const createConsentRequest = async (req, res) => {
        (clinic_id, request_id, patient_abha, hip_id, hiu_id, purpose, hi_types)
      VALUES ($1,$2,$3,$4,$5,$6,$7)
      ON CONFLICT (request_id) DO NOTHING`,
-    [clinicId, requestId, patientAbha, hipId, hiuId, purpose, hiTypes]
+    [clinicId, requestId, resolvedAbha, hipId, hiuId, purpose, hiTypes]
   );
 
   res.json({ requestId, patientLinked: true, ...result });
