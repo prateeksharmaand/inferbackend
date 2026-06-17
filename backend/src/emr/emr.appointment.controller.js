@@ -8,6 +8,60 @@ const { sendAppointmentConfirmation } = require('./emr.mailer');
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
   'rescheduled','follow_up','parked','no_show','aborted'];
 
+// ── Shared: attempt HIP-initiated ABDM care context link ─────────────────────
+// Flow: skip if already linked → reuse cached token → generate new token
+async function attemptAbdmLink(refNum, display, patientId) {
+  // 1. Skip if already linked
+  const { rows: [cc] } = await pool.query(
+    `SELECT link_status FROM emr_care_contexts WHERE reference_number=$1`,
+    [refNum]
+  );
+  if (cc?.link_status === 'linked') {
+    logger.info('ABDM link skipped — already linked', { refNum });
+    return;
+  }
+
+  // 2. Fetch patient ABHA + demographics from emr_patients (source of truth)
+  const { rows: [patient] } = await pool.query(
+    `SELECT abha_number, abha_address, name, gender,
+            EXTRACT(YEAR FROM dob)::int AS birth_year
+     FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`,
+    [patientId]
+  );
+  if (!patient?.abha_number || !patient?.abha_address) {
+    logger.info('ABDM link skipped — patient missing abha_number or abha_address', { patientId });
+    return;
+  }
+
+  const hipId      = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
+  const yearOfBirth = patient.birth_year || 1990;
+  const gender      = patient.gender || 'M';
+
+  try {
+    // 3. generateLinkToken reuses in-memory cache if token still valid
+    const tokenRes = await abdmSvc.generateLinkToken(
+      hipId, patient.abha_number, patient.abha_address,
+      patient.name || '', gender, yearOfBirth
+    );
+    await abdmSvc.linkCareContexts(
+      hipId, tokenRes.linkToken,
+      patient.abha_number, patient.abha_address,
+      patient.name || '', [{ referenceNumber: refNum, display }]
+    );
+    await pool.query(
+      `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL WHERE reference_number=$1`,
+      [refNum]
+    );
+    logger.info('ABDM care context linked', { refNum, abhaNumber: patient.abha_number });
+  } catch (linkErr) {
+    await pool.query(
+      `UPDATE emr_care_contexts SET link_status='failed', link_error=$1 WHERE reference_number=$2`,
+      [linkErr.message?.slice(0, 500), refNum]
+    ).catch(() => {});
+    logger.warn('ABDM care context link failed', { refNum, error: linkErr.message });
+  }
+}
+
 // GET /api/emr/appointments?queue_id=&date=&status=
 const listAppointments = async (req, res) => {
   const { queue_id, date, status, doctor_id } = req.query;
@@ -187,36 +241,7 @@ const updateStatus = async (req, res) => {
         if (!ccRows.length) return; // already existed — saveEncounter will update it with FHIR content
 
         logger.info('Care context created on status change', { refNum, status, patientId: a.emr_patient_id });
-
-        // Try to ABDM-link if patient has ABHA
-        const { rows: [patient] } = await pool.query(
-          `SELECT abha_number, abha_address, name FROM emr_patients WHERE id=$1`,
-          [a.emr_patient_id]
-        );
-        if (patient?.abha_number && patient?.abha_address) {
-          const hipId = process.env.ABDM_HIP_ID || 'infer-hip';
-          try {
-            const tokenRes = await abdmSvc.generateLinkToken(
-              hipId, patient.abha_number, patient.abha_address,
-              patient.name, a.patient_gender, new Date(a.patient_dob || a.appointment_date).getFullYear()
-            );
-            await abdmSvc.linkCareContexts(
-              hipId, tokenRes.linkToken, patient.abha_number, patient.abha_address,
-              patient.name, [{ referenceNumber: refNum, display }]
-            );
-            await pool.query(
-              `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL WHERE reference_number=$1`,
-              [refNum]
-            );
-            logger.info('Care context linked on status change', { refNum });
-          } catch (linkErr) {
-            await pool.query(
-              `UPDATE emr_care_contexts SET link_status='failed', link_error=$1 WHERE reference_number=$2`,
-              [linkErr.message?.slice(0, 500), refNum]
-            ).catch(() => {});
-            logger.warn('Care context link failed on status change', { refNum, error: linkErr.message });
-          }
-        }
+        await attemptAbdmLink(refNum, display, a.emr_patient_id);
       } catch (err) {
         logger.error('Care context creation on status change failed', { error: err.message });
       }
@@ -423,57 +448,7 @@ const saveEncounter = async (req, res) => {
         });
       }
 
-      // Attempt HIP-initiated ABDM link for patients with ABHA address
-      const { rows: patRows } = await pool.query(
-        `SELECT abha_number, abha_address, name FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`,
-        [a.emr_patient_id]
-      );
-      const patient = patRows[0];
-      if (patient?.abha_number && patient?.abha_address) {
-        try {
-          const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
-          const yearOfBirth = new Date(a.patient_dob || a.appointment_date).getFullYear();
-          const tokenRes = await abdmSvc.generateLinkToken(
-            hipId, patient.abha_number, patient.abha_address,
-            patient.name, a.patient_gender, yearOfBirth
-          );
-          await abdmSvc.linkCareContexts(
-            hipId,
-            tokenRes.linkToken,
-            patient.abha_number,
-            patient.abha_address,
-            patient.name,
-            [{ referenceNumber: refNum, display }]
-          );
-          await pool.query(
-            `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL
-             WHERE reference_number=$1`,
-            [refNum]
-          );
-          logger.info('ABDM Care Context linked', {
-            patientId: a.emr_patient_id,
-            referenceNumber: refNum,
-            abhaNumber: patient.abha_number,
-          });
-        } catch (linkErr) {
-          const errMsg = linkErr.message || 'Unknown error';
-          await pool.query(
-            `UPDATE emr_care_contexts SET link_status='failed', link_error=$1
-             WHERE reference_number=$2`,
-            [errMsg.slice(0, 500), refNum]
-          ).catch(() => {});
-          logger.warn('ABDM Link failed', {
-            patientId: a.emr_patient_id,
-            referenceNumber: refNum,
-            error: errMsg,
-          });
-        }
-      } else {
-        logger.info('ABDM Care Context created (no ABHA — link skipped)', {
-          patientId: a.emr_patient_id,
-          referenceNumber: refNum,
-        });
-      }
+      await attemptAbdmLink(refNum, display, a.emr_patient_id);
     }).catch(err => {
       logger.error('[ABDM] care context upsert failed', {
         patientId: a.emr_patient_id,
