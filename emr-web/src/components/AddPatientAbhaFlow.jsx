@@ -742,10 +742,11 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
     <>
       {/* Single unified header */}
       <div style={{
-        padding: fullPage ? '16px 32px' : '16px 24px',
+        padding: '14px 24px',
         borderBottom: '1px solid #f1f5f9',
         display: 'flex', alignItems: 'center', gap: 12,
         background: '#fff', position: 'sticky', top: 0, zIndex: 10,
+        width: '100%', boxSizing: 'border-box',
       }}>
         {(fullPage || registered !== null) && (
           <button onClick={headerBackAction}
@@ -769,7 +770,7 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
       </div>
 
       {/* Scrollable content */}
-      <div style={{ padding: fullPage ? '28px 32px' : '20px 24px', maxWidth: fullPage ? 580 : undefined, overflowY: 'auto' }}>
+      <div style={{ padding: '24px', flex: 1, boxSizing: 'border-box', width: '100%' }}>
         {/* Step 0: Registered? */}
         {registered === null && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -800,8 +801,8 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
 
   if (fullPage) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ background: '#fff', flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 640, width: '100%', margin: '0 auto', boxShadow: '0 0 0 1px #f1f5f9' }}>
+      <div style={{ height: '100%', minHeight: '100vh', background: '#fff', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
           {inner}
         </div>
       </div>
