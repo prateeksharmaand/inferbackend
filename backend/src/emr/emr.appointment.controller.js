@@ -169,9 +169,12 @@ const updateStatus = async (req, res) => {
     const a = rows[0];
     setImmediate(async () => {
       try {
-        const dateStr = (a.appointment_date?.toString() || new Date().toISOString()).slice(0, 10).replace(/-/g, '');
+        const apptIso = a.appointment_date instanceof Date
+          ? a.appointment_date.toISOString().slice(0, 10)
+          : String(a.appointment_date).slice(0, 10);
+        const dateStr = apptIso.replace(/-/g, '');
         const refNum  = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
-        const display = `OPD Consultation – ${a.appointment_date?.toString().slice(0, 10) || dateStr} – ${a.patient_name || 'Patient'}`;
+        const display = `OPD Consultation – ${apptIso} – ${a.patient_name || 'Patient'}`;
 
         const { rows: ccRows } = await pool.query(
           `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, link_status)
@@ -378,9 +381,12 @@ const saveEncounter = async (req, res) => {
   //       Clinical data (Rx, notes, labs) within the same visit reuses this CC.
   //       A new visit on a different date gets a NEW appointment → new CC ref.
   if (a.emr_patient_id) {
-    const dateStr  = (a.appointment_date?.toString() || new Date().toISOString()).slice(0, 10).replace(/-/g, '');
+    const apptIso  = a.appointment_date instanceof Date
+      ? a.appointment_date.toISOString().slice(0, 10)
+      : String(a.appointment_date).slice(0, 10);
+    const dateStr  = apptIso.replace(/-/g, '');
     const refNum   = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
-    const display  = `OPD Consultation – ${a.appointment_date?.toString().slice(0, 10) || dateStr} – ${a.patient_name || 'Patient'}`;
+    const display  = `OPD Consultation – ${apptIso} – ${a.patient_name || 'Patient'}`;
 
     // Build rich ABDM-compliant FHIR bundle from real encounter data
     const abdmFhir = hip.buildFhirBundleFromEncounter(
