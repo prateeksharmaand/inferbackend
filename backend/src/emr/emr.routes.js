@@ -312,6 +312,7 @@ router.post('/abha/aadhaar-mobile-verify',emr.abhaCreateMobileVerify);
 router.post('/abha/aadhaar-suggestions',  emr.abhaGetSuggestions);
 router.post('/abha/aadhaar-set-address',  emr.abhaAadhaarSetAddress);
 router.post('/abha/aadhaar-finalize',     emr.abhaAadhaarCreate);
+router.get ('/abha/card',                 emr.abhaGetCard);
 
 // Add Patient via ABHA (standalone — no existing patient needed)
 router.post('/abha/request-otp',   otpLimiter, emr.abhaAddOtp);
