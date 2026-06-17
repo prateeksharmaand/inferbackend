@@ -598,8 +598,19 @@ const getConsentHealthRecords = async (req, res) => {
 
 // ── ABHA QR Registration ──────────────────────────────────────────────────────
 
+const normaliseDate = (raw) => {
+  if (!raw) return null;
+  // DD-MM-YYYY or DD/MM/YYYY → YYYY-MM-DD
+  const ddmmyyyy = raw.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  return null;
+};
+
 const registerAbhaPatient = async (req, res) => {
   const { abhaNumber, abhaAddress, name, gender, dob, phoneNumber, address, department, doctor, visitType } = req.body;
+  const normDob = normaliseDate(dob);
 
   if (!name) return res.status(400).json({ error: 'name is required' });
 
@@ -622,7 +633,7 @@ const registerAbhaPatient = async (req, res) => {
              is_abdm_linked=true, abdm_linked_at=NOW()
        WHERE id=$8 RETURNING *`,
       [abhaNumber||null, abhaAddress||null, name, gender||null,
-       dob||null, phoneNumber||null, address ? JSON.stringify(address) : null, found.id]
+       normDob||null, phoneNumber||null, address ? JSON.stringify(address) : null, found.id]
     );
     patient = updated[0];
     // Attach the new ABHA address to the existing patient's mappings
@@ -633,7 +644,7 @@ const registerAbhaPatient = async (req, res) => {
       `INSERT INTO emr_patients
          (name, mobile, dob, gender, abha_number, abha_address, address, is_abdm_linked, abdm_linked_at, clinic_id)
        VALUES ($1,$2,$3::date,$4,$5,$6,$7::jsonb,true,NOW(),$8) RETURNING *`,
-      [name, phoneNumber||null, dob||null, gender||'M', abhaNumber||null, abhaAddress||null,
+      [name, phoneNumber||null, normDob||null, gender||'M', abhaNumber||null, abhaAddress||null,
        address ? JSON.stringify(address) : null, req.emrUser?.clinic_id || null]
     );
     patient = created[0];
