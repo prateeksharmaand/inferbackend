@@ -999,7 +999,10 @@ const abhaAadhaarCreate = async (req, res) => {
   try {
     const p = abdmProfile;
     const abhaNum  = p.ABHANumber  || p.abhaNumber  || null;
-    const abhaAddr = abhaAddress   || p.preferredAbhaAddress || p.abhaAddress || null;
+    const CM_ID    = process.env.ABDM_CM_ID || 'sbx';
+    let   abhaAddr = abhaAddress   || p.preferredAbhaAddress || p.abhaAddress || null;
+    // Normalize to full canonical ABDM address (e.g. "prateek.sharma@sbx")
+    if (abhaAddr && !abhaAddr.includes('@')) abhaAddr = `${abhaAddr}@${CM_ID}`;
     const name     = p.name || [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || null;
     const dob      = p.dateOfBirth || (p.yearOfBirth ? `${p.yearOfBirth}-${String(p.monthOfBirth||1).padStart(2,'0')}-${String(p.dayOfBirth||1).padStart(2,'0')}` : null);
 
@@ -1043,7 +1046,9 @@ const abhaAddCreate = async (req, res) => {
     if (!profile) return res.status(502).json({ error: 'No profile returned from ABDM' });
 
     const abhaNum  = profile.ABHANumber  || profile.abhaNumber  || null;
-    const abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
+    const CM_ID    = process.env.ABDM_CM_ID || 'sbx';
+    let   abhaAddr = profile.preferredAbhaAddress || profile.abhaAddress || null;
+    if (abhaAddr && !abhaAddr.includes('@')) abhaAddr = `${abhaAddr}@${CM_ID}`;
     const name     = profile.name || [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ') || null;
     // ABDM returns dob as DD-MM-YYYY; convert to YYYY-MM-DD for PostgreSQL
     const rawDob = profile.dob || profile.dateOfBirth || null;
