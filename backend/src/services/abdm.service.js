@@ -342,15 +342,14 @@ async function generateAadhaarOtp(aadhaar) {
 }
 
 async function verifyAadhaarOtp(otp, txnId, mobile) {
-  const encOtp    = await rsaEncrypt(otp);
-  const encMobile = mobile ? await rsaEncrypt(mobile) : null;
+  const encOtp = await rsaEncrypt(otp);
   return abhaReq('POST', `${ABHA_BASE}/enrollment/enrol/byAadhaar`, {
     authData: {
       authMethods: ['otp'],
       otp: {
         txnId,
         otpValue: encOtp,
-        ...(encMobile && { mobile: encMobile }),
+        ...(mobile && { mobile }),  // plaintext — only otpValue is encrypted
       },
     },
     consent: { code: 'abha-enrollment', version: '1.4' },
