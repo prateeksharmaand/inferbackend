@@ -12,7 +12,7 @@ function FacilityQrModal({ onClose }) {
   const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
 
   // ABDM deep-link for patient profile sharing (SHARE_PATIENT_PROFILE_701)
-  const qrValue = `https://phrsbx.abdm.gov.in/share/profile?hip-id=${encodeURIComponent(hipId)}&counter=12345`;
+  const qrValue = `https://phrsbx.abdm.gov.in/share-profile?hip-id=noushealthhip&counter-id=12345`;
 
   const handlePrint = () => window.print();
 
@@ -72,11 +72,12 @@ function FacilityQrModal({ onClose }) {
           background: '#fff', border: '2px solid #e2e8f0', borderRadius: 12,
           padding: 16, display: 'inline-block', marginBottom: 20,
         }}>
-          <img
+          <QRCodeSVG
             id="facility-qr-svg"
-            src="https://emr.inferapp.online/facility-qr.svg"
-            alt="Facility QR"
-            style={{ width: 220, height: 220, display: 'block' }}
+            value={qrValue}
+            size={220}
+            level="H"
+            includeMargin={false}
           />
         </div>
 

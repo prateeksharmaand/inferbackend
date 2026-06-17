@@ -148,7 +148,10 @@ function YesFlow({ onSuccess, onClose }) {
             <span>Ask patient to open ABDM PHR app → tap <strong>Scan & Share</strong> → scan this QR.</span>
           </div>
           <div style={{ margin: '16px auto', display: 'inline-block', padding: 16, border: '2px solid #e2e8f0', borderRadius: 12 }}>
-            <img src="https://emr.inferapp.online/facility-qr.svg" alt="Facility QR" style={{ width: 170, height: 170, display: 'block' }} />
+            <QRCodeSVG
+              value="https://phrsbx.abdm.gov.in/share-profile?hip-id=noushealthhip&counter-id=12345"
+              size={170} level="M"
+            />
           </div>
           <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>HIP ID: <strong>{hipId}</strong></p>
         </div>
