@@ -527,7 +527,7 @@ function NoFlow({ onSuccess, onClose }) {
     if (!otp.trim()) return toast.error('Enter OTP');
     setLoading(true);
     try {
-      const res = await api.post('/abha/aadhaar-verify', { otp, txnId });
+      const res = await api.post('/abha/aadhaar-verify', { otp, txnId, mobile: mobilePh.trim() });
       setTxnId(res.txnId || res.transactionId || txnId);
       setXToken(res.tokens?.token || res.xToken || '');
       setLinkedMobile(res.mobileNumber || res.mobile || mobilePh);
