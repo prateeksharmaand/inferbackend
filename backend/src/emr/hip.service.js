@@ -235,20 +235,48 @@ async function sendShareProfileAck({ requestId, abhaAddress, tokenNumber }) {
 
 // ── Gateway callbacks ─────────────────────────────────────────────────────────
 
+function _validDisplay(val, fallback) {
+  if (typeof val !== 'string') return fallback;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed.length > 255) return fallback;
+  return trimmed;
+}
+
 async function sendDiscoverResult({ requestId, transactionId, patientId, patientRef, careContexts, matchedBy }) {
+  const patientDisplay = _validDisplay(patientId, 'Patient');
+
+  const validContexts = careContexts.map(c => {
+    const display = _validDisplay(c.display,
+      `OPD Consultation – ${c.reference_number || 'Visit'}`
+    );
+    return {
+      referenceNumber: c.reference_number,
+      display,
+      hiType: c.hi_type || 'OPConsultation',
+    };
+  });
+
+  // Log any display fields that needed fallback
+  careContexts.forEach((c, i) => {
+    const raw = c.display;
+    if (typeof raw !== 'string' || !raw.trim() || raw.trim().length > 255) {
+      logger.warn('HIP on-discover: invalid display field replaced with fallback', {
+        referenceNumber: c.reference_number,
+        rawDisplay: raw,
+        fallback: validContexts[i].display,
+      });
+    }
+  });
+
   await gwPost('/v0.5/care-contexts/on-discover', {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
     transactionId,
     patient: patientId ? {
       id: patientId,
-      referenceNumber: patientRef ?? patientId,   // patient's HIP record reference — required by ABDM
-      display: patientId,
-      careContexts: careContexts.map(c => ({
-        referenceNumber: c.reference_number,
-        display: c.display,
-        hiType: c.hi_type,
-      })),
+      referenceNumber: patientRef ?? patientId,
+      display: patientDisplay,
+      careContexts: validContexts,
       matchedBy: matchedBy ?? ['MOBILE'],
     } : null,
     resp: { requestId },
