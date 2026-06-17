@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Clock, Activity, FileText, Syringe, Minimize2, ChevronLeft, FlaskConical } from 'lucide-react';
+import { X, Clock, Activity, FileText, Syringe, Minimize2, ChevronLeft, FlaskConical, Shield, Send, Plus } from 'lucide-react';
 import { api } from '../api/client';
+import toast from 'react-hot-toast';
 import s from './PatientContextPanel.module.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -10,11 +11,12 @@ function fmtDate(d) {
 }
 
 const TABS = [
-  { id: 'history',       icon: Clock,         label: 'History'    },
-  { id: 'vitals',        icon: Activity,      label: 'Vitals'     },
-  { id: 'records',       icon: FileText,      label: 'Records'    },
-  { id: 'lab-tests',     icon: FlaskConical,  label: 'Lab Tests'  },
+  { id: 'history',       icon: Clock,         label: 'History'      },
+  { id: 'vitals',        icon: Activity,      label: 'Vitals'       },
+  { id: 'records',       icon: FileText,      label: 'Records'      },
+  { id: 'lab-tests',     icon: FlaskConical,  label: 'Lab Tests'    },
   { id: 'vaccinations',  icon: Syringe,       label: 'Vaccinations' },
+  { id: 'consents',      icon: Shield,        label: 'Consents'     },
 ];
 
 const STATUS_CFG = {
@@ -379,6 +381,191 @@ function LabTestsTab({ reports, loading, appt }) {
   );
 }
 
+// ── Consents tab ──────────────────────────────────────────────────────────────
+const HI_TYPES = ['OPConsultation','Prescription','DiagnosticReport','DischargeSummary','ImmunizationRecord'];
+const PURPOSE_OPTIONS = [
+  { value: 'CAREMGT', label: 'Care Management' },
+  { value: 'BTG',     label: 'Break the Glass' },
+  { value: 'PUBHLTH', label: 'Public Health'   },
+  { value: 'HPAYMT',  label: 'Healthcare Payment' },
+  { value: 'DSRCH',   label: 'Disease Research' },
+];
+const STATUS_CFG_C = {
+  REQUESTED: { label: 'Requested', color: '#d97706', bg: '#fffbeb' },
+  GRANTED:   { label: 'Granted',   color: '#16a34a', bg: '#f0fdf4' },
+  DENIED:    { label: 'Denied',    color: '#dc2626', bg: '#fef2f2' },
+  REVOKED:   { label: 'Revoked',   color: '#dc2626', bg: '#fef2f2' },
+  EXPIRED:   { label: 'Expired',   color: '#64748b', bg: '#f8fafc' },
+};
+
+function ConsentRequestModal({ abha, hipId, onClose, onSent }) {
+  const [purpose,  setPurpose]  = useState('CAREMGT');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
+  const [hiTypes,  setHiTypes]  = useState(['OPConsultation']);
+  const [sending,  setSending]  = useState(false);
+
+  const toggleType = t => setHiTypes(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
+
+  const send = async () => {
+    if (!abha) return toast.error('Patient has no ABHA address');
+    if (!hiTypes.length) return toast.error('Select at least one document type');
+    setSending(true);
+    try {
+      await api.post('/consents', {
+        patientAbha: abha, hipId, purpose, hiTypes,
+        dateFrom: dateFrom ? new Date(dateFrom).toISOString() : undefined,
+        dateTo:   dateTo   ? new Date(dateTo).toISOString()   : undefined,
+      });
+      toast.success('Consent request sent to patient');
+      onSent?.();
+      onClose();
+    } catch (err) { toast.error(err.message); }
+    finally { setSending(false); }
+  };
+
+  const inp = { width: '100%', padding: '8px 10px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 12, outline: 'none', boxSizing: 'border-box' };
+
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16 }}>
+      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)', padding: 24, position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
+        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Request Patient Consent</h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Patient ABHA Address</label>
+            <input style={{ ...inp, background: '#f8fafc', color: '#64748b' }} value={abha} readOnly />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>HIP ID</label>
+            <input style={{ ...inp, background: '#f8fafc', color: '#64748b' }} value={hipId} readOnly />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Purpose</label>
+            <select style={inp} value={purpose} onChange={e => setPurpose(e.target.value)}>
+              {PURPOSE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>From Date</label>
+            <input type="date" style={inp} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>To Date</label>
+            <input type="date" style={inp} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 8 }}>HI Types</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {HI_TYPES.map(t => (
+              <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: '#374151' }}>
+                <input type="checkbox" checked={hiTypes.includes(t)} onChange={() => toggleType(t)}
+                  style={{ accentColor: '#7c3aed', width: 14, height: 14, cursor: 'pointer' }} />
+                {t}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose} style={{ padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={send} disabled={sending}
+            style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: sending ? '#c4b5fd' : '#7c3aed', color: '#fff', fontWeight: 600, fontSize: 13, cursor: sending ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Send size={13} /> {sending ? 'Sending…' : 'Send Consent Request'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConsentsTab({ appt }) {
+  const abha  = appt?.patient_abha || '';
+  const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
+  const [consents,    setConsents]    = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [showModal,   setShowModal]   = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    api.get('/consents').then(rows => {
+      setConsents(abha ? rows.filter(r => r.patient_abha === abha) : []);
+    }).catch(() => {}).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [appt?.id]); // eslint-disable-line
+
+  const PURPOSE_LABEL = { CAREMGT: 'Care Management', BTG: 'Break the Glass', PUBHLTH: 'Public Health', HPAYMT: 'Healthcare Payment', DSRCH: 'Disease Research' };
+
+  if (!abha) return (
+    <div style={{ padding: '20px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+      <Shield size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
+      <p style={{ margin: 0 }}>Patient has no ABHA address — link ABHA to request consent.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '8px 0' }}>
+      <div style={{ padding: '0 16px 12px', display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={() => setShowModal(true)}
+          style={{ padding: '7px 14px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Plus size={13} /> Request Consent
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: '16px', color: '#94a3b8', fontSize: 13 }}>Loading…</div>
+      ) : !consents.length ? (
+        <div style={{ padding: '20px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+          <Shield size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
+          <p style={{ margin: 0 }}>No consent requests yet</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 12px' }}>
+          {consents.map((c, i) => {
+            const st = STATUS_CFG_C[c.status] || STATUS_CFG_C.REQUESTED;
+            const hiTypes = Array.isArray(c.hi_types) ? c.hi_types : (c.hi_types ? JSON.parse(c.hi_types) : []);
+            return (
+              <div key={c.request_id || i} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, color: '#1e293b' }}>{PURPOSE_LABEL[c.purpose] || c.purpose}</div>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: st.bg, color: st.color }}>{st.label}</span>
+                </div>
+                <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 5 }}>
+                  ID: {c.request_id?.slice(0, 20)}…
+                </div>
+                {hiTypes.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                    {hiTypes.map(t => (
+                      <span key={t} style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: '#f1f5f9', color: '#475569' }}>{t}</span>
+                    ))}
+                  </div>
+                )}
+                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 5 }}>
+                  {c.created_at ? fmtDate(c.created_at) : ''}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showModal && (
+        <ConsentRequestModal abha={abha} hipId={hipId} onClose={() => setShowModal(false)} onSent={load} />
+      )}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function PatientContextPanel({ appt, onClose, rightOffset = 0, minimized = false, onMinimize = () => {} }) {
   const [activeTab,  setActiveTab]  = useState('history');
@@ -476,6 +663,7 @@ export default function PatientContextPanel({ appt, onClose, rightOffset = 0, mi
         {activeTab === 'records'      && <RecordsTab      history={history}    loading={loading}    />}
         {activeTab === 'lab-tests'    && <LabTestsTab     reports={labReports} loading={labLoading} appt={appt} />}
         {activeTab === 'vaccinations' && <VaccinationsTab history={history}    loading={loading}    />}
+        {activeTab === 'consents'     && <ConsentsTab     appt={appt} />}
       </div>}
     </div>
   );
