@@ -3,6 +3,7 @@ const logger      = require('../utils/logger');
 const hip         = require('./hip.service');
 const crypto      = require('crypto');
 const bcrypt      = require('bcryptjs');
+const audit       = require('../services/auditLogger');
 const AbhaIdentity = require('./abha.identity');
 
 // BLOCKER-4 fix: UUID format validation for request-ID and transaction-ID
@@ -123,6 +124,7 @@ const handleDiscovery = async (req, res) => {
       careContexts: ctxRows,
       matchedBy,
     });
+    audit.abdmDiscovery(req, true, ctxRows.length);
     logger.info('HIP discover: matched patient', { contexts: ctxRows.length });
   } catch (err) {
     logger.error('handleDiscovery error', err);
@@ -180,6 +182,7 @@ const handleLinkInit = async (req, res) => {
     }
     logger.info('HIP OTP generated', { linkRefNumber, careContextCount: careContexts.length });
     // TODO: wire up SMS: await sendSms(pt?.mobile, `Your ABDM linking OTP: ${otp}. Valid 10 min.`);
+    audit.abdmLinkInit(req, linkRefNumber);
 
     await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber });
   } catch (err) {
@@ -214,6 +217,7 @@ const handleLinkConfirm = async (req, res) => {
     if (new Date() > new Date(session.otp_expires_at)) {
       await pool.query(`UPDATE hip_link_sessions SET status='expired' WHERE id=$1`, [session.id]);
       logger.warn('HIP: OTP expired', { linkRefNumber });
+      audit.abdmOtpResult(req, audit.EVENTS.ABDM_LINK_OTP_EXPIRED, linkRefNumber, 0);
       await hip.gwPostWithRetry('/v0.5/links/link/on-confirm', {
         requestId: hip.uuid(), timestamp: new Date().toISOString(),
         error: { code: 'OTP_EXPIRED', message: 'OTP has expired. Please initiate linking again.' },
@@ -249,6 +253,7 @@ const handleLinkConfirm = async (req, res) => {
         [newCount, newStatus, session.id]
       );
       logger.warn('HIP: OTP mismatch', { linkRefNumber, attemptsRemaining: MAX_OTP_ATTEMPTS - newCount });
+      audit.abdmOtpResult(req, newStatus === 'locked' ? audit.EVENTS.ABDM_LINK_OTP_LOCKED : audit.EVENTS.ABDM_LINK_OTP_FAIL, linkRefNumber, MAX_OTP_ATTEMPTS - newCount);
       await hip.gwPost('/v0.5/links/link/on-confirm', {
         requestId: hip.uuid(), timestamp: new Date().toISOString(),
         error: { code: newStatus === 'locked' ? 'OTP_LOCKED' : 'OTP_INVALID', message: 'Invalid OTP' },
@@ -258,6 +263,7 @@ const handleLinkConfirm = async (req, res) => {
     }
 
     await pool.query(`UPDATE hip_link_sessions SET status='confirmed' WHERE id=$1`, [session.id]);
+    audit.abdmOtpResult(req, audit.EVENTS.ABDM_LINK_OTP_SUCCESS, linkRefNumber, MAX_OTP_ATTEMPTS);
 
     let careContexts = session.care_contexts ?? [];
     if (!Array.isArray(careContexts)) careContexts = Object.values(careContexts);
@@ -410,11 +416,13 @@ const handleHealthInfoRequest = async (req, res) => {
     // SEC-008: reject revoked/expired consent
     if (!artifactRows.length && !inlineConsent) {
       logger.warn('HIP health-info: consent not found or not GRANTED', { consentId });
+      audit.abdmHealthInfoRequest(req, transactionId, consentId, 'DENIED');
       const requestId = req.headers['request-id'] || req.body.requestId;
       await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'DENIED' });
       await pool.query(`UPDATE hip_health_requests SET status='denied' WHERE transaction_id=$1`, [transactionId]);
       return;
     }
+    audit.abdmHealthInfoRequest(req, transactionId, consentId, 'ACKNOWLEDGED');
 
     // SEC-008: verify inline consent has required fields (no DB artifact → must have valid structure)
     if (!artifact && inlineConsent) {
@@ -737,6 +745,7 @@ const handleConsentNotify = async (req, res) => {
       resp: { requestId },
     });
 
+    audit.abdmConsentNotify(req, consentId, status);
     logger.info('HIP consent notify ack sent', { consentId, status, artefactCount: artefacts.length });
   } catch (err) {
     logger.error('handleConsentNotify error', err);

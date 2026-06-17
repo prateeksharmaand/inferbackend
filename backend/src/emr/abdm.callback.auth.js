@@ -14,6 +14,7 @@ const axios  = require('axios');
 const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const audit  = require('../services/auditLogger');
 
 // JWKS cache
 let _jwksCache = null;
@@ -45,6 +46,7 @@ async function verifyAbdmCallback(req, res, next) {
     logger.warn('ABDM callback: missing Authorization header', {
       path: req.path, ip: req.ip, requestId: req.headers['request-id'],
     });
+    audit.abdmCallbackRejected(req, 'missing Authorization header');
     return res.status(401).json({ error: 'Missing ABDM gateway authorization token' });
   }
 
@@ -109,6 +111,7 @@ async function verifyAbdmCallback(req, res, next) {
     logger.warn('ABDM callback: token verification failed', {
       error: err.message, path: req.path, ip: req.ip,
     });
+    audit.abdmCallbackRejected(req, err.message);
     return res.status(401).json({ error: 'Invalid ABDM gateway token' });
   }
 }

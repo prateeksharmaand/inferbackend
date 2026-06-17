@@ -3,6 +3,7 @@ const jwt      = require('jsonwebtoken');
 const crypto   = require('crypto');
 const nodemailer = require('nodemailer');
 const { pool } = require('../config/database');
+const audit    = require('../services/auditLogger');
 
 const JWT_SECRET  = (() => {
   const s = process.env.JWT_SECRET;
@@ -14,8 +15,38 @@ const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 12;
 
 function sign(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+  // Include jti (JWT ID) so the token can be blacklisted on logout
+  const jti = crypto.randomUUID();
+  return jwt.sign({ ...payload, jti }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
+
+// POST /api/emr/auth/logout — invalidate token server-side
+const logout = async (req, res) => {
+  try {
+    const header = req.headers.authorization;
+    if (!header?.startsWith('Bearer ')) return res.json({ ok: true });
+    const token = header.slice(7);
+    const decoded = jwt.decode(token);
+    if (decoded?.jti && decoded?.exp) {
+      await pool.query(
+        `INSERT INTO jwt_blacklist (jti, user_id, clinic_id, expires_at, revoke_reason)
+         VALUES ($1,$2,$3,to_timestamp($4),'logout')
+         ON CONFLICT (jti) DO NOTHING`,
+        [decoded.jti, decoded.id ?? null, decoded.clinic_id ?? null, decoded.exp]
+      ).catch(() => {}); // never fail logout due to DB error
+    }
+    audit.log({
+      eventType: audit.EVENTS.AUTH_LOGOUT,
+      req,
+      userId: decoded?.id, userEmail: decoded?.email, userRole: decoded?.role, clinicId: decoded?.clinic_id,
+      action: 'Logout — token blacklisted',
+      status: 'SUCCESS', severity: 'INFO',
+    });
+    res.json({ ok: true });
+  } catch (_) {
+    res.json({ ok: true }); // always succeed from client's perspective
+  }
+};
 
 // POST /api/emr/auth/login  { email, password, role: 'doctor'|'staff' }
 const login = async (req, res) => {
@@ -30,16 +61,24 @@ const login = async (req, res) => {
      WHERE d.email = $1 AND d.is_active = true`,
     [email]
   );
-  if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
+  if (!rows.length) {
+    audit.loginFail(req, email, 'user not found');
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
 
   const user = rows[0];
   const ok   = await bcrypt.compare(password, user.password_hash);
-  if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+  if (!ok) {
+    audit.loginFail(req, email, 'wrong password');
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
 
   if (user.status === 'suspended') {
+    audit.log({ eventType: audit.EVENTS.AUTH_CLINIC_SUSPENDED, req, userEmail: email, userRole: role, clinicId: user.clinic_id, action: 'Login blocked — clinic suspended', status: 'DENIED', severity: 'WARN' });
     return res.status(403).json({ error: 'Your clinic account has been suspended. Please contact support.' });
   }
 
+  audit.loginSuccess(req, user, role);
   const token = sign({ id: user.id, clinic_id: user.clinic_id, role, email });
   res.json({
     token,
@@ -327,4 +366,4 @@ const changePassword = async (req, res) => {
   res.json({ message: 'Password changed successfully.' });
 };
 
-module.exports = { login, registerClinic, addDoctor, getSeatInfo, listDoctors, updateDoctor, deleteDoctor, forgotPassword, resetPassword, changePassword };
+module.exports = { login, logout, registerClinic, addDoctor, getSeatInfo, listDoctors, updateDoctor, deleteDoctor, forgotPassword, resetPassword, changePassword };

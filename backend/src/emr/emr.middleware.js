@@ -11,7 +11,18 @@ async function emrAuth(req, res, next) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
   try {
-    req.emrUser = jwt.verify(header.slice(7), JWT_SECRET);
+    const decoded = jwt.verify(header.slice(7), JWT_SECRET);
+
+    // Check JWT blacklist (logout/revocation)
+    if (decoded.jti) {
+      const { rows: bl } = await pool.query(
+        `SELECT id FROM jwt_blacklist WHERE jti=$1 AND expires_at > NOW() LIMIT 1`,
+        [decoded.jti]
+      );
+      if (bl.length) return res.status(401).json({ error: 'Token has been revoked. Please login again.' });
+    }
+
+    req.emrUser = decoded;
 
     // Block suspended clinics on every request
     const { rows } = await pool.query(

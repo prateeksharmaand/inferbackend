@@ -91,6 +91,7 @@ router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
 
 // Auth helpers
+router.post  ('/auth/logout',          auth.logout);
 router.post  ('/auth/change-password', auth.changePassword);
 router.get   ('/auth/seat-info',       auth.getSeatInfo);
 router.post  ('/auth/add-doctor',    auth.addDoctor);
@@ -523,6 +524,20 @@ router.get('/uploads/:filename', (req, res) => {
   const filePath  = pathMod.join(__dirname, '../../uploads', filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
   res.sendFile(filePath);
+});
+
+// ── Audit log viewer (OWASP A10 / ABDM mandatory trail) ──────────────────────
+router.get('/audit-logs', async (req, res) => {
+  const audit = require('../services/auditLogger');
+  const { eventType, status, severity, ip, limit = 100, offset = 0 } = req.query;
+  const rows = await audit.getRecentLogs({
+    clinicId:  req.emrUser.clinic_id,
+    eventType, status, severity,
+    ipAddress: ip,
+    limit:     Math.min(parseInt(limit) || 100, 500),
+    offset:    parseInt(offset) || 0,
+  });
+  res.json(rows);
 });
 
 // Analytics dashboards
