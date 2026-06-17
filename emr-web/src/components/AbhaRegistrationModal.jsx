@@ -18,9 +18,12 @@ export default function AbhaRegistrationModal({ onClose, onSuccess }) {
     if (!searchValue.trim()) return toast.error('Enter ABHA information');
     setLoading(true);
     try {
-      const res = await api.post('/abha/request-otp', {
-        abhaId: searchValue.trim(),
-      });
+      const payload = {};
+      if (searchType === 'abha_address') payload.abhaAddress = searchValue.trim();
+      else if (searchType === 'abha_number') payload.abhaNumber = searchValue.trim();
+      else if (searchType === 'mobile') payload.mobile = searchValue.trim();
+
+      const res = await api.post('/abha/request-otp', payload);
       setTxnId(res.txnId || res.transactionId || '');
       setStep('abha-verify');
       toast.success('OTP sent to registered mobile');
