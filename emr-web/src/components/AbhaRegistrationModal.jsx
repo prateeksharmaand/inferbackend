@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, AlertCircle, Check, Plus } from 'lucide-react';
+import { X, AlertCircle, Check } from 'lucide-react';
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
 
@@ -149,7 +149,7 @@ export default function AbhaRegistrationModal({ onClose, onSuccess }) {
 
   return (
     <div
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && onClose?.()}
       style={{
         position: 'fixed',
         inset: 0,
@@ -173,7 +173,7 @@ export default function AbhaRegistrationModal({ onClose, onSuccess }) {
         }}
       >
         <button
-          onClick={onClose}
+          onClick={() => onClose?.()}
           style={{
             position: 'absolute',
             top: 14,
