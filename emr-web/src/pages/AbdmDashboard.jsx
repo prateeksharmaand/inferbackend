@@ -55,10 +55,11 @@ export default function AbdmDashboard() {
     }
   };
 
-  useEffect(() => { load(); }, []);
-
-  const autoRefresh = setInterval(load, 30000); // 30s
-  useEffect(() => () => clearInterval(autoRefresh), []);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 60000); // 60s auto-refresh
+    return () => clearInterval(interval);
+  }, []);
 
   if (loading) {
     return (
