@@ -41,7 +41,10 @@ app.use(rateLimit({
 
 app.use(compression());
 app.use(morgan('combined', { stream: { write: msg => logger.info(msg.trim()) } }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => { req.rawBody = buf.toString(); },
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve uploaded files (protected in production by auth middleware)
@@ -66,6 +69,10 @@ app.use('/api/v1', v1Routes);
 
 // Super Admin Portal API
 app.use('/api/admin', require('./emr/admin.routes'));
+
+// Sales agent — Meta WhatsApp webhook + internal inbox API (public — no auth)
+app.use('/webhook/meta/whatsapp', require('./sales/sales.wa.routes'));
+app.use('/api/sales/wa',          require('./sales/sales.wa.routes'));
 
 // Email open tracking (public — no auth)
 const track = require('./emr/emr.track.controller');

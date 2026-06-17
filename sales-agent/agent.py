@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from modules.scraper import scrape_leads, SPECIALTIES
-from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed, log_whatsapp, has_opened_email, mark_email_opened
+from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed, log_whatsapp, has_opened_email, mark_email_opened, mark_replied_by_phone
 from modules.personalizer import personalize_email
 from modules.mailer import send_email
 from modules.scheduler import get_next_step, get_next_send_date, is_sequence_complete
@@ -72,6 +72,8 @@ def sync_email_opens():
     except Exception as e:
         print(f"  ⚠ Open sync failed: {e}")
 
+
+BACKEND_URL = os.environ.get("BACKEND_URL", "https://api.inferapp.online")
 
 SCRAPE_DONE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scrape_done.json")
 
@@ -287,6 +289,56 @@ def phase_outreach():
     print(f"\n  Sent: {sent} | Skipped: {skipped} | Failed: {failed}")
 
 
+def sync_wa_replies():
+    """
+    Phase 3: Fetch inbound WhatsApp replies from backend DB, match to leads in
+    Google Sheet by phone number, mark them as replied, then ack so they're not
+    re-processed next run.
+    """
+    print("\n── Phase 3: Syncing WhatsApp replies ────────────────")
+    try:
+        import requests as _req
+        resp = _req.get(f"{BACKEND_URL}/api/sales/wa/inbox", timeout=10)
+        if resp.status_code != 200:
+            print(f"  ⚠ WA inbox fetch failed: {resp.status_code}")
+            return
+
+        messages = resp.json().get("messages", [])
+        if not messages:
+            print("  No new WhatsApp replies.")
+            return
+
+        print(f"  {len(messages)} unsynced replies to process.")
+        ack_ids = []
+
+        for msg in messages:
+            from_number = msg["from_number"]
+            body        = msg.get("body", "")
+            matched     = mark_replied_by_phone(
+                from_number,
+                note=f"WhatsApp reply: \"{body[:120]}\""
+            )
+            if matched:
+                print(f"  ✓ Marked replied: {from_number} — \"{body[:60]}\"")
+            else:
+                print(f"  ↷ No lead found for {from_number}")
+            ack_ids.append(msg["id"])
+
+        # Ack all processed messages regardless of match — prevents re-processing
+        ack_resp = _req.post(
+            f"{BACKEND_URL}/api/sales/wa/inbox/ack",
+            json={"ids": ack_ids},
+            timeout=10,
+        )
+        if ack_resp.status_code == 200:
+            print(f"  ✓ Acked {len(ack_ids)} messages.")
+        else:
+            print(f"  ⚠ Ack failed: {ack_resp.status_code}")
+
+    except Exception as e:
+        print(f"  ⚠ WA reply sync error: {e}")
+
+
 def run():
     print("\n╔══════════════════════════════════════╗")
     print("║     Infer Sales Agent — Running      ║")
@@ -295,6 +347,7 @@ def run():
     sync_email_opens()
     phase_scrape()
     phase_outreach()
+    sync_wa_replies()
 
     print("\n╔══════════════════════════════════════╗")
     print("║          Agent complete ✓             ║")

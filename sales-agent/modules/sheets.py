@@ -170,3 +170,44 @@ def mark_replied(row_index: int, note: str = ""):
     sheet.update_cell(row_index, 6, "replied")
     if note:
         sheet.update_cell(row_index, 10, note)
+
+
+def get_all_leads_with_phones() -> list[dict]:
+    """Returns all leads that have a phone number in their notes field."""
+    import re
+    sheet = _get_sheet()
+    records = sheet.get_all_records()
+    leads = []
+    for i, row in enumerate(records, start=2):
+        notes = str(row.get("notes", ""))
+        match = re.search(r"Phone:\s*([\d\s\-\+\(\)]+)", notes)
+        if not match:
+            continue
+        raw = re.sub(r"[\s\-\(\)]", "", match.group(1))
+        if raw.startswith("+"):
+            raw = raw[1:]
+        if raw.startswith("0"):
+            raw = "91" + raw[1:]
+        if len(raw) == 10:
+            raw = "91" + raw
+        leads.append({**row, "_row": i, "_phone_e164": raw})
+    return leads
+
+
+def mark_replied_by_phone(from_number: str, note: str = "") -> bool:
+    """
+    Finds a lead whose normalised phone matches from_number and marks it replied.
+    Returns True if a match was found and updated.
+    """
+    leads = get_all_leads_with_phones()
+    # Strip non-digits from incoming number for comparison
+    import re
+    clean = re.sub(r"\D", "", from_number)
+    for lead in leads:
+        if lead["_phone_e164"] == clean:
+            status = str(lead.get("status", "")).strip().lower()
+            if status in ("replied", "booked"):
+                return True  # already marked
+            mark_replied(lead["_row"], note or f"WhatsApp reply received: {from_number}")
+            return True
+    return False
