@@ -61,7 +61,6 @@ function decodeAbhaQr(text) {
 // ── Scan QR sub-component ──────────────────────────────────────────────────
 function ScanQrTab({ onSuccess }) {
   const [mode, setMode] = useState('choice'); // choice | camera | done
-  const [jsonText, setJsonText] = useState('');
   const [loading, setLoading] = useState(false);
   const [patient, setPatient] = useState(null);
   const videoRef = useRef(null);
@@ -132,14 +131,6 @@ function ScanQrTab({ onSuccess }) {
     reader.readAsDataURL(file);
   };
 
-  const handleParseJson = () => {
-    try {
-      const data = decodeAbhaQr(jsonText.trim());
-      if (!data) return toast.error('Could not parse ABHA data from JSON');
-      handleScanned(data);
-    } catch { toast.error('Invalid JSON'); }
-  };
-
   const handleScanned = async (data) => {
     stopCamera();
     setLoading(true);
@@ -159,7 +150,8 @@ function ScanQrTab({ onSuccess }) {
   if (mode === 'done' && patient) return <PatientCard patient={patient} onSuccess={onSuccess} />;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Camera view */}
       {mode === 'camera' && (
         <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: '#000' }}>
           <video ref={videoRef} autoPlay playsInline style={{ width: '100%', maxHeight: 260, display: 'block' }} />
@@ -171,42 +163,61 @@ function ScanQrTab({ onSuccess }) {
             style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: 6, color: '#fff', padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>
             Cancel
           </button>
+          <p style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', color: '#fff', fontSize: 12, margin: 0 }}>
+            Point camera at patient's ABHA QR code
+          </p>
         </div>
       )}
 
       {mode === 'choice' && (
         <>
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
+
           {/* Scan area */}
-          <div style={{ border: '2px dashed #c4b5fd', borderRadius: 12, background: '#faf5ff', padding: '28px 20px', textAlign: 'center' }}>
-            <QrCode size={40} color="#7c3aed" style={{ marginBottom: 14 }} />
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 12 }}>
+          <div style={{ border: '2px dashed #c4b5fd', borderRadius: 12, background: '#faf5ff', padding: '32px 20px', textAlign: 'center' }}>
+            <QrCode size={44} color="#7c3aed" style={{ marginBottom: 16 }} />
+            <p style={{ margin: '0 0 16px', fontSize: 13, fontWeight: 600, color: '#1e293b' }}>Scan Patient's ABHA Health ID Card QR</p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button onClick={startCamera}
-                style={{ padding: '8px 18px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Camera size={13} /> Use Camera
+                style={{ padding: '9px 20px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Camera size={14} /> Use Camera
               </button>
               <button onClick={() => fileRef.current?.click()}
-                style={{ padding: '8px 18px', background: '#fff', color: '#7c3aed', border: '1.5px solid #7c3aed', borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Upload size={13} /> Upload QR Image
+                style={{ padding: '9px 20px', background: '#fff', color: '#7c3aed', border: '1.5px solid #7c3aed', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Upload size={14} /> Upload QR Image
               </button>
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
             </div>
-            <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>or paste raw QR JSON below</p>
           </div>
-          <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-          {/* Paste JSON */}
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Paste QR JSON (optional)</label>
-            <textarea
-              style={{ ...inp, height: 90, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
-              placeholder={'{"hidn":"91-1234-5678-9012","hid":"abc@abdm","name":"...","gender":"M",...}'}
-              value={jsonText} onChange={e => setJsonText(e.target.value)}
-            />
+          {/* Info steps */}
+          <div style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '14px 16px' }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, color: '#475569' }}>How it works</p>
+            {[
+              { step: '1', text: 'Ask the patient to show their ABHA Health ID card or the ABHA app QR code.' },
+              { step: '2', text: 'Use camera to scan live, or upload a photo of the QR code.' },
+              { step: '3', text: 'Patient details will be auto-fetched and pre-filled for registration.' },
+            ].map(({ step, text }) => (
+              <div key={step} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: step === '3' ? 0 : 8 }}>
+                <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#ede9fe', color: '#7c3aed', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{step}</span>
+                <p style={{ margin: 0, fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{text}</p>
+              </div>
+            ))}
           </div>
-          <button style={primaryBtn(loading || !jsonText.trim())} onClick={handleParseJson} disabled={loading || !jsonText.trim()}>
-            {loading ? 'Registering…' : '🔍 Parse & Load'}
-          </button>
+
+          {/* Supported formats */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {['ABHA Health ID Card QR', 'ABHA Mobile App QR', 'Aadhaar-linked ABHA QR'].map(tag => (
+              <span key={tag} style={{ padding: '3px 10px', borderRadius: 20, background: '#f1f5f9', fontSize: 11, color: '#64748b', fontWeight: 500 }}>✓ {tag}</span>
+            ))}
+          </div>
         </>
+      )}
+
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '12px 0', fontSize: 13, color: '#7c3aed', fontWeight: 600 }}>
+          Registering patient…
+        </div>
       )}
     </div>
   );
