@@ -135,7 +135,8 @@ export default function Patients() {
   const filtered = patients.filter(p =>
     (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (p.mobile || '').includes(search) ||
-    (p.abha_number || '').includes(search)
+    (p.abha_number || '').includes(search) ||
+    (p.abha_address || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const handleDeletePatient = async (p) => {
@@ -169,13 +170,17 @@ export default function Patients() {
 
       <div className={styles.table}>
         <div className={styles.thead}>
-          <span>Name</span><span>Mobile</span><span>ABHA</span><span>Gender</span><span>Care Contexts</span><span>Action</span>
+          <span>Name</span><span>Mobile</span><span>ABHA Number / Address</span><span>Gender</span><span>Care Contexts</span><span>Action</span>
         </div>
         {filtered.map(p => (
           <div key={p.id} className={styles.row}>
             <span className={styles.name}>{p.name}</span>
             <span>{p.mobile || '—'}</span>
-            <span>{p.abha_number || '—'}</span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {p.abha_number  && <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.abha_number}</span>}
+              {p.abha_address && <span style={{ fontSize: 11, color: '#7c3aed' }}>{p.abha_address}</span>}
+              {!p.abha_number && !p.abha_address && <span>—</span>}
+            </span>
             <span>{p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : p.gender || '—'}</span>
             <span>{p.context_count ?? 0}</span>
             <span>
