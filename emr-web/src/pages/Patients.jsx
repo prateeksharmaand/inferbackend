@@ -1,9 +1,93 @@
 import { useState, useEffect } from 'react';
-import { Trash2, QrCode, X, Download, Printer } from 'lucide-react';
+import { Trash2, QrCode, X, Download, Printer, Plus, Check, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
+import toast from 'react-hot-toast';
 import styles from './Patients.module.css';
+
+// ── Add Patient via ABHA Modal ────────────────────────────────────────────────
+function AddPatientAbhaModal({ onClose, onSuccess }) {
+  const [step, setStep]       = useState('abha'); // abha | otp | done
+  const [abhaId, setAbhaId]   = useState('');
+  const [otp, setOtp]         = useState('');
+  const [txnId, setTxnId]     = useState('');
+  const [loading, setLoading] = useState(false);
+  const [newPatient, setNewPatient] = useState(null);
+
+  const requestOtp = async () => {
+    if (!abhaId.trim()) return toast.error('Enter ABHA number or address');
+    setLoading(true);
+    try {
+      const res = await api.post('/abha/request-otp', { abhaId: abhaId.trim() });
+      setTxnId(res.txnId || res.transactionId || '');
+      setStep('otp');
+      toast.success('OTP sent to patient\'s mobile');
+    } catch (err) { toast.error(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const verifyOtp = async () => {
+    if (!otp.trim()) return toast.error('Enter OTP');
+    setLoading(true);
+    try {
+      const res = await api.post('/abha/verify-create', { otp, txnId });
+      setNewPatient(res);
+      setStep('done');
+      toast.success('Patient added successfully!');
+      onSuccess?.();
+    } catch (err) { toast.error(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const inp = { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+  const btn = { width: '100%', padding: '11px 16px', borderRadius: 8, border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', opacity: loading ? 0.6 : 1, disabled: loading };
+
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: '#fff', borderRadius: 14, padding: '28px', width: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+          <X size={20} />
+        </button>
+
+        <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Add Patient via ABHA</h3>
+        <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b' }}>Create a new patient record using their ABHA</p>
+
+        {step === 'abha' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <input style={inp} placeholder="ABHA number (e.g. 91-2345-6789-0123)" value={abhaId} onChange={e => setAbhaId(e.target.value)} />
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Or enter ABHA address (e.g. username@abdm)</p>
+            <button style={btn} onClick={requestOtp} disabled={loading}>{loading ? 'Sending OTP…' : 'Send OTP'}</button>
+          </div>
+        )}
+
+        {step === 'otp' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: '#eff6ff', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertCircle size={14} />
+              OTP sent to ABHA-registered mobile
+            </div>
+            <input style={inp} placeholder="6-digit OTP" value={otp} onChange={e => setOtp(e.target.value.slice(0, 6))} maxLength={6} />
+            <button style={btn} onClick={verifyOtp} disabled={loading}>{loading ? 'Verifying…' : 'Verify & Create Patient'}</button>
+          </div>
+        )}
+
+        {step === 'done' && newPatient && (
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ width: 48, height: 48, background: '#f0fdf4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+              <Check size={24} color="#16a34a" strokeWidth={3} />
+            </div>
+            <div>
+              <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#16a34a' }}>Patient Added!</p>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>{newPatient.patient?.name || 'New patient'} has been created</p>
+            </div>
+            <button style={{ ...btn, background: '#7c3aed' }} onClick={onClose}>Close</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Facility QR Modal ─────────────────────────────────────────────────────────
 // Patients scan this QR with ABDM PHR app → profile is shared to HIP
@@ -129,10 +213,11 @@ function FacilityQrModal({ onClose }) {
 
 // ── Main Patients Page ────────────────────────────────────────────────────────
 export default function Patients() {
-  const [patients,   setPatients]   = useState([]);
-  const [search,     setSearch]     = useState('');
-  const [deleting,   setDeleting]   = useState(null);
-  const [showFacQr,  setShowFacQr]  = useState(false);
+  const [patients,     setPatients]     = useState([]);
+  const [search,       setSearch]       = useState('');
+  const [deleting,     setDeleting]     = useState(null);
+  const [showFacQr,    setShowFacQr]    = useState(false);
+  const [showAddAbha,  setShowAddAbha]  = useState(false);
   const navigate = useNavigate();
 
   const load = () => api.get('/patients').then(setPatients).catch(() => {});
@@ -161,8 +246,21 @@ export default function Patients() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h2>Patients</h2>
-        <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
-          value={search} onChange={e => setSearch(e.target.value)} />
+        <div style={{ display: 'flex', gap: 10, flex: 1, maxWidth: 600 }}>
+          <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
+            value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
+          <button
+            onClick={() => setShowAddAbha(true)}
+            title="Add new patient via ABHA"
+            style={{
+              padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none',
+              borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+            }}
+          >
+            <Plus size={16} /> Add via ABHA
+          </button>
+        </div>
       </div>
 
       <div className={styles.table}>
@@ -211,8 +309,9 @@ export default function Patients() {
         <span>ABHA QR</span>
       </button>
 
-      {/* Facility QR modal */}
+      {/* Modals */}
       {showFacQr && <FacilityQrModal onClose={() => setShowFacQr(false)} />}
+      {showAddAbha && <AddPatientAbhaModal onClose={() => setShowAddAbha(false)} onSuccess={() => { setShowAddAbha(false); load(); }} />}
     </div>
   );
 }
