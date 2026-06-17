@@ -556,9 +556,11 @@ const createConsentRequest = async (req, res) => {
   // Always send all HI types — ABDM disables grant button if the requested hiTypes
   // don't include the hiType of the patient's linked care context.
   const resolvedHiTypes = ALL_HI_TYPES;
+  const now = new Date();
+  const toDate = dateTo ? new Date(dateTo) : now;
   const dateRange = {
-    from: dateFrom ?? new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
-    to:   dateTo   ?? new Date().toISOString(),
+    from: dateFrom ? new Date(dateFrom).toISOString() : new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
+    to:   (toDate > now ? now : toDate).toISOString(), // ABDM: to must be present or past
   };
 
   logger.info('EMR consent request', { patientAbha, hipId, hiuId, purpose, hiTypes: resolvedHiTypes, dateRange });
