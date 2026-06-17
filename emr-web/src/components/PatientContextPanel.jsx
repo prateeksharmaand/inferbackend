@@ -625,6 +625,15 @@ export default function PatientContextPanel({ appt, onClose, rightOffset = 0, mi
               appt?.uhid ? `UHID: ${appt.uhid}` : null,
             ].filter(Boolean).join('  ·  ')}
           </div>
+          {(appt?.patient_abha) && (
+            <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {appt.patient_abha && (
+                <span style={{ fontSize: 10, color: '#7c3aed', fontFamily: 'monospace', fontWeight: 600 }}>
+                  ABHA: {appt.patient_abha}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <button className={s.headerBtn} onClick={() => onMinimize(true)} title="Minimize"><Minimize2 size={13} /></button>
         <button className={s.closeBtn} onClick={onClose}><X size={15} /></button>
