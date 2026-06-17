@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import toast from 'react-hot-toast';
 
 export default function AbhaRegistrationModal({ onClose, onSuccess }) {
-  const [searchType, setSearchType] = useState('abha_address');
+  const [searchType, setSearchType] = useState('abha_number');
   const [step, setStep] = useState('search');
   const [searchValue, setSearchValue] = useState('');
   const [otp, setOtp] = useState('');
@@ -19,9 +19,8 @@ export default function AbhaRegistrationModal({ onClose, onSuccess }) {
     setLoading(true);
     try {
       const payload = {};
-      if (searchType === 'abha_address') payload.abhaAddress = searchValue.trim();
-      else if (searchType === 'abha_number') payload.abhaNumber = searchValue.trim();
-      else if (searchType === 'mobile') payload.mobile = searchValue.trim();
+      if (searchType === 'abha_number') payload.abhaNumber = searchValue.trim();
+      else if (searchType === 'mobile') { payload.mobile = searchValue.trim(); }
 
       const res = await api.post('/abha/request-otp', payload);
       setTxnId(res.txnId || res.transactionId || '');
@@ -38,7 +37,7 @@ export default function AbhaRegistrationModal({ onClose, onSuccess }) {
     if (!otp.trim()) return toast.error('Enter OTP');
     setLoading(true);
     try {
-      const res = await api.post('/abha/verify-create', { otp, txnId });
+      const res = await api.post('/abha/verify-create', { otp, txnId, byMobile: searchType === 'mobile' });
       setNewPatient(res);
       setStep('done');
       toast.success('Patient created!');
@@ -199,7 +198,6 @@ export default function AbhaRegistrationModal({ onClose, onSuccess }) {
         {(step === 'search' || step === 'abha-verify') && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
             {[
-              { key: 'abha_address', label: 'ABHA Address' },
               { key: 'abha_number', label: 'ABHA Number' },
               { key: 'mobile', label: 'Mobile Number' },
               { key: 'aadhaar', label: 'Aadhaar' },
@@ -235,18 +233,15 @@ export default function AbhaRegistrationModal({ onClose, onSuccess }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>
-                {searchType === 'abha_address' && 'ABHA Address *'}
                 {searchType === 'abha_number' && 'ABHA Number *'}
                 {searchType === 'mobile' && 'Mobile Number *'}
               </label>
               <input
                 style={inp}
                 placeholder={
-                  searchType === 'abha_address'
-                    ? 'e.g. username@abdm'
-                    : searchType === 'abha_number'
-                      ? 'e.g. 91-2345-6789-0123'
-                      : 'e.g. 9876543210'
+                  searchType === 'abha_number'
+                    ? 'e.g. 91-2345-6789-0123'
+                    : 'e.g. 9876543210'
                 }
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
