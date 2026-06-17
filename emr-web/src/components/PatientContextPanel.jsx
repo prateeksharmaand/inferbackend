@@ -477,10 +477,245 @@ function ConsentRequestModal({ abha, hipId, onClose, onSent }) {
   );
 }
 
+// ── FHIR Bundle Reader ────────────────────────────────────────────────────────
+function FhirBundleReader({ content }) {
+  let bundle = null;
+  try { bundle = typeof content === 'string' ? JSON.parse(content) : content; } catch { return <p style={{ fontSize: 11, color: '#ef4444' }}>Invalid FHIR content</p>; }
+  if (!bundle) return null;
+
+  // Collect all entries from bundle or nested bundles
+  const entries = [];
+  const collectEntries = (b) => {
+    if (!b) return;
+    if (b.resourceType === 'Bundle' && Array.isArray(b.entry)) {
+      b.entry.forEach(e => { if (e.resource) collectEntries(e.resource); });
+    } else {
+      entries.push(b);
+    }
+  };
+  collectEntries(bundle);
+
+  const byType = {};
+  entries.forEach(r => { if (r.resourceType) { (byType[r.resourceType] = byType[r.resourceType] || []).push(r); } });
+
+  const Section = ({ title, color = '#7c3aed', children }) => (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5, paddingBottom: 3, borderBottom: `1px solid ${color}22` }}>{title}</div>
+      {children}
+    </div>
+  );
+  const Row = ({ label, value }) => value ? (
+    <div style={{ display: 'flex', gap: 6, fontSize: 11, marginBottom: 3 }}>
+      <span style={{ color: '#94a3b8', minWidth: 80, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: '#1e293b', fontWeight: 500, wordBreak: 'break-word' }}>{value}</span>
+    </div>
+  ) : null;
+
+  const fmtName = (n) => {
+    if (!n) return '';
+    if (typeof n === 'string') return n;
+    if (Array.isArray(n)) n = n[0];
+    return [n.prefix, n.given?.join(' '), n.family].filter(Boolean).join(' ');
+  };
+  const fmtCode = (c) => c?.text || c?.coding?.[0]?.display || c?.coding?.[0]?.code || '';
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+  const fmtVal  = (v) => { if (!v) return ''; if (typeof v === 'object') { if (v.value !== undefined) return `${v.value}${v.unit ? ' ' + v.unit : ''}`; if (v.text) return v.text; } return String(v); };
+
+  const sections = [];
+
+  // Composition (document title/summary)
+  if (byType.Composition) {
+    byType.Composition.forEach(r => {
+      sections.push(
+        <Section key={r.id} title={r.title || 'Document'} color="#6366f1">
+          <Row label="Type" value={fmtCode(r.type)} />
+          <Row label="Date" value={fmtDate(r.date)} />
+          <Row label="Status" value={r.status} />
+          {r.section?.map((s, i) => s.title && <Row key={i} label={s.title} value={s.text?.div?.replace(/<[^>]+>/g, ' ').trim().slice(0, 200)} />)}
+        </Section>
+      );
+    });
+  }
+
+  // Patient
+  if (byType.Patient) {
+    byType.Patient.forEach(r => {
+      sections.push(
+        <Section key={r.id} title="Patient" color="#0891b2">
+          <Row label="Name"   value={fmtName(r.name)} />
+          <Row label="DOB"    value={fmtDate(r.birthDate)} />
+          <Row label="Gender" value={r.gender} />
+          <Row label="Phone"  value={r.telecom?.find(t => t.system === 'phone')?.value} />
+        </Section>
+      );
+    });
+  }
+
+  // Encounter
+  if (byType.Encounter) {
+    byType.Encounter.forEach(r => {
+      sections.push(
+        <Section key={r.id} title="Encounter" color="#0284c7">
+          <Row label="Type"    value={r.type?.map(fmtCode).join(', ')} />
+          <Row label="Class"   value={r.class?.display || r.class?.code} />
+          <Row label="Status"  value={r.status} />
+          <Row label="Start"   value={fmtDate(r.period?.start)} />
+          <Row label="End"     value={fmtDate(r.period?.end)} />
+        </Section>
+      );
+    });
+  }
+
+  // Conditions / Diagnoses
+  if (byType.Condition) {
+    sections.push(
+      <Section key="cond" title="Diagnoses / Conditions" color="#dc2626">
+        {byType.Condition.map((r, i) => (
+          <div key={i} style={{ marginBottom: 4, padding: '5px 8px', background: '#fef2f2', borderRadius: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#1e293b' }}>{fmtCode(r.code) || 'Condition'}</div>
+            <Row label="Status"   value={r.clinicalStatus?.coding?.[0]?.code} />
+            <Row label="Onset"    value={fmtDate(r.onsetDateTime || r.onsetPeriod?.start)} />
+            <Row label="Note"     value={r.note?.[0]?.text} />
+          </div>
+        ))}
+      </Section>
+    );
+  }
+
+  // MedicationRequest / Prescriptions
+  if (byType.MedicationRequest) {
+    sections.push(
+      <Section key="med" title="Medications / Prescriptions" color="#7c3aed">
+        {byType.MedicationRequest.map((r, i) => (
+          <div key={i} style={{ marginBottom: 4, padding: '5px 8px', background: '#faf5ff', borderRadius: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#1e293b' }}>
+              {fmtCode(r.medicationCodeableConcept) || r.medicationReference?.display || 'Medication'}
+            </div>
+            <Row label="Dosage"    value={r.dosageInstruction?.[0]?.text} />
+            <Row label="Frequency" value={r.dosageInstruction?.[0]?.timing?.code?.text} />
+            <Row label="Duration"  value={r.dosageInstruction?.[0]?.timing?.repeat?.boundsDuration ? `${r.dosageInstruction[0].timing.repeat.boundsDuration.value} ${r.dosageInstruction[0].timing.repeat.boundsDuration.unit}` : ''} />
+            <Row label="Status"    value={r.status} />
+          </div>
+        ))}
+      </Section>
+    );
+  }
+
+  // Observations (vitals/labs)
+  if (byType.Observation) {
+    sections.push(
+      <Section key="obs" title="Observations / Vitals" color="#d97706">
+        {byType.Observation.map((r, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+            <span style={{ color: '#475569' }}>{fmtCode(r.code)}</span>
+            <span style={{ fontWeight: 600, color: '#1e293b' }}>
+              {fmtVal(r.valueQuantity || r.valueString || r.valueCodeableConcept)}
+              {r.interpretation?.[0] && <span style={{ marginLeft: 4, fontSize: 10, color: r.interpretation[0].coding?.[0]?.code === 'H' ? '#dc2626' : '#16a34a' }}>({r.interpretation[0].coding?.[0]?.code})</span>}
+            </span>
+          </div>
+        ))}
+      </Section>
+    );
+  }
+
+  // DiagnosticReport
+  if (byType.DiagnosticReport) {
+    sections.push(
+      <Section key="dr" title="Diagnostic Reports" color="#0891b2">
+        {byType.DiagnosticReport.map((r, i) => (
+          <div key={i} style={{ marginBottom: 4, padding: '5px 8px', background: '#f0f9ff', borderRadius: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#1e293b' }}>{fmtCode(r.code) || 'Report'}</div>
+            <Row label="Status"     value={r.status} />
+            <Row label="Date"       value={fmtDate(r.effectiveDateTime)} />
+            <Row label="Conclusion" value={r.conclusion} />
+          </div>
+        ))}
+      </Section>
+    );
+  }
+
+  // AllergyIntolerance
+  if (byType.AllergyIntolerance) {
+    sections.push(
+      <Section key="allergy" title="Allergies" color="#b45309">
+        {byType.AllergyIntolerance.map((r, i) => (
+          <div key={i} style={{ fontSize: 11, padding: '3px 0' }}>
+            <span style={{ fontWeight: 600 }}>{fmtCode(r.code)}</span>
+            {r.reaction?.[0]?.manifestation?.map(m => ` → ${fmtCode(m)}`).join('')}
+          </div>
+        ))}
+      </Section>
+    );
+  }
+
+  // Immunization
+  if (byType.Immunization) {
+    sections.push(
+      <Section key="imm" title="Immunizations" color="#16a34a">
+        {byType.Immunization.map((r, i) => (
+          <div key={i} style={{ fontSize: 11, display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+            <span>{fmtCode(r.vaccineCode)}</span>
+            <span style={{ color: '#94a3b8' }}>{fmtDate(r.occurrenceDateTime)}</span>
+          </div>
+        ))}
+      </Section>
+    );
+  }
+
+  // DocumentReference
+  if (byType.DocumentReference) {
+    sections.push(
+      <Section key="docref" title="Documents" color="#475569">
+        {byType.DocumentReference.map((r, i) => (
+          <div key={i} style={{ fontSize: 11, marginBottom: 3 }}>
+            <div style={{ fontWeight: 600 }}>{r.type?.text || fmtCode(r.type) || 'Document'}</div>
+            <Row label="Date" value={fmtDate(r.date)} />
+            {r.content?.[0]?.attachment?.url && (
+              <a href={r.content[0].attachment.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: '#7c3aed' }}>View attachment ↗</a>
+            )}
+          </div>
+        ))}
+      </Section>
+    );
+  }
+
+  if (!sections.length) {
+    return <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>No readable content found in this bundle.</p>;
+  }
+
+  return <div>{sections}</div>;
+}
+
+function RecordDetailModal({ record, onClose }) {
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: 16 }}>
+      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 680, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.3)', position: 'relative' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#1e293b' }}>{record.hi_type || 'Health Record'}</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{record.care_context_reference} · {record.received_at ? fmtDate(record.received_at) : ''}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>×</button>
+        </div>
+        {/* FHIR content */}
+        <div style={{ padding: '16px 20px' }}>
+          {record.content
+            ? <FhirBundleReader content={record.content} />
+            : <p style={{ color: '#94a3b8', fontSize: 13 }}>No content available for this record.</p>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConsentCard({ c, onFetched }) {
-  const [fetching,  setFetching]  = useState(false);
-  const [records,   setRecords]   = useState(null); // null = not fetched yet
-  const [expanded,  setExpanded]  = useState(false);
+  const [fetching,     setFetching]     = useState(false);
+  const [records,      setRecords]      = useState(null);
+  const [expanded,     setExpanded]     = useState(false);
+  const [selectedRec,  setSelectedRec]  = useState(null);
 
   const st = STATUS_CFG_C[c.status] || STATUS_CFG_C.REQUESTED;
   const PURPOSE_LABEL = { CAREMGT: 'Care Management', BTG: 'Break the Glass', PUBHLTH: 'Public Health', HPAYMT: 'Healthcare Payment', DSRCH: 'Disease Research' };
@@ -491,7 +726,6 @@ function ConsentCard({ c, onFetched }) {
     try {
       await api.post(`/consents/${c.request_id}/pull-data`);
       const recs = await api.get('/consents/health-records');
-      // filter records for this consent's transaction_id
       const mine = recs.filter(r => r.transaction_id === c.transaction_id);
       setRecords(mine);
       setExpanded(true);
@@ -501,51 +735,52 @@ function ConsentCard({ c, onFetched }) {
     finally { setFetching(false); }
   };
 
+  const HI_ICON = { OPConsultation: '🩺', Prescription: '💊', DiagnosticReport: '🔬', DischargeSummary: '🏥', ImmunizationRecord: '💉', HealthDocumentRecord: '📄', WellnessRecord: '❤️' };
+
   return (
-    <div style={{ border: `1.5px solid ${isGranted ? '#86efac' : '#e2e8f0'}`, borderRadius: 10, padding: '10px 12px', background: isGranted ? '#f0fdf4' : '#fff' }}>
-      {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-        <div style={{ fontWeight: 600, fontSize: 12, color: '#1e293b' }}>{PURPOSE_LABEL[c.purpose] || c.purpose}</div>
-        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: st.bg, color: st.color, flexShrink: 0 }}>{st.label}</span>
-      </div>
-      <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 6 }}>
-        {c.request_id?.slice(0, 24)}…
-      </div>
-      <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: isGranted ? 8 : 0 }}>{c.created_at ? fmtDate(c.created_at) : ''}</div>
-
-      {/* Fetch Records button — only when GRANTED */}
-      {isGranted && (
-        <button onClick={records ? () => setExpanded(e => !e) : fetchRecords} disabled={fetching}
-          style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: fetching ? '#d1fae5' : '#16a34a', color: '#fff', fontWeight: 600, fontSize: 11, cursor: fetching ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-          {fetching ? 'Fetching…' : records ? (expanded ? '▲ Hide Records' : `▼ View Records (${records.length})`) : '↓ Fetch Medical Records'}
-        </button>
-      )}
-
-      {/* Records list */}
-      {expanded && records && (
-        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {!records.length ? (
-            <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center', padding: '8px 0' }}>
-              Records are being fetched from ABDM — check back in a moment.
-            </p>
-          ) : records.map((r, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
-              <div style={{ fontWeight: 600, fontSize: 11, color: '#1e293b', marginBottom: 3 }}>
-                {r.hi_type || 'Health Record'} · {r.care_context_reference || ''}
-              </div>
-              {r.content && (
-                <pre style={{ margin: 0, fontSize: 10, color: '#475569', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 120, overflow: 'auto', background: '#f8fafc', borderRadius: 6, padding: '6px 8px', lineHeight: 1.5 }}>
-                  {typeof r.content === 'string' ? r.content.slice(0, 800) : JSON.stringify(r.content, null, 2).slice(0, 800)}
-                </pre>
-              )}
-              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
-                {r.received_at ? fmtDate(r.received_at) : ''}
-              </div>
-            </div>
-          ))}
+    <>
+      <div style={{ border: `1.5px solid ${isGranted ? '#86efac' : '#e2e8f0'}`, borderRadius: 10, padding: '10px 12px', background: isGranted ? '#f0fdf4' : '#fff' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+          <div style={{ fontWeight: 600, fontSize: 12, color: '#1e293b' }}>{PURPOSE_LABEL[c.purpose] || c.purpose}</div>
+          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: st.bg, color: st.color, flexShrink: 0 }}>{st.label}</span>
         </div>
-      )}
-    </div>
+        <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 4 }}>{c.request_id?.slice(0, 24)}…</div>
+        <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: isGranted ? 8 : 0 }}>{c.created_at ? fmtDate(c.created_at) : ''}</div>
+
+        {isGranted && (
+          <button onClick={records ? () => setExpanded(e => !e) : fetchRecords} disabled={fetching}
+            style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: fetching ? '#d1fae5' : '#16a34a', color: '#fff', fontWeight: 600, fontSize: 11, cursor: fetching ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            {fetching ? 'Fetching…' : records ? (expanded ? '▲ Hide Records' : `▼ View Records (${records.length})`) : '↓ Fetch Medical Records'}
+          </button>
+        )}
+
+        {expanded && records && (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {!records.length ? (
+              <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center', padding: '8px 0' }}>
+                Records are being delivered by ABDM — check back in a moment.
+              </p>
+            ) : records.map((r, i) => (
+              <button key={i} onClick={() => setSelectedRec(r)}
+                style={{ width: '100%', textAlign: 'left', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onMouseOver={e => e.currentTarget.style.borderColor = '#7c3aed'}
+                onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontSize: 14 }}>{HI_ICON[r.hi_type] || '📋'}</span>
+                  <span style={{ fontWeight: 600, fontSize: 11, color: '#1e293b' }}>{r.hi_type || 'Health Record'}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: '#7c3aed', fontWeight: 600 }}>Tap to view →</span>
+                </div>
+                <div style={{ fontSize: 10, color: '#64748b' }}>{r.care_context_reference || ''}</div>
+                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{r.received_at ? fmtDate(r.received_at) : ''}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selectedRec && <RecordDetailModal record={selectedRec} onClose={() => setSelectedRec(null)} />}
+    </>
   );
 }
 
@@ -557,20 +792,18 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
   const [showModal, setShowModal] = useState(false);
 
   const load = () => {
-    setLoading(true);
     api.get('/consents').then(rows => {
       setConsents(abha ? rows.filter(r => r.patient_abha === abha) : []);
     }).catch(() => {}).finally(() => setLoading(false));
   };
 
-  // Poll every 10s while any consent is in REQUESTED state
+  // Initial load + poll every 8s while any consent is REQUESTED
   useEffect(() => {
+    setLoading(true);
     load();
-    const hasRequested = consents.some(c => c.status === 'REQUESTED');
-    if (!hasRequested) return;
-    const timer = setInterval(load, 10000);
+    const timer = setInterval(load, 8000);
     return () => clearInterval(timer);
-  }, [appt?.id, consents.some(c => c.status === 'REQUESTED')]); // eslint-disable-line
+  }, [appt?.id, abha]); // eslint-disable-line
 
   if (!abha) return (
     <div style={{ padding: '20px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
