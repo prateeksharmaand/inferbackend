@@ -552,6 +552,12 @@ async function linkConfirm(linkRefNumber, token) {
 
 // ─── M2: HIP-initiated link (HIECM v3) ───────────────────────────────────────
 
+// Called by hip.controller's handleOnGenerateToken to store async token
+function _storeLinkToken(cacheKey, linkToken) {
+  _linkTokenCache.set(cacheKey, { token: linkToken, expiry: Date.now() + 9 * 60 * 1000 });
+  logger.info('generateLinkToken: stored async token in cache', { cacheKey: cacheKey.slice(-8) });
+}
+
 async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, yearOfBirth) {
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
   const cacheKey  = `${cleanAbha}:${hipId}`;
@@ -581,26 +587,44 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
         },
       }
     );
-    // Cache for 9 minutes (ABDM tokens live ~10 min)
-    if (res.data.linkToken) {
-      _linkTokenCache.set(cacheKey, { token: res.data.linkToken, expiry: Date.now() + 9 * 60 * 1000 });
+
+    // Synchronous response (token in body) — some ABDM environments return it directly
+    if (res.data?.linkToken) {
+      _storeLinkToken(cacheKey, res.data.linkToken);
+      return { linkToken: res.data.linkToken };
     }
-    return res.data;
+
+    // Async flow — ABDM returns 202 and sends token via /v3/hip/token/on-generate-token callback.
+    // Wait up to 15s for the token to arrive via EventEmitter.
+    logger.info('generateLinkToken: async flow — waiting for on-generate-token callback', { cleanAbha: cleanAbha.slice(-4) });
+    return await new Promise((resolve, reject) => {
+      const { _linkTokenEmitter } = require('../emr/hip.controller');
+      const eventKey = `token:${cleanAbha}`;
+      const timer = setTimeout(() => {
+        _linkTokenEmitter.removeAllListeners(eventKey);
+        // Last chance: check cache (another request may have stored it)
+        const late = _linkTokenCache.get(cacheKey);
+        if (late && Date.now() < late.expiry) return resolve({ linkToken: late.token });
+        reject(Object.assign(new Error('Timeout waiting for ABDM link token callback (on-generate-token)'), { status: 504 }));
+      }, 15_000);
+      _linkTokenEmitter.once(eventKey, (linkToken) => {
+        clearTimeout(timer);
+        _storeLinkToken(cacheKey, linkToken);
+        resolve({ linkToken });
+      });
+    });
+
   } catch (err) {
     const errBody = err.response?.data;
     const code    = errBody?.error?.code;
     logger.error('generateLinkToken FAILED', { status: err.response?.status, body: errBody });
-    // ABDM-1092 means there's already an active token we don't have cached (e.g. after restart).
-    // Clear cache entry so next retry forces a fresh generate once the old token expires.
     if (code === 'ABDM-1092') {
       _linkTokenCache.delete(cacheKey);
       const fwd = new Error('A link token is already active for this patient at this facility. Please wait ~10 minutes and retry.');
       fwd.status = 409;
       throw fwd;
     }
-    const fwd = new Error(`ABDM link token failed: ${errBody ? JSON.stringify(errBody) : err.message}`);
-    fwd.status = err.response?.status ?? 502;
-    throw fwd;
+    throw err.status ? err : Object.assign(new Error(`ABDM link token failed: ${errBody ? JSON.stringify(errBody) : err.message}`), { status: err.response?.status ?? 502 });
   }
 }
 
@@ -742,7 +766,7 @@ module.exports = {
   getAbhaProfile,         getAbhaPngCard,
   getAbhaSuggestions,     setAbhaAddress,
   discoverCareContexts,   linkInit,             linkConfirm,
-  generateLinkToken,      linkCareContexts,
+  generateLinkToken,      linkCareContexts,     _storeLinkToken,
   createConsentRequest,   fetchHealthInfo,
   generateHiuKeyMaterial, decryptHipEntry, getHiuKey,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,

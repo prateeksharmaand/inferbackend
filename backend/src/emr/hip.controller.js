@@ -797,4 +797,49 @@ const handleRunningTokenStatus = async (req, res) => {
   }
 };
 
-module.exports = { handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest, handlePatientShareProfile, handleConsentNotify, handleRunningTokenStatus };
+// ── ABDM async callback: on-generate-token ────────────────────────────────────
+// ABDM calls this after HIP requests /v3/token/generate-token (async flow).
+// The response contains the linkToken that must be used for /hip/v3/link/carecontext.
+const { EventEmitter } = require('events');
+const _linkTokenEmitter = new EventEmitter();
+_linkTokenEmitter.setMaxListeners(100);
+
+const handleOnGenerateToken = async (req, res) => {
+  res.status(202).json({ status: 'accepted' });
+  try {
+    const { linkToken, abhaNumber, requestId } = req.body;
+    logger.info('HIP on-generate-token callback received', {
+      requestId,
+      hasToken: !!linkToken,
+      abhaNumberSuffix: abhaNumber?.slice(-4),
+    });
+
+    if (!linkToken) {
+      logger.warn('HIP on-generate-token: no linkToken in callback body', { body: JSON.stringify(req.body)?.slice(0, 300) });
+      return;
+    }
+
+    // Store in in-memory cache (keyed by abhaNumber for lookup in attemptAbdmLink)
+    const cleanAbha = abhaNumber ? String(abhaNumber).replace(/-/g, '') : null;
+    if (cleanAbha) {
+      // Emit so any waiting attemptAbdmLink can proceed
+      _linkTokenEmitter.emit(`token:${cleanAbha}`, linkToken);
+      logger.info('HIP on-generate-token: emitted token', { cleanAbha: cleanAbha?.slice(-4) });
+    }
+
+    // Also update the abdm service cache so it's reusable
+    const abdmSvc = require('../services/abdm.service');
+    const hipId   = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
+    if (cleanAbha) {
+      abdmSvc._storeLinkToken(`${cleanAbha}:${hipId}`, linkToken);
+    }
+  } catch (err) {
+    logger.error('handleOnGenerateToken error', err);
+  }
+};
+
+module.exports = {
+  handleDiscovery, handleLinkInit, handleLinkConfirm, handleHealthInfoRequest,
+  handlePatientShareProfile, handleConsentNotify, handleRunningTokenStatus,
+  handleOnGenerateToken, _linkTokenEmitter,
+};

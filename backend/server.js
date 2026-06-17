@@ -231,6 +231,11 @@ app.post('/v3/hip/patient/running-token/status',     verifyAbdmCallback, hipCtrl
 app.post('/api/v3/hip/patient/running-token/status', verifyAbdmCallback, hipCtrl.handleRunningTokenStatus);
 app.post('/hip/patient/running-token/status',        verifyAbdmCallback, hipCtrl.handleRunningTokenStatus);
 
+// M2: ABDM async callback — delivers linkToken after /v3/token/generate-token request
+app.post('/v3/hip/token/on-generate-token',          verifyAbdmCallback, hipCtrl.handleOnGenerateToken);
+app.post('/api/v3/hip/token/on-generate-token',      verifyAbdmCallback, hipCtrl.handleOnGenerateToken);
+app.post('/hip/token/on-generate-token',             verifyAbdmCallback, hipCtrl.handleOnGenerateToken);
+
 // Catch-all: log any unhandled ABDM callback paths to help debug
 app.all('/v0.5/*', (req, res) => {
   require('./src/utils/logger').warn('Unhandled ABDM v0.5 callback', { method: req.method, path: req.path, body: JSON.stringify(req.body)?.slice(0, 200) });
