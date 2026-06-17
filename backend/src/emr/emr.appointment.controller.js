@@ -59,6 +59,18 @@ const createAppointment = async (req, res) => {
 
   if (!patient_name) return res.status(400).json({ error: 'patient_name required' });
 
+  // Auto-resolve emr_patient_id from ABHA if not supplied
+  let resolvedPatientId = emr_patient_id || null;
+  if (!resolvedPatientId && patient_abha) {
+    const { rows: ptRows } = await pool.query(
+      `SELECT p.id FROM emr_patients p
+       WHERE (p.abha_number = $1 OR p.abha_address = $1) AND p.deleted_at IS NULL
+       LIMIT 1`,
+      [patient_abha]
+    );
+    if (ptRows.length) resolvedPatientId = ptRows[0].id;
+  }
+
   // Auto token: max token for this queue+date + 1
   const { rows: [tok] } = await pool.query(
     `SELECT COALESCE(MAX(token_number), 0) + 1 AS next_token
@@ -74,7 +86,7 @@ const createAppointment = async (req, res) => {
         token_number, visit_type, channel, appointment_date, appointment_time, notes, tags, uhid, medical_history)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
     [
-      queue_id || null, req.emrUser.clinic_id, doctor_id || null, emr_patient_id || null,
+      queue_id || null, req.emrUser.clinic_id, doctor_id || null, resolvedPatientId,
       patient_name, patient_mobile || null,
       patient_dob || null, patient_gender || null, patient_abha || null, patient_email || null,
       tok.next_token, visit_type || 'OPConsultation',

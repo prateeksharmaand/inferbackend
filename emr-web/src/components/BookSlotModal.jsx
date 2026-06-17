@@ -64,7 +64,7 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
 
   // Patient
   const [patient,    setPatient]    = useState(
-    prefill.patient_name ? { name: prefill.patient_name, mobile: prefill.patient_mobile || '', abha_number: prefill.patient_abha || '', gender: '' } : null
+    prefill.patient_name ? { id: prefill.patient_id || null, name: prefill.patient_name, mobile: prefill.patient_mobile || '', abha_number: prefill.patient_abha || '', gender: '' } : null
   );
   const [changingPt, setChangingPt] = useState(!prefill.patient_name);
   const [ptQuery,    setPtQuery]    = useState('');
@@ -166,17 +166,18 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
     setSaving(true); setError('');
     try {
       await api.post('/appointments', {
-        patient_name:   patient.name,
-        patient_mobile: patient.mobile || '',
-        patient_abha:   patient.abha_number || '',
-        patient_gender: patient.gender || '',
-        queue_id:       queueId,
-        doctor_id:      doctorId || undefined,
+        patient_name:    patient.name,
+        patient_mobile:  patient.mobile || '',
+        patient_abha:    patient.abha_number || patient.abha_address || '',
+        patient_gender:  patient.gender || '',
+        emr_patient_id:  patient.id || undefined,
+        queue_id:        queueId,
+        doctor_id:       doctorId || undefined,
         appointment_date: localDate(selectedDate),
         appointment_time: selectedSlot,
-        visit_type:     mode === 'tele' ? 'TeleConsultation' : 'OPConsultation',
-        channel:        mode === 'tele' ? 'tele_consultation' : 'walk_in',
-        status:         'booked',
+        visit_type:      mode === 'tele' ? 'TeleConsultation' : 'OPConsultation',
+        channel:         mode === 'tele' ? 'tele_consultation' : 'walk_in',
+        status:          'booked',
       });
       window.dispatchEvent(new CustomEvent('appointment:created'));
       if (onBooked) onBooked();

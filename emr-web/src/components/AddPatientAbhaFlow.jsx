@@ -467,6 +467,7 @@ function PatientCard({ patient, onSuccess, xToken }) {
       {showBook && (
         <BookSlotModal
           prefill={{
+            patient_id:     p.id     || null,
             patient_name:   p.name   || '',
             patient_mobile: p.mobile || '',
             patient_dob:    p.dob    || '',
