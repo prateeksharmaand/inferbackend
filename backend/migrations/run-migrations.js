@@ -9,9 +9,10 @@ const DB_MIGRATIONS_DIR = path.join(__dirname, '../src/db/migrations');
 
 const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, 'security_hardening_20260614.sql'),
-  path.join(__dirname, 'abha_identity_20260614.sql'),   // abha_mappings table
-  path.join(__dirname, 'audit_log_20260614.sql'),       // audit_logs table + indexes
-  path.join(__dirname, 'session_blacklist_20260614.sql'),// JWT blacklist for logout
+  path.join(__dirname, 'abha_identity_20260614.sql'),       // abha_mappings table
+  path.join(__dirname, 'audit_log_20260614.sql'),           // audit_logs table + indexes
+  path.join(__dirname, 'session_blacklist_20260614.sql'),   // JWT blacklist for logout
+  path.join(__dirname, '038_abdm_production_wiring.sql'),   // care context auto-create wiring
 ];
 
 async function runMigrations(pool, logger) {

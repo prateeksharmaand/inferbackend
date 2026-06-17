@@ -288,6 +288,129 @@ async function sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus
 
 // SEC-015 + R2-012: stable UUIDs + ABDM IG required fields (identifier, Practitioner, Patient.identifier)
 // M3-FHIR: Dispatcher routes to hi_type-specific bundle builders
+function buildFhirBundleFromEncounter(appt, encounter, refNumber) {
+  const now            = new Date().toISOString();
+  const hipId          = HIP_ID || 'infer-hip';
+  const bundleId       = uuid();
+  const compositionId  = uuid();
+  const patientId      = uuid();
+  const encounterId    = uuid();
+  const practitionerId = uuid();
+  const orgId          = uuid();
+  const periodStart    = appt.appointment_date
+    ? new Date(appt.appointment_date).toISOString().slice(0, 10) + 'T00:00:00+05:30'
+    : now;
+
+  const safeJson = (v, def) => {
+    if (!v) return def;
+    if (typeof v === 'object') return v;
+    try { return JSON.parse(v); } catch { return def; }
+  };
+
+  const diagnosis   = safeJson(encounter.diagnosis, []);
+  const medications = safeJson(encounter.medications, []);
+  const vitals      = safeJson(encounter.vitals, {});
+  const labOrders   = safeJson(encounter.lab_investigations, []);
+
+  const entries = [];
+  const VITAL_LOINC = {
+    bp_systolic:      { code: '8480-6',  display: 'Systolic blood pressure', unit: 'mm[Hg]' },
+    bp_diastolic:     { code: '8462-4',  display: 'Diastolic blood pressure', unit: 'mm[Hg]' },
+    pulse:            { code: '8867-4',  display: 'Heart rate', unit: '/min' },
+    spo2:             { code: '2708-6',  display: 'Oxygen saturation', unit: '%' },
+    temp:             { code: '8310-5',  display: 'Body temperature', unit: '[degF]' },
+    respiratory_rate: { code: '9279-1',  display: 'Respiratory rate', unit: '/min' },
+    height:           { code: '8302-2',  display: 'Body height', unit: 'cm' },
+    weight:           { code: '29463-7', display: 'Body weight', unit: 'kg' },
+    bmi:              { code: '39156-5', display: 'Body mass index', unit: 'kg/m2' },
+  };
+
+  const conditionRefs = [];
+  const conditionEntries = diagnosis.filter(d => d.display || d.code).map(d => {
+    const id = uuid();
+    conditionRefs.push(`urn:uuid:${id}`);
+    return { fullUrl: `urn:uuid:${id}`, resource: {
+      resourceType: 'Condition', id,
+      clinicalStatus: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: 'active' }] },
+      verificationStatus: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status', code: 'confirmed' }] },
+      category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-category', code: 'encounter-diagnosis' }] }],
+      code: { coding: d.code ? [{ system: d.system || 'http://snomed.info/sct', code: d.code, display: d.display }] : [], text: d.display || '' },
+      subject: { reference: `urn:uuid:${patientId}` },
+      encounter: { reference: `urn:uuid:${encounterId}` },
+      recordedDate: now,
+    }};
+  });
+
+  const medRefs = [];
+  const medEntries = medications.filter(m => m.name).map(m => {
+    const id = uuid();
+    medRefs.push(`urn:uuid:${id}`);
+    return { fullUrl: `urn:uuid:${id}`, resource: {
+      resourceType: 'MedicationRequest', id,
+      status: 'active', intent: 'order',
+      medicationCodeableConcept: { text: m.name },
+      subject: { reference: `urn:uuid:${patientId}` },
+      encounter: { reference: `urn:uuid:${encounterId}` },
+      authoredOn: now,
+      requester: { reference: `urn:uuid:${practitionerId}` },
+      dosageInstruction: [{ text: [m.dose, m.dosage, m.frequency, m.timing, m.duration].filter(Boolean).join(' ') }],
+    }};
+  });
+
+  const vitalRefs = [];
+  const vitalEntries = Object.entries(VITAL_LOINC).filter(([k]) => vitals[k] != null && vitals[k] !== '').map(([k, meta]) => {
+    const num = parseFloat(vitals[k]);
+    if (isNaN(num)) return null;
+    const id = uuid();
+    vitalRefs.push(`urn:uuid:${id}`);
+    return { fullUrl: `urn:uuid:${id}`, resource: {
+      resourceType: 'Observation', id, status: 'final',
+      category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs' }] }],
+      code: { coding: [{ system: 'http://loinc.org', code: meta.code, display: meta.display }] },
+      subject: { reference: `urn:uuid:${patientId}` },
+      encounter: { reference: `urn:uuid:${encounterId}` },
+      effectiveDateTime: periodStart,
+      valueQuantity: { value: num, unit: meta.unit, system: 'http://unitsofmeasure.org', code: meta.unit },
+    }};
+  }).filter(Boolean);
+
+  const labRefs = [];
+  const labEntries = (Array.isArray(labOrders) ? labOrders : []).map(lab => {
+    const name = typeof lab === 'string' ? lab : (lab.test || lab.name);
+    if (!name) return null;
+    const id = uuid();
+    labRefs.push(`urn:uuid:${id}`);
+    return { fullUrl: `urn:uuid:${id}`, resource: {
+      resourceType: 'ServiceRequest', id,
+      status: 'active', intent: 'order',
+      code: { text: name },
+      subject: { reference: `urn:uuid:${patientId}` },
+      encounter: { reference: `urn:uuid:${encounterId}` },
+      authoredOn: now,
+      requester: { reference: `urn:uuid:${practitionerId}` },
+    }};
+  }).filter(Boolean);
+
+  const sections = [];
+  if (encounter.chief_complaint) sections.push({ title: 'Chief Complaint', code: { coding: [{ system: 'http://snomed.info/sct', code: '422843007' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml">${encounter.chief_complaint}</div>` } });
+  if (conditionRefs.length) sections.push({ title: 'Diagnosis', code: { coding: [{ system: 'http://snomed.info/sct', code: '439401001', display: 'Diagnosis' }] }, entry: conditionRefs.map(r => ({ reference: r })) });
+  if (vitalRefs.length) sections.push({ title: 'Vital Signs', code: { coding: [{ system: 'http://snomed.info/sct', code: '75367002' }] }, entry: vitalRefs.map(r => ({ reference: r })) });
+  if (medRefs.length) sections.push({ title: 'Medications', code: { coding: [{ system: 'http://snomed.info/sct', code: '721912009', display: 'Medication summary' }] }, entry: medRefs.map(r => ({ reference: r })) });
+  if (labRefs.length) sections.push({ title: 'Investigations', code: { coding: [{ system: 'http://snomed.info/sct', code: '721981007' }] }, entry: labRefs.map(r => ({ reference: r })) });
+  if (encounter.instructions || encounter.advices) sections.push({ title: 'Instructions', code: { coding: [{ system: 'http://snomed.info/sct', code: '409073007' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml">${[encounter.instructions, encounter.advices].filter(Boolean).join('<br/>')}</div>` } });
+
+  entries.push(
+    { fullUrl: `urn:uuid:${compositionId}`, resource: { resourceType: 'Composition', id: compositionId, identifier: { system: `https://${hipId}.hip.abdm.gov.in`, value: refNumber || bundleId }, status: 'final', type: { coding: [{ system: 'http://snomed.info/sct', code: '371530004', display: 'Clinical consultation report' }] }, subject: { reference: `urn:uuid:${patientId}` }, encounter: { reference: `urn:uuid:${encounterId}` }, date: now, author: [{ reference: `urn:uuid:${practitionerId}` }], custodian: { reference: `urn:uuid:${orgId}` }, title: 'OPD Consultation', section: sections } },
+    { fullUrl: `urn:uuid:${patientId}`, resource: { resourceType: 'Patient', id: patientId, identifier: appt.patient_abha ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] }, system: 'https://abha.abdm.gov.in', value: appt.patient_abha }] : [], name: [{ text: appt.patient_name }], gender: appt.patient_gender === 'M' ? 'male' : appt.patient_gender === 'F' ? 'female' : 'other', birthDate: appt.patient_dob ? appt.patient_dob.toString().slice(0, 10) : undefined, telecom: appt.patient_mobile ? [{ system: 'phone', value: appt.patient_mobile, use: 'mobile' }] : [] } },
+    { fullUrl: `urn:uuid:${practitionerId}`, resource: { resourceType: 'Practitioner', id: practitionerId, identifier: [{ system: 'https://doctor.ndhm.gov.in', value: String(appt.doctor_id || hipId) }], name: [{ text: appt.doctor_name || process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }] } },
+    { fullUrl: `urn:uuid:${orgId}`, resource: { resourceType: 'Organization', id: orgId, identifier: [{ system: 'https://facility.ndhm.gov.in', value: hipId }], name: process.env.HIP_ORG_NAME || 'Infer Care Clinic' } },
+    { fullUrl: `urn:uuid:${encounterId}`, resource: { resourceType: 'Encounter', id: encounterId, status: 'finished', class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB', display: 'ambulatory' }, type: [{ coding: [{ system: 'http://snomed.info/sct', code: '11429006', display: 'Consultation' }] }], subject: { reference: `urn:uuid:${patientId}` }, participant: [{ type: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ParticipationType', code: 'ATND' }] }], individual: { reference: `urn:uuid:${practitionerId}` } }], period: { start: periodStart, end: periodStart }, serviceProvider: { reference: `urn:uuid:${orgId}` } } },
+    ...conditionEntries, ...vitalEntries, ...medEntries, ...labEntries,
+  );
+
+  return JSON.stringify({ resourceType: 'Bundle', id: bundleId, identifier: { system: `https://${hipId}.hip.abdm.gov.in/bundles`, value: bundleId }, type: 'document', timestamp: now, entry: entries });
+}
+
 function buildFhirBundle(patient, careContext) {
   const hi_type = careContext.hi_type || 'OPConsultation';
 
@@ -1113,4 +1236,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   }
 }
 
-module.exports = { uuid, gwGet, gwPost, gwPostWithRetry, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResultWithRetry, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, sendShareProfileAck };
+module.exports = { uuid, gwGet, gwPost, gwPostWithRetry, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResultWithRetry, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, buildFhirBundleFromEncounter, sendShareProfileAck };

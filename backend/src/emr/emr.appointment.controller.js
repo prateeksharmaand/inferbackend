@@ -1,5 +1,6 @@
 const { pool }  = require('../config/database');
 const fhir      = require('../services/fhir.service');
+const hip       = require('./hip.service');
 const { sendAppointmentConfirmation } = require('./emr.mailer');
 
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
@@ -300,6 +301,31 @@ const saveEncounter = async (req, res) => {
 
   // Auto-mark appointment as completed
   await pool.query(`UPDATE emr_appointments SET status='completed', completed_at=NOW() WHERE id=$1`, [a.id]);
+
+  // ── ABDM: auto-create / update care context so this encounter is discoverable ──
+  // Uses reference number OPD-YYYYMMDD-<apptId> — stable across re-saves of same encounter
+  if (a.emr_patient_id) {
+    const dateStr  = (a.appointment_date?.toString() || new Date().toISOString()).slice(0, 10).replace(/-/g, '');
+    const refNum   = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
+    const display  = `OPD Consultation – ${a.appointment_date?.toString().slice(0, 10) || dateStr} – ${a.patient_name || 'Patient'}`;
+
+    // Build rich ABDM-compliant FHIR bundle from real encounter data
+    const abdmFhir = hip.buildFhirBundleFromEncounter(
+      { ...a, doctor_name: a.doctor_name || '' },
+      rows[0],
+      refNum
+    );
+
+    pool.query(
+      `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content)
+       VALUES ($1,$2,$3,'OPConsultation',$4)
+       ON CONFLICT (reference_number) DO UPDATE
+         SET display      = EXCLUDED.display,
+             fhir_content = EXCLUDED.fhir_content,
+             updated_at   = NOW()`,
+      [a.emr_patient_id, refNum, display, abdmFhir]
+    ).catch(err => console.error('[ABDM] care context upsert failed:', err.message));
+  }
 
   fhir.pushEncounterBundle(a, rows[0]).catch(err =>
     console.error('[FHIR] encounter push failed:', err.message)

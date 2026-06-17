@@ -294,6 +294,43 @@ router.get('/pending-otps',    emr.pendingOtps);
 router.get('/health-requests', emr.healthRequests);
 router.get('/activity',        emr.activityLog);
 
+// ── ABDM Admin Dashboard — gateway status + stats ────────────────────────────
+router.get('/abdm/dashboard', async (req, res) => {
+  try {
+    const [otps, reqs, artifacts, ctxStats, auditStats] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM hip_link_sessions WHERE status='pending_otp' AND otp_expires_at > NOW()`),
+      pool.query(`SELECT status, COUNT(*) FROM hip_health_requests GROUP BY status ORDER BY COUNT(*) DESC LIMIT 10`),
+      pool.query(`SELECT status, COUNT(*) FROM hip_consent_artifacts GROUP BY status`),
+      pool.query(
+        `SELECT COUNT(*) AS total, COUNT(fhir_content) AS with_fhir
+         FROM emr_care_contexts cc
+         JOIN emr_patients p ON p.id = cc.patient_id
+         WHERE p.clinic_id = $1`,
+        [req.emrUser.clinic_id]
+      ),
+      pool.query(
+        `SELECT event_type, COUNT(*) FROM audit_logs
+         WHERE clinic_id = $1 AND event_time > NOW() - INTERVAL '24 hours'
+         GROUP BY event_type ORDER BY COUNT(*) DESC LIMIT 10`,
+        [req.emrUser.clinic_id]
+      ),
+    ]);
+
+    res.json({
+      pendingOtps:    parseInt(otps.rows[0]?.count || 0),
+      healthRequests: reqs.rows,
+      consentStatus:  artifacts.rows,
+      careContexts:   ctxStats.rows[0] || { total: 0, with_fhir: 0 },
+      auditLast24h:   auditStats.rows,
+      gatewayUrl:     process.env.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in/gateway',
+      hipId:          process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID,
+      environment:    process.env.NODE_ENV === 'production' ? 'production' : 'sandbox',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ABDM bridge / callback-URL diagnostics
 router.get ('/abdm/bridge',        emr.abdmGetBridge);
 router.post('/abdm/bridge/update', emr.abdmUpdateBridge);
