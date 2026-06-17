@@ -20,12 +20,12 @@ ALTER TABLE emr_care_contexts
 -- Back-fill updated_at from created_at
 UPDATE emr_care_contexts SET updated_at = created_at WHERE updated_at IS NULL;
 
--- ── emr_care_contexts: index for patient + reference lookups ─────────────────
+-- ── emr_care_contexts: unique constraint + indexes for lookups ─────────────────
+ALTER TABLE emr_care_contexts
+  ADD CONSTRAINT uq_care_ctx_ref_num UNIQUE (reference_number) DEFERRABLE INITIALLY DEFERRED;
+
 CREATE INDEX IF NOT EXISTS idx_care_ctx_patient
   ON emr_care_contexts(patient_id);
-
-CREATE INDEX IF NOT EXISTS idx_care_ctx_ref_num
-  ON emr_care_contexts(reference_number);
 
 -- ── emr_appointments: add doctor_name denorm column for FHIR bundles ─────────
 ALTER TABLE emr_appointments
