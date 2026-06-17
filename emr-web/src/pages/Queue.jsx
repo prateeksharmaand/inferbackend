@@ -540,7 +540,7 @@ export default function Queue() {
       )}
 
       {/* Add patient via ABHA modal */}
-      {showAddAbha && <AddPatientAbhaModal onClose={() => setShowAddAbha(false)} onSuccess={() => { setShowAddAbha(false); fetchBoard(); }} />}
+      {showAddAbha && <AbhaRegistrationModal onClose={() => setShowAddAbha(false)} onSuccess={() => { setShowAddAbha(false); fetchBoard(); }} />}
     </div>
   );
 }
