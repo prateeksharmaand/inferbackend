@@ -254,19 +254,7 @@ function ConsentModal({ patient, onClose, onSent }) {
         <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
         <h2 style={{ margin: '0 0 20px', fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Request Patient Consent</h2>
 
-        {/* Row 1: ABHA + HIP */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>Patient ABHA Address</label>
-            <input style={{ ...inp, background: '#f8fafc', color: '#64748b' }} value={abha} readOnly />
-          </div>
-          <div>
-            <label style={lbl}>HIP ID (data source)</label>
-            <input style={{ ...inp, background: '#f8fafc', color: '#64748b' }} value={hipId} readOnly />
-          </div>
-        </div>
-
-        {/* Row 2: Purpose + dates */}
+        {/* Purpose + dates */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
           <div>
             <label style={lbl}>Purpose</label>

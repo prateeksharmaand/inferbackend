@@ -433,17 +433,6 @@ function ConsentRequestModal({ abha, hipId, onClose, onSent }) {
         <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
         <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Request Patient Consent</h3>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Patient ABHA Address</label>
-            <input style={{ ...inp, background: '#f8fafc', color: '#64748b' }} value={abha} readOnly />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>HIP ID</label>
-            <input style={{ ...inp, background: '#f8fafc', color: '#64748b' }} value={hipId} readOnly />
-          </div>
-        </div>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
             <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Purpose</label>
