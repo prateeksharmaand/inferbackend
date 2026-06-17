@@ -571,7 +571,7 @@ function NoFlow({ onSuccess, onClose }) {
     if (!phrAddress.trim()) return toast.error('Enter PHR address');
     setLoading(true);
     try {
-      await api.post('/abha/aadhaar-set-address', { xToken, abhaAddress: phrAddress.trim(), txnId });
+      await api.post('/abha/aadhaar-set-address', { xToken, abhaAddress: phrAddress.trim(), txnId: enrollTxnId });
       const res = await api.post('/abha/aadhaar-finalize', { abdmProfile, abhaAddress: phrAddress.trim() });
       setCreatedPatient({ ...(res.patient || res), created: true });
       setStep(5);
