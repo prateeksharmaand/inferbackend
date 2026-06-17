@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AlertCircle, Check, ChevronRight, QrCode, Smartphone, CreditCard, Fingerprint, Camera, Upload } from 'lucide-react';
 import jsQR from 'jsqr';
+import BookSlotModal from './BookSlotModal';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
@@ -392,6 +393,7 @@ function YesFlow({ onSuccess, onClose }) {
 function PatientCard({ patient, onSuccess, xToken }) {
   const [cardImg, setCardImg] = useState(null);
   const [loadingCard, setLoadingCard] = useState(false);
+  const [showBook, setShowBook] = useState(false);
 
   const p = patient.patient || patient;
 
@@ -406,49 +408,65 @@ function PatientCard({ patient, onSuccess, xToken }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Success banner */}
-      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Check size={16} color="#16a34a" style={{ flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: '#166534', fontWeight: 600 }}>
-          {patient.created ? 'New patient registered successfully!' : 'Patient fetched successfully!'}
-        </span>
-      </div>
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Success banner */}
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Check size={16} color="#16a34a" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: '#166534', fontWeight: 600 }}>
+            {patient.created ? 'New patient registered successfully!' : 'Patient fetched successfully!'}
+          </span>
+        </div>
 
-      {/* Patient info card */}
-      <div style={{ background: '#f8fafc', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#7c3aed' }}>
-            {p.name?.[0]?.toUpperCase() || '?'}
+        {/* Patient info card */}
+        <div style={{ background: '#f8fafc', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#7c3aed' }}>
+              {p.name?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: '#1e293b' }}>{p.name || 'Unknown'}</p>
+              {p.abha_number && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#7c3aed', fontFamily: 'monospace' }}>ABHA: {p.abha_number}</p>}
+            </div>
           </div>
-          <div>
-            <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: '#1e293b' }}>{p.name || 'Unknown'}</p>
-            {p.abha_number && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#7c3aed', fontFamily: 'monospace' }}>ABHA: {p.abha_number}</p>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+            {p.mobile       && <InfoRow label="Mobile"       value={p.mobile} />}
+            {p.gender       && <InfoRow label="Gender"       value={p.gender} />}
+            {p.dob          && <InfoRow label="DOB"          value={p.dob} />}
+            {p.abha_address && <InfoRow label="ABHA Address" value={p.abha_address} />}
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
-          {p.mobile      && <InfoRow label="Mobile"       value={p.mobile} />}
-          {p.gender      && <InfoRow label="Gender"       value={p.gender} />}
-          {p.dob         && <InfoRow label="DOB"          value={p.dob} />}
-          {p.abha_address && <InfoRow label="ABHA Address" value={p.abha_address} />}
-        </div>
-      </div>
 
-      {/* ABHA Card image */}
-      {xToken && !cardImg && (
-        <button style={{ ...ghostBtn, fontSize: 12 }} onClick={fetchCard} disabled={loadingCard}>
-          {loadingCard ? 'Loading ABHA Card…' : '📋 View ABHA Card'}
+        {/* ABHA Card image */}
+        {xToken && !cardImg && (
+          <button style={{ ...ghostBtn, fontSize: 12 }} onClick={fetchCard} disabled={loadingCard}>
+            {loadingCard ? 'Loading ABHA Card…' : '📋 View ABHA Card'}
+          </button>
+        )}
+        {cardImg && (
+          <img src={cardImg} alt="ABHA Card" style={{ width: '100%', borderRadius: 10, border: '1px solid #e2e8f0' }} />
+        )}
+
+        {/* Book appointment */}
+        <button style={primaryBtn(false)} onClick={() => setShowBook(true)}>
+          Book Appointment →
         </button>
-      )}
-      {cardImg && (
-        <img src={cardImg} alt="ABHA Card" style={{ width: '100%', borderRadius: 10, border: '1px solid #e2e8f0' }} />
-      )}
+      </div>
 
-      {/* Book appointment */}
-      <button style={primaryBtn(false)} onClick={() => onSuccess(p)}>
-        Book Appointment →
-      </button>
-    </div>
+      {showBook && (
+        <BookSlotModal
+          prefill={{
+            patient_name:   p.name   || '',
+            patient_mobile: p.mobile || '',
+            patient_dob:    p.dob    || '',
+            patient_gender: p.gender || '',
+            patient_abha:   p.abha_number || p.abha_address || '',
+          }}
+          onClose={() => setShowBook(false)}
+          onBooked={() => { setShowBook(false); onSuccess?.(p); }}
+        />
+      )}
+    </>
   );
 }
 
