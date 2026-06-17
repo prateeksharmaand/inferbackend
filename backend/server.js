@@ -209,15 +209,41 @@ app.post('/v3/hip/link/care-context/confirm',            verifyAbdmCallback, hip
 app.post('/api/v3/hip/link/care-context/confirm',        verifyAbdmCallback, hipCtrl.handleLinkConfirm);
 app.post('/v3/hip/health-information/request',           verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
 app.post('/api/v3/hip/health-information/request',       verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
+// Sample PHR app path variants (no version prefix)
+app.post('/hip/care-contexts/discover',              verifyAbdmCallback, hipCtrl.handleDiscovery);
+app.post('/hip/patient/care-context/discover',       verifyAbdmCallback, hipCtrl.handleDiscovery);
+app.post('/hip/care-contexts/on-discover',           verifyAbdmCallback, hipCtrl.handleDiscovery);
+app.post('/hip/links/link/init',                     verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/hip/care-contexts/on-link',               verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/hip/links/link/confirm',                  verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/hip/link/care-context/confirm',           verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/hip/health-information/request',          verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
 // M1: Patient shares profile by scanning facility QR
 app.post('/v3/hip/patient/share/profile',           verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
 app.post('/v3/hip/patient/share',                   verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
 app.post('/api/v3/hip/patient/share/profile',       verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
 app.post('/api/v3/hip/patient/share',               verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
+app.post('/hip/patient/share/profile',              verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
+app.post('/hip/patient/share',                      verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
 
 // M1: ABDM queries HIP to verify token shown to patient
 app.post('/v3/hip/patient/running-token/status',     verifyAbdmCallback, hipCtrl.handleRunningTokenStatus);
 app.post('/api/v3/hip/patient/running-token/status', verifyAbdmCallback, hipCtrl.handleRunningTokenStatus);
+app.post('/hip/patient/running-token/status',        verifyAbdmCallback, hipCtrl.handleRunningTokenStatus);
+
+// Catch-all: log any unhandled ABDM callback paths to help debug
+app.all('/v0.5/*', (req, res) => {
+  require('./src/utils/logger').warn('Unhandled ABDM v0.5 callback', { method: req.method, path: req.path, body: JSON.stringify(req.body)?.slice(0, 200) });
+  res.status(202).json({ status: 'accepted' });
+});
+app.all('/v3/*', (req, res) => {
+  require('./src/utils/logger').warn('Unhandled ABDM v3 callback', { method: req.method, path: req.path, body: JSON.stringify(req.body)?.slice(0, 200) });
+  res.status(202).json({ status: 'accepted' });
+});
+app.all('/hip/*', (req, res) => {
+  require('./src/utils/logger').warn('Unhandled ABDM HIP callback', { method: req.method, path: req.path, body: JSON.stringify(req.body)?.slice(0, 200) });
+  res.status(202).json({ status: 'accepted' });
+});
 
 // ── Meta WhatsApp Cloud API webhook (registered in Facebook Developer Console) ──
 // GET  = hub challenge verification  POST = inbound messages + status updates
