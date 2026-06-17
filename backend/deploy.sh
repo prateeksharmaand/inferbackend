@@ -96,17 +96,15 @@ done
 # ── STEP 3: Run incremental migrations (users table now exists) ───────────────
 if [[ "$SKIP_MIGRATE" == "false" ]]; then
   log "Running incremental migrations..."
-  for migration in backend/migrations/{002,003,004,005,007,008,009,010,011,012,013,014,015,016,017,018,019,020,021,022}_*.sql; do
-    if [[ -f "$REPO_ROOT/$migration" ]]; then
-      log "  → $(basename "$migration")"
-      $DC exec -T postgres psql \
-        -U "${DB_USER:-phr_user}" \
-        -d "${DB_NAME:-phr_db}" \
-        --set ON_ERROR_STOP=off \
-        -f "/dev/stdin" \
-        < "$REPO_ROOT/$migration" 2>&1 \
-        | grep -Ev "already exists|skipping" || true
-    fi
+  for migration in $(ls "$REPO_ROOT/backend/migrations"/[0-9]*.sql | grep -v "006_schema_reconciliation" | sort -t/ -k1 -V); do
+    log "  → $(basename "$migration")"
+    $DC exec -T postgres psql \
+      -U "${DB_USER:-phr_user}" \
+      -d "${DB_NAME:-phr_db}" \
+      --set ON_ERROR_STOP=off \
+      -f "/dev/stdin" \
+      < "$migration" 2>&1 \
+      | grep -Ev "already exists|skipping|does not exist" || true
   done
 fi
 
