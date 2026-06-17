@@ -429,10 +429,14 @@ const saveEncounter = async (req, res) => {
         [a.emr_patient_id]
       );
       const patient = patRows[0];
-      if (patient?.abha_number) {
+      if (patient?.abha_number && patient?.abha_address) {
         try {
           const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
-          const tokenRes = await abdmSvc.generateLinkToken(hipId);
+          const yearOfBirth = new Date(a.patient_dob || a.appointment_date).getFullYear();
+          const tokenRes = await abdmSvc.generateLinkToken(
+            hipId, patient.abha_number, patient.abha_address,
+            patient.name, a.patient_gender, yearOfBirth
+          );
           await abdmSvc.linkCareContexts(
             hipId,
             tokenRes.linkToken,
