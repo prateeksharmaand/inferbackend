@@ -3,6 +3,7 @@ import { Trash2, QrCode, X, Download, Printer, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
+import AddPatientAbhaFlow from '../components/AddPatientAbhaFlow';
 import styles from './Patients.module.css';
 
 // ── Facility QR Modal ─────────────────────────────────────────────────────────
@@ -133,6 +134,7 @@ export default function Patients() {
   const [search,       setSearch]       = useState('');
   const [deleting,     setDeleting]     = useState(null);
   const [showFacQr,    setShowFacQr]    = useState(false);
+  const [showAbhaFlow, setShowAbhaFlow] = useState(false);
   const navigate = useNavigate();
 
   const load = () => api.get('/patients').then(setPatients).catch(() => {});
@@ -164,6 +166,12 @@ export default function Patients() {
         <div style={{ display: 'flex', gap: 10, flex: 1, maxWidth: 600 }}>
           <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
             value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
+          <button
+            onClick={() => setShowAbhaFlow(true)}
+            style={{ padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+          >
+            <Plus size={15} /> Add Patient via ABHA
+          </button>
         </div>
       </div>
 
@@ -215,6 +223,16 @@ export default function Patients() {
 
       {/* Modals */}
       {showFacQr && <FacilityQrModal onClose={() => setShowFacQr(false)} />}
+      {showAbhaFlow && (
+        <AddPatientAbhaFlow
+          onClose={() => setShowAbhaFlow(false)}
+          onSuccess={(patient) => {
+            setShowAbhaFlow(false);
+            load();
+            if (patient?.id) navigate(`/queue?newPatient=${patient.id}`);
+          }}
+        />
+      )}
     </div>
   );
 }
