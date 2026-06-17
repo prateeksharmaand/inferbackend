@@ -477,12 +477,84 @@ function ConsentRequestModal({ abha, hipId, onClose, onSent }) {
   );
 }
 
-function ConsentsTab({ appt }) {
-  const abha  = appt?.patient_abha || '';
+function ConsentCard({ c, onFetched }) {
+  const [fetching,  setFetching]  = useState(false);
+  const [records,   setRecords]   = useState(null); // null = not fetched yet
+  const [expanded,  setExpanded]  = useState(false);
+
+  const st = STATUS_CFG_C[c.status] || STATUS_CFG_C.REQUESTED;
+  const PURPOSE_LABEL = { CAREMGT: 'Care Management', BTG: 'Break the Glass', PUBHLTH: 'Public Health', HPAYMT: 'Healthcare Payment', DSRCH: 'Disease Research' };
+  const isGranted = c.status === 'GRANTED';
+
+  const fetchRecords = async () => {
+    setFetching(true);
+    try {
+      await api.post(`/consents/${c.request_id}/pull-data`);
+      const recs = await api.get('/consents/health-records');
+      // filter records for this consent's transaction_id
+      const mine = recs.filter(r => r.transaction_id === c.transaction_id);
+      setRecords(mine);
+      setExpanded(true);
+      onFetched?.();
+      if (!mine.length) toast.success('Records requested — ABDM will deliver them shortly');
+    } catch (err) { toast.error(err.message); }
+    finally { setFetching(false); }
+  };
+
+  return (
+    <div style={{ border: `1.5px solid ${isGranted ? '#86efac' : '#e2e8f0'}`, borderRadius: 10, padding: '10px 12px', background: isGranted ? '#f0fdf4' : '#fff' }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+        <div style={{ fontWeight: 600, fontSize: 12, color: '#1e293b' }}>{PURPOSE_LABEL[c.purpose] || c.purpose}</div>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: st.bg, color: st.color, flexShrink: 0 }}>{st.label}</span>
+      </div>
+      <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 6 }}>
+        {c.request_id?.slice(0, 24)}…
+      </div>
+      <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: isGranted ? 8 : 0 }}>{c.created_at ? fmtDate(c.created_at) : ''}</div>
+
+      {/* Fetch Records button — only when GRANTED */}
+      {isGranted && (
+        <button onClick={records ? () => setExpanded(e => !e) : fetchRecords} disabled={fetching}
+          style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: fetching ? '#d1fae5' : '#16a34a', color: '#fff', fontWeight: 600, fontSize: 11, cursor: fetching ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          {fetching ? 'Fetching…' : records ? (expanded ? '▲ Hide Records' : `▼ View Records (${records.length})`) : '↓ Fetch Medical Records'}
+        </button>
+      )}
+
+      {/* Records list */}
+      {expanded && records && (
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {!records.length ? (
+            <p style={{ margin: 0, fontSize: 11, color: '#64748b', textAlign: 'center', padding: '8px 0' }}>
+              Records are being fetched from ABDM — check back in a moment.
+            </p>
+          ) : records.map((r, i) => (
+            <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+              <div style={{ fontWeight: 600, fontSize: 11, color: '#1e293b', marginBottom: 3 }}>
+                {r.hi_type || 'Health Record'} · {r.care_context_reference || ''}
+              </div>
+              {r.content && (
+                <pre style={{ margin: 0, fontSize: 10, color: '#475569', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 120, overflow: 'auto', background: '#f8fafc', borderRadius: 6, padding: '6px 8px', lineHeight: 1.5 }}>
+                  {typeof r.content === 'string' ? r.content.slice(0, 800) : JSON.stringify(r.content, null, 2).slice(0, 800)}
+                </pre>
+              )}
+              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+                {r.received_at ? fmtDate(r.received_at) : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConsentsTab({ appt, patientAbhaAddress }) {
+  const abha  = patientAbhaAddress || appt?.patient_abha || '';
   const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
-  const [consents,    setConsents]    = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [showModal,   setShowModal]   = useState(false);
+  const [consents,  setConsents]  = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -491,9 +563,14 @@ function ConsentsTab({ appt }) {
     }).catch(() => {}).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [appt?.id]); // eslint-disable-line
-
-  const PURPOSE_LABEL = { CAREMGT: 'Care Management', BTG: 'Break the Glass', PUBHLTH: 'Public Health', HPAYMT: 'Healthcare Payment', DSRCH: 'Disease Research' };
+  // Poll every 10s while any consent is in REQUESTED state
+  useEffect(() => {
+    load();
+    const hasRequested = consents.some(c => c.status === 'REQUESTED');
+    if (!hasRequested) return;
+    const timer = setInterval(load, 10000);
+    return () => clearInterval(timer);
+  }, [appt?.id, consents.some(c => c.status === 'REQUESTED')]); // eslint-disable-line
 
   if (!abha) return (
     <div style={{ padding: '20px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
@@ -504,14 +581,17 @@ function ConsentsTab({ appt }) {
 
   return (
     <div style={{ padding: '8px 0' }}>
-      <div style={{ padding: '0 16px 12px', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ padding: '0 12px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: '#94a3b8' }}>
+          {consents.some(c => c.status === 'REQUESTED') && '⏳ Waiting for patient…'}
+        </span>
         <button onClick={() => setShowModal(true)}
-          style={{ padding: '7px 14px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Plus size={13} /> Request Consent
+          style={{ padding: '6px 12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Plus size={12} /> Request
         </button>
       </div>
 
-      {loading ? (
+      {loading && !consents.length ? (
         <div style={{ padding: '16px', color: '#94a3b8', fontSize: 13 }}>Loading…</div>
       ) : !consents.length ? (
         <div style={{ padding: '20px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
@@ -520,31 +600,7 @@ function ConsentsTab({ appt }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 12px' }}>
-          {consents.map((c, i) => {
-            const st = STATUS_CFG_C[c.status] || STATUS_CFG_C.REQUESTED;
-            const hiTypes = Array.isArray(c.hi_types) ? c.hi_types : (c.hi_types ? JSON.parse(c.hi_types) : []);
-            return (
-              <div key={c.request_id || i} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                  <div style={{ fontWeight: 600, fontSize: 12, color: '#1e293b' }}>{PURPOSE_LABEL[c.purpose] || c.purpose}</div>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: st.bg, color: st.color }}>{st.label}</span>
-                </div>
-                <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 5 }}>
-                  ID: {c.request_id?.slice(0, 20)}…
-                </div>
-                {hiTypes.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                    {hiTypes.map(t => (
-                      <span key={t} style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: '#f1f5f9', color: '#475569' }}>{t}</span>
-                    ))}
-                  </div>
-                )}
-                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 5 }}>
-                  {c.created_at ? fmtDate(c.created_at) : ''}
-                </div>
-              </div>
-            );
-          })}
+          {consents.map((c, i) => <ConsentCard key={c.request_id || i} c={c} onFetched={load} />)}
         </div>
       )}
 
@@ -676,7 +732,7 @@ export default function PatientContextPanel({ appt, onClose, rightOffset = 0, mi
         {activeTab === 'records'      && <RecordsTab      history={history}    loading={loading}    />}
         {activeTab === 'lab-tests'    && <LabTestsTab     reports={labReports} loading={labLoading} appt={appt} />}
         {activeTab === 'vaccinations' && <VaccinationsTab history={history}    loading={loading}    />}
-        {activeTab === 'consents'     && <ConsentsTab     appt={appt} />}
+        {activeTab === 'consents'     && <ConsentsTab     appt={appt} patientAbhaAddress={patientAbhaAddress} />}
       </div>}
     </div>
   );
