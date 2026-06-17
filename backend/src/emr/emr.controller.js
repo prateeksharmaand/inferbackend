@@ -365,22 +365,128 @@ const addCareContext = async (req, res) => {
   };
 
   // Insert care context WITH fhir_content so it's used instead of buildFhirBundle
+  // link_status starts as 'pending' — ABDM link attempt below will update it
   const { rows } = await pool.query(
-    `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content)
-     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content, link_status)
+     VALUES ($1,$2,$3,$4,$5,'pending') RETURNING *`,
     [patientId, refNum, display, hi_type ?? 'OPConsultation', JSON.stringify(fhirBundle)]
   );
   const careCtx = rows[0];
 
-  logger.info('Created sample FHIR bundle', { careContextId: careCtx.id, resourceCount: fhirBundle.entry.length });
+  logger.info('ABDM Care Context created', {
+    careContextId: careCtx.id,
+    patientId,
+    referenceNumber: refNum,
+    resourceCount: fhirBundle.entry.length,
+    source: 'manual',
+  });
 
-  res.status(201).json({ ...careCtx, sampleBundleCreated: true, bundleEntries: fhirBundle.entry.length });
+  // Attempt HIP-initiated ABDM link if patient has an ABHA number
+  let abdmLinked = false;
+  const { rows: patRows } = await pool.query(
+    `SELECT abha_number, abha_address, name FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`,
+    [patientId]
+  );
+  const patForLink = patRows[0];
+  if (patForLink?.abha_number) {
+    try {
+      const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+      const tokenRes = await abdmSvc.generateLinkToken(hipId);
+      await abdmSvc.linkCareContexts(
+        hipId,
+        tokenRes.linkToken,
+        patForLink.abha_number,
+        patForLink.abha_address,
+        patForLink.name,
+        [{ referenceNumber: refNum, display }]
+      );
+      await pool.query(
+        `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW() WHERE id=$1`,
+        [careCtx.id]
+      );
+      abdmLinked = true;
+      logger.info('ABDM Care Context linked', {
+        careContextId: careCtx.id,
+        referenceNumber: refNum,
+        abhaNumber: patForLink.abha_number,
+      });
+    } catch (linkErr) {
+      await pool.query(
+        `UPDATE emr_care_contexts SET link_status='failed', link_error=$1 WHERE id=$2`,
+        [(linkErr.message || '').slice(0, 500), careCtx.id]
+      ).catch(() => {});
+      logger.warn('ABDM Link failed', {
+        careContextId: careCtx.id,
+        referenceNumber: refNum,
+        error: linkErr.message,
+      });
+    }
+  } else {
+    logger.info('ABDM Care Context created (no ABHA — link skipped)', {
+      careContextId: careCtx.id,
+      referenceNumber: refNum,
+    });
+  }
+
+  res.status(201).json({ ...careCtx, sampleBundleCreated: true, bundleEntries: fhirBundle.entry.length, abdmLinked });
 };
 
 const deleteCareContext = async (req, res) => {
   await pool.query(`DELETE FROM emr_care_contexts WHERE id=$1 AND patient_id=$2`,
     [req.params.ctxId, req.params.id]);
   res.json({ message: 'Deleted' });
+};
+
+// POST /patients/:id/care-contexts/:ctxId/link
+// Manually retry ABDM HIP-initiated link for a care context (e.g. after earlier failure)
+const retryCareContextLink = async (req, res) => {
+  const { rows: ctxRows } = await pool.query(
+    `SELECT cc.*, p.abha_number, p.abha_address, p.name AS patient_name
+     FROM emr_care_contexts cc
+     JOIN emr_patients p ON p.id = cc.patient_id
+     WHERE cc.id=$1 AND cc.patient_id=$2 AND p.deleted_at IS NULL`,
+    [req.params.ctxId, req.params.id]
+  );
+  if (!ctxRows.length) return res.status(404).json({ error: 'Care context not found' });
+  const ctx = ctxRows[0];
+
+  if (!ctx.abha_number) {
+    return res.status(400).json({ error: 'Patient has no ABHA number — cannot link to ABDM' });
+  }
+
+  try {
+    const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+    const tokenRes = await abdmSvc.generateLinkToken(hipId);
+    await abdmSvc.linkCareContexts(
+      hipId,
+      tokenRes.linkToken,
+      ctx.abha_number,
+      ctx.abha_address,
+      ctx.patient_name,
+      [{ referenceNumber: ctx.reference_number, display: ctx.display }]
+    );
+    await pool.query(
+      `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL WHERE id=$1`,
+      [ctx.id]
+    );
+    logger.info('ABDM Care Context linked (manual retry)', {
+      careContextId: ctx.id,
+      referenceNumber: ctx.reference_number,
+      abhaNumber: ctx.abha_number,
+    });
+    res.json({ linked: true, referenceNumber: ctx.reference_number });
+  } catch (err) {
+    await pool.query(
+      `UPDATE emr_care_contexts SET link_status='failed', link_error=$1 WHERE id=$2`,
+      [(err.message || '').slice(0, 500), ctx.id]
+    ).catch(() => {});
+    logger.warn('ABDM Link failed (manual retry)', {
+      careContextId: ctx.id,
+      referenceNumber: ctx.reference_number,
+      error: err.message,
+    });
+    res.status(502).json({ linked: false, error: err.message });
+  }
 };
 
 // ── Pending OTPs (EMR staff sees these to relay to patient) ──────────────────
@@ -652,23 +758,18 @@ const registerAbhaPatient = async (req, res) => {
     await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source: 'qr' });
   }
 
-  // 2. Create care context if encounter details provided
-  let careContext = null;
+  // 2. Care Context: do NOT create at registration/walk-in time.
+  //    ABDM rule: Care Contexts are created when an encounter/consultation is completed,
+  //    not at appointment booking or patient registration.
+  //    If QR walk-in caller supplies encounter details (department/doctor/visitType) it means
+  //    they are simultaneously completing an encounter — treat this as an encounter-level event
+  //    and note it, but still do NOT auto-create a CC here. The saveEncounter flow (via the
+  //    appointment controller) will create and link the CC when the doctor finalises the Rx.
+  const careContext = null;
   if (department || doctor || visitType) {
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const refNum = `OPD-${today}-${String(patient.id).padStart(4,'0')}`;
-    const display = `${visitType || 'OPD'} Visit – ${department || 'General'} – ${new Date().toLocaleDateString('en-IN')}`;
-    try {
-      const { rows: ctx } = await pool.query(
-        `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type)
-         VALUES ($1,$2,$3,'OPConsultation')
-         ON CONFLICT (reference_number) DO UPDATE
-           SET display=EXCLUDED.display
-         RETURNING *`,
-        [patient.id, refNum, display]
-      );
-      careContext = ctx[0];
-    } catch (_) {}
+    logger.info('ABDM Care Context deferred (QR walk-in — encounter not yet finalised)', {
+      patientId: patient.id, department, doctor, visitType,
+    });
   }
 
   // 3. Audit log
@@ -1082,7 +1183,7 @@ const abhaLoginLinkPatient = async (req, res) => {
 
 module.exports = {
   listPatients, createPatient, getPatient, updatePatient, deletePatient, registerAbhaPatient,
-  addCareContext, deleteCareContext,
+  addCareContext, deleteCareContext, retryCareContextLink,
   pendingOtps, healthRequests, activityLog,
   createConsentRequest, listConsentRequests, respondConsent, pullConsentData, getConsentHealthRecords,
   abhaCreateOtp, abhaCreateVerify, abhaCreateMobileOtp, abhaCreateMobileVerify,

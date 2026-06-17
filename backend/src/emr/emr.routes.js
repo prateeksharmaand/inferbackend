@@ -113,8 +113,9 @@ router.get   ('/patients/history',                 appt.listPatientHistory);
 router.get   ('/patients/:id',                     emr.getPatient);
 router.patch ('/patients/:id',                     emr.updatePatient);
 router.delete('/patients/:id',                     emr.deletePatient);
-router.post  ('/patients/:id/care-contexts',       emr.addCareContext);
-router.delete('/patients/:id/care-contexts/:ctxId',emr.deleteCareContext);
+router.post  ('/patients/:id/care-contexts',              emr.addCareContext);
+router.delete('/patients/:id/care-contexts/:ctxId',       emr.deleteCareContext);
+router.post  ('/patients/:id/care-contexts/:ctxId/link',  emr.retryCareContextLink);
 
 // ABHA Creation (M1) — OTP endpoints rate-limited
 router.post('/patients/:id/abha/create-otp',        otpLimiter, emr.abhaCreateOtp);

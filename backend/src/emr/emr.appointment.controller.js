@@ -1,6 +1,8 @@
-const { pool }  = require('../config/database');
-const fhir      = require('../services/fhir.service');
-const hip       = require('./hip.service');
+const { pool }    = require('../config/database');
+const fhir        = require('../services/fhir.service');
+const hip         = require('./hip.service');
+const abdmSvc     = require('../services/abdm.service');
+const logger      = require('../utils/logger');
 const { sendAppointmentConfirmation } = require('./emr.mailer');
 
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
@@ -303,7 +305,10 @@ const saveEncounter = async (req, res) => {
   await pool.query(`UPDATE emr_appointments SET status='completed', completed_at=NOW() WHERE id=$1`, [a.id]);
 
   // ── ABDM: auto-create / update care context so this encounter is discoverable ──
-  // Uses reference number OPD-YYYYMMDD-<apptId> — stable across re-saves of same encounter
+  // Rule: ONE Care Context per encounter (keyed by appointment ID + date).
+  //       Re-saving the same encounter UPDATES the existing CC (ON CONFLICT).
+  //       Clinical data (Rx, notes, labs) within the same visit reuses this CC.
+  //       A new visit on a different date gets a NEW appointment → new CC ref.
   if (a.emr_patient_id) {
     const dateStr  = (a.appointment_date?.toString() || new Date().toISOString()).slice(0, 10).replace(/-/g, '');
     const refNum   = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
@@ -316,15 +321,88 @@ const saveEncounter = async (req, res) => {
       refNum
     );
 
+    // Upsert care context; reset link_status to 'pending' on content update so
+    // the background linker will re-push the updated bundle to ABDM.
     pool.query(
-      `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content)
-       VALUES ($1,$2,$3,'OPConsultation',$4)
+      `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content, link_status)
+       VALUES ($1,$2,$3,'OPConsultation',$4,'pending')
        ON CONFLICT (reference_number) DO UPDATE
          SET display      = EXCLUDED.display,
              fhir_content = EXCLUDED.fhir_content,
-             updated_at   = NOW()`,
+             link_status  = 'pending',
+             updated_at   = NOW()
+       RETURNING *, (xmax = 0) AS inserted`,
       [a.emr_patient_id, refNum, display, abdmFhir]
-    ).catch(err => console.error('[ABDM] care context upsert failed:', err.message));
+    ).then(async (upsertResult) => {
+      const isInsert = upsertResult.rows[0]?.inserted === true;
+      if (isInsert) {
+        logger.info('ABDM Care Context created', {
+          patientId: a.emr_patient_id,
+          referenceNumber: refNum,
+          appointmentId: a.id,
+        });
+      } else {
+        logger.info('ABDM Care Context already exists (updated)', {
+          patientId: a.emr_patient_id,
+          referenceNumber: refNum,
+          appointmentId: a.id,
+        });
+      }
+
+      // Attempt HIP-initiated ABDM link for patients with ABHA address
+      const { rows: patRows } = await pool.query(
+        `SELECT abha_number, abha_address, name FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`,
+        [a.emr_patient_id]
+      );
+      const patient = patRows[0];
+      if (patient?.abha_number) {
+        try {
+          const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+          const tokenRes = await abdmSvc.generateLinkToken(hipId);
+          await abdmSvc.linkCareContexts(
+            hipId,
+            tokenRes.linkToken,
+            patient.abha_number,
+            patient.abha_address,
+            patient.name,
+            [{ referenceNumber: refNum, display }]
+          );
+          await pool.query(
+            `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL
+             WHERE reference_number=$1`,
+            [refNum]
+          );
+          logger.info('ABDM Care Context linked', {
+            patientId: a.emr_patient_id,
+            referenceNumber: refNum,
+            abhaNumber: patient.abha_number,
+          });
+        } catch (linkErr) {
+          const errMsg = linkErr.message || 'Unknown error';
+          await pool.query(
+            `UPDATE emr_care_contexts SET link_status='failed', link_error=$1
+             WHERE reference_number=$2`,
+            [errMsg.slice(0, 500), refNum]
+          ).catch(() => {});
+          logger.warn('ABDM Link failed', {
+            patientId: a.emr_patient_id,
+            referenceNumber: refNum,
+            error: errMsg,
+          });
+        }
+      } else {
+        logger.info('ABDM Care Context created (no ABHA — link skipped)', {
+          patientId: a.emr_patient_id,
+          referenceNumber: refNum,
+        });
+      }
+    }).catch(err => {
+      logger.error('[ABDM] care context upsert failed', {
+        patientId: a.emr_patient_id,
+        referenceNumber: refNum,
+        error: err.message,
+      });
+    });
   }
 
   fhir.pushEncounterBundle(a, rows[0]).catch(err =>
