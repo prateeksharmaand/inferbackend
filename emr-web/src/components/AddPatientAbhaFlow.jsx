@@ -541,7 +541,7 @@ function NoFlow({ onSuccess, onClose }) {
   const sendMobileOtp = async () => {
     setLoading(true);
     try {
-      const res = await api.post('/abha/aadhaar-mobile-otp', { txnId });
+      const res = await api.post('/abha/aadhaar-mobile-otp', { txnId, mobile: mobilePh.trim() });
       setTxnId(res.txnId || res.transactionId || txnId);
       toast.success('OTP sent to mobile');
     } catch (err) { toast.error(err.message); }
