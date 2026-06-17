@@ -43,7 +43,7 @@ function YesFlow({ onSuccess, onClose }) {
   const [byMobile, setByMobile] = useState(false);
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(false);
-  const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'infer-hip';
+  const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
 
   const requestOtp = async () => {
     const val = abhaInput.trim() || mobile.trim();
