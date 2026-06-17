@@ -151,6 +151,62 @@ const updateStatus = async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ error: 'Appointment not found' });
   res.json(rows[0]);
+
+  // Auto-create care context when consultation starts or ends (if patient is ABDM-linked)
+  if ((status === 'ongoing' || status === 'completed') && rows[0].emr_patient_id) {
+    const a = rows[0];
+    setImmediate(async () => {
+      try {
+        const dateStr = (a.appointment_date?.toString() || new Date().toISOString()).slice(0, 10).replace(/-/g, '');
+        const refNum  = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
+        const display = `OPD Consultation – ${a.appointment_date?.toString().slice(0, 10) || dateStr} – ${a.patient_name || 'Patient'}`;
+
+        const { rows: ccRows } = await pool.query(
+          `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, link_status)
+           VALUES ($1,$2,$3,'OPConsultation','pending')
+           ON CONFLICT (reference_number) DO NOTHING
+           RETURNING *`,
+          [a.emr_patient_id, refNum, display]
+        );
+
+        if (!ccRows.length) return; // already existed — saveEncounter will update it with FHIR content
+
+        logger.info('Care context created on status change', { refNum, status, patientId: a.emr_patient_id });
+
+        // Try to ABDM-link if patient has ABHA
+        const { rows: [patient] } = await pool.query(
+          `SELECT abha_number, abha_address, name FROM emr_patients WHERE id=$1`,
+          [a.emr_patient_id]
+        );
+        if (patient?.abha_number && patient?.abha_address) {
+          const hipId = process.env.ABDM_HIP_ID || 'infer-hip';
+          try {
+            const tokenRes = await abdmSvc.generateLinkToken(
+              hipId, patient.abha_number, patient.abha_address,
+              patient.name, a.patient_gender, new Date(a.patient_dob || a.appointment_date).getFullYear()
+            );
+            await abdmSvc.linkCareContexts(
+              hipId, tokenRes.linkToken, patient.abha_number, patient.abha_address,
+              patient.name, [{ referenceNumber: refNum, display }]
+            );
+            await pool.query(
+              `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL WHERE reference_number=$1`,
+              [refNum]
+            );
+            logger.info('Care context linked on status change', { refNum });
+          } catch (linkErr) {
+            await pool.query(
+              `UPDATE emr_care_contexts SET link_status='failed', link_error=$1 WHERE reference_number=$2`,
+              [linkErr.message?.slice(0, 500), refNum]
+            ).catch(() => {});
+            logger.warn('Care context link failed on status change', { refNum, error: linkErr.message });
+          }
+        }
+      } catch (err) {
+        logger.error('Care context creation on status change failed', { error: err.message });
+      }
+    });
+  }
 };
 
 // GET /api/emr/appointments/:id
