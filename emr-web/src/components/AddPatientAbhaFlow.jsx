@@ -13,11 +13,11 @@ const ghostBtn = { width: '100%', padding: '10px', borderRadius: 8, border: '1.5
 const infoBox = { background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#1d4ed8', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 };
 
 // Step indicator matching screenshot style
-function StepBadges({ steps, current }) {
+function StepBadges({ steps, current, startAt = 2 }) {
   return (
     <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
       {steps.map((label, i) => {
-        const idx = i + 2; // badges start at "2"
+        const idx = i + startAt;
         const done = idx < current;
         const active = idx === current;
         return (
@@ -576,7 +576,7 @@ function NoFlow({ onSuccess, onClose }) {
     finally { setLoading(false); }
   };
 
-  const STEPS = ['Verify OTP', 'Mobile OTP', 'ABHA Address'];
+  const STEPS = ['Aadhaar OTP', 'Verify OTP', 'Mobile OTP'];
 
   // Step 5: success
   if (step === 5 && createdPatient) {
@@ -585,7 +585,7 @@ function NoFlow({ onSuccess, onClose }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {step > 1 && <StepBadges steps={STEPS} current={step} />}
+      {step > 1 && <StepBadges steps={STEPS} current={step} startAt={1} />}
 
       {/* Step 1: Consent + Aadhaar + Mobile */}
       {step === 1 && (
@@ -686,28 +686,21 @@ function NoFlow({ onSuccess, onClose }) {
         </>
       )}
 
-      {/* Step 4: PHR / ABHA Address */}
+      {/* Step 4: Choose ABHA Address */}
       {step === 4 && (
         <>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>PHR Address (ABHA Address)</label>
-            <div style={{ position: 'relative' }}>
-              <input style={{ ...inp, paddingRight: 56 }} placeholder="yourname"
-                value={phrAddress}
-                onChange={e => setPhrAddress(e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, ''))} />
-              <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#94a3b8', pointerEvents: 'none' }}>@abdm</span>
-            </div>
-            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>8–18 chars · letters, numbers, dot, underscore</p>
-          </div>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Choose ABHA Address</p>
+
+          {/* Suggestions */}
           {suggestions.length > 0 && (
             <div>
-              <p style={{ margin: '0 0 6px', fontSize: 11, color: '#64748b', fontWeight: 600 }}>Suggestions:</p>
+              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Suggested addresses:</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {suggestions.slice(0, 6).map(sg => {
-                  const val = sg.replace('@abdm', '');
+                  const val = sg.replace('@abdm', '').replace('@sbx', '');
                   return (
                     <button key={sg} onClick={() => setPhrAddress(val)}
-                      style={{ padding: '4px 10px', borderRadius: 20, border: `1.5px solid ${phrAddress === val ? '#7c3aed' : '#e2e8f0'}`, background: phrAddress === val ? '#f3e8ff' : '#fff', color: '#475569', fontSize: 11, cursor: 'pointer' }}>
+                      style={{ padding: '5px 12px', borderRadius: 20, border: `1.5px solid ${phrAddress === val ? '#7c3aed' : '#e2e8f0'}`, background: phrAddress === val ? '#f3e8ff' : '#fff', color: phrAddress === val ? '#7c3aed' : '#475569', fontSize: 12, fontWeight: phrAddress === val ? 600 : 400, cursor: 'pointer' }}>
                       {sg}
                     </button>
                   );
@@ -715,10 +708,49 @@ function NoFlow({ onSuccess, onClose }) {
               </div>
             </div>
           )}
-          <button style={primaryBtn(loading || !phrAddress)} onClick={createAbha}
-            disabled={loading || !phrAddress}>
-            {loading ? 'Creating ABHA…' : 'Create ABHA'}
-          </button>
+
+          {/* No suggestions warning */}
+          {suggestions.length === 0 && (
+            <p style={{ margin: 0, fontSize: 12, color: '#d97706', fontWeight: 500 }}>
+              Could not load suggestions — please enter a custom address below.
+            </p>
+          )}
+
+          {/* Custom address input */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+              {suggestions.length > 0 ? 'Or create a custom ABHA address' : 'Or create a custom ABHA address'}
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{ ...inp, paddingRight: 52 }}
+                placeholder="e.g. prateek.sharma"
+                value={phrAddress}
+                onChange={e => setPhrAddress(e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, ''))}
+              />
+              <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#94a3b8', fontWeight: 500, pointerEvents: 'none' }}>@sbx</span>
+            </div>
+          </div>
+
+          {/* Rules box */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px' }}>
+            <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: '#374151' }}>ABHA Address Rules:</p>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#475569', lineHeight: 1.8 }}>
+              <li>8–18 characters (letters, numbers, or a combination)</li>
+              <li>At most one dot <strong>.</strong> and/or one underscore <strong>_</strong> allowed</li>
+              <li>Dot or underscore must not be at the start or end</li>
+              <li>No other special characters allowed</li>
+            </ul>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button style={ghostBtn} onClick={onClose}>Cancel</button>
+            <button style={primaryBtn(loading || !phrAddress)} onClick={createAbha}
+              disabled={loading || !phrAddress}>
+              {loading ? 'Creating ABHA…' : 'Confirm ABHA Address'}
+            </button>
+          </div>
         </>
       )}
     </div>
