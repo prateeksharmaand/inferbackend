@@ -11,7 +11,6 @@ import PatientProfilePanel from '../components/PatientProfilePanel';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
 import DocAssistAI from '../components/DocAssistAI';
-import AddPatientAbhaFlow from '../components/AddPatientAbhaFlow';
 import styles from './Queue.module.css';
 
 const STATUS_TABS = ['Booked', 'Follow Ups', 'Others'];
@@ -87,7 +86,6 @@ export default function Queue() {
   const [rightTab,     setRightTab]     = useState('MY OPD');
   const [loading,      setLoading]      = useState(true);
   const [viewMode,      setViewMode]      = useState('list');
-  const [showAbhaFlow,  setShowAbhaFlow]  = useState(false);
   const [slotDuration,  setSlotDuration]  = useState(10);
 
   // Column search
@@ -272,7 +270,7 @@ export default function Queue() {
           </div>
 
           <button
-            onClick={() => setShowAbhaFlow(true)}
+            onClick={() => navigate('/add-patient-abha')}
             style={{ padding: '6px 14px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
           >
             <Plus size={13} /> Add Patient via ABHA
@@ -535,12 +533,6 @@ export default function Queue() {
         />
       )}
 
-      {showAbhaFlow && (
-        <AddPatientAbhaFlow
-          onClose={() => setShowAbhaFlow(false)}
-          onSuccess={() => { setShowAbhaFlow(false); fetchBoard(); }}
-        />
-      )}
     </div>
   );
 }

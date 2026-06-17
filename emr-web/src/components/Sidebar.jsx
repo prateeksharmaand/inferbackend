@@ -1,15 +1,14 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut, QrCode } from 'lucide-react';
+import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 const NAV = [
-  { to: '/queue',          Icon: LayoutList, label: 'Queue' },
-  { to: '/profile-shares', Icon: QrCode,     label: 'Profile Shares' },
-  { to: '/voice',          Icon: Mic2,       label: 'Infer Voice AI' },
-  { to: '/payments',       Icon: CreditCard, label: 'Payments' },
-  { to: '/analytics',      Icon: BarChart2,  label: 'Analytics' },
-  { to: '/settings',       Icon: Settings,   label: 'Settings' },
+  { to: '/queue',    Icon: LayoutList, label: 'Queue' },
+  { to: '/voice',    Icon: Mic2,       label: 'Infer Voice AI' },
+  { to: '/payments', Icon: CreditCard, label: 'Payments' },
+  { to: '/analytics',Icon: BarChart2,  label: 'Analytics' },
+  { to: '/settings', Icon: Settings,   label: 'Settings' },
 ];
 
 export default function Sidebar() {

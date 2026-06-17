@@ -211,6 +211,65 @@ function ScanQrTab({ onSuccess }) {
   );
 }
 
+// ── Share Profile tab: show QR + auto-register when patient scans ────────────
+function ShareProfileTab({ onSuccess, hipId }) {
+  const [status, setStatus] = useState('waiting'); // waiting | registering | done
+  const [patient, setPatient] = useState(null);
+  const seenIds = useRef(new Set());
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const rows = await api.get('/profile-shares');
+        const pending = rows.filter(r => r.status === 'pending' && !seenIds.current.has(r.id));
+        if (pending.length > 0) {
+          const share = pending[0];
+          seenIds.current.add(share.id);
+          setStatus('registering');
+          const res = await api.post('/patients/register-abha', {
+            abhaNumber:  share.abha_number  || '',
+            abhaAddress: share.abha_address || '',
+            name:        share.name         || '',
+            gender:      share.gender       || '',
+            dob:         share.dob          || '',
+            phoneNumber: share.mobile       || '',
+          });
+          await api.post(`/profile-shares/${share.id}/link-patient`, { patientId: res.patientId || res.patient?.id });
+          setPatient(res);
+          setStatus('done');
+          toast.success('Patient registered from shared profile!');
+        }
+      } catch { /* silent */ }
+    };
+    poll();
+    const interval = setInterval(poll, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (status === 'done' && patient) return <PatientCard patient={patient} onSuccess={onSuccess} />;
+
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={infoBox}><AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+        <span>Ask patient to open ABDM PHR app → tap <strong>Scan & Share</strong> → scan this QR. Profile will be auto-registered.</span>
+      </div>
+      <div style={{ margin: '16px auto', display: 'inline-block', padding: 16, border: '2px solid #e2e8f0', borderRadius: 12 }}>
+        <QRCodeSVG value="https://phrsbx.abdm.gov.in/share-profile?hip-id=noushealthhip&counter-id=12345" size={170} level="M" />
+      </div>
+      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 12px' }}>HIP ID: <strong>{hipId}</strong></p>
+      {status === 'waiting' && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: '#94a3b8' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7c3aed', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+          Waiting for patient to scan…
+        </div>
+      )}
+      {status === 'registering' && (
+        <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600 }}>Profile received! Registering patient…</div>
+      )}
+    </div>
+  );
+}
+
 // ── YES FLOW: Already has ABHA ──────────────────────────────────────────────
 function YesFlow({ onSuccess, onClose }) {
   const [tab, setTab] = useState('abha');
@@ -321,20 +380,7 @@ function YesFlow({ onSuccess, onClose }) {
       )}
 
       {/* Share Profile tab */}
-      {tab === 'share' && (
-        <div style={{ textAlign: 'center' }}>
-          <div style={infoBox}><AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span>Ask patient to open ABDM PHR app → tap <strong>Scan & Share</strong> → scan this QR.</span>
-          </div>
-          <div style={{ margin: '16px auto', display: 'inline-block', padding: 16, border: '2px solid #e2e8f0', borderRadius: 12 }}>
-            <QRCodeSVG
-              value="https://phrsbx.abdm.gov.in/share-profile?hip-id=noushealthhip&counter-id=12345"
-              size={170} level="M"
-            />
-          </div>
-          <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>HIP ID: <strong>{hipId}</strong></p>
-        </div>
-      )}
+      {tab === 'share' && <ShareProfileTab onSuccess={onSuccess} hipId={hipId} />}
 
       {/* Scan QR tab */}
       {tab === 'qr' && <ScanQrTab onSuccess={onSuccess} />}
@@ -647,8 +693,8 @@ function NoFlow({ onSuccess, onClose }) {
   );
 }
 
-// ── Main Modal ─────────────────────────────────────────────────────────────────
-export default function AddPatientAbhaFlow({ onClose, onSuccess }) {
+// ── Main Component (fullPage or modal) ────────────────────────────────────────
+export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = false }) {
   const [registered, setRegistered] = useState(null); // null | true | false
 
   const handleSuccess = (patient) => {
@@ -656,64 +702,86 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess }) {
     else onClose?.();
   };
 
+  const inner = (
+    <>
+      {/* Header */}
+      <div style={{ padding: fullPage ? '20px 32px 16px' : '18px 24px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {fullPage && (
+          <button onClick={() => onClose?.()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, fontSize: 13, padding: 0, marginRight: 4 }}>
+            ← Back
+          </button>
+        )}
+        <Fingerprint size={20} color="#7c3aed" />
+        <div style={{ flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: fullPage ? 20 : 16, fontWeight: 700, color: '#1e293b' }}>Add Patient via ABHA</h2>
+          {fullPage && <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>Register a new patient using their ABHA</p>}
+        </div>
+        {!fullPage && <button onClick={() => onClose?.()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>}
+      </div>
+
+      <div style={{ padding: fullPage ? '28px 32px' : '20px 24px', maxWidth: fullPage ? 560 : undefined }}>
+        {/* Step 0: Registered? */}
+        {registered === null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
+              Is the patient already registered with ABHA?
+            </p>
+            {[
+              { val: true,  title: 'Yes', desc: 'Patient already has an ABHA number or mobile registered' },
+              { val: false, title: 'No',  desc: 'Create a new ABHA for this patient using Aadhaar' },
+            ].map(({ val, title, desc }) => (
+              <button key={title} onClick={() => setRegistered(val)}
+                style={{ padding: '14px 18px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: '#1e293b' }}>{title}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>{desc}</p>
+                </div>
+                <ChevronRight size={18} color="#94a3b8" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {registered === true && (
+          <>
+            <button onClick={() => setRegistered(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 12, fontWeight: 600, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              ← Back
+            </button>
+            <YesFlow onSuccess={handleSuccess} onClose={onClose} />
+          </>
+        )}
+
+        {registered === false && (
+          <>
+            <button onClick={() => setRegistered(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 12, fontWeight: 600, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              ← Back
+            </button>
+            <NoFlow onSuccess={handleSuccess} onClose={onClose} />
+          </>
+        )}
+      </div>
+    </>
+  );
+
+  if (fullPage) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+        <div style={{ background: '#fff', borderBottom: '1px solid #f1f5f9' }}>
+          {inner}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
       onClick={e => e.target === e.currentTarget && onClose?.()}
     >
       <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 480, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)', position: 'relative' }}>
-        {/* Header */}
-        <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Fingerprint size={20} color="#7c3aed" />
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Add Patient via ABHA</h2>
-          </div>
-          <button onClick={() => onClose?.()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
-        </div>
-
-        <div style={{ padding: '20px 24px' }}>
-          {/* Step 0: Registered? */}
-          {registered === null && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <p style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
-                Is the patient already registered with ABHA?
-              </p>
-              {[
-                { val: true,  title: 'Yes', desc: 'Patient already has an ABHA number or mobile registered' },
-                { val: false, title: 'No',  desc: 'Create a new ABHA for this patient using Aadhaar' },
-              ].map(({ val, title, desc }) => (
-                <button key={title} onClick={() => setRegistered(val)}
-                  style={{ padding: '14px 18px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: '#1e293b' }}>{title}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>{desc}</p>
-                  </div>
-                  <ChevronRight size={18} color="#94a3b8" />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {registered === true && (
-            <>
-              <button onClick={() => setRegistered(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 12, fontWeight: 600, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                ← Back
-              </button>
-              <YesFlow onSuccess={handleSuccess} onClose={onClose} />
-            </>
-          )}
-
-          {registered === false && (
-            <>
-              <button onClick={() => setRegistered(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 12, fontWeight: 600, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                ← Back
-              </button>
-              <NoFlow onSuccess={handleSuccess} onClose={onClose} />
-            </>
-          )}
-        </div>
+        {inner}
       </div>
     </div>
   );

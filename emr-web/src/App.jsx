@@ -19,8 +19,8 @@ import VoiceAI    from './pages/VoiceAI';
 import Assessment from './pages/Assessment';
 import Inbound    from './pages/Inbound';
 import Analytics  from './pages/Analytics';
-import Payments     from './pages/Payments';
-import ProfileShares from './pages/ProfileShares';
+import Payments          from './pages/Payments';
+import AddPatientAbhaPage from './pages/AddPatientAbhaPage';
 import LabLogin from './components/laboratory/LabLogin';
 import LabPortal from './components/laboratory/LabPortal';
 import LabResultViewer from './components/laboratory/LabResultViewer';
@@ -90,7 +90,7 @@ export default function App() {
             <Route path="inbound"            element={<Inbound />} />
             <Route path="analytics"          element={<Analytics />} />
             <Route path="payments"           element={<Payments />} />
-            <Route path="profile-shares"     element={<ProfileShares />} />
+            <Route path="add-patient-abha"   element={<AddPatientAbhaPage />} />
 
             {/* Doctor: View patient lab results (inside clinic layout) */}
             <Route path="patients/:patientId/lab-results" element={<LabResultViewer />} />
