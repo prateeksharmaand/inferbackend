@@ -242,12 +242,12 @@ function _validDisplay(val, fallback) {
   return trimmed;
 }
 
-async function sendDiscoverResult({ requestId, transactionId, patientId, patientRef, careContexts, matchedBy }) {
-  const patientDisplay = _validDisplay(patientId, 'Patient');
+async function sendDiscoverResult({ requestId, transactionId, patientId, patientRef, patientName, careContexts, matchedBy }) {
+  const patientDisplay = _validDisplay(patientName, 'Patient');
 
   const validContexts = careContexts.map(c => {
     const display = _validDisplay(c.display,
-      `OPD Consultation – ${c.reference_number || 'Visit'}`
+      `OPD Consultation - ${c.reference_number || 'Visit'}`
     );
     return {
       referenceNumber: c.reference_number,

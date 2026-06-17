@@ -228,7 +228,7 @@ const updateStatus = async (req, res) => {
           : String(a.appointment_date).slice(0, 10);
         const dateStr = apptIso.replace(/-/g, '');
         const refNum  = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
-        const display = `OPD Consultation – ${apptIso} – ${a.patient_name || 'Patient'}`;
+        const display = `OPD Consultation - ${apptIso} - ${a.patient_name || 'Patient'}`;
 
         const { rows: ccRows } = await pool.query(
           `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, link_status)
@@ -411,7 +411,7 @@ const saveEncounter = async (req, res) => {
       : String(a.appointment_date).slice(0, 10);
     const dateStr  = apptIso.replace(/-/g, '');
     const refNum   = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
-    const display  = `OPD Consultation – ${apptIso} – ${a.patient_name || 'Patient'}`;
+    const display  = `OPD Consultation - ${apptIso} - ${a.patient_name || 'Patient'}`;
 
     // Build rich ABDM-compliant FHIR bundle from real encounter data
     const abdmFhir = hip.buildFhirBundleFromEncounter(

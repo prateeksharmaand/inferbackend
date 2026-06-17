@@ -119,8 +119,9 @@ const handleDiscovery = async (req, res) => {
     await hip.sendDiscoverResult({
       requestId,
       transactionId,
-      patientId: abhaId,
-      patientRef: abhaId,
+      patientId:   abhaId,
+      patientRef:  abhaId,
+      patientName: pt.name || 'Patient',
       careContexts: ctxRows,
       matchedBy,
     });
