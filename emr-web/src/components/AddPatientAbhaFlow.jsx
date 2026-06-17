@@ -149,7 +149,7 @@ function YesFlow({ onSuccess, onClose }) {
           </div>
           <div style={{ margin: '16px auto', display: 'inline-block', padding: 16, border: '2px solid #e2e8f0', borderRadius: 12 }}>
             <QRCodeSVG
-              value={`https://phrsbx.abdm.gov.in/share/profile?hip-id=${encodeURIComponent(hipId)}&counter=1`}
+              value={`https://phrsbx.abdm.gov.in/share/profile?hip-id=${encodeURIComponent(hipId)}&counter=12345`}
               size={170} level="M"
             />
           </div>
