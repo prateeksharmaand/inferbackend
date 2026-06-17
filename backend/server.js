@@ -17,6 +17,7 @@ const LabSocketManager = require('./src/io/labSocketManager');
 const workflowService = require('./src/services/laboratory/workflowService');
 const inboundWebhook = require('./src/emr/inbound/inbound.webhook.controller');
 const waWebhook      = require('./src/emr/inbound/whatsapp.webhook.controller');
+const salesWaWebhook = require('./src/sales/sales.wa.webhook');
 const { sendPendingReminders } = require('./src/emr/inbound/booking.orchestrator');
 
 // ── Startup environment validation (fail fast before any DB connections) ──────
@@ -220,8 +221,14 @@ app.post('/api/v3/hip/patient/running-token/status', verifyAbdmCallback, hipCtrl
 
 // ── Meta WhatsApp Cloud API webhook (registered in Facebook Developer Console) ──
 // GET  = hub challenge verification  POST = inbound messages + status updates
-app.get ('/webhook/whatsapp', waWebhook.verify);
-app.post('/webhook/whatsapp', waWebhook.handle);
+app.get ('/webhook/whatsapp',      waWebhook.verify);
+app.post('/webhook/whatsapp',      waWebhook.handle);
+
+// ── Sales agent — Meta WhatsApp inbound replies from leads ────────────────────
+app.get ('/webhook/meta/whatsapp', salesWaWebhook.verifyWebhook);
+app.post('/webhook/meta/whatsapp', salesWaWebhook.receiveWebhook);
+app.get ('/api/sales/wa/inbox',    salesWaWebhook.getInbox);
+app.post('/api/sales/wa/inbox/ack',salesWaWebhook.ackMessages);
 
 // ── Exotel inbound webhooks — SMS + IVR (India) ────────────────────────────
 // Exotel signs each request with HMAC-SHA1 in X-Exotel-Signature header.
