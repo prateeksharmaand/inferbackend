@@ -640,6 +640,10 @@ async function initializeDatabase() {
       )
     `);
     await client.query(`ALTER TABLE hip_consent_artifacts ADD COLUMN IF NOT EXISTS patient_abha VARCHAR(200)`);
+    await client.query(`ALTER TABLE emr_care_contexts ADD COLUMN IF NOT EXISTS link_status TEXT NOT NULL DEFAULT 'pending' CHECK (link_status IN ('pending','linked','failed'))`);
+    await client.query(`ALTER TABLE emr_care_contexts ADD COLUMN IF NOT EXISTS linked_at  TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE emr_care_contexts ADD COLUMN IF NOT EXISTS link_error TEXT`);
+    await client.query(`ALTER TABLE emr_care_contexts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);
 
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');
