@@ -625,6 +625,16 @@ const consentNotify = async (req, res) => {
           const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl);
           const txnId = result?.hiRequest?.transactionId ?? abdm.uuid();
           logger.info('HIU health-info request sent to CM', { artefactId: artefact.id, txnId });
+
+          // Persist HIU key to DB so decryption works even after server restart
+          const hiuKey = abdm.getHiuKey(artefact.id);
+          if (hiuKey) {
+            await pool.query(
+              `UPDATE hip_health_requests SET hiu_key_material=$1 WHERE transaction_id=$2`,
+              [JSON.stringify({ privKey: Buffer.from(hiuKey.privBytes).toString('base64'), nonce: hiuKey.nonce }), txnId]
+            ).catch(() => {}); // best-effort
+          }
+
           await pool.query(
             `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW()
              WHERE request_id=$2 OR abdm_request_id=$2`,
@@ -669,15 +679,23 @@ const healthInfoPush = async (req, res) => {
     const hipPubKey = keyMaterial?.dhPublicKey?.keyValue;
     const hipNonce  = keyMaterial?.nonce;
 
-    // Find the consent artefact ID for this transaction so we can retrieve the stored HIU key
+    // Find the consent artefact ID and HIU key for decryption
     let hiuKeyEntry = null;
     if (hipPubKey && hipNonce) {
       const { rows: hrRows } = await pool.query(
-        'SELECT consent_id FROM hip_health_requests WHERE transaction_id=$1 LIMIT 1',
+        'SELECT consent_id, hiu_key_material FROM hip_health_requests WHERE transaction_id=$1 LIMIT 1',
         [transactionId]
       ).catch(() => ({ rows: [] }));
       const consentId = hrRows[0]?.consent_id;
-      if (consentId) hiuKeyEntry = abdm.getHiuKey(consentId);
+      // Try in-memory cache first, then fall back to DB-persisted key
+      if (consentId) {
+        hiuKeyEntry = abdm.getHiuKey(consentId);
+        if (!hiuKeyEntry && hrRows[0]?.hiu_key_material) {
+          const km = hrRows[0].hiu_key_material;
+          hiuKeyEntry = { privBytes: Buffer.from(km.privKey, 'base64'), nonce: km.nonce };
+          logger.info('HIU health-info push: restored key from DB', { transactionId, consentId });
+        }
+      }
       logger.info('HIU health-info push: key lookup', { transactionId, consentId, hasKey: !!hiuKeyEntry });
     }
 
@@ -756,10 +774,10 @@ const healthInfoPush = async (req, res) => {
       });
       await pool.query(
         `INSERT INTO health_records
-           (transaction_id, care_context_reference, content, media, checksum, page_number, page_count)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+           (transaction_id, care_context_reference, hi_type, content, media, checksum, page_number, page_count)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          ON CONFLICT DO NOTHING`,
-        [transactionId, entry.careContextReference, content, entry.media, entry.checksum, pageNumber, pageCount]
+        [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]
       );
     }
     logger.info('HIU health-info push stored', { transactionId, count: entries.length });

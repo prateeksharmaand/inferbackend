@@ -224,6 +224,7 @@ async function initializeDatabase() {
         id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         transaction_id         VARCHAR(100),
         care_context_reference VARCHAR(200),
+        hi_type                VARCHAR(50),
         content                TEXT,
         media                  VARCHAR(50),
         checksum               TEXT,
@@ -644,6 +645,8 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE emr_care_contexts ADD COLUMN IF NOT EXISTS linked_at  TIMESTAMPTZ`);
     await client.query(`ALTER TABLE emr_care_contexts ADD COLUMN IF NOT EXISTS link_error TEXT`);
     await client.query(`ALTER TABLE emr_care_contexts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);
+    await client.query(`ALTER TABLE health_records ADD COLUMN IF NOT EXISTS hi_type VARCHAR(50)`);
+    await client.query(`ALTER TABLE hip_health_requests ADD COLUMN IF NOT EXISTS hiu_key_material JSONB`);
     // ON CONFLICT requires a non-deferrable unique constraint — recreate if deferrable
     await client.query(`ALTER TABLE emr_care_contexts DROP CONSTRAINT IF EXISTS uq_care_ctx_ref_num`);
     await client.query(`ALTER TABLE emr_care_contexts ADD CONSTRAINT uq_care_ctx_ref_num UNIQUE (reference_number)`);

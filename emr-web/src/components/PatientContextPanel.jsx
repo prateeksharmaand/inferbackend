@@ -480,7 +480,14 @@ function ConsentRequestModal({ abha, hipId, onClose, onSent }) {
 // ── FHIR Bundle Reader ────────────────────────────────────────────────────────
 function FhirBundleReader({ content }) {
   let bundle = null;
-  try { bundle = typeof content === 'string' ? JSON.parse(content) : content; } catch { return <p style={{ fontSize: 11, color: '#ef4444' }}>Invalid FHIR content</p>; }
+  try {
+    if (typeof content !== 'string') { bundle = content; }
+    else {
+      // content is stored as base64-encoded FHIR JSON
+      try { bundle = JSON.parse(atob(content)); }
+      catch { bundle = JSON.parse(content); } // fallback: already plain JSON
+    }
+  } catch { return <p style={{ fontSize: 11, color: '#ef4444' }}>Could not parse health record content.</p>; }
   if (!bundle) return null;
 
   // Collect all entries from bundle or nested bundles

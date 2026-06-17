@@ -682,11 +682,11 @@ async function _pullHealthData(requestId, clinicId) {
     const checksum = crypto.createHash('sha256').update(fhir).digest('hex');
 
     await pool.query(
-      `INSERT INTO health_records (transaction_id, care_context_reference, content, media, checksum)
-       VALUES ($1,$2,$3,'application/fhir+json',$4)
+      `INSERT INTO health_records (transaction_id, care_context_reference, hi_type, content, media, checksum)
+       VALUES ($1,$2,$3,$4,'application/fhir+json',$5)
        ON CONFLICT (transaction_id, care_context_reference)
-       DO UPDATE SET content=$3, checksum=$4`,
-      [txnId, ctx.reference_number, content, checksum]
+       DO UPDATE SET content=$4, checksum=$5, hi_type=$3`,
+      [txnId, ctx.reference_number, ctx.hi_type || 'OPConsultation', content, checksum]
     );
   }
 
