@@ -19,6 +19,7 @@ import VoiceAI    from './pages/VoiceAI';
 import Assessment from './pages/Assessment';
 import Inbound    from './pages/Inbound';
 import Analytics  from './pages/Analytics';
+import AbdmDashboard from './pages/AbdmDashboard';
 import Payments   from './pages/Payments';
 import LabLogin from './components/laboratory/LabLogin';
 import LabPortal from './components/laboratory/LabPortal';
@@ -88,6 +89,7 @@ export default function App() {
             <Route path="settings"           element={<Settings />} />
             <Route path="inbound"            element={<Inbound />} />
             <Route path="analytics"          element={<Analytics />} />
+            <Route path="abdm"               element={<AbdmDashboard />} />
             <Route path="payments"           element={<Payments />} />
 
             {/* Doctor: View patient lab results (inside clinic layout) */}

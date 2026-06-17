@@ -3,7 +3,9 @@ import {
   X, User, Clock, Stethoscope, ClipboardList, FileText,
   Activity, Search, PlusCircle, IndianRupee, Paperclip,
   ChevronRight, CalendarCheck, Syringe, Utensils, FlaskConical,
+  Shield, Link2, FileCheck, AlertCircle, CheckCircle, Loader,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { api } from '../api/client';
 import MedicalHistorySection from './MedicalHistorySection';
 import MedicalRecordsTab from './MedicalRecordsTab';
@@ -48,6 +50,8 @@ function EmptyState({ text }) {
 const TABS = [
   { key: 'Past Visits',          icon: Clock },
   { key: 'Patient Overview',     icon: User },
+  { key: 'ABHA & Linking',       icon: Shield },
+  { key: 'Care Contexts',        icon: FileCheck },
   { key: 'Treatments',           icon: Stethoscope },
   { key: 'Medical History',      icon: ClipboardList },
   { key: 'Medical Records',      icon: FileText },
@@ -598,6 +602,147 @@ function VaccinationsTab({ history, appt }) {
   );
 }
 
+// ── ABHA & Linking ───────────────────────────────────────────────────────────
+function AbhaLinkingTab({ appt, onLinked }) {
+  const [step, setStep]   = useState('idle');
+  const [abhaId, setAbhaId] = useState('');
+  const [otp, setOtp]     = useState('');
+  const [txnId, setTxnId] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const hasAbha = !!(appt.patient_abha || appt.abha_number);
+
+  const requestOtp = async () => {
+    if (!abhaId.trim()) return toast.error('Enter ABHA number or address');
+    setLoading(true);
+    try {
+      const patientId = appt.emr_patient_id || appt.patient_id;
+      if (!patientId) return toast.error('Patient ID not found');
+      const res = await api.post(`/patients/${patientId}/abha/verify-otp`, { abhaId: abhaId.trim() });
+      setTxnId(res.txnId || res.transactionId || '');
+      setStep('verify');
+      toast.success('OTP sent to patient\'s mobile');
+    } catch (err) { toast.error(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const confirmOtp = async () => {
+    if (!otp.trim()) return toast.error('Enter OTP');
+    setLoading(true);
+    try {
+      const patientId = appt.emr_patient_id || appt.patient_id;
+      await api.post(`/patients/${patientId}/abha/verify-confirm`, { otp, txnId });
+      toast.success('ABHA linked successfully!');
+      setStep('done');
+      onLinked?.();
+    } catch (err) { toast.error(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const reset = () => { setStep('idle'); setOtp(''); setAbhaId(''); setTxnId(''); };
+
+  const inp = { width: '100%', padding: '8px 12px', borderRadius: 6, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box' };
+  const btn = { width: '100%', padding: '9px 14px', borderRadius: 6, border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: loading ? 0.6 : 1 };
+
+  return (
+    <div className={styles.tabPad} style={{ maxWidth: 440 }}>
+      <div style={{ background: hasAbha ? '#f0fdf4' : '#faf5ff', border: `1.5px solid ${hasAbha ? '#86efac' : '#d8b4fe'}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hasAbha ? 8 : 0 }}>
+          {hasAbha ? <CheckCircle size={18} color="#16a34a" /> : <Shield size={18} color="#7c3aed" />}
+          <span style={{ fontWeight: 700, fontSize: 13, color: hasAbha ? '#166534' : '#6b21a8' }}>
+            {hasAbha ? 'ABHA Linked' : 'ABHA Not Linked'}
+          </span>
+        </div>
+        {hasAbha && (
+          <div style={{ fontSize: 12, color: '#374151' }}>
+            {appt.patient_abha && <div><strong>ABHA:</strong> {appt.patient_abha}</div>}
+            {appt.abha_number && <div><strong>Number:</strong> {appt.abha_number}</div>}
+          </div>
+        )}
+      </div>
+
+      {step === 'idle' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Link or create ABHA to enable ABDM health data sharing</p>
+          <button style={btn} onClick={() => setStep('link')}>Link Existing ABHA</button>
+          {!hasAbha && <button style={{ ...btn, background: '#0284c7' }} onClick={() => setStep('create')}>Create New ABHA</button>}
+        </div>
+      )}
+
+      {step === 'link' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <input style={inp} placeholder="ABHA number or address" value={abhaId} onChange={e => setAbhaId(e.target.value)} />
+          <button style={btn} onClick={requestOtp} disabled={loading}>{loading ? 'Sending…' : 'Send OTP'}</button>
+          <button style={{ ...btn, background: '#94a3b8' }} onClick={reset}>Cancel</button>
+        </div>
+      )}
+
+      {step === 'create' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'center', color: '#64748b' }}>
+          <p style={{ margin: 0, fontSize: 12 }}>ABHA creation via Aadhaar is available on the main Patients page → ABHA QR Scan</p>
+          <button style={{ ...btn, background: '#475569' }} onClick={reset}>Back</button>
+        </div>
+      )}
+
+      {step === 'verify' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ background: '#eff6ff', borderRadius: 6, padding: '9px 12px', fontSize: 12, color: '#1d4ed8' }}>OTP sent to registered mobile</div>
+          <input style={inp} placeholder="6-digit OTP" value={otp} onChange={e => setOtp(e.target.value)} maxLength={6} />
+          <button style={btn} onClick={confirmOtp} disabled={loading}>{loading ? 'Verifying…' : 'Verify & Link'}</button>
+          <button style={{ ...btn, background: '#94a3b8' }} onClick={reset}>Cancel</button>
+        </div>
+      )}
+
+      {step === 'done' && (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <CheckCircle size={36} color="#16a34a" style={{ marginBottom: 8 }} />
+          <p style={{ fontWeight: 700, color: '#166534', margin: '8px 0 0' }}>ABHA linked successfully!</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Care Contexts ─────────────────────────────────────────────────────────────
+function CareContextsTab({ patientId }) {
+  const [contexts, setContexts] = useState([]);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    if (!patientId) { setLoading(false); return; }
+    api.get(`/patients/${patientId}`)
+      .then(p => { setContexts(p.care_contexts || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [patientId]);
+
+  if (loading) return <div className={styles.tabPad}><p className={styles.hint}>Loading…</p></div>;
+  if (!contexts.length) {
+    return (
+      <EmptyState text="No care contexts yet. Complete an OPD encounter and the system will auto-create one." />
+    );
+  }
+
+  return (
+    <div className={styles.tabPad}>
+      {contexts.map((c, i) => (
+        <div key={c.id || i} style={{ border: '1px solid #e2e8f0', borderRadius: 9, padding: '11px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 11 }}>
+          <div style={{ width: 32, height: 32, background: '#faf5ff', border: '1.5px solid #d8b4fe', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <FileCheck size={14} color="#7c3aed" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.display}</div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Ref: {c.reference_number}</div>
+          </div>
+          {c.fhir_content && <span style={{ fontSize: 10, background: '#f0fdf4', color: '#166534', padding: '2px 7px', borderRadius: 6, fontWeight: 600, flexShrink: 0 }}>FHIR ✓</span>}
+          <div style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0 }}>
+            {c.created_at ? new Date(c.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : ''}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main panel ────────────────────────────────────────────────────────────────
 export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
   const [tab,            setTab]            = useState('Past Visits');
@@ -698,6 +843,12 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
             )}
             {tab === 'Patient Overview' && (
               <PatientOverview appt={appt} history={history} abhaAddresses={abhaAddresses} />
+            )}
+            {tab === 'ABHA & Linking' && (
+              <AbhaLinkingTab appt={appt} onLinked={() => { /* refresh patient data */ }} />
+            )}
+            {tab === 'Care Contexts' && (
+              <CareContextsTab patientId={appt.emr_patient_id || appt.patient_id} />
             )}
             {tab === 'Treatments' && (
               <Treatments history={history} />

@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut } from 'lucide-react';
+import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut, Shield } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 const NAV = [
@@ -8,6 +8,7 @@ const NAV = [
   { to: '/voice',    Icon: Mic2,          label: 'Infer Voice AI' },
   { to: '/payments', Icon: CreditCard,    label: 'Payments' },
   { to: '/analytics',Icon: BarChart2,     label: 'Analytics' },
+  { to: '/abdm',     Icon: Shield,        label: 'ABDM Gateway' },
   { to: '/settings', Icon: Settings,      label: 'Settings' },
 ];
 
