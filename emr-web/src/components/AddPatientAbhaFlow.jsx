@@ -602,7 +602,7 @@ function NoFlow({ onSuccess, onClose }) {
           </div>
 
           {/* Patient consent */}
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
+          <div style={{ border: `1.5px solid ${consent1 ? '#7c3aed' : '#e2e8f0'}`, borderRadius: 10, padding: 16, background: consent1 ? '#faf5ff' : '#fff', transition: 'all 0.2s' }}>
             <p style={{ margin: '0 0 10px', fontWeight: 700, fontSize: 13, color: '#1e293b' }}>Patient Consent for ABHA Creation</p>
             <p style={{ margin: '0 0 10px', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
               I voluntarily consent to the creation of my Ayushman Bharat Health Account (ABHA) under the Ayushman Bharat Digital Mission (ABDM). I understand that:
@@ -614,23 +614,26 @@ function NoFlow({ onSuccess, onClose }) {
               <li>I can review, manage, grant, deny, or revoke consent at any time through ABDM-compliant applications.</li>
               <li>Creation of an ABHA is voluntary and I may choose not to create one.</li>
             </ul>
-            <p style={{ margin: '0 0 12px', fontSize: 12, color: '#475569' }}>
+            <p style={{ margin: '0 0 14px', fontSize: 12, color: '#475569' }}>
               By proceeding, I confirm that I have read and understood the above and provide my consent for ABHA creation.
             </p>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: consent1 ? '#ede9fe' : '#f8fafc', borderRadius: 8, padding: '10px 12px', border: `1px solid ${consent1 ? '#c4b5fd' : '#e2e8f0'}` }}>
               <input type="checkbox" checked={consent1} onChange={e => setConsent1(e.target.checked)}
-                style={{ marginTop: 2, accentColor: '#7c3aed', width: 15, height: 15, flexShrink: 0 }} />
+                style={{ accentColor: '#7c3aed', width: 16, height: 16, flexShrink: 0, cursor: 'pointer' }} />
               <span style={{ fontSize: 12, color: '#1e293b', fontWeight: 600 }}>I, the patient, give my consent for ABHA creation</span>
             </label>
           </div>
 
           {/* Health worker declaration */}
-          <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
+          <div style={{ border: `1.5px solid ${consent2 ? '#7c3aed' : '#e2e8f0'}`, borderRadius: 10, padding: 16, background: consent2 ? '#faf5ff' : '#fff', transition: 'all 0.2s' }}>
             <p style={{ margin: '0 0 10px', fontWeight: 700, fontSize: 13, color: '#1e293b' }}>Health Worker Declaration</p>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+            <p style={{ margin: '0 0 14px', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
+              I declare that I have informed the patient about ABHA creation and obtained their verbal consent to proceed on their behalf.
+            </p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: consent2 ? '#ede9fe' : '#f8fafc', borderRadius: 8, padding: '10px 12px', border: `1px solid ${consent2 ? '#c4b5fd' : '#e2e8f0'}` }}>
               <input type="checkbox" checked={consent2} onChange={e => setConsent2(e.target.checked)}
-                style={{ marginTop: 2, accentColor: '#7c3aed', width: 15, height: 15, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: '#1e293b' }}>I declare that I have informed the patient about ABHA creation and obtained their verbal consent to proceed on their behalf.</span>
+                style={{ accentColor: '#7c3aed', width: 16, height: 16, flexShrink: 0, cursor: 'pointer' }} />
+              <span style={{ fontSize: 12, color: '#1e293b', fontWeight: 600 }}>I confirm the above declaration</span>
             </label>
           </div>
 
@@ -731,24 +734,42 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
     else onClose?.();
   };
 
+  // Header back action: page-level back (to previous page) OR step-level back (to Yes/No selector)
+  const headerBackLabel = registered !== null ? 'Back' : fullPage ? 'Back' : null;
+  const headerBackAction = registered !== null ? () => setRegistered(null) : onClose;
+
   const inner = (
     <>
-      {/* Header */}
-      <div style={{ padding: fullPage ? '20px 32px 16px' : '18px 24px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
-        {fullPage && (
-          <button onClick={() => onClose?.()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, fontSize: 13, padding: 0, marginRight: 4 }}>
-            ← Back
+      {/* Single unified header */}
+      <div style={{
+        padding: fullPage ? '16px 32px' : '16px 24px',
+        borderBottom: '1px solid #f1f5f9',
+        display: 'flex', alignItems: 'center', gap: 12,
+        background: '#fff', position: 'sticky', top: 0, zIndex: 10,
+      }}>
+        {(fullPage || registered !== null) && (
+          <button onClick={headerBackAction}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, fontSize: 13, padding: '6px 0', flexShrink: 0 }}>
+            ← {headerBackLabel}
           </button>
         )}
-        <Fingerprint size={20} color="#7c3aed" />
-        <div style={{ flex: 1 }}>
-          <h2 style={{ margin: 0, fontSize: fullPage ? 20 : 16, fontWeight: 700, color: '#1e293b' }}>Add Patient via ABHA</h2>
-          {fullPage && <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>Register a new patient using their ABHA</p>}
+        <div style={{ width: 1, height: 20, background: '#e2e8f0', display: (fullPage || registered !== null) ? 'block' : 'none' }} />
+        <Fingerprint size={18} color="#7c3aed" style={{ flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {registered === true ? 'Registered with ABHA' : registered === false ? 'Create ABHA via Aadhaar' : 'Add Patient via ABHA'}
+          </h2>
+          <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>
+            {registered === true ? 'Fetch patient using ABHA number, mobile, QR or profile share'
+              : registered === false ? 'New ABHA creation using Aadhaar number'
+              : 'Register a new patient using their ABHA'}
+          </p>
         </div>
-        {!fullPage && <button onClick={() => onClose?.()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>}
+        {!fullPage && <button onClick={() => onClose?.()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 20, lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>}
       </div>
 
-      <div style={{ padding: fullPage ? '28px 32px' : '20px 24px', maxWidth: fullPage ? 560 : undefined }}>
+      {/* Scrollable content */}
+      <div style={{ padding: fullPage ? '28px 32px' : '20px 24px', maxWidth: fullPage ? 580 : undefined, overflowY: 'auto' }}>
         {/* Step 0: Registered? */}
         {registered === null && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -756,48 +777,31 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
               Is the patient already registered with ABHA?
             </p>
             {[
-              { val: true,  title: 'Yes', desc: 'Patient already has an ABHA number or mobile registered' },
+              { val: true,  title: 'Yes', desc: 'Patient already has an ABHA number, mobile, or ABHA card' },
               { val: false, title: 'No',  desc: 'Create a new ABHA for this patient using Aadhaar' },
             ].map(({ val, title, desc }) => (
               <button key={title} onClick={() => setRegistered(val)}
-                style={{ padding: '14px 18px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                style={{ padding: '16px 18px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', transition: 'border-color 0.15s' }}>
                 <div>
                   <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: '#1e293b' }}>{title}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>{desc}</p>
+                  <p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748b' }}>{desc}</p>
                 </div>
-                <ChevronRight size={18} color="#94a3b8" />
+                <ChevronRight size={18} color="#94a3b8" style={{ flexShrink: 0 }} />
               </button>
             ))}
           </div>
         )}
 
-        {registered === true && (
-          <>
-            <button onClick={() => setRegistered(null)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 12, fontWeight: 600, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}>
-              ← Back
-            </button>
-            <YesFlow onSuccess={handleSuccess} onClose={onClose} />
-          </>
-        )}
-
-        {registered === false && (
-          <>
-            <button onClick={() => setRegistered(null)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 12, fontWeight: 600, padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}>
-              ← Back
-            </button>
-            <NoFlow onSuccess={handleSuccess} onClose={onClose} />
-          </>
-        )}
+        {registered === true  && <YesFlow onSuccess={handleSuccess} onClose={onClose} />}
+        {registered === false && <NoFlow onSuccess={handleSuccess} onClose={onClose} />}
       </div>
     </>
   );
 
   if (fullPage) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-        <div style={{ background: '#fff', borderBottom: '1px solid #f1f5f9' }}>
+      <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: '#fff', flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 640, width: '100%', margin: '0 auto', boxShadow: '0 0 0 1px #f1f5f9' }}>
           {inner}
         </div>
       </div>
@@ -809,7 +813,7 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
       onClick={e => e.target === e.currentTarget && onClose?.()}
     >
-      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 480, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)', position: 'relative' }}>
+      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 500, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)', position: 'relative', display: 'flex', flexDirection: 'column' }}>
         {inner}
       </div>
     </div>
