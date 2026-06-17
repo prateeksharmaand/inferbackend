@@ -501,6 +501,7 @@ function NoFlow({ onSuccess, onClose }) {
   const [mobileOtp, setMobileOtp] = useState('');
   const [phrAddress, setPhrAddress] = useState('');
   const [txnId, setTxnId] = useState('');
+  const [enrollTxnId, setEnrollTxnId] = useState(''); // byAadhaar txnId — passed unchanged to suggestions
   const [xToken, setXToken] = useState('');
   const [linkedMobile, setLinkedMobile] = useState('');
   const [abdmProfile, setAbdmProfile] = useState(null);
@@ -528,7 +529,9 @@ function NoFlow({ onSuccess, onClose }) {
     setLoading(true);
     try {
       const res = await api.post('/abha/aadhaar-verify', { otp, txnId, mobile: mobilePh.trim() });
-      setTxnId(res.txnId || res.transactionId || txnId);
+      const newTxnId = res.txnId || res.transactionId || txnId;
+      setTxnId(newTxnId);
+      setEnrollTxnId(newTxnId); // preserve enrollment txnId for suggestions
       setXToken(res.tokens?.token || res.xToken || '');
       setLinkedMobile(res.mobileNumber || res.mobile || mobilePh);
       setAbdmProfile(res.ABHAProfile || res.profile || res);
@@ -556,7 +559,8 @@ function NoFlow({ onSuccess, onClose }) {
       const newXToken = res.tokens?.token || res.xToken || xToken;
       setTxnId(res.txnId || res.transactionId || txnId);
       setXToken(newXToken);
-      const sugRes = await api.post('/abha/aadhaar-suggestions', { xToken: newXToken, txnId: res.txnId || txnId });
+      // always use the byAadhaar txnId for suggestions — not the mobile OTP txnId
+      const sugRes = await api.post('/abha/aadhaar-suggestions', { xToken: newXToken, txnId: enrollTxnId });
       setSuggestions(sugRes.abhaAddressList || sugRes.suggestions || []);
       setStep(4);
     } catch (err) { toast.error(err.message); }
