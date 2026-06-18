@@ -64,8 +64,9 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
 
   // Patient
   const [patient,    setPatient]    = useState(
-    prefill.patient_name ? { id: prefill.patient_id || null, name: prefill.patient_name, mobile: prefill.patient_mobile || '', abha_number: prefill.patient_abha || '', gender: '' } : null
+    prefill.patient_name ? { id: prefill.patient_id || null, name: prefill.patient_name, mobile: prefill.patient_mobile || '', abha_number: prefill.patient_abha || '', gender: prefill.patient_gender || '', dob: prefill.patient_dob || '' } : null
   );
+  const [patientDob, setPatientDob] = useState(prefill.patient_dob || '');
   const [changingPt, setChangingPt] = useState(!prefill.patient_name);
   const [ptQuery,    setPtQuery]    = useState('');
   const [ptResults,  setPtResults]  = useState([]);
@@ -133,6 +134,7 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
 
   const selectPatient = (p) => {
     setPatient(p);
+    setPatientDob(p.dob || '');
     setChangingPt(false);
     setPtQuery('');
     setPtResults([]);
@@ -165,11 +167,13 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
     if (!selectedSlot)  return setError('Please select a time slot');
     setSaving(true); setError('');
     try {
+      const effectiveDob = patientDob || patient.dob || '';
       await api.post('/appointments', {
         patient_name:    patient.name,
         patient_mobile:  patient.mobile || '',
         patient_abha:    patient.abha_number || patient.abha_address || '',
         patient_gender:  patient.gender || '',
+        patient_dob:     effectiveDob,
         emr_patient_id:  patient.id || undefined,
         queue_id:        queueId,
         doctor_id:       doctorId || undefined,
@@ -179,6 +183,10 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
         channel:         mode === 'tele' ? 'tele_consultation' : 'walk_in',
         status:          'booked',
       });
+      // If DOB was entered and patient exists in DB, save it for ABDM linking
+      if (effectiveDob && patient.id) {
+        api.patch(`/patients/${patient.id}`, { dob: effectiveDob }).catch(() => {});
+      }
       window.dispatchEvent(new CustomEvent('appointment:created'));
       if (onBooked) onBooked();
       else onClose();
@@ -247,6 +255,28 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
                       </div>
                     </button>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── DOB field — shown when patient has no DOB (required for ABDM care context linking) ── */}
+          {patient && !changingPt && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>
+                Date of Birth
+                {!patient.dob && <span style={{ color: '#ef4444', marginLeft: 4, fontSize: 11 }}>* Required for ABDM linking</span>}
+              </label>
+              <input
+                type="date"
+                value={patientDob}
+                onChange={e => setPatientDob(e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                style={{ width: '100%', padding: '8px 12px', border: `1.5px solid ${!patientDob && !patient.dob ? '#fca5a5' : '#e2e8f0'}`, borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+              />
+              {patientDob && (
+                <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 3 }}>
+                  Year of birth: {new Date(patientDob).getFullYear()} — will be saved to patient record
                 </div>
               )}
             </div>
