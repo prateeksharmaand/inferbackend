@@ -734,20 +734,23 @@ function ConsentCard({ c, onFetched, abha }) {
     try {
       const pullRes = await api.post(`/consents/${c.request_id}/pull-data`);
       if (pullRes.source === 'abdm_pending') {
-        toast.success('Request sent to ABDM — records will appear when the HIP delivers them');
-        setRecords([]);
-        setExpanded(true);
+        // Keep records=null so the button stays as "Fetch Medical Records"
+        // allowing the user to click again once ABDM delivers
+        toast.success('Request sent to ABDM — click "Fetch Medical Records" again in a moment to load records');
         onFetched?.();
         return;
       }
       const abhaParam = abha ? `?abha=${encodeURIComponent(abha)}` : '';
       const recs = await api.get(`/consents/health-records${abhaParam}`);
-      const mine = recs.filter(r => r.transaction_id === c.transaction_id || pullRes.txnId === r.transaction_id);
+      // Filter by txnId from pull-data response (authoritative), or fall back to consent's stored txnId.
+      // Don't use c.transaction_id alone — it may be stale/null for patient-initiated consents.
+      const txnId = pullRes.txnId || c.transaction_id;
+      const mine = txnId ? recs.filter(r => r.transaction_id === txnId) : recs;
       setRecords(mine);
       setExpanded(true);
       setDataSource(pullRes.source || 'unknown');
       onFetched?.();
-      if (!mine.length) toast.success('Records requested — ABDM will deliver them shortly');
+      if (!mine.length) toast.success('Records requested — click again shortly to load records');
     } catch (err) { toast.error(err.message); }
     finally { setFetching(false); }
   };
