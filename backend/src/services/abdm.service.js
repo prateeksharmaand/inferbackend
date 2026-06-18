@@ -741,11 +741,14 @@ async function _runGenerateLinkToken(hipId, cleanAbha, cacheKey, abhaAddress, na
 async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts) {
   const token = await getGatewayToken();
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
+  // patient.referenceNumber must be the HIP's patient identifier — the ABHA address
+  // (same value returned as patientRef in our discovery response so ABDM can correlate).
+  const patientRef = abhaAddress || cleanAbha;
   const body = {
     abhaNumber: cleanAbha,
     abhaAddress,
     patient: {
-      referenceNumber: cleanAbha,
+      referenceNumber: patientRef,
       display: name ?? abhaAddress ?? cleanAbha,
       careContexts: careContexts.map(ctx => ({
         referenceNumber: ctx.referenceNumber,
