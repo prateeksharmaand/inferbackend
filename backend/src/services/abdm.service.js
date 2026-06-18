@@ -756,16 +756,17 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
   const tokenAbhaAddress = decoded?.abhaAddress ?? abhaAddress;
   const tokenAbhaNumber  = decoded?.abhaNumber  ? String(decoded.abhaNumber).replace(/-/g, '') : cleanAbha;
 
-  // patient.referenceNumber = HIP's local patient identifier.
-  // ABDM does not validate this against the link token — it is the HIP's own opaque reference.
-  // Using the local DB id (e.g. "PATIENT-1") is the correct approach per ABDM v3 spec.
-  // The ABHA identity is fully carried by X-LINK-TOKEN; this field is for HIP's own tracking.
-  const localPatientRef = patientId ? `PATIENT-${patientId}` : tokenAbhaNumber;
+  // patient.referenceNumber must be a patient identifier ABDM recognises.
+  // ABDMv0.5 used cleanAbha (the 14-digit ABHA number) and it worked.
+  // "PATIENT-{id}" is an internal ID ABDM has never seen — it causes a 400.
+  // Use the ABHA number from the token (authoritative, matches what was sent
+  // in generate-token). Discovery also uses the ABHA identifiers as patientRef.
+  const patientRef = tokenAbhaNumber;
 
   logger.info('linkCareContexts: decoded link token', {
     tokenAbhaAddress,
     tokenAbhaNumber:   tokenAbhaNumber.slice(-4) + ' (last 4)',
-    localPatientRef,
+    patientRef,
     callerAbhaAddress: abhaAddress,
     addressMatch:      tokenAbhaAddress === abhaAddress,
     careContextCount:  careContexts.length,
@@ -778,7 +779,7 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
     abhaNumber: tokenAbhaNumber,
     abhaAddress: tokenAbhaAddress,
     patient: {
-      referenceNumber: localPatientRef,
+      referenceNumber: patientRef,
       display: name ?? tokenAbhaAddress ?? cleanAbha,
       careContexts: careContexts.map(ctx => ({
         referenceNumber: ctx.referenceNumber,
