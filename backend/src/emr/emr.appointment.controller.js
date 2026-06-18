@@ -232,7 +232,9 @@ const updateStatus = async (req, res) => {
   res.json(rows[0]);
 
   // Auto-create care context when consultation starts or ends (if patient is ABDM-linked)
-  if ((status === 'ongoing' || status === 'completed') && rows[0].emr_patient_id) {
+  // Create care context + attempt link only on first transition to 'ongoing'.
+  // saveEncounter handles the FHIR update; it skips the link if already linked/pending.
+  if (status === 'ongoing' && rows[0].emr_patient_id) {
     const a = rows[0];
     setImmediate(async () => {
       try {
@@ -441,32 +443,26 @@ const saveEncounter = async (req, res) => {
        ON CONFLICT (reference_number) DO UPDATE
          SET display      = EXCLUDED.display,
              fhir_content = EXCLUDED.fhir_content,
-             link_status  = 'pending',
+             -- never downgrade a linked context back to pending
+             link_status  = CASE WHEN emr_care_contexts.link_status = 'linked' THEN 'linked' ELSE 'pending' END,
              updated_at   = NOW()
        RETURNING *, (xmax = 0) AS inserted`,
       [a.emr_patient_id, refNum, display, abdmFhir]
     ).then(async (upsertResult) => {
-      const isInsert = upsertResult.rows[0]?.inserted === true;
+      const row      = upsertResult.rows[0];
+      const isInsert = row?.inserted === true;
+      logger.info(isInsert ? 'ABDM Care Context created' : 'ABDM Care Context FHIR updated', {
+        patientId: a.emr_patient_id, referenceNumber: refNum, appointmentId: a.id,
+        linkStatus: row?.link_status,
+      });
+      // Only link on fresh insert — status change to 'ongoing' already triggered the first link.
+      // On update (FHIR refresh), skip if already linked or pending (avoid ABDM-1092).
       if (isInsert) {
-        logger.info('ABDM Care Context created', {
-          patientId: a.emr_patient_id,
-          referenceNumber: refNum,
-          appointmentId: a.id,
-        });
-      } else {
-        logger.info('ABDM Care Context already exists (updated)', {
-          patientId: a.emr_patient_id,
-          referenceNumber: refNum,
-          appointmentId: a.id,
-        });
+        await attemptAbdmLink(refNum, display, a.emr_patient_id);
       }
-
-      await attemptAbdmLink(refNum, display, a.emr_patient_id);
     }).catch(err => {
       logger.error('[ABDM] care context upsert failed', {
-        patientId: a.emr_patient_id,
-        referenceNumber: refNum,
-        error: err.message,
+        patientId: a.emr_patient_id, referenceNumber: refNum, error: err.message,
       });
     });
   }

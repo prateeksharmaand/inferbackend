@@ -607,7 +607,7 @@ async function _getStoredLinkToken(patientRef, hipId) {
 
 async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, yearOfBirth) {
   if (!abhaNumber || abhaNumber === 'undefined' || abhaNumber === 'null') {
-    throw Object.assign(new Error('generateLinkToken: abhaNumber is required and must be a valid ABHA number'), { status: 400 });
+    throw Object.assign(new Error('generateLinkToken: abhaNumber is required'), { status: 400 });
   }
   if (!abhaAddress || !abhaAddress.includes('@')) {
     throw Object.assign(new Error('generateLinkToken: abhaAddress must be a valid ABHA address (e.g. name@sbx)'), { status: 400 });
@@ -615,55 +615,58 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
   const cacheKey  = `${cleanAbha}:${hipId}`;
 
-  // 1. Reuse active token from cache or DB — prevents ABDM-1092 duplicate-token errors
+  // 1. Reuse active token — prevents ABDM-1092
   const existing = await _getStoredLinkToken(cleanAbha, hipId);
   if (existing) return { linkToken: existing };
 
-  // 2. Coalesce concurrent requests — if another call for this patient is already in-flight,
-  //    wait for it instead of sending a duplicate request to ABDM (causes ABDM-1092 + timeout).
+  // 2. Coalesce concurrent requests for the same patient.
+  //    Deferred promise is registered SYNCHRONOUSLY (no await before _inFlight.set)
+  //    so a second caller that arrives between any of the awaits below still coalesces.
   if (_inFlight.has(cacheKey)) {
     logger.info('generateLinkToken: coalescing duplicate in-flight request', { cacheKey: cacheKey.slice(-12) });
     return _inFlight.get(cacheKey);
   }
+  let _deferResolve, _deferReject;
+  const inFlightPromise = new Promise((res, rej) => { _deferResolve = res; _deferReject = rej; });
+  _inFlight.set(cacheKey, inFlightPromise); // synchronous — before any await
 
-  const token     = await getGatewayToken();
-  const requestId = uuid(); // Store so we can correlate the async callback
-  // ABDM requires yearOfBirth (4-digit) and gender (M/F/O/D/T/U) — values must match Aadhaar exactly.
-  // Never send guessed defaults — use only what was stored from the original ABHA enrollment.
+  // Run the actual ABDM call, resolve/reject the deferred, always clean up _inFlight
+  _runGenerateLinkToken(hipId, cleanAbha, cacheKey, abhaAddress, name, gender, yearOfBirth)
+    .then(_deferResolve, _deferReject)
+    .finally(() => _inFlight.delete(cacheKey));
+
+  return inFlightPromise;
+}
+
+async function _runGenerateLinkToken(hipId, cleanAbha, cacheKey, abhaAddress, name, gender, yearOfBirth) {
   if (!yearOfBirth || yearOfBirth < 1900 || yearOfBirth > 2200) {
-    throw Object.assign(new Error('generateLinkToken: valid yearOfBirth required (stored from ABHA enrollment)'), { status: 400 });
+    throw Object.assign(new Error('generateLinkToken: valid yearOfBirth required (from ABHA enrollment)'), { status: 400 });
   }
   const VALID_GENDERS = ['M', 'F', 'O', 'D', 'T', 'U'];
   const normGender = gender === 'Male' ? 'M' : gender === 'Female' ? 'F' : gender === 'Other' ? 'O' : gender;
   if (!normGender || !VALID_GENDERS.includes(normGender)) {
-    throw Object.assign(new Error(`generateLinkToken: gender must be one of ${VALID_GENDERS.join('/')} (stored from ABHA enrollment)`), { status: 400 });
+    throw Object.assign(new Error(`generateLinkToken: gender must be one of ${VALID_GENDERS.join('/')}`), { status: 400 });
   }
-  // name is included — ABDM sandbox validates name too in some configurations
+
+  const token     = await getGatewayToken();
+  const requestId = uuid();
   const body = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', yearOfBirth: Number(yearOfBirth), gender: normGender };
-  // Step 6 diagnostic: log every field sent to ABDM so ABDM-1207 mismatches are immediately visible
+
   logger.info('ABDM demographic verification', {
-    abhaNumber:   cleanAbha.slice(-4) + ' (last 4)',
-    abhaAddress,
-    name:         name ?? '(empty)',
-    gender:       normGender,
-    yearOfBirth:  Number(yearOfBirth),
-    requestId,
-    note: 'values must match Aadhaar exactly — mismatch causes ABDM-1207',
+    abhaNumber: cleanAbha.slice(-4) + ' (last 4)', abhaAddress,
+    name: name ?? '(empty)', gender: normGender, yearOfBirth: Number(yearOfBirth),
+    requestId, note: 'values must match Aadhaar exactly — mismatch causes ABDM-1207',
   });
   logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, name, gender: normGender, yearOfBirth, requestId });
 
-  // Mark as pending in DB with requestId — on-generate-token callback can look us up by requestId
-  const pendingExpiry = new Date(Date.now() + 20_000);
   await pool.query(
     `INSERT INTO link_tokens (patient_ref, hip_id, abdm_request_id, status, expires_at)
      VALUES ($1, $2, $3, 'pending', $4)
      ON CONFLICT (patient_ref, hip_id) DO UPDATE
        SET status='pending', abdm_request_id=$3, expires_at=$4, token=NULL, updated_at=NOW()`,
-    [cleanAbha, hipId, requestId, pendingExpiry]
+    [cleanAbha, hipId, requestId, new Date(Date.now() + 20_000)]
   ).catch(() => {});
 
-  // Register in-flight promise so concurrent callers coalesce onto this one
-  const abdmCallPromise = (async () => {
   try {
     const res = await abdmAxios.post(
       `${ABDM_HIECM}/v3/token/generate-token`,
@@ -680,22 +683,18 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
       }
     );
 
-    // Synchronous response — some ABDM environments return token directly in body
     if (res.data?.linkToken) {
       await _storeLinkToken(cacheKey, res.data.linkToken);
       return { linkToken: res.data.linkToken };
     }
 
-    // Async flow — ABDM returns 202, sends token via POST /v3/hip/token/on-generate-token
-    // Listen on BOTH requestId and abhaNumber events — ABDM omits abhaNumber from callback
-    logger.info('generateLinkToken: async flow — waiting up to 15s for on-generate-token callback', {
-      cleanAbha: cleanAbha.slice(-4), requestId,
-    });
+    // Async flow — ABDM returns 202, sends token via on-generate-token callback
+    logger.info('generateLinkToken: async flow — waiting up to 15s for callback', { cleanAbha: cleanAbha.slice(-4), requestId });
     return await new Promise((resolve, reject) => {
       const { _linkTokenEmitter } = require('../emr/hip.controller');
-      const byReqId  = `req:${requestId}`;
-      const byAbha   = `token:${cleanAbha}`;
-      let   settled  = false;
+      const byReqId = `req:${requestId}`;
+      const byAbha  = `token:${cleanAbha}`;
+      let settled   = false;
 
       const onToken = async (linkToken, err) => {
         if (settled) return;
@@ -716,41 +715,27 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
         settled = true;
         _linkTokenEmitter.removeListener(byReqId, onToken);
         _linkTokenEmitter.removeListener(byAbha,  onToken);
-        // Last-chance: check DB (callback may have stored it via another path)
         const late = await _getStoredLinkToken(cleanAbha, hipId);
         if (late) return resolve({ linkToken: late });
         pool.query(`UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`, [cleanAbha, hipId]).catch(() => {});
         reject(Object.assign(new Error('Timeout waiting for ABDM link token callback (on-generate-token)'), { status: 504 }));
       }, 15_000);
 
-      _linkTokenEmitter.once(byReqId, onToken);  // primary: requestId echo (always present)
-      _linkTokenEmitter.once(byAbha,  onToken);  // fallback: abhaNumber if ABDM includes it
+      _linkTokenEmitter.once(byReqId, onToken);
+      _linkTokenEmitter.once(byAbha,  onToken);
     });
 
   } catch (err) {
     const errBody = err.response?.data;
     const code    = errBody?.error?.code;
     logger.error('generateLinkToken FAILED', { status: err.response?.status, body: errBody });
+    await pool.query(`UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`, [cleanAbha, hipId]).catch(() => {});
     if (code === 'ABDM-1092') {
-      // Token already active at ABDM — clear our pending state and retry after expiry
-      await pool.query(
-        `UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`,
-        [cleanAbha, hipId]
-      ).catch(() => {});
       _linkTokenCache.delete(cacheKey);
       throw Object.assign(new Error('A link token is already active for this patient. Wait ~10 minutes and retry.'), { status: 409 });
     }
-    await pool.query(
-      `UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`,
-      [cleanAbha, hipId]
-    ).catch(() => {});
     throw err.status ? err : Object.assign(new Error(`ABDM link token failed: ${errBody ? JSON.stringify(errBody) : err.message}`), { status: err.response?.status ?? 502 });
-  } finally {
-    _inFlight.delete(cacheKey);
   }
-  })(); // end abdmCallPromise IIFE
-  _inFlight.set(cacheKey, abdmCallPromise);
-  return abdmCallPromise;
 }
 
 async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts) {
