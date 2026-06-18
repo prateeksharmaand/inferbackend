@@ -750,6 +750,7 @@ const pullConsentData = async (req, res) => {
   if (consent.status !== 'GRANTED') return res.status(400).json({ error: `Consent is ${consent.status}, not GRANTED` });
 
   // 1. Check if ABDM already delivered records for this consent (via healthInfoPush)
+  // Primary: match by transaction_id stored on consent
   if (consent.transaction_id) {
     const { rows: existing } = await pool.query(
       `SELECT id FROM health_records WHERE transaction_id=$1 LIMIT 1`,
@@ -758,6 +759,50 @@ const pullConsentData = async (req, res) => {
     if (existing.length) {
       res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.json({ message: 'Records already delivered by ABDM', source: 'abdm', txnId: consent.transaction_id, count: existing.length });
+    }
+  }
+
+  // Fallback: find any records for this patient across all transactions
+  // (handles case where transaction_id linkage was not updated correctly)
+  if (consent.patient_abha) {
+    const { rows: byAbha } = await pool.query(
+      `SELECT hr.transaction_id, COUNT(*) as cnt
+       FROM health_records hr
+       JOIN emr_consent_requests ecr ON ecr.transaction_id = hr.transaction_id
+       WHERE ecr.patient_abha = $1 AND ecr.clinic_id = $2
+       GROUP BY hr.transaction_id
+       ORDER BY MAX(hr.received_at) DESC LIMIT 1`,
+      [consent.patient_abha, clinicId]
+    );
+    if (!byAbha.length) {
+      // Also try directly by patient_abha without the join (in case txnId not linked yet)
+      const { rows: directRows } = await pool.query(
+        `SELECT hr.transaction_id, COUNT(*) as cnt
+         FROM health_records hr
+         WHERE hr.transaction_id IN (
+           SELECT DISTINCT transaction_id FROM hip_health_requests
+           WHERE consent_id IN (
+             SELECT unnest(artefacts::text[]::uuid[]) FROM emr_consent_requests WHERE patient_abha=$1 AND clinic_id=$2
+           )
+         )
+         GROUP BY hr.transaction_id
+         ORDER BY MAX(hr.received_at) DESC LIMIT 1`,
+        [consent.patient_abha, clinicId]
+      ).catch(() => ({ rows: [] }));
+      if (directRows.length) {
+        const txnId = directRows[0].transaction_id;
+        await pool.query(`UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`, [txnId, requestId]);
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.json({ message: 'Records already delivered by ABDM', source: 'abdm', txnId, count: Number(directRows[0].cnt) });
+      }
+    } else {
+      // Found records — update the consent's transaction_id so future calls use primary path
+      const txnId = byAbha[0].transaction_id;
+      if (txnId !== consent.transaction_id) {
+        await pool.query(`UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`, [txnId, requestId]);
+      }
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({ message: 'Records already delivered by ABDM', source: 'abdm', txnId, count: Number(byAbha[0].cnt) });
     }
   }
 
@@ -788,10 +833,19 @@ const pullConsentData = async (req, res) => {
       for (const artefact of (Array.isArray(artefacts) ? artefacts : [])) {
         if (artefact?.id) {
           // Pass stored permission dateRange to prevent ABDM-1063
-          await abdmSvc.fetchHealthInfo(artefact.id, dataPushUrl, { dateRange: permissionDateRange });
+          const result = await abdmSvc.fetchHealthInfo(artefact.id, dataPushUrl, { dateRange: permissionDateRange });
+          // Store reqId as placeholder so _onHiuHealthRequest can update it with ABDM's real txnId
+          const reqId = result?.reqId;
+          if (reqId) {
+            await pool.query(
+              `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
+              [reqId, requestId]
+            ).catch(() => {});
+          }
           logger.info('pullConsentData: re-triggered fetchHealthInfo', {
             artefactId: artefact.id,
             requestId,
+            reqId,
             dateRangeFrom: permissionDateRange?.from,
             dateRangeTo: permissionDateRange?.to,
           });
