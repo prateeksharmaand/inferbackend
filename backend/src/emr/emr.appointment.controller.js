@@ -59,7 +59,8 @@ async function attemptAbdmLink(refNum, display, patientId) {
     await abdmSvc.linkCareContexts(
       hipId, tokenRes.linkToken,
       patient.abha_number, patient.abha_address,
-      patient.name || '', [{ referenceNumber: refNum, display }]
+      patient.name || '', [{ referenceNumber: refNum, display }],
+      patientId
     );
     await pool.query(
       `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL WHERE reference_number=$1`,

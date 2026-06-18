@@ -408,7 +408,8 @@ const addCareContext = async (req, res) => {
         patForLink.abha_number,
         patForLink.abha_address,
         patForLink.name,
-        [{ referenceNumber: refNum, display }]
+        [{ referenceNumber: refNum, display }],
+        patientId
       );
       await pool.query(
         `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW() WHERE id=$1`,
@@ -484,7 +485,8 @@ const retryCareContextLink = async (req, res) => {
       ctx.abha_number,
       ctx.abha_address,
       ctx.patient_name,
-      [{ referenceNumber: ctx.reference_number, display: ctx.display }]
+      [{ referenceNumber: ctx.reference_number, display: ctx.display }],
+      req.params.id
     );
     await pool.query(
       `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL WHERE id=$1`,

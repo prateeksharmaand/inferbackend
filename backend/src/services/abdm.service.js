@@ -747,32 +747,34 @@ function _decodeLinkToken(linkToken) {
   }
 }
 
-async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts) {
+async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts, patientId) {
   const token = await getGatewayToken();
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
 
-  // Decode the link token to extract the exact abhaAddress ABDM issued it for.
-  // The cache key is abhaNumber-only, so a cached token may have been generated for
-  // a different abhaAddress than what is currently in emr_patients.
-  // patient.referenceNumber MUST match the abhaAddress in the X-LINK-TOKEN or ABDM returns 400.
+  // Decode the link token to verify what ABDM issued it for.
   const decoded = _decodeLinkToken(linkToken);
   const tokenAbhaAddress = decoded?.abhaAddress ?? abhaAddress;
   const tokenAbhaNumber  = decoded?.abhaNumber  ? String(decoded.abhaNumber).replace(/-/g, '') : cleanAbha;
 
+  // patient.referenceNumber = HIP's local patient identifier.
+  // ABDM does not validate this against the link token — it is the HIP's own opaque reference.
+  // Using the local DB id (e.g. "PATIENT-1") is the correct approach per ABDM v3 spec.
+  // The ABHA identity is fully carried by X-LINK-TOKEN; this field is for HIP's own tracking.
+  const localPatientRef = patientId ? `PATIENT-${patientId}` : tokenAbhaNumber;
+
   logger.info('linkCareContexts: decoded link token', {
     tokenAbhaAddress,
     tokenAbhaNumber:   tokenAbhaNumber.slice(-4) + ' (last 4)',
+    localPatientRef,
     callerAbhaAddress: abhaAddress,
-    callerAbhaNumber:  cleanAbha.slice(-4) + ' (last 4)',
     addressMatch:      tokenAbhaAddress === abhaAddress,
-    numberMatch:       tokenAbhaNumber  === cleanAbha,
     careContextCount:  careContexts.length,
   });
 
   const body = {
     patient: {
-      referenceNumber: tokenAbhaAddress,
-      display: name ?? tokenAbhaAddress ?? cleanAbha,
+      referenceNumber: localPatientRef,
+      display: name ?? abhaAddress ?? cleanAbha,
       careContexts: careContexts.map(ctx => ({
         referenceNumber: ctx.referenceNumber,
         display: ctx.display,
