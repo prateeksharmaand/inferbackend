@@ -718,7 +718,7 @@ function RecordDetailModal({ record, onClose }) {
   );
 }
 
-function ConsentCard({ c, onFetched }) {
+function ConsentCard({ c, onFetched, abha }) {
   const [fetching,     setFetching]     = useState(false);
   const [records,      setRecords]      = useState(null);
   const [expanded,     setExpanded]     = useState(false);
@@ -859,7 +859,7 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 12px' }}>
-          {consents.map((c, i) => <ConsentCard key={c.request_id || i} c={c} onFetched={load} />)}
+          {consents.map((c, i) => <ConsentCard key={c.request_id || i} c={c} onFetched={load} abha={abha} />)}
         </div>
       )}
 
