@@ -1018,15 +1018,10 @@ function _buildSpki(rawPub65) {
 
 // Encrypt one FHIR bundle entry using fidelius-cli (reference BouncyCastle implementation).
 // Delegates to the JAR via subprocess so crypto is byte-for-byte compatible with ABDM.
-async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
-  // Generate HIP ephemeral BC25519 key pair in Node (curve definition matches BouncyCastle)
-  const hipPriv     = crypto.randomBytes(32);
-  const hipScalar   = _c25519Scalar(hipPriv);
-  const hipPubBytes = Buffer.from(_c25519W.BASE.multiply(hipScalar).toBytes(false)); // 65 bytes
-  const hipNonce    = crypto.randomBytes(32);
-
-  // Encode private key as big-endian 32-byte base64 (matches Fidelius ECPrivateKey.getD())
-  const hipPrivBase64 = Buffer.from(hipScalar.toString(16).padStart(64, '0'), 'hex').toString('base64');
+// hipKeyPair is generated ONCE per batch (see pushHealthData) and reused for all entries.
+// ABDM spec §4.3: one keyMaterial per push batch — all entries must use the same ephemeral key.
+async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
+  const { hipPrivBase64, hipPubBytes, hipNonce } = hipKeyPair;
 
   // SEC-012: write PHI to a restricted subdirectory, delete synchronously after use
   const tmpDir = path.join(os.tmpdir(), 'fidelius-hip');
@@ -1035,11 +1030,11 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
   fs.writeFileSync(tmpFile, [
     'e',                           // command must be first line when using -f
     plaintext,
-    hipNonce.toString('base64'),   // sender nonce  (HIP)
+    hipNonce.toString('base64'),   // sender nonce (HIP) — same for all entries in batch
     hiuNonceBase64,                // requester nonce (HIU)
     hipPrivBase64,                 // sender private key (HIP)
-    hiuPubKeyBase64,               // requester public key (HIU) — raw 65-byte 04||X||Y
-  ].join('\n'), { mode: 0o600 }); // owner-only read
+    hiuPubKeyBase64,               // requester public key (HIU) — SPKI DER base64
+  ].join('\n'), { mode: 0o600 });
 
   try {
     const raw = await _callFidelius(['-f', tmpFile]);
@@ -1055,7 +1050,6 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64) {
     logger.error('[ENCRYPT] fidelius-cli encrypt FAILED — aborting health data push', { error: err.message });
     throw new Error(`Fidelius encryption failed: ${err.message}`);
   } finally {
-    // SEC-012: synchronous delete — guaranteed cleanup even on thrown errors
     try { fs.unlinkSync(tmpFile); } catch (e) {
       logger.error('CRITICAL: failed to delete fidelius PHI tmpfile', { tmpFile, error: e.message });
     }
@@ -1089,39 +1083,49 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   });
   const hiuNonce  = keyMaterial?.nonce ?? '';
   const hiuPubKey = keyMaterial?.dhPublicKey?.keyValue;
+  if (!hiuPubKey || !hiuNonce) {
+    throw new Error('HIU keyMaterial missing — cannot push unencrypted health data per ABDM M3 spec');
+  }
 
-  let respondingKeyMaterial = null;
+  // ABDM spec §4.3: ONE keyMaterial for the entire push batch.
+  // Generate a single HIP ephemeral key pair here and reuse it for ALL entries.
+  // Generating a new pair per entry causes MAC failure for every entry after the first
+  // because respondingKeyMaterial only reports one key but ABDM decrypts all entries with it.
+  const hipPrivRaw    = crypto.randomBytes(32);
+  const hipScalar     = _c25519Scalar(hipPrivRaw);
+  const hipPubBytes   = Buffer.from(_c25519W.BASE.multiply(hipScalar).toBytes(false)); // 65 bytes
+  const hipNonce      = crypto.randomBytes(32);
+  const hipPrivBase64 = Buffer.from(hipScalar.toString(16).padStart(64, '0'), 'hex').toString('base64');
+  const hipKeyPair    = { hipPrivBase64, hipPubBytes, hipNonce };
+
+  logger.info('[ENCRYPT] HIP batch key pair generated', {
+    hipNonceLen:  hipNonce.length,
+    hipPubBytesLen: hipPubBytes.length,
+    entryCount:   careContexts.length,
+  });
+
   const entries = await Promise.all(careContexts.map(async ctx => {
     const fhir = typeof ctx.fhir_content === 'string'
       ? ctx.fhir_content
-      : buildFhirBundle(patient, ctx); // already returns JSON.stringify'd string
+      : buildFhirBundle(patient, ctx);
 
     // ABDM wire format requires MD5 checksum (spec §4.3.2)
     const checksum = crypto.createHash('md5').update(fhir).digest('hex');
-    let content;
-
-    if (hiuPubKey && hiuNonce) {
-      const { encryptedData, hipPublicKey, hipNonce } = await encryptFhir(fhir, hiuPubKey, hiuNonce);
-      content = encryptedData;
-      if (hipPublicKey && hipNonce && !respondingKeyMaterial) {
-        respondingKeyMaterial = {
-          cryptoAlg: 'ECDH',
-          curve: 'Curve25519',           // capital C — matches ABDM spec exactly
-          dhPublicKey: {
-            expiry: new Date(Date.now() + 3600_000).toISOString(),
-            parameters: 'Curve25519/32ByteNonce',
-            keyValue: hipPublicKey,       // SPKI DER with explicit BC25519 params
-          },
-          nonce: hipNonce,
-        };
-      }
-    } else {
-      // R3-003: ABDM M3 mandates encryption. No keyMaterial = reject, not base64.
-      throw new Error('HIU keyMaterial missing — cannot push unencrypted health data per ABDM M3 spec');
-    }
-
-    return { content, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
+    const { encryptedData } = await encryptFhir(fhir, hiuPubKey, hiuNonce, hipKeyPair);
+    return { content: encryptedData, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
   }));
+
+  // Build respondingKeyMaterial once from the shared batch key pair
+  const respondingKeyMaterial = {
+    cryptoAlg: 'ECDH',
+    curve: 'Curve25519',
+    dhPublicKey: {
+      expiry: new Date(Date.now() + 3600_000).toISOString(),
+      parameters: 'Curve25519/32ByteNonce',
+      keyValue: _buildSpki(hipPubBytes).toString('base64'),
+    },
+    nonce: hipNonce.toString('base64'),
+  };
 
   logger.info('ABDM Transaction Trace', {
     stage: 'encryption_completed',
@@ -1129,8 +1133,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     entriesCount: entries.length,
   });
 
-  const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries };
-  if (respondingKeyMaterial) pushBody.keyMaterial = respondingKeyMaterial;
+  const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries, keyMaterial: respondingKeyMaterial };
 
   // CRITICAL: Verify transactionId in payload matches what we received
   if (pushBody.transactionId !== transactionId) {
