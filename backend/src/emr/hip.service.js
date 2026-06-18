@@ -1187,9 +1187,6 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   // R2-001: validate URL before calling (SSRF protection)
   validateDataPushUrl(dataPushUrl);
 
-  // Small delay to ensure ABDM has registered the transaction before we push
-  await new Promise(r => setTimeout(r, 3000));
-
   // Add gateway auth headers — ABDM dataPushUrl requires Bearer token + CM-ID
   const pushToken = await getToken();
 

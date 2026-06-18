@@ -337,38 +337,44 @@ const handleHealthInfoRequest = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   let transactionId; // Declare at function scope so catch block can access it
   try {
-    // CRITICAL: Extract transactionId with validation
-    const rawTransactionId = req.body?.transactionId;
+    const { hiRequest } = req.body;
 
-    logger.debug('ABDM handleHealthInfoRequest start', {
-      rawTransactionId,
-      hasHiRequest: !!req.body?.hiRequest,
-      bodyKeys: Object.keys(req.body || {}),
+    // ABDM v3 puts transactionId inside hiRequest; v0.5 puts it at the top level.
+    // Always prefer hiRequest.transactionId — that is what ABDM validates at the transfer endpoint.
+    const topLevelTxnId    = req.body?.transactionId;
+    const hiRequestTxnId   = hiRequest?.transactionId;
+    const rawTransactionId = hiRequestTxnId ?? topLevelTxnId;
+
+    // Diagnostic log — compare both locations so ABDM-1017 mismatches are immediately visible
+    logger.info('ABDM handleHealthInfoRequest transactionId sources', {
+      topLevelTransactionId:   topLevelTxnId,
+      hiRequestTransactionId:  hiRequestTxnId,
+      resolved:                rawTransactionId,
+      dataPushUrl:             hiRequest?.dataPushUrl,
+      bodyKeys:                Object.keys(req.body || {}),
+      hiRequestKeys:           Object.keys(hiRequest || {}),
     });
 
     if (!rawTransactionId) {
       logger.error('ABDM Transaction Trace', {
         stage: 'request_received',
-        error: 'Missing transactionId in request body',
+        error: 'Missing transactionId in both req.body and req.body.hiRequest',
         bodyKeys: Object.keys(req.body || {}),
       });
       return;
     }
 
-    // Validate transactionId is a UUID string
     const transactionIdRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (typeof rawTransactionId !== 'string' || !transactionIdRegex.test(rawTransactionId)) {
       logger.error('ABDM Transaction Trace', {
         stage: 'request_received',
         error: 'Invalid transactionId format',
         transactionId: rawTransactionId,
-        type: typeof rawTransactionId,
       });
       return;
     }
 
-    transactionId = rawTransactionId; // Now validated
-    const { hiRequest } = req.body;
+    transactionId = rawTransactionId;
     const consentId   = hiRequest?.consent?.id;
     const dataPushUrl = hiRequest?.dataPushUrl;
     const keyMaterial = hiRequest?.keyMaterial;
