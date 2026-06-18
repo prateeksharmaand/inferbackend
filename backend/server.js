@@ -161,7 +161,7 @@ app.post('/v3/hiu/consent/request/on-init',     verifyAbdmCallback, abdmCtrl.con
 app.post('/api/v3/hiu/consent/request/notify',  verifyAbdmCallback, abdmCtrl.consentNotify);
 app.post('/v3/hiu/consent/request/notify',      verifyAbdmCallback, abdmCtrl.consentNotify);
 
-// M3: Health-info request acknowledgement CM → HIU
+// M3: Health-info request acknowledgement CM → HIU (on-request)
 app.post('/api/v3/hiu/health-information/on-request', verifyAbdmCallback, (req, res) => {
   const { hiRequest } = req.body;
   logger.info('HIU health-info on-request ack', { transactionId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
@@ -170,6 +170,18 @@ app.post('/api/v3/hiu/health-information/on-request', verifyAbdmCallback, (req, 
 app.post('/v3/hiu/health-information/on-request', verifyAbdmCallback, (req, res) => {
   const { hiRequest } = req.body;
   logger.info('HIU health-info on-request ack', { transactionId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
+  res.status(202).json({ status: 'accepted' });
+});
+// M3: Health-info transfer notification CM → HIU (step 9 — ABDM notifies HIU that HIP pushed data)
+app.post('/v3/hiu/health-information/transfer',           verifyAbdmCallback, abdmCtrl.healthInfoPush);
+app.post('/api/v3/hiu/health-information/transfer',       verifyAbdmCallback, abdmCtrl.healthInfoPush);
+app.post('/v0.5/health-information/transfer',             verifyAbdmCallback, abdmCtrl.healthInfoPush);
+app.post('/api/v3/hiu/health-information/notify',         verifyAbdmCallback, (req, res) => {
+  logger.info('HIU health-info notify from CM', { body: JSON.stringify(req.body)?.slice(0, 200) });
+  res.status(202).json({ status: 'accepted' });
+});
+app.post('/v3/hiu/health-information/notify',             verifyAbdmCallback, (req, res) => {
+  logger.info('HIU health-info notify from CM', { body: JSON.stringify(req.body)?.slice(0, 200) });
   res.status(202).json({ status: 'accepted' });
 });
 

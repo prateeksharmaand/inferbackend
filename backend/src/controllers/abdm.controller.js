@@ -626,13 +626,15 @@ const consentNotify = async (req, res) => {
           const txnId = result?.hiRequest?.transactionId ?? abdm.uuid();
           logger.info('HIU health-info request sent to CM', { artefactId: artefact.id, txnId });
 
-          // Persist HIU key to DB so decryption works even after server restart
+          // Persist HIU key in emr_consent_requests (keyed by artefact/consent id for reliable lookup)
           const hiuKey = abdm.getHiuKey(artefact.id);
           if (hiuKey) {
+            const serialisedKey = JSON.stringify({ privKey: Buffer.from(hiuKey.privBytes).toString('base64'), nonce: hiuKey.nonce });
             await pool.query(
-              `UPDATE hip_health_requests SET hiu_key_material=$1 WHERE transaction_id=$2`,
-              [JSON.stringify({ privKey: Buffer.from(hiuKey.privBytes).toString('base64'), nonce: hiuKey.nonce }), txnId]
-            ).catch(() => {}); // best-effort
+              `UPDATE emr_consent_requests SET hiu_key_material=$1, transaction_id=$2, updated_at=NOW()
+               WHERE request_id=$3 OR abdm_request_id=$3`,
+              [serialisedKey, txnId, consentRequestId]
+            ).catch(() => {});
           }
 
           await pool.query(
@@ -681,19 +683,36 @@ const healthInfoPush = async (req, res) => {
 
     // Find the consent artefact ID and HIU key for decryption
     let hiuKeyEntry = null;
+    let consentIdForAck = null;
     if (hipPubKey && hipNonce) {
+      // Primary: look up from hip_health_requests (HIP side stores consent_id here)
       const { rows: hrRows } = await pool.query(
         'SELECT consent_id, hiu_key_material FROM hip_health_requests WHERE transaction_id=$1 LIMIT 1',
         [transactionId]
       ).catch(() => ({ rows: [] }));
       const consentId = hrRows[0]?.consent_id;
-      // Try in-memory cache first, then fall back to DB-persisted key
+      consentIdForAck = consentId;
+
       if (consentId) {
+        // 1. Try in-memory cache
         hiuKeyEntry = abdm.getHiuKey(consentId);
+        // 2. Try DB from hip_health_requests
         if (!hiuKeyEntry && hrRows[0]?.hiu_key_material) {
           const km = hrRows[0].hiu_key_material;
           hiuKeyEntry = { privBytes: Buffer.from(km.privKey, 'base64'), nonce: km.nonce };
-          logger.info('HIU health-info push: restored key from DB', { transactionId, consentId });
+          logger.info('HIU key restored from hip_health_requests', { transactionId, consentId });
+        }
+        // 3. Try DB from emr_consent_requests (stored at fetchHealthInfo time)
+        if (!hiuKeyEntry) {
+          const { rows: crRows } = await pool.query(
+            'SELECT hiu_key_material FROM emr_consent_requests WHERE (request_id=$1 OR abdm_request_id=$1) AND hiu_key_material IS NOT NULL LIMIT 1',
+            [consentId]
+          ).catch(() => ({ rows: [] }));
+          if (crRows[0]?.hiu_key_material) {
+            const km = crRows[0].hiu_key_material;
+            hiuKeyEntry = { privBytes: Buffer.from(km.privKey, 'base64'), nonce: km.nonce };
+            logger.info('HIU key restored from emr_consent_requests', { transactionId, consentId });
+          }
         }
       }
       logger.info('HIU health-info push: key lookup', { transactionId, consentId, hasKey: !!hiuKeyEntry });
@@ -781,6 +800,32 @@ const healthInfoPush = async (req, res) => {
       );
     }
     logger.info('HIU health-info push stored', { transactionId, count: entries.length });
+
+    // Step 9: HIU sends notification to ABDM acknowledging receipt of health data
+    // (ABDM spec: POST /v0.5/health-information/notify)
+    if (consentIdForAck) {
+      const notifyPayload = {
+        requestId:     abdm.uuid(),
+        timestamp:     new Date().toISOString(),
+        notification: {
+          consentId:      consentIdForAck,
+          transactionId,
+          doneAt:         new Date().toISOString(),
+          notifier:       { type: 'HIU', id: process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID },
+          statusNotification: {
+            sessionStatus: 'TRANSFERRED',
+            hipId:         process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID,
+            statusResponses: entries.map(e => ({
+              careContextReference: e.careContextReference,
+              hiStatus: 'OK',
+              description: 'Received and stored',
+            })),
+          },
+        },
+      };
+      abdm.gwReqSilent('POST', `${process.env.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in/gateway'}/v0.5/health-information/notify`, notifyPayload)
+        .catch(err => logger.warn('HIU health-info notify failed (non-critical)', { error: err.message }));
+    }
   } catch (err) {
     logger.error('healthInfoPush error', { message: err.message });
   }

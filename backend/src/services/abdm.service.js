@@ -299,6 +299,11 @@ async function gwReq(method, url, data = null, extra = {}) {
   }
 }
 
+// Silent gateway request — logs warning but does not throw (for non-critical callbacks)
+async function gwReqSilent(method, url, data = null) {
+  try { await gwReq(method, url, data); } catch (err) { logger.warn('gwReqSilent failed', { url, error: err.message }); }
+}
+
 // ABHA v3 requests — requires REQUEST-ID + TIMESTAMP on every call
 async function abhaReq(method, url, data = null, xToken = null) {
   const token = await getGatewayToken();
@@ -767,7 +772,7 @@ module.exports = {
   getAbhaSuggestions,     setAbhaAddress,
   discoverCareContexts,   linkInit,             linkConfirm,
   generateLinkToken,      linkCareContexts,     _storeLinkToken,
-  createConsentRequest,   fetchHealthInfo,
+  createConsentRequest,   fetchHealthInfo,      gwReqSilent,
   generateHiuKeyMaterial, decryptHipEntry, getHiuKey,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,
   uuid,
