@@ -605,7 +605,7 @@ const consentNotify = async (req, res) => {
       }
     }
 
-    // When granted, automatically request health info from HIP
+    // When granted, automatically request health info from each HIP artefact
     if (notification.status === 'GRANTED' && notification.consentArtefacts?.length) {
       await pool.query(
         `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW()
@@ -613,35 +613,65 @@ const consentNotify = async (req, res) => {
         [JSON.stringify(notification.consentArtefacts), consentRequestId]
       );
       const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
+      const ourHipId    = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+
       logger.info('HIU consent GRANTED — initiating health-info fetch', {
-        consentRequestId: notification.consentRequestId,
+        consentRequestId,
+        artefactCount: notification.consentArtefacts.length,
         artefactIds: notification.consentArtefacts.map(a => a.id),
+        artefactHips: notification.consentArtefacts.map(a => a.hip?.id || a.hipId || 'unknown'),
         dataPushUrl,
       });
 
+      // Per-artefact transaction map — stored as JSONB to avoid last-write-wins overwrite
+      const artefactTxnMap = {};
+
       for (const artefact of notification.consentArtefacts) {
+        const artefactHip = artefact.hip?.id || artefact.hipId;
+
+        // Skip artefacts that belong to a different HIP — we can't fetch from them
+        if (artefactHip && artefactHip !== ourHipId) {
+          logger.info('HIU skipping artefact — belongs to different HIP', {
+            artefactId: artefact.id,
+            artefactHip,
+            ourHipId,
+          });
+          continue;
+        }
+
         try {
-          logger.info('HIU fetching health-info for artefact', { artefactId: artefact.id, dataPushUrl });
+          logger.info('HIU fetching health-info for artefact', {
+            artefactId: artefact.id,
+            artefactHip: artefactHip || 'unspecified (assuming ours)',
+            dataPushUrl,
+          });
           const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl);
-          const txnId = result?.hiRequest?.transactionId ?? abdm.uuid();
+          const txnId  = result?.hiRequest?.transactionId ?? abdm.uuid();
           logger.info('HIU health-info request sent to CM', { artefactId: artefact.id, txnId });
 
-          // Persist HIU key in emr_consent_requests (keyed by artefact/consent id for reliable lookup)
+          artefactTxnMap[artefact.id] = txnId;
+
+          // Persist HIU key per artefact in emr_consent_requests
           const hiuKey = abdm.getHiuKey(artefact.id);
           if (hiuKey) {
-            const serialisedKey = JSON.stringify({ privKey: Buffer.from(hiuKey.privBytes).toString('base64'), nonce: hiuKey.nonce });
+            const serialisedKey = JSON.stringify({
+              privKey: Buffer.from(hiuKey.privBytes).toString('base64'),
+              nonce:   hiuKey.nonce,
+            });
+            // Store as JSONB map {artefactId: {privKey, nonce, txnId}} to support multiple artefacts
             await pool.query(
-              `UPDATE emr_consent_requests SET hiu_key_material=$1, transaction_id=$2, updated_at=NOW()
+              `UPDATE emr_consent_requests
+               SET hiu_key_material = COALESCE(hiu_key_material, '{}'::jsonb) || $1::jsonb,
+                   transaction_id   = $2,
+                   updated_at       = NOW()
                WHERE request_id=$3 OR abdm_request_id=$3`,
-              [serialisedKey, txnId, consentRequestId]
+              [
+                JSON.stringify({ [artefact.id]: { privKey: JSON.parse(serialisedKey).privKey, nonce: JSON.parse(serialisedKey).nonce, txnId } }),
+                txnId,
+                consentRequestId,
+              ]
             ).catch(() => {});
           }
-
-          await pool.query(
-            `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW()
-             WHERE request_id=$2 OR abdm_request_id=$2`,
-            [txnId, consentRequestId]
-          );
         } catch (err) {
           logger.error('HIU fetchHealthInfo failed', {
             artefactId: artefact.id,
@@ -651,8 +681,15 @@ const consentNotify = async (req, res) => {
           });
         }
       }
+
+      logger.info('HIU health-info fetch loop complete', {
+        consentRequestId,
+        processed: Object.keys(artefactTxnMap).length,
+        skipped: notification.consentArtefacts.length - Object.keys(artefactTxnMap).length,
+        txnMap: artefactTxnMap,
+      });
     } else if (notification.status === 'GRANTED' && !notification.consentArtefacts?.length) {
-      logger.warn('HIU consent GRANTED but no artefacts in notification', { consentRequestId: notification.consentRequestId });
+      logger.warn('HIU consent GRANTED but no artefacts in notification', { consentRequestId });
     }
   } catch (err) {
     logger.error('consentNotify error', err);
@@ -702,7 +739,7 @@ const healthInfoPush = async (req, res) => {
           hiuKeyEntry = { privBytes: Buffer.from(km.privKey, 'base64'), nonce: km.nonce };
           logger.info('HIU key restored from hip_health_requests', { transactionId, consentId });
         }
-        // 3. Try DB from emr_consent_requests (stored at fetchHealthInfo time)
+        // 3. Try per-artefact JSONB map in emr_consent_requests
         if (!hiuKeyEntry) {
           const { rows: crRows } = await pool.query(
             'SELECT hiu_key_material FROM emr_consent_requests WHERE (request_id=$1 OR abdm_request_id=$1) AND hiu_key_material IS NOT NULL LIMIT 1',
@@ -710,8 +747,12 @@ const healthInfoPush = async (req, res) => {
           ).catch(() => ({ rows: [] }));
           if (crRows[0]?.hiu_key_material) {
             const km = crRows[0].hiu_key_material;
-            hiuKeyEntry = { privBytes: Buffer.from(km.privKey, 'base64'), nonce: km.nonce };
-            logger.info('HIU key restored from emr_consent_requests', { transactionId, consentId });
+            // New format: {artefactId: {privKey, nonce, txnId}} — find by consentId key
+            const entry = km[consentId] ?? Object.values(km)[0];
+            if (entry?.privKey) {
+              hiuKeyEntry = { privBytes: Buffer.from(entry.privKey, 'base64'), nonce: entry.nonce };
+              logger.info('HIU key restored from emr_consent_requests (per-artefact map)', { transactionId, consentId });
+            }
           }
         }
       }
