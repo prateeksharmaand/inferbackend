@@ -813,11 +813,15 @@ _linkTokenEmitter.setMaxListeners(100);
 const handleOnGenerateToken = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
+    // ABDM does NOT include abhaNumber in this callback — only linkToken + requestId (echo of our REQUEST-ID)
     const { linkToken, abhaNumber, requestId } = req.body;
+    const cleanAbha = abhaNumber ? String(abhaNumber).replace(/-/g, '') : null;
+
     logger.info('HIP on-generate-token callback received', {
       requestId,
-      hasToken: !!linkToken,
-      abhaNumberSuffix: abhaNumber?.slice(-4),
+      hasToken:         !!linkToken,
+      hasAbhaNumber:    !!abhaNumber,
+      bodyKeys:         Object.keys(req.body || {}),
     });
 
     if (!linkToken) {
@@ -825,19 +829,37 @@ const handleOnGenerateToken = async (req, res) => {
       return;
     }
 
-    // Store in in-memory cache (keyed by abhaNumber for lookup in attemptAbdmLink)
-    const cleanAbha = abhaNumber ? String(abhaNumber).replace(/-/g, '') : null;
-    if (cleanAbha) {
-      // Emit so any waiting attemptAbdmLink can proceed
-      _linkTokenEmitter.emit(`token:${cleanAbha}`, linkToken);
-      logger.info('HIP on-generate-token: emitted token', { cleanAbha: cleanAbha?.slice(-4) });
-    }
-
-    // Persist token to cache + DB via abdm.service
     const abdmSvc = require('../services/abdm.service');
     const hipId   = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
+
+    // Primary: emit by requestId (correlates with the REQUEST-ID we sent to ABDM)
+    if (requestId) {
+      _linkTokenEmitter.emit(`req:${requestId}`, linkToken);
+      logger.info('HIP on-generate-token: emitted by requestId', { requestId });
+    }
+
+    // Secondary: emit by abhaNumber if present (may or may not be in payload)
     if (cleanAbha) {
+      _linkTokenEmitter.emit(`token:${cleanAbha}`, linkToken);
       await abdmSvc._storeLinkToken(`${cleanAbha}:${hipId}`, linkToken);
+      logger.info('HIP on-generate-token: emitted by abhaNumber + stored', { cleanAbha: cleanAbha.slice(-4) });
+    }
+
+    // If no abhaNumber — store via requestId lookup from pending link_tokens row
+    if (!cleanAbha && requestId) {
+      const { pool } = require('../config/database');
+      const { rows } = await pool.query(
+        `SELECT patient_ref FROM link_tokens WHERE abdm_request_id=$1 LIMIT 1`,
+        [requestId]
+      ).catch(() => ({ rows: [] }));
+      if (rows[0]?.patient_ref) {
+        await abdmSvc._storeLinkToken(`${rows[0].patient_ref}:${hipId}`, linkToken);
+        logger.info('HIP on-generate-token: stored via requestId→patient_ref lookup', { patientRef: rows[0].patient_ref.slice(-4) });
+      } else {
+        // Store with requestId as key so generateLinkToken can find it
+        abdmSvc._storeLinkTokenByRequestId(requestId, linkToken);
+        logger.info('HIP on-generate-token: stored by requestId (no patient_ref found)', { requestId });
+      }
     }
   } catch (err) {
     logger.error('handleOnGenerateToken error', err);

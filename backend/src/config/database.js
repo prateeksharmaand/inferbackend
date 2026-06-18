@@ -654,20 +654,23 @@ async function initializeDatabase() {
     // Link token persistence — survives restarts, prevents duplicate ABDM token requests
     await client.query(`
       CREATE TABLE IF NOT EXISTS link_tokens (
-        id             SERIAL PRIMARY KEY,
-        patient_ref    TEXT NOT NULL,
-        hip_id         TEXT NOT NULL,
-        token          TEXT,
-        status         TEXT NOT NULL DEFAULT 'pending'
-                         CHECK (status IN ('pending','active','linked','failed','expired')),
-        expires_at     TIMESTAMPTZ,
-        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        id               SERIAL PRIMARY KEY,
+        patient_ref      TEXT NOT NULL,
+        hip_id           TEXT NOT NULL,
+        token            TEXT,
+        abdm_request_id  TEXT,
+        status           TEXT NOT NULL DEFAULT 'pending'
+                           CHECK (status IN ('pending','active','linked','failed','expired')),
+        expires_at       TIMESTAMPTZ,
+        created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE (patient_ref, hip_id)
       )
     `);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_patient ON link_tokens(patient_ref, hip_id)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_status  ON link_tokens(status, expires_at)`);
+    await client.query(`ALTER TABLE link_tokens ADD COLUMN IF NOT EXISTS abdm_request_id TEXT`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_patient    ON link_tokens(patient_ref, hip_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_status     ON link_tokens(status, expires_at)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_request_id ON link_tokens(abdm_request_id) WHERE abdm_request_id IS NOT NULL`);
 
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');

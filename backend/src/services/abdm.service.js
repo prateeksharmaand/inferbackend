@@ -608,19 +608,20 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
   const existing = await _getStoredLinkToken(cleanAbha, hipId);
   if (existing) return { linkToken: existing };
 
-  // 2. Mark as pending in DB before calling ABDM (prevents race conditions)
-  const pendingExpiry = new Date(Date.now() + 15_000); // 15s async wait window
-  await pool.query(
-    `INSERT INTO link_tokens (patient_ref, hip_id, status, expires_at)
-     VALUES ($1, $2, 'pending', $3)
-     ON CONFLICT (patient_ref, hip_id) DO UPDATE
-       SET status='pending', expires_at=$3, token=NULL, updated_at=NOW()`,
-    [cleanAbha, hipId, pendingExpiry]
-  ).catch(() => {});
+  const token     = await getGatewayToken();
+  const requestId = uuid(); // Store so we can correlate the async callback
+  const body      = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) || 1990 };
+  logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, gender, yearOfBirth, requestId });
 
-  const token = await getGatewayToken();
-  const body  = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) || 1990 };
-  logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, gender, yearOfBirth });
+  // Mark as pending in DB with requestId — on-generate-token callback can look us up by requestId
+  const pendingExpiry = new Date(Date.now() + 20_000);
+  await pool.query(
+    `INSERT INTO link_tokens (patient_ref, hip_id, abdm_request_id, status, expires_at)
+     VALUES ($1, $2, $3, 'pending', $4)
+     ON CONFLICT (patient_ref, hip_id) DO UPDATE
+       SET status='pending', abdm_request_id=$3, expires_at=$4, token=NULL, updated_at=NOW()`,
+    [cleanAbha, hipId, requestId, pendingExpiry]
+  ).catch(() => {});
 
   try {
     const res = await abdmAxios.post(
@@ -645,27 +646,40 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
     }
 
     // Async flow — ABDM returns 202, sends token via POST /v3/hip/token/on-generate-token
-    logger.info('generateLinkToken: async flow — waiting up to 15s for on-generate-token callback', { cleanAbha: cleanAbha.slice(-4) });
+    // Listen on BOTH requestId and abhaNumber events — ABDM omits abhaNumber from callback
+    logger.info('generateLinkToken: async flow — waiting up to 15s for on-generate-token callback', {
+      cleanAbha: cleanAbha.slice(-4), requestId,
+    });
     return await new Promise((resolve, reject) => {
       const { _linkTokenEmitter } = require('../emr/hip.controller');
-      const eventKey = `token:${cleanAbha}`;
-      const timer = setTimeout(async () => {
-        _linkTokenEmitter.removeAllListeners(eventKey);
-        // Last-chance: check DB (callback may have arrived and stored it)
-        const late = await _getStoredLinkToken(cleanAbha, hipId);
-        if (late) return resolve({ linkToken: late });
-        // Mark as failed so next attempt doesn't reuse pending
-        pool.query(
-          `UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`,
-          [cleanAbha, hipId]
-        ).catch(() => {});
-        reject(Object.assign(new Error('Timeout waiting for ABDM link token callback (on-generate-token)'), { status: 504 }));
-      }, 15_000);
-      _linkTokenEmitter.once(eventKey, async (linkToken) => {
+      const byReqId  = `req:${requestId}`;
+      const byAbha   = `token:${cleanAbha}`;
+      let   settled  = false;
+
+      const onToken = async (linkToken) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
+        _linkTokenEmitter.removeListener(byReqId, onToken);
+        _linkTokenEmitter.removeListener(byAbha,  onToken);
         await _storeLinkToken(cacheKey, linkToken);
         resolve({ linkToken });
-      });
+      };
+
+      const timer = setTimeout(async () => {
+        if (settled) return;
+        settled = true;
+        _linkTokenEmitter.removeListener(byReqId, onToken);
+        _linkTokenEmitter.removeListener(byAbha,  onToken);
+        // Last-chance: check DB (callback may have stored it via another path)
+        const late = await _getStoredLinkToken(cleanAbha, hipId);
+        if (late) return resolve({ linkToken: late });
+        pool.query(`UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`, [cleanAbha, hipId]).catch(() => {});
+        reject(Object.assign(new Error('Timeout waiting for ABDM link token callback (on-generate-token)'), { status: 504 }));
+      }, 15_000);
+
+      _linkTokenEmitter.once(byReqId, onToken);  // primary: requestId echo (always present)
+      _linkTokenEmitter.once(byAbha,  onToken);  // fallback: abhaNumber if ABDM includes it
     });
 
   } catch (err) {
@@ -827,7 +841,7 @@ module.exports = {
   getAbhaProfile,         getAbhaPngCard,
   getAbhaSuggestions,     setAbhaAddress,
   discoverCareContexts,   linkInit,             linkConfirm,
-  generateLinkToken,      linkCareContexts,     _storeLinkToken,    _getStoredLinkToken,
+  generateLinkToken,      linkCareContexts,     _storeLinkToken,    _getStoredLinkToken,   _storeLinkTokenByRequestId: (reqId, token) => _linkTokenCache.set(`req:${reqId}`, { token, expiry: Date.now() + 9*60*1000 }),
   createConsentRequest,   fetchHealthInfo,      gwReqSilent,
   generateHiuKeyMaterial, decryptHipEntry, getHiuKey,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,
