@@ -658,18 +658,22 @@ const consentNotify = async (req, res) => {
               privKey: Buffer.from(hiuKey.privBytes).toString('base64'),
               nonce:   hiuKey.nonce,
             });
-            // Store as JSONB map {artefactId: {privKey, nonce, txnId}} to support multiple artefacts
+            // Store per-artefact map: {artefactId: {hipId, careContexts, status, privKey, nonce, txnId}}
+            const artefactEntry = {
+              hipId:        artefactHip || ourHipId,
+              careContexts: artefact.careContexts || artefact.consentDetail?.careContexts || [],
+              status:       'GRANTED',
+              privKey:      JSON.parse(serialisedKey).privKey,
+              nonce:        JSON.parse(serialisedKey).nonce,
+              txnId,
+            };
             await pool.query(
               `UPDATE emr_consent_requests
                SET hiu_key_material = COALESCE(hiu_key_material, '{}'::jsonb) || $1::jsonb,
                    transaction_id   = $2,
                    updated_at       = NOW()
                WHERE request_id=$3 OR abdm_request_id=$3`,
-              [
-                JSON.stringify({ [artefact.id]: { privKey: JSON.parse(serialisedKey).privKey, nonce: JSON.parse(serialisedKey).nonce, txnId } }),
-                txnId,
-                consentRequestId,
-              ]
+              [JSON.stringify({ [artefact.id]: artefactEntry }), txnId, consentRequestId]
             ).catch(() => {});
           }
         } catch (err) {
