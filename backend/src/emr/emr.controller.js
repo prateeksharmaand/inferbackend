@@ -704,10 +704,51 @@ async function _pullHealthData(requestId, clinicId) {
 const pullConsentData = async (req, res) => {
   const { requestId } = req.params;
   const clinicId = req.emrUser.clinic_id;
+
+  const { rows: [consent] } = await pool.query(
+    'SELECT * FROM emr_consent_requests WHERE request_id=$1 AND clinic_id=$2',
+    [requestId, clinicId]
+  );
+  if (!consent) return res.status(404).json({ error: 'Consent request not found' });
+  if (consent.status !== 'GRANTED') return res.status(400).json({ error: `Consent is ${consent.status}, not GRANTED` });
+
+  // 1. Check if ABDM already delivered records for this consent (via healthInfoPush)
+  if (consent.transaction_id) {
+    const { rows: existing } = await pool.query(
+      `SELECT id FROM health_records WHERE transaction_id=$1 LIMIT 1`,
+      [consent.transaction_id]
+    );
+    if (existing.length) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({ message: 'Records already delivered by ABDM', source: 'abdm', txnId: consent.transaction_id, count: existing.length });
+    }
+  }
+
+  // 2. No ABDM records yet — re-trigger fetchHealthInfo so ABDM asks the HIP again
+  if (consent.artefacts) {
+    try {
+      const artefacts = JSON.parse(consent.artefacts);
+      const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
+      for (const artefact of (Array.isArray(artefacts) ? artefacts : [])) {
+        if (artefact?.id) {
+          await abdmSvc.fetchHealthInfo(artefact.id, dataPushUrl);
+          logger.info('pullConsentData: re-triggered fetchHealthInfo', { artefactId: artefact.id, requestId });
+        }
+      }
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({ message: 'Health info requested from ABDM — records will appear when HIP delivers them', source: 'abdm_pending', txnId: null, count: 0 });
+    } catch (err) {
+      logger.warn('pullConsentData: fetchHealthInfo re-trigger failed', { error: err.message });
+    }
+  }
+
+  // 3. Fallback: sandbox shortcut — serve records from our own EMR care contexts
+  // Used when ABDM flow unavailable or artefacts not stored
+  logger.info('pullConsentData: using local EMR fallback (sandbox shortcut)', { requestId });
   const result = await _pullHealthData(requestId, clinicId);
-  if (!result.txnId) return res.status(400).json({ error: 'Consent not found, not GRANTED, or patient has no care contexts' });
+  if (!result.txnId) return res.status(400).json({ error: 'No records available — patient has no linked care contexts' });
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.json({ message: `Fetched ${result.count} health record(s) from EMR`, ...result });
+  res.json({ message: `Fetched ${result.count} record(s) from local EMR (sandbox mode)`, source: 'local_emr', ...result });
 };
 
 const getConsentHealthRecords = async (req, res) => {

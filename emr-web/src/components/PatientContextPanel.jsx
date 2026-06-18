@@ -723,6 +723,7 @@ function ConsentCard({ c, onFetched }) {
   const [records,      setRecords]      = useState(null);
   const [expanded,     setExpanded]     = useState(false);
   const [selectedRec,  setSelectedRec]  = useState(null);
+  const [dataSource,   setDataSource]   = useState(null);
 
   const st = STATUS_CFG_C[c.status] || STATUS_CFG_C.REQUESTED;
   const PURPOSE_LABEL = { CAREMGT: 'Care Management', BTG: 'Break the Glass', PUBHLTH: 'Public Health', HPAYMT: 'Healthcare Payment', DSRCH: 'Disease Research' };
@@ -731,11 +732,19 @@ function ConsentCard({ c, onFetched }) {
   const fetchRecords = async () => {
     setFetching(true);
     try {
-      await api.post(`/consents/${c.request_id}/pull-data`);
+      const pullRes = await api.post(`/consents/${c.request_id}/pull-data`);
+      if (pullRes.source === 'abdm_pending') {
+        toast.success('Request sent to ABDM — records will appear when the HIP delivers them');
+        setRecords([]);
+        setExpanded(true);
+        onFetched?.();
+        return;
+      }
       const recs = await api.get('/consents/health-records');
-      const mine = recs.filter(r => r.transaction_id === c.transaction_id);
+      const mine = recs.filter(r => r.transaction_id === c.transaction_id || pullRes.txnId === r.transaction_id);
       setRecords(mine);
       setExpanded(true);
+      setDataSource(pullRes.source || 'unknown');
       onFetched?.();
       if (!mine.length) toast.success('Records requested — ABDM will deliver them shortly');
     } catch (err) { toast.error(err.message); }
@@ -755,10 +764,19 @@ function ConsentCard({ c, onFetched }) {
         <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: isGranted ? 8 : 0 }}>{c.created_at ? fmtDate(c.created_at) : ''}</div>
 
         {isGranted && (
-          <button onClick={records ? () => setExpanded(e => !e) : fetchRecords} disabled={fetching}
-            style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: fetching ? '#d1fae5' : '#16a34a', color: '#fff', fontWeight: 600, fontSize: 11, cursor: fetching ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-            {fetching ? 'Fetching…' : records ? (expanded ? '▲ Hide Records' : `▼ View Records (${records.length})`) : '↓ Fetch Medical Records'}
-          </button>
+          <>
+            <button onClick={records ? () => setExpanded(e => !e) : fetchRecords} disabled={fetching}
+              style={{ width: '100%', padding: '6px', borderRadius: 7, border: 'none', background: fetching ? '#d1fae5' : '#16a34a', color: '#fff', fontWeight: 600, fontSize: 11, cursor: fetching ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              {fetching ? 'Fetching…' : records ? (expanded ? '▲ Hide Records' : `▼ View Records (${records.length})`) : '↓ Fetch Medical Records'}
+            </button>
+            {dataSource && (
+              <div style={{ fontSize: 9, color: dataSource === 'abdm' ? '#16a34a' : dataSource === 'local_emr' ? '#d97706' : '#94a3b8', textAlign: 'center', marginTop: 3 }}>
+                {dataSource === 'abdm' && '✓ Delivered by ABDM'}
+                {dataSource === 'local_emr' && '⚠ Local EMR data (sandbox mode)'}
+                {dataSource === 'abdm_pending' && '⏳ Waiting for HIP to deliver'}
+              </div>
+            )}
+          </>
         )}
 
         {expanded && records && (
