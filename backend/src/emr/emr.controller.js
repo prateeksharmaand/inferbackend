@@ -764,8 +764,14 @@ const pullConsentData = async (req, res) => {
   // 2. No ABDM records yet — re-trigger fetchHealthInfo so ABDM asks the HIP again
   if (consent.artefacts) {
     try {
-      const artefacts = JSON.parse(consent.artefacts);
+      // artefacts column is JSONB — pg driver returns it already parsed as an object.
+      // JSON.parse(object) → "[object Object]" is not valid JSON.
+      // Handle both: object (JSONB read) and string (legacy text rows).
+      const artefacts = typeof consent.artefacts === 'string'
+        ? JSON.parse(consent.artefacts)
+        : consent.artefacts;
       const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
+      logger.info('pullConsentData: artefacts to fetch', { count: Array.isArray(artefacts) ? artefacts.length : 0, requestId });
       for (const artefact of (Array.isArray(artefacts) ? artefacts : [])) {
         if (artefact?.id) {
           await abdmSvc.fetchHealthInfo(artefact.id, dataPushUrl);
