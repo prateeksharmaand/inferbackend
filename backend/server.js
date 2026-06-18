@@ -153,7 +153,16 @@ app.post('/v0.5/links/link/on-confirm', verifyAbdmCallback, abdmCtrl.onLinkConfi
 app.post('/v0.5/consent-requests/on-init', verifyAbdmCallback, abdmCtrl.consentOnInit);
 
 // M2: Consent grant/revoke notification from CM → HIU
-app.post('/v0.5/consents/hiu/notify', verifyAbdmCallback, abdmCtrl.consentNotify);
+app.post('/v0.5/consents/hiu/notify',    verifyAbdmCallback, abdmCtrl.consentNotify);
+// M2: on-fetch callback (CM → HIU after HIU fetches consent details) — acknowledge only
+app.post('/v0.5/consents/on-fetch',      verifyAbdmCallback, (req, res) => {
+  logger.info('HIU consent on-fetch', { consentId: req.body?.consent?.id });
+  res.status(202).json({ status: 'accepted' });
+});
+app.post('/api/v3/hiu/consent/on-fetch', verifyAbdmCallback, (req, res) => {
+  logger.info('HIU consent on-fetch (v3)', { consentId: req.body?.consent?.id });
+  res.status(202).json({ status: 'accepted' });
+});
 
 // M3: Consent callbacks CM → HIU (v3 paths — both with and without /api prefix)
 app.post('/api/v3/hiu/consent/request/on-init', verifyAbdmCallback, abdmCtrl.consentOnInit);

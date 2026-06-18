@@ -463,10 +463,20 @@ const unlinkCareContext = async (req, res) => {
 
 // ─── M2: Consent management ───────────────────────────────────────────────────
 
+const ALL_HI_TYPES = [
+  'OPConsultation', 'DiagnosticReport', 'DischargeSummary', 'Prescription',
+  'ImmunizationRecord', 'HealthDocumentRecord', 'WellnessRecord',
+];
+
 const createConsent = async (req, res) => {
-  const { hiuId, purpose, hiTypes, dateFrom, dateTo } = req.body;
-  if (!hiuId || !purpose || !hiTypes?.length)
-    return res.status(400).json({ error: 'hiuId, purpose, hiTypes required' });
+  const { purpose, dateFrom, dateTo } = req.body;
+  // hiuId must always be our registered HIU ID — never trust the frontend value
+  const hiuId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+  if (!hiuId) return res.status(500).json({ error: 'ABDM_HIP_ID not configured' });
+  if (!purpose) return res.status(400).json({ error: 'purpose required' });
+  // Always send all 7 HI types — sending a subset disables grant in PHR if the
+  // patient's care context hiType is not in the list
+  const hiTypes = ALL_HI_TYPES;
 
   const { rows } = await pool.query(
     'SELECT abha_address FROM abha_accounts WHERE user_id=$1',

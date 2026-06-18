@@ -771,10 +771,15 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
     careContextCount:  careContexts.length,
   });
 
+  // ABDM v3 /hip/v3/link/carecontext requires abhaNumber + abhaAddress at top level
+  // (same as ABDMv0.5 — removing them causes 400 with empty body).
+  // Use token-decoded values so they always match what ABDM issued the token for.
   const body = {
+    abhaNumber: tokenAbhaNumber,
+    abhaAddress: tokenAbhaAddress,
     patient: {
       referenceNumber: localPatientRef,
-      display: name ?? abhaAddress ?? cleanAbha,
+      display: name ?? tokenAbhaAddress ?? cleanAbha,
       careContexts: careContexts.map(ctx => ({
         referenceNumber: ctx.referenceNumber,
         display: ctx.display,
@@ -845,8 +850,10 @@ async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRang
         name: requester.name || process.env.ABDM_REQUESTER_NAME || 'Clinic HIU',
         identifier: {
           type:   requester.identifierType   || 'REGNO',
-          value:  requester.identifierValue  || (process.env.ABDM_REQUESTER_REG || hiuId),
-          system: requester.identifierSystem || 'https://www.mciindia.org',
+          // ABDM_REQUESTER_REG must be the facility's HFR ID or doctor's HPR number.
+          // Falling back to hiuId (the ABDM client ID) is rejected by ABDM in production.
+          value:  requester.identifierValue  || process.env.ABDM_REQUESTER_REG || process.env.ABDM_HFR_ID || hiuId,
+          system: requester.identifierSystem || process.env.ABDM_REQUESTER_SYSTEM || 'https://facility.ndhm.gov.in',
         },
       },
       hiTypes,
