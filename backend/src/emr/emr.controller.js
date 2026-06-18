@@ -450,13 +450,15 @@ const retryCareContextLink = async (req, res) => {
   if (!ctxRows.length) return res.status(404).json({ error: 'Care context not found' });
   const ctx = ctxRows[0];
 
-  if (!ctx.abha_number) {
-    return res.status(400).json({ error: 'Patient has no ABHA number — cannot link to ABDM' });
+  // ABDM: care contexts are linked per ABHA address, not per ABHA number.
+  // abha_address is the identifier used during discovery, consent, and data exchange.
+  if (!ctx.abha_address) {
+    return res.status(400).json({ error: 'Patient has no ABHA address — cannot link to ABDM. Set ABHA address first.' });
   }
 
   try {
     const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
-    const tokenRes = await abdmSvc.generateLinkToken(hipId);
+    const tokenRes = await abdmSvc.generateLinkToken(hipId, ctx.abha_number, ctx.abha_address, ctx.patient_name);
     await abdmSvc.linkCareContexts(
       hipId,
       tokenRes.linkToken,
@@ -657,6 +659,8 @@ async function _pullHealthData(requestId, clinicId) {
   );
   if (!consent || consent.status !== 'GRANTED') return { count: 0, txnId: null };
 
+  // Consent is scoped to the exact ABHA address used in the consent request.
+  // Never fall back to abha_number — two ABHA addresses are separate patient identities in ABDM.
   const patientAbha = consent.patient_abha;
   if (!patientAbha) return { count: 0, txnId: null };
 
@@ -664,7 +668,7 @@ async function _pullHealthData(requestId, clinicId) {
     `SELECT ecc.*, ep.name AS patient_name, ep.gender, ep.dob, ep.mobile
      FROM emr_care_contexts ecc
      JOIN emr_patients ep ON ep.id = ecc.patient_id
-     WHERE ep.abha_address=$1 OR ep.abha_number=$1
+     WHERE ep.abha_address = $1
      ORDER BY ecc.created_at DESC`,
     [patientAbha]
   );

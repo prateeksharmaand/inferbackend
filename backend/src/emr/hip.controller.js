@@ -115,7 +115,10 @@ const handleDiscovery = async (req, res) => {
       [pt.id]
     );
 
-    const abhaId = pt.abha_address ?? pt.abha_number ?? `${pt.id}@hip`;
+    // ABDM: discovery response must echo back the exact identifier used in the request.
+    // If query used abha_address, respond with abha_address — never substitute abha_number.
+    const queriedId = patient?.id; // the identifier ABDM sent us in the discover request
+    const abhaId = queriedId || pt.abha_address || pt.abha_number || `${pt.id}@hip`;
     await hip.sendDiscoverResult({
       requestId,
       transactionId,
@@ -552,11 +555,13 @@ const handleHealthInfoRequest = async (req, res) => {
       const params = consentFrom && consentTo
         ? [resolvedPatientId, consentFrom, consentTo]
         : [resolvedPatientId];
+      // ABDM: scope care contexts to exact ABHA address used in consent/discovery.
+      // Never use OR abha_number — two addresses are separate identities in ABDM.
       const { rows: r } = await pool.query(
         `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
          FROM emr_care_contexts ecc
          JOIN emr_patients ep ON ep.id = ecc.patient_id
-         WHERE (ep.abha_address=$1 OR ep.abha_number=$1)
+         WHERE ep.abha_address = $1
          ${dateFilter}
          ORDER BY ecc.created_at DESC`,
         params
