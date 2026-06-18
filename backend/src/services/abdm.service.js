@@ -738,24 +738,50 @@ async function _runGenerateLinkToken(hipId, cleanAbha, cacheKey, abhaAddress, na
   }
 }
 
+function _decodeLinkToken(linkToken) {
+  try {
+    const payload = linkToken.split('.')[1];
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
 async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts) {
   const token = await getGatewayToken();
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
-  // ABDM v3 /hip/v3/link/carecontext only accepts the patient object in the body.
-  // abhaNumber/abhaAddress are carried by X-LINK-TOKEN header — do not put at top level.
-  // patient.referenceNumber is the ABHA address (matches patientRef from discovery).
-  const patientRef = abhaAddress || cleanAbha;
+
+  // Decode the link token to extract the exact abhaAddress ABDM issued it for.
+  // The cache key is abhaNumber-only, so a cached token may have been generated for
+  // a different abhaAddress than what is currently in emr_patients.
+  // patient.referenceNumber MUST match the abhaAddress in the X-LINK-TOKEN or ABDM returns 400.
+  const decoded = _decodeLinkToken(linkToken);
+  const tokenAbhaAddress = decoded?.abhaAddress ?? abhaAddress;
+  const tokenAbhaNumber  = decoded?.abhaNumber  ? String(decoded.abhaNumber).replace(/-/g, '') : cleanAbha;
+
+  logger.info('linkCareContexts: decoded link token', {
+    tokenAbhaAddress,
+    tokenAbhaNumber:   tokenAbhaNumber.slice(-4) + ' (last 4)',
+    callerAbhaAddress: abhaAddress,
+    callerAbhaNumber:  cleanAbha.slice(-4) + ' (last 4)',
+    addressMatch:      tokenAbhaAddress === abhaAddress,
+    numberMatch:       tokenAbhaNumber  === cleanAbha,
+    careContextCount:  careContexts.length,
+  });
+
   const body = {
     patient: {
-      referenceNumber: patientRef,
-      display: name ?? abhaAddress ?? cleanAbha,
+      referenceNumber: tokenAbhaAddress,
+      display: name ?? tokenAbhaAddress ?? cleanAbha,
       careContexts: careContexts.map(ctx => ({
         referenceNumber: ctx.referenceNumber,
         display: ctx.display,
       })),
     },
   };
-  logger.info('linkCareContexts request', { hipId, cleanAbha, contextCount: careContexts.length });
+
+  logger.info('linkCareContexts finalRequestBody', { hipId, body: JSON.stringify(body) });
+
   try {
     const res = await abdmAxios.post(
       `${ABDM_HIECM}/hip/v3/link/carecontext`,
@@ -775,11 +801,9 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
     return res.data;
   } catch (err) {
     const errBody = err.response?.data;
-    const errText = err.response?.headers?.['content-type']?.includes('text') ? err.response?.data : null;
     logger.error('linkCareContexts FAILED', {
-      status: err.response?.status,
-      body: errBody,
-      rawText: errText,
+      status:   err.response?.status,
+      body:     errBody,
       sentBody: body,
     });
     const fwd = new Error(`ABDM link carecontext failed: ${errBody ? JSON.stringify(errBody) : err.message}`);
