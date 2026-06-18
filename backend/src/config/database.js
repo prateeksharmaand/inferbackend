@@ -651,6 +651,23 @@ async function initializeDatabase() {
     // ON CONFLICT requires a non-deferrable unique constraint — recreate if deferrable
     await client.query(`ALTER TABLE emr_care_contexts DROP CONSTRAINT IF EXISTS uq_care_ctx_ref_num`);
     await client.query(`ALTER TABLE emr_care_contexts ADD CONSTRAINT uq_care_ctx_ref_num UNIQUE (reference_number)`);
+    // Link token persistence — survives restarts, prevents duplicate ABDM token requests
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS link_tokens (
+        id             SERIAL PRIMARY KEY,
+        patient_ref    TEXT NOT NULL,
+        hip_id         TEXT NOT NULL,
+        token          TEXT,
+        status         TEXT NOT NULL DEFAULT 'pending'
+                         CHECK (status IN ('pending','active','linked','failed','expired')),
+        expires_at     TIMESTAMPTZ,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (patient_ref, hip_id)
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_patient ON link_tokens(patient_ref, hip_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_status  ON link_tokens(status, expires_at)`);
 
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');

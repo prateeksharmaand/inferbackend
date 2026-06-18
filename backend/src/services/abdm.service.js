@@ -1,6 +1,7 @@
 const axios  = require('axios');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { pool } = require('../config/database');
 const { weierstrass } = require('@noble/curves/abstract/weierstrass.js');
 const { mod } = require('@noble/curves/abstract/modular.js');
 
@@ -557,26 +558,70 @@ async function linkConfirm(linkRefNumber, token) {
 
 // ─── M2: HIP-initiated link (HIECM v3) ───────────────────────────────────────
 
-// Called by hip.controller's handleOnGenerateToken to store async token
-function _storeLinkToken(cacheKey, linkToken) {
-  _linkTokenCache.set(cacheKey, { token: linkToken, expiry: Date.now() + 9 * 60 * 1000 });
-  logger.info('generateLinkToken: stored async token in cache', { cacheKey: cacheKey.slice(-8) });
+// Called by hip.controller's handleOnGenerateToken to store async token in both cache + DB
+async function _storeLinkToken(cacheKey, linkToken) {
+  const expiresAt = new Date(Date.now() + 9 * 60 * 1000);
+  _linkTokenCache.set(cacheKey, { token: linkToken, expiry: expiresAt.getTime() });
+  // Persist to DB — token survives server restarts
+  const [patientRef, hipId] = cacheKey.split(':');
+  await pool.query(
+    `INSERT INTO link_tokens (patient_ref, hip_id, token, status, expires_at)
+     VALUES ($1, $2, $3, 'active', $4)
+     ON CONFLICT (patient_ref, hip_id) DO UPDATE
+       SET token=$3, status='active', expires_at=$4, updated_at=NOW()`,
+    [patientRef, hipId, linkToken, expiresAt]
+  ).catch(err => logger.warn('_storeLinkToken DB persist failed', { error: err.message }));
+  logger.info('generateLinkToken: token stored (cache+DB)', { cacheKey: cacheKey.slice(-12) });
+}
+
+async function _getStoredLinkToken(patientRef, hipId) {
+  // 1. Check in-memory cache first (fastest)
+  const cacheKey = `${patientRef}:${hipId}`;
+  const cached = _linkTokenCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiry) {
+    logger.info('generateLinkToken: reusing in-memory token', { cacheKey: cacheKey.slice(-12) });
+    return cached.token;
+  }
+  // 2. Check DB (handles restarts)
+  const { rows } = await pool.query(
+    `SELECT token, expires_at, status FROM link_tokens
+     WHERE patient_ref=$1 AND hip_id=$2
+       AND status IN ('pending','active')
+       AND expires_at > NOW()
+     LIMIT 1`,
+    [patientRef, hipId]
+  ).catch(() => ({ rows: [] }));
+  if (rows[0]?.token) {
+    // Warm the in-memory cache from DB
+    _linkTokenCache.set(cacheKey, { token: rows[0].token, expiry: new Date(rows[0].expires_at).getTime() });
+    logger.info('generateLinkToken: reusing DB-persisted token', { cacheKey: cacheKey.slice(-12), status: rows[0].status });
+    return rows[0].token;
+  }
+  return null;
 }
 
 async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, yearOfBirth) {
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
   const cacheKey  = `${cleanAbha}:${hipId}`;
 
-  // Reuse a cached token if still valid (ABDM-1092 if we request twice)
-  const cached = _linkTokenCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiry) {
-    logger.info('generateLinkToken: using cached token', { cacheKey });
-    return { linkToken: cached.token };
-  }
+  // 1. Reuse active token from cache or DB — prevents ABDM-1092 duplicate-token errors
+  const existing = await _getStoredLinkToken(cleanAbha, hipId);
+  if (existing) return { linkToken: existing };
+
+  // 2. Mark as pending in DB before calling ABDM (prevents race conditions)
+  const pendingExpiry = new Date(Date.now() + 15_000); // 15s async wait window
+  await pool.query(
+    `INSERT INTO link_tokens (patient_ref, hip_id, status, expires_at)
+     VALUES ($1, $2, 'pending', $3)
+     ON CONFLICT (patient_ref, hip_id) DO UPDATE
+       SET status='pending', expires_at=$3, token=NULL, updated_at=NOW()`,
+    [cleanAbha, hipId, pendingExpiry]
+  ).catch(() => {});
 
   const token = await getGatewayToken();
-  const body = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) || 1990 };
-  logger.info('generateLinkToken request', { hipId, cleanAbha, abhaAddress, gender, yearOfBirth });
+  const body  = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) || 1990 };
+  logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, gender, yearOfBirth });
+
   try {
     const res = await abdmAxios.post(
       `${ABDM_HIECM}/v3/token/generate-token`,
@@ -593,28 +638,32 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
       }
     );
 
-    // Synchronous response (token in body) — some ABDM environments return it directly
+    // Synchronous response — some ABDM environments return token directly in body
     if (res.data?.linkToken) {
-      _storeLinkToken(cacheKey, res.data.linkToken);
+      await _storeLinkToken(cacheKey, res.data.linkToken);
       return { linkToken: res.data.linkToken };
     }
 
-    // Async flow — ABDM returns 202 and sends token via /v3/hip/token/on-generate-token callback.
-    // Wait up to 15s for the token to arrive via EventEmitter.
-    logger.info('generateLinkToken: async flow — waiting for on-generate-token callback', { cleanAbha: cleanAbha.slice(-4) });
+    // Async flow — ABDM returns 202, sends token via POST /v3/hip/token/on-generate-token
+    logger.info('generateLinkToken: async flow — waiting up to 15s for on-generate-token callback', { cleanAbha: cleanAbha.slice(-4) });
     return await new Promise((resolve, reject) => {
       const { _linkTokenEmitter } = require('../emr/hip.controller');
       const eventKey = `token:${cleanAbha}`;
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         _linkTokenEmitter.removeAllListeners(eventKey);
-        // Last chance: check cache (another request may have stored it)
-        const late = _linkTokenCache.get(cacheKey);
-        if (late && Date.now() < late.expiry) return resolve({ linkToken: late.token });
+        // Last-chance: check DB (callback may have arrived and stored it)
+        const late = await _getStoredLinkToken(cleanAbha, hipId);
+        if (late) return resolve({ linkToken: late });
+        // Mark as failed so next attempt doesn't reuse pending
+        pool.query(
+          `UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`,
+          [cleanAbha, hipId]
+        ).catch(() => {});
         reject(Object.assign(new Error('Timeout waiting for ABDM link token callback (on-generate-token)'), { status: 504 }));
       }, 15_000);
-      _linkTokenEmitter.once(eventKey, (linkToken) => {
+      _linkTokenEmitter.once(eventKey, async (linkToken) => {
         clearTimeout(timer);
-        _storeLinkToken(cacheKey, linkToken);
+        await _storeLinkToken(cacheKey, linkToken);
         resolve({ linkToken });
       });
     });
@@ -624,11 +673,18 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
     const code    = errBody?.error?.code;
     logger.error('generateLinkToken FAILED', { status: err.response?.status, body: errBody });
     if (code === 'ABDM-1092') {
+      // Token already active at ABDM — clear our pending state and retry after expiry
+      await pool.query(
+        `UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`,
+        [cleanAbha, hipId]
+      ).catch(() => {});
       _linkTokenCache.delete(cacheKey);
-      const fwd = new Error('A link token is already active for this patient at this facility. Please wait ~10 minutes and retry.');
-      fwd.status = 409;
-      throw fwd;
+      throw Object.assign(new Error('A link token is already active for this patient. Wait ~10 minutes and retry.'), { status: 409 });
     }
+    await pool.query(
+      `UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`,
+      [cleanAbha, hipId]
+    ).catch(() => {});
     throw err.status ? err : Object.assign(new Error(`ABDM link token failed: ${errBody ? JSON.stringify(errBody) : err.message}`), { status: err.response?.status ?? 502 });
   }
 }
@@ -771,7 +827,7 @@ module.exports = {
   getAbhaProfile,         getAbhaPngCard,
   getAbhaSuggestions,     setAbhaAddress,
   discoverCareContexts,   linkInit,             linkConfirm,
-  generateLinkToken,      linkCareContexts,     _storeLinkToken,
+  generateLinkToken,      linkCareContexts,     _storeLinkToken,    _getStoredLinkToken,
   createConsentRequest,   fetchHealthInfo,      gwReqSilent,
   generateHiuKeyMaterial, decryptHipEntry, getHiuKey,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,

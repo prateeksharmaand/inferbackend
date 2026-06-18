@@ -833,11 +833,11 @@ const handleOnGenerateToken = async (req, res) => {
       logger.info('HIP on-generate-token: emitted token', { cleanAbha: cleanAbha?.slice(-4) });
     }
 
-    // Also update the abdm service cache so it's reusable
+    // Persist token to cache + DB via abdm.service
     const abdmSvc = require('../services/abdm.service');
     const hipId   = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
     if (cleanAbha) {
-      abdmSvc._storeLinkToken(`${cleanAbha}:${hipId}`, linkToken);
+      await abdmSvc._storeLinkToken(`${cleanAbha}:${hipId}`, linkToken);
     }
   } catch (err) {
     logger.error('handleOnGenerateToken error', err);
