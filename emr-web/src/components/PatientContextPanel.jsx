@@ -740,7 +740,8 @@ function ConsentCard({ c, onFetched }) {
         onFetched?.();
         return;
       }
-      const recs = await api.get('/consents/health-records');
+      const abhaParam = abha ? `?abha=${encodeURIComponent(abha)}` : '';
+      const recs = await api.get(`/consents/health-records${abhaParam}`);
       const mine = recs.filter(r => r.transaction_id === c.transaction_id || pullRes.txnId === r.transaction_id);
       setRecords(mine);
       setExpanded(true);

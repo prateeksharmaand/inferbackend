@@ -752,15 +752,34 @@ const pullConsentData = async (req, res) => {
 };
 
 const getConsentHealthRecords = async (req, res) => {
-  const { rows } = await pool.query(
-    `SELECT hr.*
-     FROM health_records hr
-     WHERE hr.transaction_id IN (
-       SELECT transaction_id FROM emr_consent_requests WHERE clinic_id=$1 AND transaction_id IS NOT NULL
-     )
-     ORDER BY hr.received_at DESC LIMIT 100`,
-    [req.emrUser.clinic_id]
-  );
+  const clinicId     = req.emrUser.clinic_id;
+  // Optionally scope to a specific consent request (by patient_abha)
+  const patientAbha  = req.query.abha || null;
+
+  let query, params;
+  if (patientAbha) {
+    // Return records for the specific ABHA address consent only
+    query = `SELECT hr.*
+             FROM health_records hr
+             WHERE hr.transaction_id IN (
+               SELECT transaction_id FROM emr_consent_requests
+               WHERE clinic_id=$1 AND transaction_id IS NOT NULL
+                 AND patient_abha = $2
+             )
+             ORDER BY hr.received_at DESC LIMIT 100`;
+    params = [clinicId, patientAbha];
+  } else {
+    query = `SELECT hr.*
+             FROM health_records hr
+             WHERE hr.transaction_id IN (
+               SELECT transaction_id FROM emr_consent_requests
+               WHERE clinic_id=$1 AND transaction_id IS NOT NULL
+             )
+             ORDER BY hr.received_at DESC LIMIT 100`;
+    params = [clinicId];
+  }
+
+  const { rows } = await pool.query(query, params);
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.json(rows);
 };
