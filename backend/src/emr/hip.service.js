@@ -1076,6 +1076,15 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     keyMaterialPresent: !!keyMaterial,
   });
 
+  // Log dataPushUrl so ABDM-1017 can be diagnosed — if it's ABDM's own PHR URL
+  // (https://apissbx.abdm.gov.in/...) the session may expire before our push arrives.
+  // Our own HIU requests use BACKEND_URL/api/abdm/health-info/push.
+  logger.info('ABDM pushHealthData session info', {
+    transactionId,
+    dataPushUrl,
+    isAbdmSandboxPhr: dataPushUrl?.includes('apissbx.abdm.gov.in'),
+    careContextCount: careContexts?.length,
+  });
   logger.info('ABDM Transaction Trace', {
     stage: 'encryption_started',
     transactionId,
@@ -1239,6 +1248,18 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     });
 
     if (response.status !== 202 && response.status !== 200) {
+      const errCode = response.data?.code ?? response.data?.error?.code;
+      // ABDM-1017 from a sample PHR session means the HIU's sandbox session expired
+      // before our push arrived. This happens when ABDM's own PHR app (not our HIU)
+      // initiated the health-info request and the session timed out. Non-fatal for
+      // our own HIU flow (which uses a different transactionId → our own dataPushUrl).
+      if (errCode === 'ABDM-1017') {
+        logger.warn('ABDM health-data push: ABDM-1017 Invalid Transaction Id — likely sandbox PHR session expired', {
+          transactionId, dataPushUrl,
+          note: 'If dataPushUrl is ABDM sandbox PHR URL, this session may have expired. Our HIU flow (dataPushUrl = BACKEND_URL) is unaffected.',
+        });
+        return; // non-fatal — our HIU's own transaction uses a different URL
+      }
       throw new Error(`ABDM returned ${response.status}: ${JSON.stringify(response.data)}`);
     }
 
