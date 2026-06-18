@@ -558,6 +558,11 @@ async function linkConfirm(linkRefNumber, token) {
 
 // ─── M2: HIP-initiated link (HIECM v3) ───────────────────────────────────────
 
+// In-process lock: prevents two concurrent generateLinkToken calls for the same patient.
+// Without this, two simultaneous requests both pass the cache check, both hit ABDM,
+// and the second gets ABDM-1092; the second then waits 15s and times out.
+const _inFlight = new Map(); // cacheKey → Promise<{linkToken}>
+
 // Called by hip.controller's handleOnGenerateToken to store async token in both cache + DB
 async function _storeLinkToken(cacheKey, linkToken) {
   const expiresAt = new Date(Date.now() + 9 * 60 * 1000);
@@ -614,6 +619,13 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
   const existing = await _getStoredLinkToken(cleanAbha, hipId);
   if (existing) return { linkToken: existing };
 
+  // 2. Coalesce concurrent requests — if another call for this patient is already in-flight,
+  //    wait for it instead of sending a duplicate request to ABDM (causes ABDM-1092 + timeout).
+  if (_inFlight.has(cacheKey)) {
+    logger.info('generateLinkToken: coalescing duplicate in-flight request', { cacheKey: cacheKey.slice(-12) });
+    return _inFlight.get(cacheKey);
+  }
+
   const token     = await getGatewayToken();
   const requestId = uuid(); // Store so we can correlate the async callback
   // ABDM requires yearOfBirth (4-digit) and gender (M/F/O/D/T/U) — values must match Aadhaar exactly.
@@ -650,6 +662,8 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
     [cleanAbha, hipId, requestId, pendingExpiry]
   ).catch(() => {});
 
+  // Register in-flight promise so concurrent callers coalesce onto this one
+  const abdmCallPromise = (async () => {
   try {
     const res = await abdmAxios.post(
       `${ABDM_HIECM}/v3/token/generate-token`,
@@ -731,7 +745,12 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
       [cleanAbha, hipId]
     ).catch(() => {});
     throw err.status ? err : Object.assign(new Error(`ABDM link token failed: ${errBody ? JSON.stringify(errBody) : err.message}`), { status: err.response?.status ?? 502 });
+  } finally {
+    _inFlight.delete(cacheKey);
   }
+  })(); // end abdmCallPromise IIFE
+  _inFlight.set(cacheKey, abdmCallPromise);
+  return abdmCallPromise;
 }
 
 async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts) {
