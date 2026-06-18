@@ -478,18 +478,21 @@ const createConsent = async (req, res) => {
   // patient's care context hiType is not in the list
   const hiTypes = ALL_HI_TYPES;
 
-  const { rows } = await pool.query(
-    'SELECT abha_address FROM abha_accounts WHERE user_id=$1',
-    [req.user.id]
-  );
-  if (!rows.length) return res.status(400).json({ error: 'ABHA not linked' });
+  const [abhaRes, clinicRes] = await Promise.all([
+    pool.query('SELECT abha_address FROM abha_accounts WHERE user_id=$1', [req.user.id]),
+    pool.query('SELECT name FROM emr_clinics ORDER BY id LIMIT 1'),
+  ]);
+  if (!abhaRes.rows.length) return res.status(400).json({ error: 'ABHA not linked' });
+
+  const clinicName = clinicRes.rows[0]?.name || process.env.ABDM_REQUESTER_NAME || 'Clinic HIU';
 
   const result = await abdm.createConsentRequest(
-    rows[0].abha_address, hiuId, purpose, hiTypes,
+    abhaRes.rows[0].abha_address, hiuId, purpose, hiTypes,
     {
       from: dateFrom ?? new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
       to:   dateTo && new Date(dateTo) <= new Date() ? dateTo : new Date().toISOString(),
-    }
+    },
+    { name: clinicName }
   );
 
   // Track in emr_consent_requests (single source of truth)

@@ -569,12 +569,18 @@ const ALL_HI_TYPES = [
 ];
 
 const createConsentRequest = async (req, res) => {
-  const { patientAbha, hipId, purpose, hiTypes, dateFrom, dateTo, requesterName, requesterReg } = req.body;
+  const { patientAbha, hipId, purpose, hiTypes, dateFrom, dateTo, requesterReg } = req.body;
   if (!patientAbha || !hipId || !purpose)
     return res.status(400).json({ error: 'patientAbha, hipId, purpose required' });
 
   const clinicId = req.emrUser.clinic_id;
   const hiuId    = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+
+  // Always use clinic name from DB as requester name — never from frontend
+  const { rows: clinicRows } = await pool.query(
+    'SELECT name FROM emr_clinics WHERE id=$1', [clinicId]
+  );
+  const requesterName = clinicRows[0]?.name || process.env.ABDM_REQUESTER_NAME || 'Clinic HIU';
 
   // ABDM consent-requests/init requires the ABHA Address (e.g. name@sbx), NOT the ABHA number.
   // If the caller sent an ABHA number (no @), resolve the address from emr_patients.
