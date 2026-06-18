@@ -134,8 +134,18 @@ async function resolveOrCreatePatient(pool, {
   const { patient, matchedBy } = await findPatient(pool, { abhaNumber, abhaAddress });
 
   if (patient) {
-    // Attach the new address/number if it differs from what's already stored
     await attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source });
+    // Overwrite demographic fields with Aadhaar-authoritative values when provided.
+    // This ensures generateLinkToken always gets the exact gender/dob ABDM expects.
+    await pool.query(
+      `UPDATE emr_patients
+       SET name   = COALESCE($1, name),
+           mobile = COALESCE($2, mobile),
+           gender = COALESCE($3, gender),
+           dob    = COALESCE($4::date, dob)
+       WHERE id = $5`,
+      [name ?? null, mobile ?? null, gender ?? null, dob ?? null, patient.id]
+    );
     const { rows } = await pool.query('SELECT * FROM emr_patients WHERE id=$1', [patient.id]);
     return { patient: rows[0], created: false, matchedBy };
   }

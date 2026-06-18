@@ -384,14 +384,24 @@ const addCareContext = async (req, res) => {
   // Attempt HIP-initiated ABDM link if patient has an ABHA number
   let abdmLinked = false;
   const { rows: patRows } = await pool.query(
-    `SELECT abha_number, abha_address, name FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`,
+    `SELECT abha_number, abha_address, name, gender,
+            EXTRACT(YEAR FROM dob)::int AS birth_year
+     FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`,
     [patientId]
   );
   const patForLink = patRows[0];
   if (patForLink?.abha_number) {
+    const VALID_GENDERS = ['M', 'F', 'O', 'D', 'T', 'U'];
+    const normGender  = patForLink.gender === 'Male' ? 'M' : patForLink.gender === 'Female' ? 'F' : patForLink.gender === 'Other' ? 'O' : patForLink.gender;
+    const yearOfBirth = patForLink.birth_year;
+    if (!yearOfBirth || yearOfBirth < 1900 || !normGender || !VALID_GENDERS.includes(normGender)) {
+      logger.warn('ABDM link skipped — patient gender/DOB missing or invalid', { patientId, gender: patForLink.gender, yearOfBirth });
+    } else
     try {
       const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
-      const tokenRes = await abdmSvc.generateLinkToken(hipId);
+      const tokenRes = await abdmSvc.generateLinkToken(
+        hipId, patForLink.abha_number, patForLink.abha_address, patForLink.name, normGender, yearOfBirth
+      );
       await abdmSvc.linkCareContexts(
         hipId,
         tokenRes.linkToken,
@@ -441,7 +451,8 @@ const deleteCareContext = async (req, res) => {
 // Manually retry ABDM HIP-initiated link for a care context (e.g. after earlier failure)
 const retryCareContextLink = async (req, res) => {
   const { rows: ctxRows } = await pool.query(
-    `SELECT cc.*, p.abha_number, p.abha_address, p.name AS patient_name
+    `SELECT cc.*, p.abha_number, p.abha_address, p.name AS patient_name,
+            p.gender, EXTRACT(YEAR FROM p.dob)::int AS birth_year
      FROM emr_care_contexts cc
      JOIN emr_patients p ON p.id = cc.patient_id
      WHERE cc.id=$1 AND cc.patient_id=$2 AND p.deleted_at IS NULL`,
@@ -450,15 +461,23 @@ const retryCareContextLink = async (req, res) => {
   if (!ctxRows.length) return res.status(404).json({ error: 'Care context not found' });
   const ctx = ctxRows[0];
 
-  // ABDM: care contexts are linked per ABHA address, not per ABHA number.
-  // abha_address is the identifier used during discovery, consent, and data exchange.
   if (!ctx.abha_address) {
     return res.status(400).json({ error: 'Patient has no ABHA address — cannot link to ABDM. Set ABHA address first.' });
   }
 
+  const VALID_GENDERS = ['M', 'F', 'O', 'D', 'T', 'U'];
+  const normGender  = ctx.gender === 'Male' ? 'M' : ctx.gender === 'Female' ? 'F' : ctx.gender === 'Other' ? 'O' : ctx.gender;
+  const yearOfBirth = ctx.birth_year;
+  if (!yearOfBirth || yearOfBirth < 1900 || !normGender || !VALID_GENDERS.includes(normGender)) {
+    return res.status(400).json({
+      error: 'Patient gender and date of birth are required for ABDM linking. Please update the patient record with Aadhaar-correct demographics.',
+      gender: ctx.gender, yearOfBirth,
+    });
+  }
+
   try {
     const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
-    const tokenRes = await abdmSvc.generateLinkToken(hipId, ctx.abha_number, ctx.abha_address, ctx.patient_name);
+    const tokenRes = await abdmSvc.generateLinkToken(hipId, ctx.abha_number, ctx.abha_address, ctx.patient_name, normGender, yearOfBirth);
     await abdmSvc.linkCareContexts(
       hipId,
       tokenRes.linkToken,
@@ -904,14 +923,22 @@ const linkProfileShareToPatient = async (req, res) => {
     [patientId, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Share not found' });
-  // Also update the patient's ABHA fields from the share
+  // Sync all Aadhaar-authoritative fields from the QR share into emr_patients.
+  // gender/dob/name came directly from ABDM — they must match Aadhaar for generateLinkToken.
   const s = rows[0];
-  if (s.abha_number || s.abha_address) {
-    await pool.query(
-      `UPDATE emr_patients SET abha_number=COALESCE($1,abha_number), abha_address=COALESCE($2,abha_address) WHERE id=$3`,
-      [s.abha_number, s.abha_address, patientId]
-    );
-  }
+  await pool.query(
+    `UPDATE emr_patients
+     SET abha_number  = COALESCE($1, abha_number),
+         abha_address = COALESCE($2, abha_address),
+         name         = COALESCE($3, name),
+         gender       = COALESCE($4, gender),
+         dob          = COALESCE($5::date, dob)
+     WHERE id = $6`,
+    [s.abha_number, s.abha_address, s.name, s.gender, s.dob, patientId]
+  );
+  logger.info('linkProfileShareToPatient: synced ABDM demographics to patient', {
+    patientId, hasAbhaNumber: !!s.abha_number, hasGender: !!s.gender, hasDob: !!s.dob,
+  });
   res.json(rows[0]);
 };
 

@@ -399,6 +399,15 @@ const linkCareContexts = async (req, res) => {
   const resolvedGender      = ptRows[0]?.gender      ?? patientGender;
   const resolvedYearOfBirth = ptRows[0]?.year_of_birth ?? patientYearOfBirth;
 
+  logger.info('ABDM demographic verification (linkCareContexts)', {
+    abhaNumber:        abha_number?.slice(-4) + ' (last 4)',
+    abhaAddress:       abha_address,
+    gender:            resolvedGender,
+    yearOfBirth:       resolvedYearOfBirth,
+    sourceGender:      ptRows[0]?.gender ? 'emr_patients' : 'request_body',
+    sourceYearOfBirth: ptRows[0]?.year_of_birth ? 'emr_patients' : 'request_body',
+  });
+
   const tokenRes = await abdm.generateLinkToken(
     hipId, abha_number, abha_address, name,
     resolvedGender, resolvedYearOfBirth

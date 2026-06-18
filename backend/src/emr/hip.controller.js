@@ -816,9 +816,11 @@ const handleOnGenerateToken = async (req, res) => {
     const { linkToken, abhaNumber, requestId } = req.body;
     const cleanAbha = abhaNumber ? String(abhaNumber).replace(/-/g, '') : null;
 
+    // Step 6 diagnostic: log complete callback payload for ABDM-1207 debugging
     logger.info('HIP on-generate-token callback received', {
       requestId, hasToken: !!linkToken, hasAbhaNumber: !!abhaNumber,
       bodyKeys: Object.keys(req.body || {}),
+      fullPayload: JSON.stringify(req.body),
     });
 
     // ── ERROR PATH: ABDM returned an error instead of a token ────────────────
@@ -826,7 +828,7 @@ const handleOnGenerateToken = async (req, res) => {
       const errCode = req.body?.error?.code || 'ABDM_ERROR';
       const errMsg  = req.body?.error?.message || 'No linkToken in on-generate-token callback';
       const errObj  = Object.assign(new Error(`${errCode}: ${errMsg}`), { status: 400 });
-      logger.warn('HIP on-generate-token: error callback received', { errCode, errMsg });
+      logger.warn('HIP on-generate-token: error callback received', { errCode, errMsg, fullError: JSON.stringify(req.body?.error) });
 
       const { pool } = require('../config/database');
       const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
