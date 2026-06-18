@@ -634,6 +634,10 @@ const consentNotify = async (req, res) => {
       const purpose = artRows[0]?.raw?.consentDetail?.purpose?.code ?? 'PATRQT';
       const hiTypes = artRows[0]?.raw?.consentDetail?.hiTypes ?? [];
       const hipId   = artRows[0]?.raw?.consentDetail?.hip?.id ?? null;
+      // CRITICAL: Extract permission.dateRange from stored HIP artifact (patient-initiated consents)
+      const permissionDateRange = artRows[0]?.raw?.consentDetail?.permission?.dateRange
+        ?? artRows[0]?.raw?.permission?.dateRange
+        ?? null;
 
       if (patientAbha) {
         const hiuId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
@@ -649,16 +653,23 @@ const consentNotify = async (req, res) => {
         } else {
           await pool.query(
             `INSERT INTO emr_consent_requests
-               (clinic_id, request_id, abdm_request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, status)
+               (clinic_id, request_id, abdm_request_id, patient_abha, hip_id, hiu_id, purpose, hi_types, permission_date_range, status)
              VALUES (
                (SELECT MIN(id) FROM emr_clinics),
-               $1, $1, $2, $3, $4, $5, $6, $7
+               $1, $1, $2, $3, $4, $5, $6, $7, $8
              )
              ON CONFLICT (request_id) DO UPDATE
-               SET status=$7, abdm_request_id=$1, updated_at=NOW()`,
-            [consentRequestId, patientAbha, hipId, hiuId, purpose, hiTypes, notification.status]
+               SET status=$8, abdm_request_id=$1, permission_date_range=$7, updated_at=NOW()`,
+            [consentRequestId, patientAbha, hipId, hiuId, purpose, hiTypes, JSON.stringify(permissionDateRange), notification.status]
           ).catch(err => logger.warn('HIU consent notify: upsert failed', { error: err.message }));
-          logger.info('HIU consent notify: inserted patient-initiated consent', { consentRequestId, patientAbha, purpose });
+          logger.info('HIU consent notify: inserted patient-initiated consent', {
+            consentRequestId,
+            patientAbha,
+            purpose,
+            hasPermissionDateRange: !!permissionDateRange,
+            dateRangeFrom: permissionDateRange?.from,
+            dateRangeTo: permissionDateRange?.to,
+          });
         }
       } else {
         logger.warn('HIU consent notify: no patient ABHA found for upsert', { consentRequestId, artefactId });
@@ -685,6 +696,20 @@ const consentNotify = async (req, res) => {
         permissionDateRange = notification.consentDetail?.permission?.dateRange
           || notification.grants?.dateRange
           || null;
+      }
+
+      // CRITICAL VALIDATION: Reject if dateRange is missing (prevents ABDM-1063)
+      if (!permissionDateRange?.from || !permissionDateRange?.to) {
+        logger.error('HIU consent GRANTED but permission.dateRange is missing', {
+          consentRequestId,
+          artefactCount: notification.consentArtefacts.length,
+          hasStoredRange: !!storedConsent[0]?.permission_date_range,
+          hasNotificationRange: !!(notification.consentDetail?.permission?.dateRange || notification.grants?.dateRange),
+          permissionDateRange,
+        });
+        // Skip health-info fetch to prevent ABDM-1063
+        // Consent is marked GRANTED in DB but without valid dateRange for health-info
+        return;
       }
 
       logger.info('HIU consent GRANTED: storing artefacts and dateRange', {
