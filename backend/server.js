@@ -224,10 +224,18 @@ app.post('/v3/hip/links/link/init',                      verifyAbdmCallback, hip
 app.post('/api/v3/hip/links/link/init',                  verifyAbdmCallback, hipCtrl.handleLinkInit);
 app.post('/v3/hip/link/care-context/init',               verifyAbdmCallback, hipCtrl.handleLinkInit);
 app.post('/api/v3/hip/link/care-context/init',           verifyAbdmCallback, hipCtrl.handleLinkInit);
+// /patients/link/init — alternate path used by some ABDM PHR versions
+app.post('/v0.5/patients/link/init',                     verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/v3/hip/patients/link/init',                   verifyAbdmCallback, hipCtrl.handleLinkInit);
+app.post('/api/v3/hip/patients/link/init',               verifyAbdmCallback, hipCtrl.handleLinkInit);
 app.post('/v3/hip/links/link/confirm',                   verifyAbdmCallback, hipCtrl.handleLinkConfirm);
 app.post('/api/v3/hip/links/link/confirm',               verifyAbdmCallback, hipCtrl.handleLinkConfirm);
 app.post('/v3/hip/link/care-context/confirm',            verifyAbdmCallback, hipCtrl.handleLinkConfirm);
 app.post('/api/v3/hip/link/care-context/confirm',        verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+// /patients/link/confirm — alternate path
+app.post('/v0.5/patients/link/confirm',                  verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/v3/hip/patients/link/confirm',                verifyAbdmCallback, hipCtrl.handleLinkConfirm);
+app.post('/api/v3/hip/patients/link/confirm',            verifyAbdmCallback, hipCtrl.handleLinkConfirm);
 app.post('/v3/hip/health-information/request',           verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
 app.post('/api/v3/hip/health-information/request',       verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
 // Sample PHR app path variants (no version prefix)
