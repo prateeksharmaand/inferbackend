@@ -879,6 +879,7 @@ async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRang
 // ─── M3: Fetch health information ─────────────────────────────────────────────
 
 async function fetchHealthInfo(consentId, dataPushUrl) {
+  const reqId = uuid(); // We generate this; ABDM echoes it back in on-request ack
   const { keyValue, nonce } = generateHiuKeyMaterial(consentId);
   const km = {
     cryptoAlg: 'ECDH',
@@ -890,9 +891,9 @@ async function fetchHealthInfo(consentId, dataPushUrl) {
     },
     nonce,
   };
-  logger.info('HIU health-info request key generated', { noncePrefix: nonce.slice(0, 8), keyValueLen: Buffer.from(keyValue, 'base64').length });
-  return gwReq('POST', `${ABDM_GATEWAY}/v0.5/health-information/cm/request`, {
-    requestId: uuid(),
+  logger.info('HIU health-info request', { consentId, reqId, dataPushUrl, noncePrefix: nonce.slice(0, 8) });
+  const result = await gwReq('POST', `${ABDM_GATEWAY}/v0.5/health-information/cm/request`, {
+    requestId: reqId,
     timestamp: new Date().toISOString(),
     hiRequest: {
       consent: { id: consentId },
@@ -904,6 +905,9 @@ async function fetchHealthInfo(consentId, dataPushUrl) {
       keyMaterial: km,
     },
   });
+  // ABDM 202 body is empty; transactionId comes via on-request ack callback.
+  // Return our reqId so caller can correlate the on-request ack.
+  return { reqId, ...result };
 }
 
 function uuid() {

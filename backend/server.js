@@ -171,16 +171,32 @@ app.post('/api/v3/hiu/consent/request/notify',  verifyAbdmCallback, abdmCtrl.con
 app.post('/v3/hiu/consent/request/notify',      verifyAbdmCallback, abdmCtrl.consentNotify);
 
 // M3: Health-info request acknowledgement CM → HIU (on-request)
-app.post('/api/v3/hiu/health-information/on-request', verifyAbdmCallback, (req, res) => {
-  const { hiRequest } = req.body;
-  logger.info('HIU health-info on-request ack', { transactionId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
+// ABDM acks our fetchHealthInfo call here — this contains the transactionId we need to
+// correlate the incoming data push from HIP.
+const _onHiuHealthRequest = (req, res) => {
   res.status(202).json({ status: 'accepted' });
-});
-app.post('/v3/hiu/health-information/on-request', verifyAbdmCallback, (req, res) => {
-  const { hiRequest } = req.body;
-  logger.info('HIU health-info on-request ack', { transactionId: hiRequest?.transactionId, status: hiRequest?.sessionStatus });
-  res.status(202).json({ status: 'accepted' });
-});
+  const txnId    = req.body?.hiRequest?.transactionId ?? req.body?.transactionId;
+  const reqId    = req.body?.resp?.requestId;
+  const status   = req.body?.hiRequest?.sessionStatus;
+  logger.info('HIU health-info on-request ack', {
+    transactionId: txnId,
+    ourRequestId:  reqId,
+    sessionStatus: status,
+    fullBody:      JSON.stringify(req.body),
+  });
+  // Store transactionId against the consent so pullConsentData can find delivered records
+  if (txnId && reqId) {
+    const { pool } = require('./src/config/database');
+    pool.query(
+      `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW()
+       WHERE request_id=$2 OR abdm_request_id=$2`,
+      [txnId, reqId]
+    ).catch(e => logger.warn('HIU on-request: failed to store txnId', { error: e.message }));
+  }
+};
+app.post('/api/v3/hiu/health-information/on-request', verifyAbdmCallback, _onHiuHealthRequest);
+app.post('/v3/hiu/health-information/on-request',     verifyAbdmCallback, _onHiuHealthRequest);
+app.post('/v0.5/health-information/hiu/on-request',   verifyAbdmCallback, _onHiuHealthRequest);
 // M3: Health-info transfer notification CM → HIU (step 9 — ABDM notifies HIU that HIP pushed data)
 app.post('/v3/hiu/health-information/transfer',           verifyAbdmCallback, abdmCtrl.healthInfoPush);
 app.post('/api/v3/hiu/health-information/transfer',       verifyAbdmCallback, abdmCtrl.healthInfoPush);

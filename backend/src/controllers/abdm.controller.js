@@ -676,22 +676,38 @@ const consentNotify = async (req, res) => {
       const artefactTxnMap = {};
 
       for (const artefact of notification.consentArtefacts) {
-        const artefactHip = artefact.hip?.id || artefact.hipId;
+        // ABDM notification only sends {id} in consentArtefacts — no hip.id.
+        // Try to resolve HIP from: artefact top-level → stored hip_consent_artifacts
+        let artefactHip = artefact.hip?.id || artefact.hipId
+          || artefact.consentDetail?.hip?.id;
 
-        // As HIU we must fetch from ALL HIPs listed in the artefact — including external ones.
-        // The old filter (skip if hipId !== ourHipId) prevented any external HIP data from
-        // ever being requested. ABDM routes each fetchHealthInfo request to the correct HIP
-        // based on the consent artefact; we just need to call it for every artefact.
-        logger.info('HIU fetching from HIP', {
-          artefactId: artefact.id,
-          artefactHip: artefactHip || 'unspecified',
-          isOwnHip: !artefactHip || artefactHip === ourHipId,
+        if (!artefactHip) {
+          // Look up the HIP from the stored artifact (received via HIP consent notify)
+          const { rows: artRows } = await pool.query(
+            `SELECT raw FROM hip_consent_artifacts WHERE consent_id=$1 LIMIT 1`,
+            [artefact.id]
+          ).catch(() => ({ rows: [] }));
+          artefactHip = artRows[0]?.raw?.consentDetail?.hip?.id
+            || artRows[0]?.raw?.hip?.id
+            || null;
+        }
+
+        // Full diagnostic dump so we can see exactly what ABDM sent
+        logger.info('HIU consent artefact detail', {
+          artefactId:       artefact.id,
+          artefactKeys:     Object.keys(artefact),
+          artefactHip:      artefactHip || 'unspecified',
+          artefactPatient:  artefact.patient?.id || artefact.consentDetail?.patient?.id,
+          careContextCount: (artefact.careContexts || artefact.consentDetail?.careContexts || []).length,
+          careContextHips:  (artefact.careContexts || artefact.consentDetail?.careContexts || [])
+                              .map(c => c.hipId || c.hip?.id || 'none'),
+          isOwnHip:         !artefactHip || artefactHip === ourHipId,
         });
 
         try {
           logger.info('HIU fetching health-info for artefact', {
             artefactId: artefact.id,
-            artefactHip: artefactHip || 'unspecified (assuming ours)',
+            artefactHip: artefactHip || 'unspecified — ABDM will route to correct HIP',
             dataPushUrl,
           });
           const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl);
