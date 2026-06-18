@@ -775,7 +775,10 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
   // ABDM v3 /hip/v3/link/carecontext requires abhaNumber + abhaAddress at top level
   // (same as ABDMv0.5 — removing them causes 400 with empty body).
   // Use token-decoded values so they always match what ABDM issued the token for.
+  const linkReqId = uuid();
   const body = {
+    requestId: linkReqId,
+    timestamp: new Date().toISOString(),
     abhaNumber: tokenAbhaNumber,
     abhaAddress: tokenAbhaAddress,
     patient: {
