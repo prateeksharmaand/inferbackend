@@ -575,10 +575,20 @@ const createConsentRequest = async (req, res) => {
   // don't include the hiType of the patient's linked care context.
   const resolvedHiTypes = ALL_HI_TYPES;
   const now = new Date();
-  const toDate = dateTo ? new Date(dateTo) : now;
+  // If dateTo is a date-only string (YYYY-MM-DD), treat it as end-of-day so today's records are included
+  let toDate;
+  if (!dateTo) {
+    toDate = now;
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+    toDate = new Date(dateTo + 'T23:59:59.999Z');
+  } else {
+    toDate = new Date(dateTo);
+  }
   const dateRange = {
-    from: dateFrom ? new Date(dateFrom).toISOString() : new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
-    to:   (toDate > now ? now : toDate).toISOString(), // ABDM: to must be present or past
+    from: dateFrom
+      ? (/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) ? new Date(dateFrom + 'T00:00:00.000Z') : new Date(dateFrom)).toISOString()
+      : new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
+    to: (toDate > now ? now : toDate).toISOString(), // ABDM: to must be ≤ now
   };
 
   logger.info('EMR consent request', { resolvedAbha, hipId, hiuId, purpose, hiTypes: resolvedHiTypes, dateRange });
