@@ -1212,18 +1212,32 @@ const respondConsent = async (req, res) => {
 
   if (action === 'GRANT') {
     const artefactId = abdm.uuid();
+
+    // Get stored permission dateRange (ABDM-1063 fix)
+    const { rows: existingConsent } = await pool.query(
+      `SELECT permission_date_range FROM emr_consent_requests WHERE request_id=$1`,
+      [requestId]
+    ).catch(() => ({ rows: [] }));
+
+    const permissionDateRange = existingConsent[0]?.permission_date_range;
+
     await pool.query(
       `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW() WHERE request_id=$2`,
       [JSON.stringify([{ id: artefactId }]), requestId]
     );
     const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
     try {
-      const result = await abdm.fetchHealthInfo(artefactId, dataPushUrl, {
+      const options = {
         cryptoAlg: 'ECDH',
         curve: 'Curve25519',
         dhPublicKey: { expiry: new Date(Date.now() + 3600_000).toISOString(), parameters: 'Curve25519', keyValue: '' },
         nonce: abdm.uuid(),
-      });
+      };
+      // Add stored permission dateRange if available (prevents ABDM-1063)
+      if (permissionDateRange) {
+        options.dateRange = permissionDateRange;
+      }
+      const result = await abdm.fetchHealthInfo(artefactId, dataPushUrl, options);
       const txnId = result.hiRequest?.transactionId ?? abdm.uuid();
       await pool.query(
         `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,

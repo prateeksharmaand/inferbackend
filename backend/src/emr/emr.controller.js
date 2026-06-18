@@ -771,11 +771,30 @@ const pullConsentData = async (req, res) => {
         ? JSON.parse(consent.artefacts)
         : consent.artefacts;
       const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
-      logger.info('pullConsentData: artefacts to fetch', { count: Array.isArray(artefacts) ? artefacts.length : 0, requestId });
+
+      // Get stored permission dateRange (ABDM-1063 fix: use consented range, not default)
+      const permissionDateRange = typeof consent.permission_date_range === 'string'
+        ? JSON.parse(consent.permission_date_range)
+        : consent.permission_date_range;
+
+      logger.info('pullConsentData: artefacts to fetch', {
+        count: Array.isArray(artefacts) ? artefacts.length : 0,
+        requestId,
+        hasDatesRange: !!permissionDateRange,
+        dateRangeFrom: permissionDateRange?.from,
+        dateRangeTo: permissionDateRange?.to,
+      });
+
       for (const artefact of (Array.isArray(artefacts) ? artefacts : [])) {
         if (artefact?.id) {
-          await abdmSvc.fetchHealthInfo(artefact.id, dataPushUrl);
-          logger.info('pullConsentData: re-triggered fetchHealthInfo', { artefactId: artefact.id, requestId });
+          // Pass stored permission dateRange to prevent ABDM-1063
+          await abdmSvc.fetchHealthInfo(artefact.id, dataPushUrl, { dateRange: permissionDateRange });
+          logger.info('pullConsentData: re-triggered fetchHealthInfo', {
+            artefactId: artefact.id,
+            requestId,
+            dateRangeFrom: permissionDateRange?.from,
+            dateRangeTo: permissionDateRange?.to,
+          });
         }
       }
       res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
