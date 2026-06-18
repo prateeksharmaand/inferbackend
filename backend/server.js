@@ -184,14 +184,23 @@ const _onHiuHealthRequest = (req, res) => {
     sessionStatus: status,
     fullBody:      JSON.stringify(req.body),
   });
-  // Store transactionId against the consent so pullConsentData can find delivered records
+  // Store ABDM's real transactionId against the consent.
+  // consentNotify temporarily stores our reqId in transaction_id as a placeholder.
+  // Now replace it with ABDM's real transactionId so pullConsentData can find records.
+  // Also try matching by reqId directly (abdm_request_id or transaction_id placeholder).
   if (txnId && reqId) {
     const { pool } = require('./src/config/database');
     pool.query(
       `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW()
-       WHERE request_id=$2 OR abdm_request_id=$2`,
+       WHERE transaction_id=$2 OR abdm_request_id=$2`,
       [txnId, reqId]
-    ).catch(e => logger.warn('HIU on-request: failed to store txnId', { error: e.message }));
+    ).then(result => {
+      if (result.rowCount > 0) {
+        logger.info('HIU on-request: stored ABDM txnId in consent', { txnId, reqId, rowsUpdated: result.rowCount });
+      } else {
+        logger.warn('HIU on-request: no consent row found for reqId — cannot link transactionId', { txnId, reqId });
+      }
+    }).catch(e => logger.warn('HIU on-request: failed to store txnId', { error: e.message }));
   }
 };
 app.post('/api/v3/hiu/health-information/on-request', verifyAbdmCallback, _onHiuHealthRequest);
