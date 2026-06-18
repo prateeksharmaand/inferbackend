@@ -393,11 +393,30 @@ const handleHealthInfoRequest = async (req, res) => {
       hasKeyMaterial: !!keyMaterial,
     });
 
-    await pool.query(
+    // Use RETURNING to detect conflict — if 0 rows returned the transaction was already
+    // processed. Re-processing the same transactionId causes ABDM-1017 on the push
+    // because ABDM marks the transaction consumed after the first push.
+    const { rows: insertRows } = await pool.query(
       `INSERT INTO hip_health_requests (transaction_id, consent_id, data_push_url, key_material)
-       VALUES ($1,$2,$3,$4) ON CONFLICT (transaction_id) DO NOTHING`,
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (transaction_id) DO NOTHING
+       RETURNING id, status`,
       [transactionId, consentId, dataPushUrl, JSON.stringify(keyMaterial ?? {})]
     );
+
+    if (!insertRows.length) {
+      // Row already exists — check its status
+      const { rows: existingRows } = await pool.query(
+        `SELECT status FROM hip_health_requests WHERE transaction_id=$1`,
+        [transactionId]
+      );
+      const existingStatus = existingRows[0]?.status;
+      logger.warn('ABDM health-info: duplicate request for already-processed transaction — skipping', {
+        transactionId, existingStatus,
+        note: 'ABDM retried a request we already handled. Re-processing causes ABDM-1017.',
+      });
+      return; // already processed — do NOT push again
+    }
 
     logger.info('ABDM Transaction Trace', {
       stage: 'transaction_saved',
