@@ -387,9 +387,21 @@ const linkCareContexts = async (req, res) => {
   if (!rows.length) return res.status(400).json({ error: 'ABHA not linked' });
 
   const { abha_number, abha_address, name } = rows[0];
+
+  // Prefer Aadhaar-authoritative values stored in emr_patients over request body
+  const { rows: ptRows } = await pool.query(
+    `SELECT gender, EXTRACT(YEAR FROM dob)::int AS year_of_birth
+     FROM emr_patients
+     WHERE (abha_number=$1 OR abha_address=$2) AND deleted_at IS NULL
+     LIMIT 1`,
+    [abha_number, abha_address]
+  );
+  const resolvedGender      = ptRows[0]?.gender      ?? patientGender;
+  const resolvedYearOfBirth = ptRows[0]?.year_of_birth ?? patientYearOfBirth;
+
   const tokenRes = await abdm.generateLinkToken(
     hipId, abha_number, abha_address, name,
-    patientGender ?? 'M', patientYearOfBirth ?? 1990
+    resolvedGender, resolvedYearOfBirth
   );
   const result = await abdm.linkCareContexts(hipId, tokenRes.linkToken, abha_number, abha_address, name, careContexts);
 
