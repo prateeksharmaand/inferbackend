@@ -1101,26 +1101,10 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPai
     throw new Error(`Invalid hipPrivBase64: type=${typeof hipPrivBase64}, length=${hipPrivBase64?.length}`);
   }
 
-  // Detailed inspection of HIU public key format (this is where domain parameters mismatch occurs)
-  let hiuPubKeyBuffer;
-  try {
-    hiuPubKeyBuffer = Buffer.from(hiuPubKeyBase64, 'base64');
-  } catch (e) {
-    throw new Error(`Failed to decode hiuPubKeyBase64 from base64: ${e.message}`);
-  }
-
-  logger.info('[ENCRYPT] hiuPubKey format analysis', {
-    base64Length: hiuPubKeyBase64.length,
-    decodedLength: hiuPubKeyBuffer.length,
-    decodedHex: hiuPubKeyBuffer.toString('hex'),
-    firstBytes: hiuPubKeyBuffer.slice(0, 10).toString('hex'),
-    // Check if it looks like SPKI DER (should start with 0x30 for SEQUENCE)
-    looksLikeSPKI: hiuPubKeyBuffer[0] === 0x30 ? 'YES (starts with 0x30)' : `NO (starts with 0x${hiuPubKeyBuffer[0].toString(16)})`,
-    // Check if it looks like raw X25519 key (32 bytes)
-    looksLikeRawX25519: hiuPubKeyBuffer.length === 32 ? 'MAYBE (32 bytes)' : `NO (${hiuPubKeyBuffer.length} bytes)`,
-    // Check if it looks like EC public key with prefix (65 bytes for uncompressed point)
-    looksLikeEC: hiuPubKeyBuffer.length === 65 && hiuPubKeyBuffer[0] === 0x04 ? 'MAYBE (65 bytes, starts with 0x04)' : 'NO',
-  });
+  // hiuPubKeyBase64 should be either:
+  // 1. Already extracted EC point (65 bytes uncompressed: 0x04 + X + Y) from caller
+  // 2. Raw key in some other format
+  // The EC point extraction happens in pushHealthData before calling this function.
 
   // SEC-012: write PHI to a restricted subdirectory, delete synchronously after use
   const tmpDir = path.join(os.tmpdir(), 'fidelius-hip');
@@ -1214,6 +1198,54 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPai
   }
 }
 
+// Helper: Extract 65-byte EC point from SPKI DER structure
+// ABDM sends keyValue as SPKI with explicit ECParameters, but fidelius/BouncyCastle
+// rejects it with "ECDH public key has wrong domain parameters". This extracts the raw point.
+function _extractEcPointFromSpki(spkiBase64) {
+  try {
+    const buffer = Buffer.from(spkiBase64, 'base64');
+    if (buffer[0] !== 0x30) return spkiBase64; // Not SPKI, return as-is
+
+    let pos = 0;
+    // Skip outer SEQUENCE tag+length
+    pos += 2;
+    if (buffer[pos] === 0x81 || buffer[pos] === 0x82) pos++;
+    pos++;
+
+    // Skip AlgorithmIdentifier SEQUENCE
+    if (buffer[pos] !== 0x30) return spkiBase64;
+    pos++;
+    let algLen = buffer[pos++];
+    if (algLen === 0x81 || algLen === 0x82) pos++;
+    pos += algLen;
+
+    // Find BIT STRING
+    if (buffer[pos] !== 0x03) return spkiBase64;
+    pos++;
+    let bitLen = buffer[pos++];
+    if (bitLen === 0x81 || bitLen === 0x82) {
+      if (buffer[pos] === 0x82) {
+        bitLen = (buffer[pos + 1] << 8) | buffer[pos + 2];
+        pos += 3;
+      } else {
+        bitLen = buffer[pos + 1];
+        pos += 2;
+      }
+    }
+    pos++; // Skip unused bits indicator
+
+    // Extract 65-byte EC point (0x04 + 64 bytes)
+    const ecPoint = buffer.slice(pos, pos + 65);
+    if (ecPoint.length === 65 && ecPoint[0] === 0x04) {
+      return ecPoint.toString('base64');
+    }
+    return spkiBase64;
+  } catch (e) {
+    logger.warn('[ENCRYPT] Failed to extract EC point from SPKI', { error: e.message });
+    return spkiBase64;
+  }
+}
+
 async function pushHealthData({ dataPushUrl, transactionId, careContexts, patient, keyMaterial }) {
   // CRITICAL: Validate transactionId at entry point
   if (!transactionId) {
@@ -1272,6 +1304,20 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     throw new Error('HIU keyMaterial missing — cannot push unencrypted health data per ABDM M3 spec');
   }
 
+  // CRITICAL FIX: Extract EC point from SPKI DER
+  // ABDM sends keyValue as SPKI with explicit ECParameters, but fidelius/BouncyCastle
+  // rejects it with "ECDH public key has wrong domain parameters".
+  // The solution: extract the raw 65-byte EC point from the SPKI structure.
+  const hiuPubKeyExtracted = _extractEcPointFromSpki(hiuPubKey);
+  const hiuPubKeyToUse = hiuPubKeyExtracted;
+
+  logger.info('[ENCRYPT] keyMaterial processing', {
+    transactionId,
+    originalKeyLen: hiuPubKey.length,
+    extractedKeyLen: hiuPubKeyToUse.length,
+    extracted: hiuPubKeyToUse !== hiuPubKey,
+  });
+
   // ABDM spec §4.3: ONE keyMaterial for the entire push batch.
   // Generate a single HIP ephemeral key pair here and reuse it for ALL entries.
   // Generating a new pair per entry causes MAC failure for every entry after the first
@@ -1317,8 +1363,9 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
 
     // ABDM wire format requires MD5 checksum (spec §4.3.2)
     const checksum = crypto.createHash('md5').update(fhir).digest('hex');
-    const { encryptedData } = await encryptFhir(fhir, hiuPubKey, hiuNonce, hipKeyPair);
+    const { encryptedData } = await encryptFhir(fhir, hiuPubKeyToUse, hiuNonce, hipKeyPair);
     return { content: encryptedData, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
+  }));
   }));
 
   // Build respondingKeyMaterial once from the shared batch key pair
