@@ -498,8 +498,23 @@ const createConsent = async (req, res) => {
 };
 
 const getConsents = async (req, res) => {
-  // Consents now tracked in emr_consent_requests only — PHR app can query via EMR endpoints
-  res.json([]);
+  const { rows: acct } = await pool.query(
+    'SELECT abha_number, abha_address FROM abha_accounts WHERE user_id=$1',
+    [req.user.id]
+  );
+  if (!acct.length) return res.json([]);
+  const { abha_number, abha_address } = acct[0];
+  const { rows } = await pool.query(
+    `SELECT request_id, patient_abha, hiu_id, purpose, hi_types, status,
+            artefacts, created_at, updated_at
+     FROM emr_consent_requests
+     WHERE patient_abha = $1
+        OR patient_abha = $2
+        OR patient_abha = $3
+     ORDER BY created_at DESC`,
+    [abha_address, abha_number, (abha_number || '').replace(/-/g, '')]
+  );
+  res.json(rows);
 };
 
 // ─── M3: Webhooks (no auth – called by ABDM gateway) ─────────────────────────
