@@ -813,18 +813,16 @@ _linkTokenEmitter.setMaxListeners(100);
 const handleOnGenerateToken = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
-    // ABDM does NOT include abhaNumber in this callback — only linkToken + requestId (echo of our REQUEST-ID)
     const { linkToken, abhaNumber, requestId } = req.body;
     const cleanAbha = abhaNumber ? String(abhaNumber).replace(/-/g, '') : null;
 
     logger.info('HIP on-generate-token callback received', {
-      requestId,
-      hasToken:         !!linkToken,
-      hasAbhaNumber:    !!abhaNumber,
-      bodyKeys:         Object.keys(req.body || {}),
+      requestId, hasToken: !!linkToken, hasAbhaNumber: !!abhaNumber,
+      bodyKeys: Object.keys(req.body || {}),
     });
 
-    if (!linkToken) {
+    // ── ERROR PATH: ABDM returned an error instead of a token ────────────────
+    if (req.body?.error || !linkToken) {
       const errCode = req.body?.error?.code || 'ABDM_ERROR';
       const errMsg  = req.body?.error?.message || 'No linkToken in on-generate-token callback';
       const errObj  = Object.assign(new Error(`${errCode}: ${errMsg}`), { status: 400 });
@@ -853,6 +851,7 @@ const handleOnGenerateToken = async (req, res) => {
       return;
     }
 
+    // ── SUCCESS PATH: ABDM returned a linkToken ──────────────────────────────
     const abdmSvc = require('../services/abdm.service');
     const hipId   = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
 
