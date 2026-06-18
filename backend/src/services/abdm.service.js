@@ -616,11 +616,10 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
 
   const token     = await getGatewayToken();
   const requestId = uuid(); // Store so we can correlate the async callback
-  // Only include optional fields if we have real values — wrong defaults cause ABDM-1207
+  // Send ONLY abhaNumber + abhaAddress — ABDM validates optional fields (name/gender/yearOfBirth)
+  // against Aadhaar records and rejects with ABDM-1207 on any mismatch (e.g. "Prateek Sharma"
+  // vs "Prateek Kumar Sharma", "M" vs "Male", 1989 vs 1990). Never send them.
   const body = { abhaNumber: cleanAbha, abhaAddress };
-  if (name)        body.name        = name;
-  if (gender)      body.gender      = gender;
-  if (yearOfBirth) body.yearOfBirth = Number(yearOfBirth);
   logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, gender, yearOfBirth, requestId });
 
   // Mark as pending in DB with requestId — on-generate-token callback can look us up by requestId
