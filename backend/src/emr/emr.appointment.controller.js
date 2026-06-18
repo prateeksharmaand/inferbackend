@@ -33,9 +33,22 @@ async function attemptAbdmLink(refNum, display, patientId) {
     return;
   }
 
-  const hipId      = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
-  const yearOfBirth = patient.birth_year || 1990;
-  const gender      = patient.gender || 'M';
+  // ABDM requires yearOfBirth and gender that match Aadhaar exactly — no guessing defaults
+  const VALID_GENDERS = ['M', 'F', 'O', 'D', 'T', 'U'];
+  const normGender  = patient.gender === 'Male' ? 'M' : patient.gender === 'Female' ? 'F' : patient.gender === 'Other' ? 'O' : patient.gender;
+  const yearOfBirth = patient.birth_year;
+
+  if (!yearOfBirth || yearOfBirth < 1900) {
+    logger.warn('ABDM link skipped — patient DOB not stored. Enrol patient via ABHA flow to capture DOB.', { patientId });
+    return;
+  }
+  if (!normGender || !VALID_GENDERS.includes(normGender)) {
+    logger.warn('ABDM link skipped — patient gender missing or invalid for ABDM. Got: ' + patient.gender, { patientId });
+    return;
+  }
+
+  const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
+  const gender = normGender;
 
   try {
     // 3. generateLinkToken reuses in-memory cache if token still valid

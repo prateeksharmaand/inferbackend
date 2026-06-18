@@ -1079,18 +1079,24 @@ const abhaAadhaarCreate = async (req, res) => {
   const { abdmProfile, abhaAddress } = req.body;
   if (!abdmProfile) return res.status(400).json({ error: 'abdmProfile required' });
   try {
-    const p = abdmProfile;
+    // abdmProfile may be the raw byAadhaar response or the nested ABHAProfile — flatten both
+    const p = abdmProfile?.ABHAProfile || abdmProfile?.profile || abdmProfile;
     const abhaNum  = p.ABHANumber  || p.abhaNumber  || null;
     const CM_ID    = process.env.ABDM_CM_ID || 'sbx';
     let   abhaAddr = abhaAddress   || p.preferredAbhaAddress || p.abhaAddress || null;
     // Normalize to full canonical ABDM address (e.g. "prateek.sharma@sbx")
     if (abhaAddr && !abhaAddr.includes('@')) abhaAddr = `${abhaAddr}@${CM_ID}`;
-    const name     = p.name || [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || null;
-    const dob      = p.dateOfBirth || (p.yearOfBirth ? `${p.yearOfBirth}-${String(p.monthOfBirth||1).padStart(2,'0')}-${String(p.dayOfBirth||1).padStart(2,'0')}` : null);
+    const name = p.name || [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || null;
+    // ABDM returns dob as DD-MM-YYYY or yearOfBirth/monthOfBirth/dayOfBirth separately
+    const rawDob = p.dateOfBirth || p.dob || null;
+    const dob = rawDob
+      ? (rawDob.match(/^\d{2}-\d{2}-\d{4}$/) ? rawDob.split('-').reverse().join('-') : rawDob)
+      : (p.yearOfBirth ? `${p.yearOfBirth}-${String(p.monthOfBirth||1).padStart(2,'0')}-${String(p.dayOfBirth||1).padStart(2,'0')}` : null);
+    const gender = p.gender || null;
 
     const result = await AbhaIdentity.resolveOrCreatePatient(pool, {
       abhaNumber: abhaNum, abhaAddress: abhaAddr,
-      name, mobile: p.mobile || null, gender: p.gender || null, dob,
+      name, mobile: p.mobile || null, gender, dob,
       clinicId: req.emrUser?.clinic_id, source: 'aadhaar',
     });
     res.status(result.created ? 201 : 200).json({ ...result, profile: abdmProfile });

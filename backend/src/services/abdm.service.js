@@ -616,10 +616,17 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
 
   const token     = await getGatewayToken();
   const requestId = uuid(); // Store so we can correlate the async callback
-  // Send ONLY abhaNumber + abhaAddress — ABDM validates optional fields (name/gender/yearOfBirth)
-  // against Aadhaar records and rejects with ABDM-1207 on any mismatch (e.g. "Prateek Sharma"
-  // vs "Prateek Kumar Sharma", "M" vs "Male", 1989 vs 1990). Never send them.
-  const body = { abhaNumber: cleanAbha, abhaAddress };
+  // ABDM requires yearOfBirth (4-digit) and gender (M/F/O/D/T/U) — values must match Aadhaar exactly.
+  // Never send guessed defaults — use only what was stored from the original ABHA enrollment.
+  if (!yearOfBirth || yearOfBirth < 1900 || yearOfBirth > 2200) {
+    throw Object.assign(new Error('generateLinkToken: valid yearOfBirth required (stored from ABHA enrollment)'), { status: 400 });
+  }
+  const VALID_GENDERS = ['M', 'F', 'O', 'D', 'T', 'U'];
+  const normGender = gender === 'Male' ? 'M' : gender === 'Female' ? 'F' : gender === 'Other' ? 'O' : gender;
+  if (!normGender || !VALID_GENDERS.includes(normGender)) {
+    throw Object.assign(new Error(`generateLinkToken: gender must be one of ${VALID_GENDERS.join('/')} (stored from ABHA enrollment)`), { status: 400 });
+  }
+  const body = { abhaNumber: cleanAbha, abhaAddress, yearOfBirth: Number(yearOfBirth), gender: normGender };
   logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, gender, yearOfBirth, requestId });
 
   // Mark as pending in DB with requestId — on-generate-token callback can look us up by requestId
