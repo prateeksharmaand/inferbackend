@@ -124,6 +124,8 @@ router.post('/patients/:id/abha/mobile-otp',        otpLimiter, emr.abhaCreateMo
 router.post('/patients/:id/abha/mobile-verify',     emr.abhaCreateMobileVerify);
 router.post('/patients/:id/abha/suggestions',       emr.abhaGetSuggestions);
 router.post('/patients/:id/abha/set-address',       emr.abhaSetAddress);
+router.post('/patients/:id/abha/sync-demographics',      emr.syncAbhaDemographics);
+router.post('/patients/:id/abha/sync-from-share',        emr.syncDemographicsFromShare);
 router.get ('/patients/:id/abha/card',              emr.abhaGetCard);
 
 // ABHA Verification / Linking (M1)

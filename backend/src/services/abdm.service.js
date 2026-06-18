@@ -626,17 +626,19 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
   if (!normGender || !VALID_GENDERS.includes(normGender)) {
     throw Object.assign(new Error(`generateLinkToken: gender must be one of ${VALID_GENDERS.join('/')} (stored from ABHA enrollment)`), { status: 400 });
   }
-  const body = { abhaNumber: cleanAbha, abhaAddress, yearOfBirth: Number(yearOfBirth), gender: normGender };
+  // name is included — ABDM sandbox validates name too in some configurations
+  const body = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', yearOfBirth: Number(yearOfBirth), gender: normGender };
   // Step 6 diagnostic: log every field sent to ABDM so ABDM-1207 mismatches are immediately visible
   logger.info('ABDM demographic verification', {
     abhaNumber:   cleanAbha.slice(-4) + ' (last 4)',
     abhaAddress,
+    name:         name ?? '(empty)',
     gender:       normGender,
     yearOfBirth:  Number(yearOfBirth),
     requestId,
     note: 'values must match Aadhaar exactly — mismatch causes ABDM-1207',
   });
-  logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, gender: normGender, yearOfBirth, requestId });
+  logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, name, gender: normGender, yearOfBirth, requestId });
 
   // Mark as pending in DB with requestId — on-generate-token callback can look us up by requestId
   const pendingExpiry = new Date(Date.now() + 20_000);

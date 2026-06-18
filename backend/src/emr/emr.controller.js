@@ -1013,19 +1013,101 @@ const abhaSetAddress = async (req, res) => {
   if (!xToken || !abhaAddress) return res.status(400).json({ error: 'xToken and abhaAddress required' });
   try {
     const result = await abdmSvc.setAbhaAddress(xToken, abhaAddress, txnId);
-    // Fetch full profile to get ABHA number
     const profile = await abdmSvc.getAbhaProfile(xToken);
-    const abhaNum = profile.ABHANumber || profile.abhaNumber || null;
+    const CM_ID  = process.env.ABDM_CM_ID || 'sbx';
+    const p = profile?.ABHAProfile || profile;
+    const abhaNum = p.ABHANumber || p.abhaNumber || null;
+    const rawDob  = p.dateOfBirth || p.dob || null;
+    const dob = rawDob
+      ? (rawDob.match(/^\d{2}-\d{2}-\d{4}$/) ? rawDob.split('-').reverse().join('-') : rawDob)
+      : (p.yearOfBirth ? `${p.yearOfBirth}-${String(p.monthOfBirth||1).padStart(2,'0')}-${String(p.dayOfBirth||1).padStart(2,'0')}` : null);
+    const fullAddr = abhaAddress.includes('@') ? abhaAddress : `${abhaAddress}@${CM_ID}`;
     if (abhaNum) {
       await pool.query(
-        'UPDATE emr_patients SET abha_number=$1, abha_address=$2 WHERE id=$3',
-        [abhaNum, abhaAddress, req.params.id]
+        `UPDATE emr_patients
+         SET abha_number=$1, abha_address=$2,
+             name=COALESCE($3,name), gender=COALESCE($4,gender), dob=COALESCE($5::date,dob)
+         WHERE id=$6`,
+        [abhaNum, fullAddr, p.name||null, p.gender||null, dob, req.params.id]
       );
     }
     res.json({ ...result, profile });
   } catch (err) {
     res.status(err.status || 502).json({ error: err.message });
   }
+};
+
+// Refresh Aadhaar-authoritative demographics from ABHA profile using xToken.
+// Call this when generateLinkToken fails with ABDM-1207 — it corrects gender/dob in emr_patients.
+const syncAbhaDemographics = async (req, res) => {
+  const { xToken } = req.body;
+  if (!xToken) return res.status(400).json({ error: 'xToken required (obtain via ABHA OTP login flow)' });
+  try {
+    const profile = await abdmSvc.getAbhaProfile(xToken);
+    const CM_ID   = process.env.ABDM_CM_ID || 'sbx';
+    const p       = profile?.ABHAProfile || profile;
+    const abhaNum = p.ABHANumber || p.abhaNumber || null;
+    let   abhaAddr = p.preferredAbhaAddress || p.abhaAddress || null;
+    if (abhaAddr && !abhaAddr.includes('@')) abhaAddr = `${abhaAddr}@${CM_ID}`;
+    const name = p.name || [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || null;
+    const rawDob = p.dateOfBirth || p.dob || null;
+    const dob = rawDob
+      ? (rawDob.match(/^\d{2}-\d{2}-\d{4}$/) ? rawDob.split('-').reverse().join('-') : rawDob)
+      : (p.yearOfBirth ? `${p.yearOfBirth}-${String(p.monthOfBirth||1).padStart(2,'0')}-${String(p.dayOfBirth||1).padStart(2,'0')}` : null);
+    const gender = p.gender || null;
+    const yearOfBirth = p.yearOfBirth || (dob ? new Date(dob).getFullYear() : null);
+
+    if (!abhaNum) return res.status(502).json({ error: 'ABHA profile returned no ABHANumber' });
+
+    const { rows } = await pool.query(
+      `UPDATE emr_patients
+       SET abha_number=$1, abha_address=COALESCE($2,abha_address),
+           name=COALESCE($3,name), gender=COALESCE($4,gender), dob=COALESCE($5::date,dob)
+       WHERE id=$6 AND deleted_at IS NULL
+       RETURNING id, name, gender, dob, abha_number, abha_address`,
+      [abhaNum, abhaAddr, name, gender, dob, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Patient not found' });
+
+    logger.info('syncAbhaDemographics: patient updated from ABHA profile', {
+      patientId: req.params.id, abhaNum: abhaNum.slice(-4), gender, yearOfBirth,
+    });
+    res.json({ updated: true, patient: rows[0], abdmProfile: { gender, yearOfBirth, dob, name, abhaNum, abhaAddr } });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+};
+
+// Resync demographics from the most recent QR scan share for this patient.
+// Use this when ABDM-1207 occurs and syncAbhaDemographics (xToken) is not available.
+const syncDemographicsFromShare = async (req, res) => {
+  const { rows: shareRows } = await pool.query(
+    `SELECT * FROM hip_profile_shares
+     WHERE patient_id=$1 AND status='linked'
+       AND (gender IS NOT NULL OR dob IS NOT NULL)
+     ORDER BY created_at DESC LIMIT 1`,
+    [req.params.id]
+  );
+  if (!shareRows.length) {
+    return res.status(404).json({ error: 'No linked QR scan share with demographics found for this patient' });
+  }
+  const s = shareRows[0];
+  const { rows } = await pool.query(
+    `UPDATE emr_patients
+     SET abha_number  = COALESCE($1, abha_number),
+         abha_address = COALESCE($2, abha_address),
+         name         = COALESCE($3, name),
+         gender       = COALESCE($4, gender),
+         dob          = COALESCE($5::date, dob)
+     WHERE id=$6 AND deleted_at IS NULL
+     RETURNING id, name, gender, dob, abha_number, abha_address`,
+    [s.abha_number, s.abha_address, s.name, s.gender, s.dob, req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Patient not found' });
+  logger.info('syncDemographicsFromShare: patient demographics refreshed from QR share', {
+    patientId: req.params.id, shareId: s.id, gender: s.gender, hasDob: !!s.dob,
+  });
+  res.json({ updated: true, patient: rows[0], shareSource: { id: s.id, gender: s.gender, dob: s.dob, name: s.name } });
 };
 
 // ABHA card PNG → base64 JSON response
@@ -1317,7 +1399,7 @@ module.exports = {
   pendingOtps, healthRequests, activityLog,
   createConsentRequest, listConsentRequests, respondConsent, pullConsentData, getConsentHealthRecords,
   abhaCreateOtp, abhaCreateVerify, abhaCreateMobileOtp, abhaCreateMobileVerify,
-  abhaGetSuggestions, abhaSetAddress, abhaGetCard,
+  abhaGetSuggestions, abhaSetAddress, syncAbhaDemographics, syncDemographicsFromShare, abhaGetCard,
   abhaVerifyOtp, abhaVerifyConfirm,
   abhaAadhaarSetAddress, abhaAadhaarCreate,
   abhaAddOtp, abhaAddCreate,
