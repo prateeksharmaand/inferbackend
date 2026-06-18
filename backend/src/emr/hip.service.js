@@ -1206,39 +1206,62 @@ function _extractEcPointFromSpki(spkiBase64) {
     const buffer = Buffer.from(spkiBase64, 'base64');
     if (buffer[0] !== 0x30) return spkiBase64; // Not SPKI, return as-is
 
+    // Helper to read DER length (handles both short and long form)
+    const readLength = (buf, pos) => {
+      const len = buf[pos];
+      if (len <= 127) return { length: len, nextPos: pos + 1 };
+      const numOctets = len & 0x7f;
+      let value = 0;
+      for (let i = 0; i < numOctets; i++) {
+        value = (value << 8) | buf[pos + 1 + i];
+      }
+      return { length: value, nextPos: pos + 1 + numOctets };
+    };
+
     let pos = 0;
-    // Skip outer SEQUENCE tag+length
-    pos += 2;
-    if (buffer[pos] === 0x81 || buffer[pos] === 0x82) pos++;
-    pos++;
+
+    // Skip outer SEQUENCE (tag 0x30)
+    pos++; // skip tag
+    const outerLen = readLength(buffer, pos);
+    pos = outerLen.nextPos;
 
     // Skip AlgorithmIdentifier SEQUENCE
-    if (buffer[pos] !== 0x30) return spkiBase64;
-    pos++;
-    let algLen = buffer[pos++];
-    if (algLen === 0x81 || algLen === 0x82) pos++;
-    pos += algLen;
-
-    // Find BIT STRING
-    if (buffer[pos] !== 0x03) return spkiBase64;
-    pos++;
-    let bitLen = buffer[pos++];
-    if (bitLen === 0x81 || bitLen === 0x82) {
-      if (buffer[pos] === 0x82) {
-        bitLen = (buffer[pos + 1] << 8) | buffer[pos + 2];
-        pos += 3;
-      } else {
-        bitLen = buffer[pos + 1];
-        pos += 2;
-      }
+    if (buffer[pos] !== 0x30) {
+      logger.warn('[ENCRYPT] Expected SEQUENCE at AlgorithmIdentifier, extraction failed');
+      return spkiBase64;
     }
-    pos++; // Skip unused bits indicator
+    pos++; // skip tag
+    const algLen = readLength(buffer, pos);
+    pos = algLen.nextPos + algLen.length; // skip entire AlgorithmIdentifier
 
-    // Extract 65-byte EC point (0x04 + 64 bytes)
+    // Find BIT STRING (tag 0x03)
+    if (buffer[pos] !== 0x03) {
+      logger.warn('[ENCRYPT] Expected BIT STRING at key material, extraction failed');
+      return spkiBase64;
+    }
+    pos++; // skip tag
+    const bitLen = readLength(buffer, pos);
+    pos = bitLen.nextPos;
+
+    // Skip unused bits indicator (should be 0x00)
+    pos++;
+
+    // Extract 65-byte EC point
     const ecPoint = buffer.slice(pos, pos + 65);
     if (ecPoint.length === 65 && ecPoint[0] === 0x04) {
+      logger.info('[ENCRYPT] Successfully extracted EC point from SPKI', {
+        originalLen: spkiBase64.length,
+        extractedLen: 88, // base64(65) ≈ 88 chars
+        ecPointHex: ecPoint.toString('hex').slice(0, 20) + '...',
+      });
       return ecPoint.toString('base64');
     }
+
+    logger.warn('[ENCRYPT] EC point not found at expected location', {
+      expectedLen: 65,
+      actualLen: ecPoint.length,
+      ecPointStart: ecPoint[0]?.toString(16),
+    });
     return spkiBase64;
   } catch (e) {
     logger.warn('[ENCRYPT] Failed to extract EC point from SPKI', { error: e.message });
