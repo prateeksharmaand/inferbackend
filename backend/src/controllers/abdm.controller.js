@@ -678,15 +678,15 @@ const consentNotify = async (req, res) => {
       for (const artefact of notification.consentArtefacts) {
         const artefactHip = artefact.hip?.id || artefact.hipId;
 
-        // Skip artefacts that belong to a different HIP — we can't fetch from them
-        if (artefactHip && artefactHip !== ourHipId) {
-          logger.info('HIU skipping artefact — belongs to different HIP', {
-            artefactId: artefact.id,
-            artefactHip,
-            ourHipId,
-          });
-          continue;
-        }
+        // As HIU we must fetch from ALL HIPs listed in the artefact — including external ones.
+        // The old filter (skip if hipId !== ourHipId) prevented any external HIP data from
+        // ever being requested. ABDM routes each fetchHealthInfo request to the correct HIP
+        // based on the consent artefact; we just need to call it for every artefact.
+        logger.info('HIU fetching from HIP', {
+          artefactId: artefact.id,
+          artefactHip: artefactHip || 'unspecified',
+          isOwnHip: !artefactHip || artefactHip === ourHipId,
+        });
 
         try {
           logger.info('HIU fetching health-info for artefact', {

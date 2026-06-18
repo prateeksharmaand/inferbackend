@@ -247,6 +247,9 @@ app.post('/hip/care-contexts/on-link',               verifyAbdmCallback, hipCtrl
 app.post('/hip/links/link/confirm',                  verifyAbdmCallback, hipCtrl.handleLinkConfirm);
 app.post('/hip/link/care-context/confirm',           verifyAbdmCallback, hipCtrl.handleLinkConfirm);
 app.post('/hip/health-information/request',          verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
+// ABDM may also call without /hip/ prefix
+app.post('/health-information/request',              verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
+app.post('/api/health-information/request',          verifyAbdmCallback, hipCtrl.handleHealthInfoRequest);
 // M1: Patient shares profile by scanning facility QR
 app.post('/v3/hip/patient/share/profile',           verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
 app.post('/v3/hip/patient/share',                   verifyAbdmCallback, hipCtrl.handlePatientShareProfile);
