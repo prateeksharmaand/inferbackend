@@ -15,10 +15,74 @@ const FIDELIUS_CP  = `${FIDELIUS_JAR}:${FIDELIUS_DIR}/lib/*`;
 function _callFidelius(args) {
   return new Promise((resolve, reject) => {
     // R3-004: 30-second timeout prevents server from hanging on stuck JVM
+    const cmd = ['java', '-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args];
+    logger.debug('[FIDELIUS] command', {
+      executable: 'java',
+      classPath: FIDELIUS_CP,
+      args: args,
+      fullCommand: cmd.join(' '),
+    });
+
     execFile('java', ['-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args],
       { maxBuffer: 10 * 1024 * 1024, timeout: 30_000, killSignal: 'SIGKILL' },
       (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr?.trim() || err.message));
+        const stdoutLen = stdout?.length ?? 0;
+        const stderrLen = stderr?.length ?? 0;
+        const exitCode = err?.code;
+        const signal = err?.signal;
+
+        logger.info('[FIDELIUS] execution result', {
+          stdoutLength: stdoutLen,
+          stderrLength: stderrLen,
+          exitCode,
+          signal,
+          hasError: !!err,
+          errorMessage: err?.message,
+        });
+
+        // Write raw outputs to temp files for inspection
+        if (stdoutLen > 0) {
+          const tmpStdout = path.join(os.tmpdir(), `fidelius-${Date.now()}.stdout.txt`);
+          try {
+            fs.writeFileSync(tmpStdout, stdout, { mode: 0o600 });
+            logger.info('[FIDELIUS] stdout written', { file: tmpStdout, length: stdoutLen });
+          } catch (e) {
+            logger.warn('[FIDELIUS] failed to write stdout', { error: e.message });
+          }
+        }
+
+        if (stderrLen > 0) {
+          const tmpStderr = path.join(os.tmpdir(), `fidelius-${Date.now()}.stderr.txt`);
+          try {
+            fs.writeFileSync(tmpStderr, stderr, { mode: 0o600 });
+            logger.info('[FIDELIUS] stderr written', { file: tmpStderr, length: stderrLen });
+            // Surface stderr in error instead of generic "Unexpected end of JSON input"
+            logger.error('[FIDELIUS] stderr content', { stderr: stderr.trim().slice(0, 500) });
+          } catch (e) {
+            logger.warn('[FIDELIUS] failed to write stderr', { error: e.message });
+          }
+        }
+
+        // Check for empty stdout BEFORE attempting JSON.parse
+        if (stdoutLen === 0) {
+          const errMsg = stderrLen > 0
+            ? `fidelius-cli returned empty stdout with stderr: ${stderr.trim().slice(0, 200)}`
+            : 'fidelius-cli returned empty output';
+          logger.error('[FIDELIUS] empty output', {
+            stdoutLen,
+            stderrLen,
+            errorMessage: errMsg,
+          });
+          return reject(new Error(errMsg));
+        }
+
+        if (err) {
+          const errMsg = stderrLen > 0
+            ? `fidelius-cli exited with code ${exitCode}: ${stderr.trim().slice(0, 200)}`
+            : err.message;
+          return reject(new Error(errMsg));
+        }
+
         resolve(stdout.trim());
       }
     );
@@ -1023,23 +1087,93 @@ function _buildSpki(rawPub65) {
 async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
   const { hipPrivBase64, hipPubBytes, hipNonce } = hipKeyPair;
 
+  // Validate inputs before file write
+  if (!plaintext || typeof plaintext !== 'string') {
+    throw new Error(`Invalid plaintext: type=${typeof plaintext}, length=${plaintext?.length}`);
+  }
+  if (!hiuPubKeyBase64 || typeof hiuPubKeyBase64 !== 'string') {
+    throw new Error(`Invalid hiuPubKeyBase64: type=${typeof hiuPubKeyBase64}, length=${hiuPubKeyBase64?.length}`);
+  }
+  if (!hiuNonceBase64 || typeof hiuNonceBase64 !== 'string') {
+    throw new Error(`Invalid hiuNonceBase64: type=${typeof hiuNonceBase64}, length=${hiuNonceBase64?.length}`);
+  }
+  if (!hipPrivBase64 || typeof hipPrivBase64 !== 'string') {
+    throw new Error(`Invalid hipPrivBase64: type=${typeof hipPrivBase64}, length=${hipPrivBase64?.length}`);
+  }
+
   // SEC-012: write PHI to a restricted subdirectory, delete synchronously after use
   const tmpDir = path.join(os.tmpdir(), 'fidelius-hip');
   fs.mkdirSync(tmpDir, { recursive: true, mode: 0o700 });
   const tmpFile = path.join(tmpDir, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.txt`);
-  fs.writeFileSync(tmpFile, [
+
+  const inputLines = [
     'e',                           // command must be first line when using -f
     plaintext,
     hipNonce.toString('base64'),   // sender nonce (HIP) — same for all entries in batch
     hiuNonceBase64,                // requester nonce (HIU)
     hipPrivBase64,                 // sender private key (HIP)
     hiuPubKeyBase64,               // requester public key (HIU) — SPKI DER base64
-  ].join('\n'), { mode: 0o600 });
+  ];
+
+  const inputContent = inputLines.join('\n');
+
+  logger.info('[ENCRYPT] input file content validation', {
+    lineCount: inputLines.length,
+    totalLength: inputContent.length,
+    line0: inputLines[0],
+    line1Len: inputLines[1].length,
+    line2Len: inputLines[2].length,
+    line3Len: inputLines[3].length,
+    line4Len: inputLines[4].length,
+    line5Len: inputLines[5].length,
+  });
+
+  fs.writeFileSync(tmpFile, inputContent, { mode: 0o600 });
 
   try {
+    // Verify public key and nonce before sending to fidelius
+    logger.info('[ENCRYPT] pre-fidelius verification', {
+      plaintextLen: plaintext.length,
+      hiuPubKeyLen: hiuPubKeyBase64?.length,
+      hiuNonceLen: hiuNonceBase64?.length,
+      hipPubBytesLen: hipPubBytes.length,
+      hipNonceLen: hipNonce.length,
+      hiuPubKeyIsBase64: /^[A-Za-z0-9+/=]+$/.test(hiuPubKeyBase64 ?? ''),
+      hiuNonceIsBase64: /^[A-Za-z0-9+/=]+$/.test(hiuNonceBase64 ?? ''),
+    });
+
     const raw = await _callFidelius(['-f', tmpFile]);
-    const encryptedData = (JSON.parse(raw)).encryptedData ?? raw;
-    logger.info('[ENCRYPT] fidelius-cli encrypt ok', { plaintextLen: plaintext.length, encLen: encryptedData.length });
+
+    // Validate raw output before JSON.parse
+    logger.info('[ENCRYPT] fidelius output received', {
+      rawLength: raw.length,
+      rawPrefix: raw.slice(0, 100),
+      isJsonLike: raw.startsWith('{'),
+    });
+
+    if (!raw || raw.length === 0) {
+      throw new Error('fidelius-cli returned empty string');
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (parseErr) {
+      logger.error('[ENCRYPT] JSON.parse failed', {
+        rawLength: raw.length,
+        raw: raw.slice(0, 500),
+        parseError: parseErr.message,
+      });
+      throw parseErr;
+    }
+
+    const encryptedData = parsed.encryptedData ?? raw;
+    logger.info('[ENCRYPT] fidelius-cli encrypt ok', {
+      plaintextLen: plaintext.length,
+      encLen: encryptedData.length,
+      parsedKeys: Object.keys(parsed),
+    });
+
     return {
       encryptedData,
       hipPublicKey: _buildSpki(hipPubBytes).toString('base64'),
@@ -1047,7 +1181,10 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPai
     };
   } catch (err) {
     // R2-005: NEVER fall back to base64 — that is unencrypted PHI.
-    logger.error('[ENCRYPT] fidelius-cli encrypt FAILED — aborting health data push', { error: err.message });
+    logger.error('[ENCRYPT] fidelius-cli encrypt FAILED — aborting health data push', {
+      error: err.message,
+      errorStack: err.stack?.slice(0, 500),
+    });
     throw new Error(`Fidelius encryption failed: ${err.message}`);
   } finally {
     try { fs.unlinkSync(tmpFile); } catch (e) {
@@ -1113,10 +1250,31 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     entryCount:   careContexts.length,
   });
 
-  const entries = await Promise.all(careContexts.map(async ctx => {
+  const entries = await Promise.all(careContexts.map(async (ctx, idx) => {
     const fhir = typeof ctx.fhir_content === 'string'
       ? ctx.fhir_content
       : buildFhirBundle(patient, ctx);
+
+    // Verify FHIR payload is valid JSON before encryption
+    try {
+      JSON.parse(fhir);
+    } catch (parseErr) {
+      logger.error('[ENCRYPT] FHIR bundle JSON validation failed', {
+        careContextIndex: idx,
+        careContextRef: ctx.reference_number,
+        fhirLength: fhir.length,
+        parseError: parseErr.message,
+        fhirPrefix: fhir.slice(0, 200),
+      });
+      throw parseErr;
+    }
+
+    logger.info('[ENCRYPT] FHIR bundle prepared', {
+      careContextIndex: idx,
+      careContextRef: ctx.reference_number,
+      fhirSize: fhir.length,
+      isString: typeof fhir === 'string',
+    });
 
     // ABDM wire format requires MD5 checksum (spec §4.3.2)
     const checksum = crypto.createHash('md5').update(fhir).digest('hex');
