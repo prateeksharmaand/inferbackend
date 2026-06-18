@@ -601,6 +601,12 @@ async function _getStoredLinkToken(patientRef, hipId) {
 }
 
 async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, yearOfBirth) {
+  if (!abhaNumber || abhaNumber === 'undefined' || abhaNumber === 'null') {
+    throw Object.assign(new Error('generateLinkToken: abhaNumber is required and must be a valid ABHA number'), { status: 400 });
+  }
+  if (!abhaAddress || !abhaAddress.includes('@')) {
+    throw Object.assign(new Error('generateLinkToken: abhaAddress must be a valid ABHA address (e.g. name@sbx)'), { status: 400 });
+  }
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
   const cacheKey  = `${cleanAbha}:${hipId}`;
 

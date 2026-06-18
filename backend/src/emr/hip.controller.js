@@ -825,23 +825,31 @@ const handleOnGenerateToken = async (req, res) => {
     });
 
     if (!linkToken) {
-      const errCode = req.body?.error?.code || req.body?.error;
+      const errCode = req.body?.error?.code || 'ABDM_ERROR';
       const errMsg  = req.body?.error?.message || 'No linkToken in on-generate-token callback';
-      logger.warn('HIP on-generate-token: no linkToken in callback body', { body: JSON.stringify(req.body)?.slice(0, 300) });
-      // Emit error event so generateLinkToken's Promise rejects immediately (no 15s wait)
-      const respRequestId = req.body?.response?.requestId || requestId;
-      if (respRequestId) _linkTokenEmitter.emit(`req:${respRequestId}`, null, new Error(`${errCode}: ${errMsg}`));
-      if (cleanAbha)     _linkTokenEmitter.emit(`token:${cleanAbha}`,   null, new Error(`${errCode}: ${errMsg}`));
-      // Mark failed in DB
-      if (requestId || cleanAbha) {
-        const { pool } = require('../config/database');
-        const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
-        pool.query(
-          `UPDATE link_tokens SET status='failed', updated_at=NOW()
-           WHERE (abdm_request_id=$1 OR patient_ref=$2) AND hip_id=$3`,
-          [respRequestId || null, cleanAbha || null, hipId]
-        ).catch(() => {});
+      const errObj  = Object.assign(new Error(`${errCode}: ${errMsg}`), { status: 400 });
+      logger.warn('HIP on-generate-token: error callback received', { errCode, errMsg });
+
+      const { pool } = require('../config/database');
+      const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
+
+      // ABDM does not echo our REQUEST-ID in error callbacks — correlate by finding
+      // all pending link token requests for this HIP and emit error to each
+      const { rows: pending } = await pool.query(
+        `UPDATE link_tokens SET status='failed', updated_at=NOW()
+         WHERE hip_id=$1 AND status='pending'
+         RETURNING patient_ref, abdm_request_id`,
+        [hipId]
+      ).catch(() => ({ rows: [] }));
+
+      for (const row of pending) {
+        _linkTokenEmitter.emit(`token:${row.patient_ref}`, null, errObj);
+        if (row.abdm_request_id) _linkTokenEmitter.emit(`req:${row.abdm_request_id}`, null, errObj);
+        logger.info('HIP on-generate-token: emitted error to pending request', { patientRef: row.patient_ref?.slice(-4) });
       }
+
+      // Fallback: if cleanAbha was in body
+      if (cleanAbha) _linkTokenEmitter.emit(`token:${cleanAbha}`, null, errObj);
       return;
     }
 
