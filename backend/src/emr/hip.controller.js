@@ -813,7 +813,9 @@ _linkTokenEmitter.setMaxListeners(100);
 const handleOnGenerateToken = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
-    const { linkToken, abhaNumber, requestId } = req.body;
+    const { linkToken, abhaNumber } = req.body;
+    // ABDM echoes the REQUEST-ID header (not body requestId) in response.requestId
+    const requestId = req.body?.response?.requestId ?? req.body?.requestId ?? null;
     const cleanAbha = abhaNumber ? String(abhaNumber).replace(/-/g, '') : null;
 
     // Step 6 diagnostic: log complete callback payload for ABDM-1207 debugging

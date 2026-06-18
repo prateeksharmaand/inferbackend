@@ -677,7 +677,7 @@ async function _runGenerateLinkToken(hipId, cleanAbha, cacheKey, abhaAddress, na
           'Content-Type': 'application/json',
           'X-CM-ID': 'sbx',
           'X-HIP-ID': hipId,
-          'REQUEST-ID': uuid(),
+          'REQUEST-ID': requestId,
           TIMESTAMP: new Date().toISOString(),
         },
       }
