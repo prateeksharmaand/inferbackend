@@ -825,7 +825,23 @@ const handleOnGenerateToken = async (req, res) => {
     });
 
     if (!linkToken) {
+      const errCode = req.body?.error?.code || req.body?.error;
+      const errMsg  = req.body?.error?.message || 'No linkToken in on-generate-token callback';
       logger.warn('HIP on-generate-token: no linkToken in callback body', { body: JSON.stringify(req.body)?.slice(0, 300) });
+      // Emit error event so generateLinkToken's Promise rejects immediately (no 15s wait)
+      const respRequestId = req.body?.response?.requestId || requestId;
+      if (respRequestId) _linkTokenEmitter.emit(`req:${respRequestId}`, null, new Error(`${errCode}: ${errMsg}`));
+      if (cleanAbha)     _linkTokenEmitter.emit(`token:${cleanAbha}`,   null, new Error(`${errCode}: ${errMsg}`));
+      // Mark failed in DB
+      if (requestId || cleanAbha) {
+        const { pool } = require('../config/database');
+        const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
+        pool.query(
+          `UPDATE link_tokens SET status='failed', updated_at=NOW()
+           WHERE (abdm_request_id=$1 OR patient_ref=$2) AND hip_id=$3`,
+          [respRequestId || null, cleanAbha || null, hipId]
+        ).catch(() => {});
+      }
       return;
     }
 

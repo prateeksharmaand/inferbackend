@@ -610,7 +610,11 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
 
   const token     = await getGatewayToken();
   const requestId = uuid(); // Store so we can correlate the async callback
-  const body      = { abhaNumber: cleanAbha, abhaAddress, name: name ?? '', gender: gender ?? 'M', yearOfBirth: Number(yearOfBirth) || 1990 };
+  // Only include optional fields if we have real values — wrong defaults cause ABDM-1207
+  const body = { abhaNumber: cleanAbha, abhaAddress };
+  if (name)        body.name        = name;
+  if (gender)      body.gender      = gender;
+  if (yearOfBirth) body.yearOfBirth = Number(yearOfBirth);
   logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, gender, yearOfBirth, requestId });
 
   // Mark as pending in DB with requestId — on-generate-token callback can look us up by requestId
@@ -656,12 +660,16 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
       const byAbha   = `token:${cleanAbha}`;
       let   settled  = false;
 
-      const onToken = async (linkToken) => {
+      const onToken = async (linkToken, err) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         _linkTokenEmitter.removeListener(byReqId, onToken);
         _linkTokenEmitter.removeListener(byAbha,  onToken);
+        if (err || !linkToken) {
+          pool.query(`UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`, [cleanAbha, hipId]).catch(() => {});
+          return reject(Object.assign(err || new Error('ABDM token generation failed'), { status: 400 }));
+        }
         await _storeLinkToken(cacheKey, linkToken);
         resolve({ linkToken });
       };
