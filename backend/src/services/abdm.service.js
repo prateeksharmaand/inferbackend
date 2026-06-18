@@ -276,6 +276,38 @@ async function updateHipServices() {
   return res.data ?? { ok: true };
 }
 
+// Fetch full consent details from ABDM (for patient-initiated consents)
+// CRITICAL: ABDM's on-notify callback is minimal (only {id, status, consentRequestId})
+// We must fetch the full consent to get permission.dateRange
+async function fetchConsentDetails(consentId) {
+  const token = await getGatewayToken();
+  try {
+    const res = await abdmAxios({
+      method: 'GET',
+      url: `${ABDM_GATEWAY}/v0.5/consents/${consentId}`,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-CM-ID': 'sbx',
+        'REQUEST-ID': uuid(),
+        TIMESTAMP: new Date().toISOString(),
+      },
+    });
+    logger.info('Fetched full consent details from ABDM', {
+      consentId,
+      hasPermission: !!res.data?.consent?.permission,
+      hasDateRange: !!res.data?.consent?.permission?.dateRange,
+    });
+    return res.data;
+  } catch (err) {
+    logger.warn('Failed to fetch consent details from ABDM', {
+      consentId,
+      status: err.response?.status,
+      error: err.response?.data?.error?.message || err.message,
+    });
+    return null;
+  }
+}
+
 // Gateway requests (HIE-CM / M2-M3 operations)
 async function gwReq(method, url, data = null, extra = {}) {
   const token = await getGatewayToken();
@@ -975,7 +1007,7 @@ module.exports = {
   getAbhaSuggestions,     setAbhaAddress,
   discoverCareContexts,   linkInit,             linkConfirm,
   generateLinkToken,      linkCareContexts,     _storeLinkToken,    _getStoredLinkToken,   _storeLinkTokenByRequestId: (reqId, token) => _linkTokenCache.set(`req:${reqId}`, { token, expiry: Date.now() + 9*60*1000 }),
-  createConsentRequest,   fetchHealthInfo,      gwReqSilent,
+  createConsentRequest,   fetchConsentDetails,  fetchHealthInfo,      gwReqSilent,
   generateHiuKeyMaterial, decryptHipEntry, getHiuKey,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,
   uuid,

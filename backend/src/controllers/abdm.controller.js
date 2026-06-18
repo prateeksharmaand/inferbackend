@@ -698,18 +698,38 @@ const consentNotify = async (req, res) => {
           || null;
       }
 
-      // CRITICAL VALIDATION: Reject if dateRange is missing (prevents ABDM-1063)
+      // CRITICAL VALIDATION: If dateRange missing, fetch full consent from ABDM
       if (!permissionDateRange?.from || !permissionDateRange?.to) {
-        logger.error('HIU consent GRANTED but permission.dateRange is missing', {
+        logger.warn('HIU consent: permission.dateRange missing, fetching from ABDM', {
           consentRequestId,
           artefactCount: notification.consentArtefacts.length,
           hasStoredRange: !!storedConsent[0]?.permission_date_range,
           hasNotificationRange: !!(notification.consentDetail?.permission?.dateRange || notification.grants?.dateRange),
-          permissionDateRange,
         });
-        // Skip health-info fetch to prevent ABDM-1063
-        // Consent is marked GRANTED in DB but without valid dateRange for health-info
-        return;
+
+        // Fetch full consent details from ABDM (notification is minimal)
+        const fullConsent = await abdm.fetchConsentDetails(consentRequestId);
+        if (fullConsent?.consent?.permission?.dateRange) {
+          permissionDateRange = fullConsent.consent.permission.dateRange;
+          logger.info('HIU consent: fetched permission.dateRange from ABDM', {
+            consentRequestId,
+            dateRangeFrom: permissionDateRange.from,
+            dateRangeTo: permissionDateRange.to,
+          });
+          // Store the fetched dateRange for future use
+          await pool.query(
+            `UPDATE emr_consent_requests SET permission_date_range=$1, updated_at=NOW() WHERE request_id=$2 OR abdm_request_id=$2`,
+            [JSON.stringify(permissionDateRange), consentRequestId]
+          ).catch(err => logger.warn('HIU consent: failed to store fetched dateRange', { error: err.message }));
+        } else {
+          logger.error('HIU consent GRANTED but permission.dateRange still missing after ABDM fetch', {
+            consentRequestId,
+            artefactCount: notification.consentArtefacts.length,
+            permissionDateRange,
+          });
+          // Skip health-info fetch to prevent ABDM-1063
+          return;
+        }
       }
 
       logger.info('HIU consent GRANTED: storing artefacts and dateRange', {
