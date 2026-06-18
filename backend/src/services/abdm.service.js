@@ -756,12 +756,13 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
   const tokenAbhaAddress = decoded?.abhaAddress ?? abhaAddress;
   const tokenAbhaNumber  = decoded?.abhaNumber  ? String(decoded.abhaNumber).replace(/-/g, '') : cleanAbha;
 
-  // patient.referenceNumber must be a patient identifier ABDM recognises.
-  // ABDMv0.5 used cleanAbha (the 14-digit ABHA number) and it worked.
-  // "PATIENT-{id}" is an internal ID ABDM has never seen — it causes a 400.
-  // Use the ABHA number from the token (authoritative, matches what was sent
-  // in generate-token). Discovery also uses the ABHA identifiers as patientRef.
-  const patientRef = tokenAbhaNumber;
+  // patient.referenceNumber MUST match what was returned in on-discover.
+  // In handleDiscovery we echo back patient.id from ABDM's request — which is
+  // always the ABHA address (e.g. "sharmaprateek11@sbx"), never the ABHA number.
+  // Using the ABHA number here causes a 400 because ABDM validates consistency
+  // across the discover → link flow.
+  // Use the ABHA address from the decoded token (same address ABDM linked the token to).
+  const patientRef = tokenAbhaAddress;
 
   logger.info('linkCareContexts: decoded link token', {
     tokenAbhaAddress,
