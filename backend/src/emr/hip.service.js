@@ -1101,6 +1101,27 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPai
     throw new Error(`Invalid hipPrivBase64: type=${typeof hipPrivBase64}, length=${hipPrivBase64?.length}`);
   }
 
+  // Detailed inspection of HIU public key format (this is where domain parameters mismatch occurs)
+  let hiuPubKeyBuffer;
+  try {
+    hiuPubKeyBuffer = Buffer.from(hiuPubKeyBase64, 'base64');
+  } catch (e) {
+    throw new Error(`Failed to decode hiuPubKeyBase64 from base64: ${e.message}`);
+  }
+
+  logger.info('[ENCRYPT] hiuPubKey format analysis', {
+    base64Length: hiuPubKeyBase64.length,
+    decodedLength: hiuPubKeyBuffer.length,
+    decodedHex: hiuPubKeyBuffer.toString('hex'),
+    firstBytes: hiuPubKeyBuffer.slice(0, 10).toString('hex'),
+    // Check if it looks like SPKI DER (should start with 0x30 for SEQUENCE)
+    looksLikeSPKI: hiuPubKeyBuffer[0] === 0x30 ? 'YES (starts with 0x30)' : `NO (starts with 0x${hiuPubKeyBuffer[0].toString(16)})`,
+    // Check if it looks like raw X25519 key (32 bytes)
+    looksLikeRawX25519: hiuPubKeyBuffer.length === 32 ? 'MAYBE (32 bytes)' : `NO (${hiuPubKeyBuffer.length} bytes)`,
+    // Check if it looks like EC public key with prefix (65 bytes for uncompressed point)
+    looksLikeEC: hiuPubKeyBuffer.length === 65 && hiuPubKeyBuffer[0] === 0x04 ? 'MAYBE (65 bytes, starts with 0x04)' : 'NO',
+  });
+
   // SEC-012: write PHI to a restricted subdirectory, delete synchronously after use
   const tmpDir = path.join(os.tmpdir(), 'fidelius-hip');
   fs.mkdirSync(tmpDir, { recursive: true, mode: 0o700 });
@@ -1229,6 +1250,24 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   });
   const hiuNonce  = keyMaterial?.nonce ?? '';
   const hiuPubKey = keyMaterial?.dhPublicKey?.keyValue;
+
+  // Detailed inspection of incoming keyMaterial before encryption
+  logger.info('[ENCRYPT] received keyMaterial inspection', {
+    transactionId,
+    nonce: hiuNonce.slice(0, 50),
+    nonceLen: hiuNonce.length,
+    keyValue: hiuPubKey ? hiuPubKey.slice(0, 80) : 'MISSING',
+    keyValueLen: hiuPubKey?.length,
+    keyValueIsBase64: hiuPubKey ? /^[A-Za-z0-9+/=]+$/.test(hiuPubKey) : false,
+    keyValueFirstBytes: hiuPubKey ? Buffer.from(hiuPubKey.slice(0, 20), 'base64').toString('hex') : 'N/A',
+    keyValueStartsWith: hiuPubKey ? hiuPubKey.slice(0, 10) : 'MISSING',
+    keyValueEndsWithPadding: hiuPubKey ? hiuPubKey.endsWith('=') || hiuPubKey.endsWith('==') : 'N/A',
+    dhPublicKeyFields: Object.keys(keyMaterial?.dhPublicKey ?? {}),
+    dhPublicKeyParameters: keyMaterial?.dhPublicKey?.parameters,
+    cryptoAlg: keyMaterial?.cryptoAlg,
+    curve: keyMaterial?.curve,
+  });
+
   if (!hiuPubKey || !hiuNonce) {
     throw new Error('HIU keyMaterial missing — cannot push unencrypted health data per ABDM M3 spec');
   }
