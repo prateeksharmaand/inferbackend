@@ -1366,7 +1366,6 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     const { encryptedData } = await encryptFhir(fhir, hiuPubKeyToUse, hiuNonce, hipKeyPair);
     return { content: encryptedData, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
   }));
-  }));
 
   // Build respondingKeyMaterial once from the shared batch key pair
   const respondingKeyMaterial = {
