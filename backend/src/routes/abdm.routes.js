@@ -56,6 +56,7 @@ router.get('/health-records', auth, ctrl.getHealthRecords);
 router.get ('/debug/token',              ctrl.debugToken);
 router.get ('/debug/bridge',             ctrl.debugBridge);
 router.get ('/debug/hip-sessions',       ctrl.debugHipSessions);
+router.get ('/debug/consent/:consentId',  auth, ctrl.debugConsentDetails);
 // removed: POST /debug/update-hip-services called addUpdateServices on dev.abdm.gov.in
 
 module.exports = router;

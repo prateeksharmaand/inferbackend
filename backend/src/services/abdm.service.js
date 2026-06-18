@@ -878,7 +878,7 @@ async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRang
 
 // ─── M3: Fetch health information ─────────────────────────────────────────────
 
-async function fetchHealthInfo(consentId, dataPushUrl) {
+async function fetchHealthInfo(consentId, dataPushUrl, options = {}) {
   const reqId = uuid(); // We generate this; ABDM echoes it back in on-request ack
   const { keyValue, nonce } = generateHiuKeyMaterial(consentId);
   const km = {
@@ -891,16 +891,64 @@ async function fetchHealthInfo(consentId, dataPushUrl) {
     },
     nonce,
   };
-  logger.info('HIU health-info request', { consentId, reqId, dataPushUrl, noncePrefix: nonce.slice(0, 8) });
+
+  // Determine dateRange: use caller-provided OR default fallback
+  // CRITICAL: ABDM-1063 "Date Range given is invalid" means:
+  // - from must be a valid ISO 8601 timestamp
+  // - to must be a valid ISO 8601 timestamp
+  // - from must be <= to
+  // - to should not be in future (relative to request time or consent)
+  let dateRange = options.dateRange;
+  const now = new Date();
+
+  if (!dateRange || !dateRange.from || !dateRange.to) {
+    // Fallback: 1 year back to now (default if no consent dateRange exists)
+    dateRange = {
+      from: new Date(now.getTime() - 365 * 24 * 3600_000).toISOString(),
+      to: now.toISOString(),
+    };
+  } else {
+    // Validate and adjust the provided dateRange to ensure ABDM accepts it
+    const fromDate = new Date(dateRange.from);
+    const toDate = new Date(dateRange.to);
+
+    // Ensure from <= to
+    if (fromDate > toDate) {
+      logger.warn('fetchHealthInfo: dateRange from > to, swapping', {
+        consentId,
+        origFrom: dateRange.from,
+        origTo: dateRange.to,
+      });
+      dateRange = { from: dateRange.to, to: dateRange.from };
+    }
+
+    // Ensure to is not in future (clamp to now)
+    if (toDate > now) {
+      logger.warn('fetchHealthInfo: dateRange to is in future, clamping to now', {
+        consentId,
+        origTo: dateRange.to,
+        now: now.toISOString(),
+      });
+      dateRange.to = now.toISOString();
+    }
+  }
+
+  logger.info('HIU health-info request', {
+    consentId,
+    reqId,
+    dataPushUrl,
+    noncePrefix: nonce.slice(0, 8),
+    dateRangeFrom: dateRange.from,
+    dateRangeTo: dateRange.to,
+    usingConsentDateRange: !!options.dateRange,
+  });
+
   const result = await gwReq('POST', `${ABDM_GATEWAY}/v0.5/health-information/cm/request`, {
     requestId: reqId,
     timestamp: new Date().toISOString(),
     hiRequest: {
       consent: { id: consentId },
-      dateRange: {
-        from: new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
-        to: new Date().toISOString(),
-      },
+      dateRange,
       dataPushUrl,
       keyMaterial: km,
     },

@@ -486,26 +486,37 @@ const createConsent = async (req, res) => {
 
   const clinicName = clinicRes.rows[0]?.name || process.env.ABDM_REQUESTER_NAME || 'Clinic HIU';
 
+  // Build consent dateRange (required by ABDM, persisted for health-info fetch)
+  const consentDateRange = {
+    from: dateFrom ?? new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
+    to:   dateTo && new Date(dateTo) <= new Date() ? dateTo : new Date().toISOString(),
+  };
+
   const result = await abdm.createConsentRequest(
     abhaRes.rows[0].abha_address, hiuId, purpose, hiTypes,
-    {
-      from: dateFrom ?? new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
-      to:   dateTo && new Date(dateTo) <= new Date() ? dateTo : new Date().toISOString(),
-    },
+    consentDateRange,
     { name: clinicName }
   );
 
   // Track in emr_consent_requests (single source of truth)
   // Use result.reqId (the ID we sent to ABDM, not ABDM's response)
   await pool.query(
-    `INSERT INTO emr_consent_requests (clinic_id, request_id, patient_abha, hiu_id, purpose, hi_types, status)
+    `INSERT INTO emr_consent_requests (clinic_id, request_id, patient_abha, hiu_id, purpose, hi_types, permission_date_range, status)
      VALUES (
        (SELECT MIN(id) FROM emr_clinics),
-       $1, $2, $3, $4, $5, 'REQUESTED'
+       $1, $2, $3, $4, $5, $6, 'REQUESTED'
      )
      ON CONFLICT (request_id) DO NOTHING`,
-    [result.reqId, rows[0].abha_address, hiuId, purpose, JSON.stringify(hiTypes)]
+    [result.reqId, abhaRes.rows[0].abha_address, hiuId, purpose, JSON.stringify(hiTypes), JSON.stringify(consentDateRange)]
   ).catch(err => logger.warn('createConsent: insert failed', { error: err.message }));
+
+  logger.info('HIU consent request created', {
+    requestId: result.reqId,
+    purpose,
+    patientAbha: abhaRes.rows[0].abha_address?.slice(-10),
+    dateRangeFrom: consentDateRange.from,
+    dateRangeTo: consentDateRange.to,
+  });
 
   res.json(result);
 };
@@ -656,10 +667,50 @@ const consentNotify = async (req, res) => {
 
     // When granted, automatically request health info from each HIP artefact
     if (notification.status === 'GRANTED' && notification.consentArtefacts?.length) {
+      // Get permission dateRange from our stored consent request (ABDM doesn't echo it back in notification)
+      // Try multiple lookups: by our request ID, by ABDM's request ID, or from the notification itself
+      let permissionDateRange = null;
+
+      const { rows: storedConsent } = await pool.query(
+        `SELECT permission_date_range FROM emr_consent_requests
+         WHERE request_id=$1 OR abdm_request_id=$1
+         LIMIT 1`,
+        [consentRequestId]
+      ).catch(() => ({ rows: [] }));
+
+      if (storedConsent[0]?.permission_date_range) {
+        permissionDateRange = storedConsent[0].permission_date_range;
+      } else {
+        // Fallback: try to extract from notification (in case ABDM includes it)
+        permissionDateRange = notification.consentDetail?.permission?.dateRange
+          || notification.grants?.dateRange
+          || null;
+      }
+
+      logger.info('HIU consent GRANTED: storing artefacts and dateRange', {
+        consentRequestId,
+        artefactCount: notification.consentArtefacts.length,
+        dateRange: permissionDateRange,
+        source: storedConsent[0]?.permission_date_range ? 'stored_request' : 'notification',
+      });
+
+      // Store full artefact metadata including dateRange for use in fetchHealthInfo
+      const enrichedArtefacts = notification.consentArtefacts.map(a => ({
+        id: a.id,
+        hip: a.hip,
+        hipId: a.hipId,
+        careContexts: a.careContexts,
+        hiTypes: a.hiTypes,
+        dateRange: permissionDateRange, // Store for validation in health-info request
+      }));
+
       await pool.query(
-        `UPDATE emr_consent_requests SET artefacts=$1, updated_at=NOW()
-         WHERE request_id=$2 OR abdm_request_id=$2`,
-        [JSON.stringify(notification.consentArtefacts), consentRequestId]
+        `UPDATE emr_consent_requests
+         SET artefacts=$1,
+             permission_date_range=$2,
+             updated_at=NOW()
+         WHERE request_id=$3 OR abdm_request_id=$3`,
+        [JSON.stringify(enrichedArtefacts), JSON.stringify(permissionDateRange), consentRequestId]
       );
       const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
       const ourHipId    = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
@@ -702,17 +753,36 @@ const consentNotify = async (req, res) => {
           careContextHips:  (artefact.careContexts || artefact.consentDetail?.careContexts || [])
                               .map(c => c.hipId || c.hip?.id || 'none'),
           isOwnHip:         !artefactHip || artefactHip === ourHipId,
+          permissionDateRangeFrom: permissionDateRange?.from,
+          permissionDateRangeTo:   permissionDateRange?.to,
+          hasPerm: !!permissionDateRange,
         });
+
+        if (!permissionDateRange || !permissionDateRange.from || !permissionDateRange.to) {
+          logger.warn('HIU consent artefact: missing permission dateRange', {
+            artefactId: artefact.id,
+            consentRequestId,
+            permissionDateRange,
+          });
+        }
 
         try {
           logger.info('HIU fetching health-info for artefact', {
             artefactId: artefact.id,
             artefactHip: artefactHip || 'unspecified — ABDM will route to correct HIP',
             dataPushUrl,
+            dateRangeFrom: permissionDateRange?.from,
+            dateRangeTo: permissionDateRange?.to,
           });
-          const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl);
-          const txnId  = result?.hiRequest?.transactionId ?? abdm.uuid();
-          logger.info('HIU health-info request sent to CM', { artefactId: artefact.id, txnId });
+          // Pass the consent's approved dateRange to ABDM (required by spec, prevents ABDM-1063)
+          const result = await abdm.fetchHealthInfo(artefact.id, dataPushUrl, { dateRange: permissionDateRange });
+          const txnId  = result?.reqId ?? abdm.uuid();
+          logger.info('HIU health-info request sent to CM', {
+            artefactId: artefact.id,
+            txnId,
+            consentId: artefact.id,
+            dateRangeUsed: permissionDateRange,
+          });
 
           artefactTxnMap[artefact.id] = txnId;
 
@@ -1200,6 +1270,42 @@ const debugUpdateHipServices = async (req, res) => {
   }
 };
 
+const debugConsentDetails = async (req, res) => {
+  const { consentId } = req.query;
+  if (!consentId) return res.status(400).json({ error: 'consentId required' });
+
+  try {
+    const [consReq, hipArt] = await Promise.all([
+      pool.query(
+        `SELECT id, request_id, abdm_request_id, patient_abha, purpose, hi_types, permission_date_range, status, created_at
+         FROM emr_consent_requests
+         WHERE request_id=$1 OR abdm_request_id=$1 LIMIT 1`,
+        [consentId]
+      ).catch(() => ({ rows: [] })),
+      pool.query(
+        `SELECT consent_id, status, artefacts, raw, patient_abha, created_at
+         FROM hip_consent_artifacts
+         WHERE consent_id=$1 LIMIT 1`,
+        [consentId]
+      ).catch(() => ({ rows: [] })),
+    ]);
+
+    res.json({
+      emr_consent_request: consReq.rows[0] ?? null,
+      hip_consent_artifact: hipArt.rows[0] ?? null,
+      diagnostic: {
+        emr_has_permission_date_range: !!consReq.rows[0]?.permission_date_range,
+        hip_has_raw: !!hipArt.rows[0]?.raw,
+        hip_raw_keys: Object.keys(hipArt.rows[0]?.raw || {}),
+        hip_raw_permission: hipArt.rows[0]?.raw?.consentDetail?.permission || hipArt.rows[0]?.raw?.permission || null,
+      },
+    });
+  } catch (err) {
+    logger.error('debugConsentDetails error', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+};
+
 module.exports = {
   aadhaarGenerateOtp, aadhaarVerifyOtp,
   mobileGenerateOtp,  mobileVerifyOtp,
@@ -1214,5 +1320,5 @@ module.exports = {
   createConsent, getConsents, respondConsent,
   consentOnInit, consentNotify, healthInfoPush,
   getHealthRecords,
-  debugToken, debugBridge, debugUpdateHipServices, debugHipSessions,
+  debugToken, debugBridge, debugUpdateHipServices, debugHipSessions, debugConsentDetails,
 };
