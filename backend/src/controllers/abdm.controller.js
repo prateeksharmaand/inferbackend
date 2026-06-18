@@ -594,8 +594,15 @@ const consentNotify = async (req, res) => {
   // Respond immediately – ABDM requires 202 within 5 s
   res.status(202).json({ status: 'accepted' });
   try {
+    // CRITICAL: Log COMPLETE incoming payload BEFORE any transformations
+    logger.info('ABDM consent notification: COMPLETE INCOMING PAYLOAD', {
+      fullBody: JSON.stringify(req.body, null, 2),
+      bodyKeys: Object.keys(req.body || {}),
+      notificationKeys: Object.keys(req.body?.notification || {}),
+    });
+
     const { notification } = req.body;
-    logger.info('ABDM consent notification', notification);
+    logger.info('ABDM consent notification extracted', notification);
     // ABDM uses different ID fields across notification types
     const consentRequestId = notification.consentRequestId ?? notification.consentId ?? notification.id;
     if (!consentRequestId) {
@@ -698,35 +705,54 @@ const consentNotify = async (req, res) => {
           || null;
       }
 
-      // CRITICAL VALIDATION: If dateRange missing, fetch full consent from ABDM
-      if (!permissionDateRange?.from || !permissionDateRange?.to) {
-        logger.warn('HIU consent: permission.dateRange missing, fetching from ABDM', {
-          consentRequestId,
-          artefactCount: notification.consentArtefacts.length,
-          hasStoredRange: !!storedConsent[0]?.permission_date_range,
-          hasNotificationRange: !!(notification.consentDetail?.permission?.dateRange || notification.grants?.dateRange),
-        });
+      // CRITICAL FIX: Store complete notification payload in database
+      // This captures all permission metadata that ABDM sends in the callback
+      logger.info('HIU consent GRANTED: storing complete notification payload', {
+        consentRequestId,
+        hasNotificationRaw: !!notification,
+        notificationKeys: Object.keys(notification || {}),
+      });
 
-        // Fetch full consent details from ABDM (notification is minimal)
-        const fullConsent = await abdm.fetchConsentDetails(consentRequestId);
-        if (fullConsent?.consent?.permission?.dateRange) {
-          permissionDateRange = fullConsent.consent.permission.dateRange;
-          logger.info('HIU consent: fetched permission.dateRange from ABDM', {
+      await pool.query(
+        `UPDATE emr_consent_requests
+         SET raw_notification=$1, updated_at=NOW()
+         WHERE request_id=$2 OR abdm_request_id=$2`,
+        [JSON.stringify(notification), consentRequestId]
+      ).catch(err => logger.warn('HIU consent: failed to store raw notification', { error: err.message }));
+
+      // Extract permission.dateRange from stored notification if not already present
+      if (!permissionDateRange?.from || !permissionDateRange?.to) {
+        // Try to extract from the full notification payload we just stored
+        const notificationPermission = notification.consentDetail?.permission
+          ?? notification.permission
+          ?? notification.grant?.permission
+          ?? null;
+
+        if (notificationPermission?.dateRange) {
+          permissionDateRange = notificationPermission.dateRange;
+          logger.info('HIU consent: extracted permission.dateRange from notification payload', {
             consentRequestId,
             dateRangeFrom: permissionDateRange.from,
             dateRangeTo: permissionDateRange.to,
           });
-          // Store the fetched dateRange for future use
+          // Store the extracted dateRange
           await pool.query(
             `UPDATE emr_consent_requests SET permission_date_range=$1, updated_at=NOW() WHERE request_id=$2 OR abdm_request_id=$2`,
             [JSON.stringify(permissionDateRange), consentRequestId]
-          ).catch(err => logger.warn('HIU consent: failed to store fetched dateRange', { error: err.message }));
+          ).catch(err => logger.warn('HIU consent: failed to store extracted dateRange', { error: err.message }));
         } else {
-          logger.error('HIU consent GRANTED but permission.dateRange still missing after ABDM fetch', {
+          logger.error('HIU consent GRANTED but permission.dateRange missing from notification payload', {
             consentRequestId,
             artefactCount: notification.consentArtefacts.length,
-            permissionDateRange,
+            notificationHasConsentDetail: !!notification.consentDetail,
+            notificationHasPermission: !!notification.permission,
+            notificationHasGrant: !!notification.grant,
           });
+          // Mark consent as invalid if no permission data
+          await pool.query(
+            `UPDATE emr_consent_requests SET status='INVALID_METADATA', updated_at=NOW() WHERE request_id=$1 OR abdm_request_id=$1`,
+            [consentRequestId]
+          ).catch(err => logger.warn('HIU consent: failed to mark invalid metadata', { error: err.message }));
           // Skip health-info fetch to prevent ABDM-1063
           return;
         }
