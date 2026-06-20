@@ -1091,11 +1091,12 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
     const xoredNonce = Buffer.alloc(32);
     for (let i = 0; i < 32; i++) xoredNonce[i] = hipNonce[i] ^ hiuNonceBytes[i];
 
-    // 5. Derive AES-256 key: SHA-256(xoredNonce || sharedSecret)
-    const aesKey = crypto.createHash('sha256').update(xoredNonce).update(sharedSecret).digest();
+    // 5. Derive AES-256 key: HKDF-SHA256(IKM=sharedSecret, salt=xorNonce[0:20], info=empty)
+    const salt = xoredNonce.slice(0, 20);
+    const aesKey = Buffer.from(crypto.hkdfSync('sha256', sharedSecret, salt, Buffer.alloc(0), 32));
 
-    // 6. AES-256-GCM: IV = first 12 bytes of xoredNonce, 128-bit tag appended to ciphertext
-    const iv = xoredNonce.slice(0, 12);
+    // 6. AES-256-GCM: IV = last 12 bytes of xoredNonce, 128-bit tag appended to ciphertext
+    const iv = xoredNonce.slice(20, 32);
     const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
     const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag(); // 16 bytes
