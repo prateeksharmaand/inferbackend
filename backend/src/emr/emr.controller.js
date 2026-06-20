@@ -368,9 +368,9 @@ const addCareContext = async (req, res) => {
   // Insert care context WITH fhir_content so it's used instead of buildFhirBundle
   // link_status starts as 'pending' — ABDM link attempt below will update it
   const { rows } = await pool.query(
-    `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content, link_status)
-     VALUES ($1,$2,$3,$4,$5,'pending') RETURNING *`,
-    [patientId, refNum, display, hi_type ?? 'OPConsultation', JSON.stringify(fhirBundle)]
+    `INSERT INTO emr_care_contexts (patient_id, clinic_id, reference_number, display, hi_type, fhir_content, link_status)
+     VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING *`,
+    [patientId, req.emrUser.clinic_id, refNum, display, hi_type ?? 'OPConsultation', JSON.stringify(fhirBundle)]
   );
   const careCtx = rows[0];
 

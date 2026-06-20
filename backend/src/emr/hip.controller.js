@@ -121,20 +121,19 @@ const handleDiscovery = async (req, res) => {
     const clinicId = clinicRows[0]?.id ?? null;
 
     // R3-010: select only metadata columns — fhir_content not needed for discovery
+    // Use cc.clinic_id directly (authoritative ownership) — no join through patients.clinic_id
     let ctxRows;
     if (clinicId) {
-      // Multi-tenant: return only care contexts for this clinic's patients
       ({ rows: ctxRows } = await pool.query(
-        `SELECT cc.id, cc.reference_number, cc.display, cc.hi_type, cc.created_at
-         FROM emr_care_contexts cc
-         JOIN emr_patients p ON p.id = cc.patient_id
-         WHERE cc.patient_id = $1 AND p.clinic_id = $2
-         ORDER BY cc.created_at DESC
+        `SELECT id, reference_number, display, hi_type, created_at
+         FROM emr_care_contexts
+         WHERE patient_id = $1 AND clinic_id = $2
+         ORDER BY created_at DESC
          LIMIT 20`,
         [pt.id, clinicId]
       ));
     } else {
-      // Fallback: no clinic mapped to this HIP ID, return all (single-tenant compat)
+      // Fallback: no clinic mapped to this HIP ID — return all (single-tenant compat)
       ({ rows: ctxRows } = await pool.query(
         `SELECT id, reference_number, display, hi_type, created_at
          FROM emr_care_contexts

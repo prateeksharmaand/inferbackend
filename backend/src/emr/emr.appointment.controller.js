@@ -48,18 +48,25 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
     return;
   }
 
-  // Resolve HIP ID from the appointment's clinic (not patient's default clinic).
-  // A patient can visit multiple clinics; the care context must be linked under
-  // the HIP of the clinic where THIS appointment was booked.
-  const clinicQuery = clinicId
-    ? pool.query(`SELECT hip_id FROM emr_clinics WHERE id = $1 AND abdm_enabled = true AND hip_id IS NOT NULL LIMIT 1`, [clinicId])
-    : pool.query(`SELECT ec.hip_id FROM emr_clinics ec JOIN emr_patients ep ON ep.clinic_id = ec.id WHERE ep.id = $1 AND ec.abdm_enabled = true AND ec.hip_id IS NOT NULL LIMIT 1`, [patientId]);
-  const { rows: [apptClinic] } = await clinicQuery;
-  if (!apptClinic?.hip_id) {
-    logger.info('ABDM link skipped — clinic has no ABDM HIP configured', { patientId, clinicId });
+  // Resolve HIP ID from the care context's own clinic_id (authoritative ownership).
+  // Falls back to the passed clinicId, then patient's default clinic — never env var.
+  const { rows: [resolvedClinic] } = await pool.query(
+    `SELECT ec.hip_id, ec.id AS clinic_id
+     FROM emr_clinics ec
+     WHERE ec.id = COALESCE(
+       (SELECT clinic_id FROM emr_care_contexts WHERE reference_number = $1 LIMIT 1),
+       $2,
+       (SELECT clinic_id FROM emr_patients WHERE id = $3 LIMIT 1)
+     )
+     AND ec.abdm_enabled = true AND ec.hip_id IS NOT NULL
+     LIMIT 1`,
+    [refNum, clinicId, patientId]
+  );
+  if (!resolvedClinic?.hip_id) {
+    logger.info('ABDM link skipped — clinic has no ABDM HIP configured', { patientId, clinicId, refNum });
     return;
   }
-  const hipId = apptClinic.hip_id;
+  const hipId = resolvedClinic.hip_id;
   const gender = normGender;
 
   try {
@@ -193,6 +200,16 @@ const createAppointment = async (req, res) => {
     console.error('[FHIR] appointment push failed:', err.message)
   );
 
+  // Maintain patient_clinics many-to-many: upsert visit record
+  if (resolvedPatientId) {
+    pool.query(
+      `INSERT INTO patient_clinics (patient_id, clinic_id, first_visit_at, last_visit_at)
+       VALUES ($1, $2, NOW(), NOW())
+       ON CONFLICT (patient_id, clinic_id) DO UPDATE SET last_visit_at = NOW()`,
+      [resolvedPatientId, req.emrUser.clinic_id]
+    ).catch(() => {}); // non-critical, fire-and-forget
+  }
+
   // Send appointment confirmation email if patient has email
   if (patient_email) {
     const { rows: [clinic] } = await pool.query(`SELECT name FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
@@ -269,11 +286,11 @@ const updateStatus = async (req, res) => {
         const display = `OPD Consultation - ${apptIso} - ${a.patient_name || 'Patient'}`;
 
         const { rows: ccRows } = await pool.query(
-          `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, link_status)
-           VALUES ($1,$2,$3,'OPConsultation','pending')
+          `INSERT INTO emr_care_contexts (patient_id, clinic_id, reference_number, display, hi_type, link_status)
+           VALUES ($1,$2,$3,$4,'OPConsultation','pending')
            ON CONFLICT (reference_number) DO NOTHING
            RETURNING *`,
-          [a.emr_patient_id, refNum, display]
+          [a.emr_patient_id, a.clinic_id, refNum, display]
         );
 
         if (!ccRows.length) return; // already existed — saveEncounter will update it with FHIR content
@@ -461,16 +478,17 @@ const saveEncounter = async (req, res) => {
     // Upsert care context; reset link_status to 'pending' on content update so
     // the background linker will re-push the updated bundle to ABDM.
     pool.query(
-      `INSERT INTO emr_care_contexts (patient_id, reference_number, display, hi_type, fhir_content, link_status)
-       VALUES ($1,$2,$3,'OPConsultation',$4,'pending')
+      `INSERT INTO emr_care_contexts (patient_id, clinic_id, reference_number, display, hi_type, fhir_content, link_status)
+       VALUES ($1,$2,$3,$4,'OPConsultation',$5,'pending')
        ON CONFLICT (reference_number) DO UPDATE
          SET display      = EXCLUDED.display,
              fhir_content = EXCLUDED.fhir_content,
+             clinic_id    = EXCLUDED.clinic_id,
              -- never downgrade a linked context back to pending
              link_status  = CASE WHEN emr_care_contexts.link_status = 'linked' THEN 'linked' ELSE 'pending' END,
              updated_at   = NOW()
        RETURNING *, (xmax = 0) AS inserted`,
-      [a.emr_patient_id, refNum, display, abdmFhir]
+      [a.emr_patient_id, a.clinic_id, refNum, display, abdmFhir]
     ).then(async (upsertResult) => {
       const row      = upsertResult.rows[0];
       const isInsert = row?.inserted === true;
