@@ -1042,131 +1042,110 @@ const MAX_CONNECT_RETRIES = 4; // handles pools where all idle connections are s
 // error to distinguish stale-socket (ECONNRESET/EPIPE) from a live lock
 // wait.  The hard timeout in _queryWithTimeout (25 s — long enough for
 // Neon cold-start) is the backstop.
-async function _getVerifiedClient(ctx) {
-  const connectStart = Date.now();
-  logger.info('HIU: pool.connect() start', {
-    attempt: 1, ...poolSnapshot(), ...ctx,
-  });
-
-  const preConnect = poolSnapshot();
-  const client     = await pool.connect(); // connectionTimeoutMillis: 5000 protects this
-  const connectMs  = Date.now() - connectStart;
-  const isNew      = pool.totalCount > preConnect.poolTotal;
-
-  // Fetch backend PID with a short SET so the session inherits our timeouts.
-  // This also confirms the socket is alive without a separate ping round-trip.
-  // If this hangs (Neon suspended), the 25 s hard timer in _queryWithTimeout
-  // will reject and destroy the client.
-  const pidStart = Date.now();
-  try {
-    const r = await client.query(
-      `SELECT pg_backend_pid() AS pid,
-              current_setting('lock_timeout')      AS lock_to,
-              current_setting('statement_timeout') AS stmt_to`
-    );
-    const pidMs      = Date.now() - pidStart;
-    const backendPid = r.rows[0]?.pid;
-    client._hiuBackendPid = backendPid;
-
-    logger.info('HIU: pool.connect() done', {
-      connectMs, pidMs, isNewConnection: isNew, backendPid,
-      lockTimeout:  r.rows[0]?.lock_to,
-      stmtTimeout:  r.rows[0]?.stmt_to,
-      ...poolSnapshot(), ...ctx,
-    });
-    return client;
-  } catch (err) {
-    client.release(true);
-    logger.warn('HIU: pool.connect() pid-fetch failed — destroying connection', {
-      connectMs, pidMs: Date.now() - pidStart,
-      isNewConnection: isNew,
-      error: err.message, code: err.code,
-      ...poolSnapshot(), ...ctx,
-      DIAGNOSIS: ['ECONNRESET','EPIPE','ENOTCONN'].includes(err.code)
-        ? 'Dead socket (Neon closed idle TCP) — pool will open fresh connection next call'
-        : 'Unexpected error during session setup',
-    });
-    throw Object.assign(err, { isConnectionError: true });
-  }
-}
-
-// ── Query execution with hard timeout ────────────────────────────────────────
+// ── _queryWithTimeout ─────────────────────────────────────────────────────────
 //
-// Even on a verified-live connection, a PostgreSQL-level lock (row lock,
-// advisory lock, or index-page lock from a concurrent INSERT ON CONFLICT)
-// can block the query indefinitely if statement_timeout is not honoured —
-// which happens when the pool connection pre-dates the SET statement_timeout
-// session config. The hard timer here fires unconditionally from JS-land.
+// Single function that owns the ENTIRE lifecycle: connect → setup → query → release.
+// The hard timer starts IMMEDIATELY after pool.connect() so it covers:
+//   1. The pid/timeout-settings fetch (detects stale socket or Neon cold-start)
+//   2. The actual query (detects PostgreSQL lock waits, slow I/O)
 //
-// On timeout we:
-//   1. Log the PostgreSQL backend PID so you can run SELECT * FROM
-//      pg_stat_activity WHERE pid = <backendPid> to see the blocking query.
-//   2. Destroy the connection (release(true)) so the stuck backend process
-//      is terminated server-side (PostgreSQL drops the connection on client FIN).
+// Previous bug: _getVerifiedClient ran client.query('SELECT pg_backend_pid()')
+// with NO timeout. The 25 s timer only started after _getVerifiedClient returned.
+// On a stale socket or Neon cold-start, that inner query hung forever — the timer
+// never reached. This caused all the "stuck after entry 1" hangs.
+//
+// Fix: pool.connect() is the only unprotected step (guarded by
+// connectionTimeoutMillis: 5000). After that, the timer is armed immediately
+// and every subsequent await is inside the protected Promise chain.
 
 async function _queryWithTimeout(text, params, timeoutMs, ctx) {
-  const t0     = Date.now();
-  const client = await _getVerifiedClient(ctx);
-  const verifyMs = Date.now() - t0;
+  // pool.connect() — fast when idle connections exist; protected by connectionTimeoutMillis
+  const connectStart  = Date.now();
+  const preConnect    = poolSnapshot();
+  logger.info('HIU: pool.connect() start', { ...poolSnapshot(), ...ctx });
 
+  const client    = await pool.connect();
+  const connectMs = Date.now() - connectStart;
+  const isNew     = pool.totalCount > preConnect.poolTotal;
+
+  // Timer arms NOW — covers both the pid-fetch AND the real query.
+  // If either hangs (stale socket, Neon cold-start, PG lock), timer fires after timeoutMs.
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      logger.error('HIU: query TIMED OUT — destroying connection to unblock server', {
-        timeoutMs,
-        verifyMs,
-        sql:        text.trim().slice(0, 120),
-        backendPid: client._hiuBackendPid,   // look up in pg_stat_activity
-        ...poolSnapshot(),
-        ...ctx,
-        NEXT_STEPS: [
-          `Run on DB: SELECT pid,state,wait_event_type,wait_event,query FROM pg_stat_activity WHERE pid=${client._hiuBackendPid}`,
-          'If wait_event_type=Lock → another session holds a lock on health_records',
-          'If state=idle in transaction → a prior INSERT never committed (unreleased client)',
-          'If row is missing → backend already died; this is a network-level hang',
-        ],
-      });
-      client.release(true); // sends TCP FIN → PostgreSQL terminates the backend process
-      reject(new Error(`query hard-timeout after ${timeoutMs}ms [pid=${client._hiuBackendPid}] [${JSON.stringify(ctx)}]`));
-    }, timeoutMs);
+    let backendPid = null;
 
-    const queryStart = Date.now();
-    client.query(text, params)
-      .then(r => {
+    const onTimeout = () => {
+      logger.error('HIU: query TIMED OUT', {
+        timeoutMs, connectMs,
+        sql:        text.trim().slice(0, 120),
+        backendPid,
+        phase:      backendPid ? 'real-query' : 'pid-fetch',
+        ...poolSnapshot(), ...ctx,
+        DIAGNOSIS: backendPid
+          ? `Run: SELECT pid,state,wait_event_type,wait_event,query FROM pg_stat_activity WHERE pid=${backendPid}`
+          : 'Timed out before pid-fetch completed — stale socket or Neon cold-start',
+      });
+      client.release(true);
+      reject(new Error(`query timeout after ${timeoutMs}ms [phase=${backendPid ? 'query' : 'pid-fetch'}] [${JSON.stringify(ctx)}]`));
+    };
+
+    const timer = setTimeout(onTimeout, timeoutMs);
+
+    // Step 1: pid-fetch — confirms socket is alive, shows what timeouts the session has
+    client.query(
+      `SELECT pg_backend_pid()                     AS pid,
+              current_setting('lock_timeout')       AS lock_to,
+              current_setting('statement_timeout')  AS stmt_to`
+    )
+    .then(pidRes => {
+      backendPid             = pidRes.rows[0]?.pid;
+      client._hiuBackendPid  = backendPid;
+      logger.info('HIU: pool.connect() done', {
+        connectMs,
+        isNewConnection: isNew,
+        backendPid,
+        lockTimeout:  pidRes.rows[0]?.lock_to,
+        stmtTimeout:  pidRes.rows[0]?.stmt_to,
+        ...poolSnapshot(), ...ctx,
+      });
+
+      // Step 2: real query — INSERT / SELECT protected by the same timer
+      const queryStart = Date.now();
+      return client.query(text, params).then(r => {
         clearTimeout(timer);
-        const queryMs = Date.now() - queryStart;
-        logger.debug('HIU: query ok', {
-          queryMs,
-          verifyMs,
+        logger.info('HIU: query ok', {
+          queryMs:    Date.now() - queryStart,
+          connectMs,
           rowCount:   r.rowCount,
-          backendPid: client._hiuBackendPid,
+          backendPid,
           sql:        text.trim().slice(0, 80),
           ...ctx,
         });
         client.release();
         resolve(r);
-      })
-      .catch(e => {
-        clearTimeout(timer);
-        const queryMs = Date.now() - queryStart;
-        // Network/protocol errors → destroy connection; app-level errors (e.g. 23505
-        // unique violation) → return connection to pool (it's still healthy).
-        const isNetErr = !e.code
-          || e.severity === 'FATAL'
-          || ['ECONNRESET','EPIPE','ENOTCONN','ETIMEDOUT','EIO'].includes(e.code);
-        client.release(isNetErr);
-        logger.error('HIU: query error', {
-          queryMs,
-          verifyMs,
-          error:      e.message,
-          code:       e.code,
-          severity:   e.severity,
-          backendPid: client._hiuBackendPid,
-          destroyed:  isNetErr,
-          sql:        text.trim().slice(0, 80),
-          ...ctx,
-        });
-        reject(e);
       });
+    })
+    .catch(e => {
+      clearTimeout(timer);
+      const isNetErr = !e.code
+        || e.severity === 'FATAL'
+        || ['ECONNRESET','EPIPE','ENOTCONN','ETIMEDOUT','EIO'].includes(e.code);
+      client.release(isNetErr);
+      logger.error('HIU: query error', {
+        connectMs,
+        error:      e.message,
+        code:       e.code,
+        severity:   e.severity,
+        backendPid,
+        destroyed:  isNetErr,
+        phase:      backendPid ? 'real-query' : 'pid-fetch',
+        sql:        text.trim().slice(0, 80),
+        DIAGNOSIS: isNetErr
+          ? 'Network error — connection destroyed, pool will open fresh socket next call'
+          : `PG error code ${e.code} — connection returned to pool (still healthy)`,
+        ...ctx,
+      });
+      reject(e);
+    });
   });
 }
 
