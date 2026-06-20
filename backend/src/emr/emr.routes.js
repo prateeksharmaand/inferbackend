@@ -332,6 +332,9 @@ router.get ('/consents',                        emr.listConsentRequests);
 router.get ('/consents/health-records',         emr.getConsentHealthRecords);
 router.post('/consents/:requestId/respond',     emr.respondConsent);
 router.post('/consents/:requestId/pull-data',   emr.pullConsentData);
+// Multi-HIP diagnostic: shows which HIPs are linked for a patient in our DB
+// Use this to verify that other HIPs have linked care contexts before testing consent
+router.get('/consents/linked-hips/:abha',       emr.getLinkedHipsForPatient);
 
 // Lab results for EMR patient view — look up by mobile (bridges EMR ↔ lab system)
 router.get('/patients/:id/lab-results', async (req, res) => {

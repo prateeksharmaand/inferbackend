@@ -618,7 +618,17 @@ const createConsentRequest = async (req, res) => {
     to: (toDate > now ? now : toDate).toISOString(), // ABDM: to must be ≤ now
   };
 
-  logger.info('EMR consent request', { resolvedAbha, hipId, hiuId, purpose, hiTypes: resolvedHiTypes, dateRange });
+  // MULTI-HIP AUDIT: log exactly what is being sent and what ABDM will use to build facility list
+  logger.info('EMR consent request', {
+    resolvedAbha,
+    hipId,         // stored locally only — NOT sent to ABDM
+    hiuId,
+    purpose,
+    hiTypes: resolvedHiTypes,
+    dateRange,
+    ABDM_NOTE: 'No hip field in consent-requests/init — ABDM will include ALL HIPs where patient has linked care contexts',
+    MULTI_HIP_EXPECTATION: 'PHR consent screen will show N facilities where patient has linked care contexts in ABDM',
+  });
 
   let result = {};
   try {
@@ -1472,11 +1482,90 @@ const abhaLoginLinkPatient = async (req, res) => {
   }
 };
 
+// MULTI-HIP DIAGNOSTIC: which HIPs are linked for a patient in ABDM (via our DB)
+// GET /consents/linked-hips/:abha
+// Returns all HIPs that have linked care contexts for this patient
+// Use to verify multi-HIP setup before testing consent
+const getLinkedHipsForPatient = async (req, res) => {
+  const abha = req.params.abha;
+  if (!abha) return res.status(400).json({ error: 'ABHA address required' });
+
+  const clinicId = req.emrUser.clinic_id;
+
+  // 1. Care contexts linked in our own HIP
+  const { rows: ownContexts } = await pool.query(
+    `SELECT ecc.reference_number, ecc.hi_type, ecc.link_status, ecc.created_at,
+            ep.name AS patient_name, ep.abha_address
+     FROM emr_care_contexts ecc
+     JOIN emr_patients ep ON ep.id = ecc.patient_id
+     WHERE ep.abha_address = $1 AND ecc.clinic_id = $2 AND ecc.link_status = 'linked'
+     ORDER BY ecc.created_at DESC`,
+    [abha, clinicId]
+  );
+
+  // 2. HIP consent artifacts received (other HIPs that have notified us)
+  const { rows: hipArtefacts } = await pool.query(
+    `SELECT consent_id, status, patient_abha,
+            raw->'consentDetail'->'hip'->>'id' AS hip_id,
+            raw->'consentDetail'->'hip'->>'name' AS hip_name,
+            jsonb_array_length(COALESCE(raw->'consentDetail'->'careContexts', '[]'::jsonb)) AS care_ctx_count,
+            created_at
+     FROM hip_consent_artifacts
+     WHERE patient_abha = $1
+     ORDER BY created_at DESC`,
+    [abha]
+  );
+
+  // 3. Health records already stored for this patient
+  const { rows: healthRecs } = await pool.query(
+    `SELECT hr.transaction_id, hr.care_context_reference, hr.hi_type, hr.received_at,
+            hhr.consent_id AS artefact_id
+     FROM health_records hr
+     LEFT JOIN hip_health_requests hhr ON hhr.transaction_id = hr.transaction_id
+     WHERE hr.transaction_id IN (
+       SELECT transaction_id FROM emr_consent_requests WHERE patient_abha=$1 AND clinic_id=$2 AND transaction_id IS NOT NULL
+       UNION
+       SELECT t.val FROM emr_consent_requests ecr,
+         jsonb_each_text(COALESCE(ecr.transaction_id_map,'{}')) AS t(key,val)
+       WHERE ecr.patient_abha=$1 AND ecr.clinic_id=$2
+     )
+     ORDER BY hr.received_at DESC`,
+    [abha, clinicId]
+  );
+
+  const ownHipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+
+  res.json({
+    patientAbha:       abha,
+    ownHipId,
+    linkedInOwnHip:  {
+      count:   ownContexts.length,
+      status:  ownContexts.length > 0 ? 'LINKED' : 'NOT_LINKED',
+      contexts: ownContexts.map(c => ({ ref: c.reference_number, hiType: c.hi_type, status: c.link_status })),
+    },
+    externalHipArtefacts: {
+      count: hipArtefacts.length,
+      hips:  hipArtefacts.map(a => ({ hipId: a.hip_id, hipName: a.hip_name, careContextCount: a.care_ctx_count, status: a.status })),
+    },
+    storedHealthRecords: {
+      count:   healthRecs.length,
+      records: healthRecs.map(r => ({ ref: r.care_context_reference, hiType: r.hi_type, receivedAt: r.received_at })),
+    },
+    MULTI_HIP_READY: hipArtefacts.length > 0
+      ? `YES — ${hipArtefacts.length} external HIP(s) have notified us`
+      : 'NO — only own HIP linked. Patient must link care contexts from other HIPs via ABHA app.',
+    ACTION_REQUIRED: hipArtefacts.length === 0
+      ? 'In ABHA app: Settings → Linked Facilities → Add another facility → Link care contexts'
+      : 'Grant consent — should now show multiple facilities in PHR consent screen',
+  });
+};
+
 module.exports = {
   listPatients, createPatient, getPatient, updatePatient, deletePatient, registerAbhaPatient,
   addCareContext, deleteCareContext, retryCareContextLink,
   pendingOtps, healthRequests, activityLog,
   createConsentRequest, listConsentRequests, respondConsent, pullConsentData, getConsentHealthRecords,
+  getLinkedHipsForPatient,
   abhaCreateOtp, abhaCreateVerify, abhaCreateMobileOtp, abhaCreateMobileVerify,
   abhaGetSuggestions, abhaSetAddress, syncAbhaDemographics, syncDemographicsFromShare, abhaGetCard,
   abhaVerifyOtp, abhaVerifyConfirm,
