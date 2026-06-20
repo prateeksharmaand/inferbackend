@@ -1539,6 +1539,30 @@ const healthInfoPush = async (req, res) => {
       ..._processVitals(),
     });
 
+    // Update emr_consent_requests with the real transactionId from ABDM's push.
+    // pullConsentData checks health_records by consent.transaction_id and
+    // transaction_id_map — but those hold our reqId placeholder, not ABDM's
+    // actual transactionId. Without this update, the fast-path "records already
+    // delivered" check never matches, and clicking "Fetch Medical Records" always
+    // re-triggers ABDM instead of loading the stored records.
+    if (insertedCount > 0 && consentIdForAck && transactionId) {
+      pool.query(
+        `UPDATE emr_consent_requests
+         SET transaction_id     = $1,
+             transaction_id_map = COALESCE(transaction_id_map, '{}'::jsonb) || $2::jsonb,
+             updated_at         = NOW()
+         WHERE clinic_id IS NOT NULL
+           AND status = 'GRANTED'
+           AND artefacts @> $3::jsonb`,
+        [
+          transactionId,
+          JSON.stringify({ [consentIdForAck]: transactionId }),
+          JSON.stringify([{ id: consentIdForAck }]),
+        ]
+      ).then(r => logger.info('HIU: consent txnId updated', { transactionId, consentIdForAck, rowsUpdated: r.rowCount }))
+       .catch(e => logger.warn('HIU: consent txnId update failed (non-fatal)', { error: e.message }));
+    }
+
     // Step 9: HIU sends notification to ABDM acknowledging receipt of health data
     // (ABDM spec: POST /v0.5/health-information/notify)
     if (consentIdForAck) {
