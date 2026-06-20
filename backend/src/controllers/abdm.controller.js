@@ -1028,102 +1028,65 @@ const consentNotify = async (req, res) => {
 
 const MAX_CONNECT_RETRIES = 4; // handles pools where all idle connections are stale
 
-// Ping a pg client with a hard timeout.
-// client.query('SELECT 1') hangs indefinitely on a stale socket — the same failure
-// mode as the main INSERT. This wrapper adds an independent setTimeout backstop so
-// a dead socket is detected and destroyed within PING_TIMEOUT_MS instead of hanging.
-const PING_TIMEOUT_MS = 3000;
-function _pingClient(client) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(Object.assign(
-        new Error(`SELECT 1 ping timed out after ${PING_TIMEOUT_MS}ms — stale socket`),
-        { code: 'PING_TIMEOUT' }
-      ));
-    }, PING_TIMEOUT_MS);
-
-    client.query('SELECT 1 AS ok, pg_backend_pid() AS pid')
-      .then(r  => { clearTimeout(timer); resolve(r); })
-      .catch(e => { clearTimeout(timer); reject(e); });
-  });
-}
-
+// Acquire a pg client from the pool.
+//
+// Architecture note — why we NO LONGER use a SELECT 1 ping:
+// Neon's free tier suspends its compute after ~5 min of inactivity.
+// The cold-start (wake-up) takes 5–15 s. A 3 s PING_TIMEOUT would
+// always fail during cold-start, destroying the connection and retrying
+// — which also cold-starts, creating a 14-entry × 4-retry × 3 s = 168 s
+// stall with zero records inserted.
+//
+// Instead: acquire a client, fetch pg_backend_pid() inside the REAL query
+// (INSERT ... RETURNING pg_backend_pid()) OR piggyback on the query's
+// error to distinguish stale-socket (ECONNRESET/EPIPE) from a live lock
+// wait.  The hard timeout in _queryWithTimeout (25 s — long enough for
+// Neon cold-start) is the backstop.
 async function _getVerifiedClient(ctx) {
-  for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
-    const connectStart = Date.now();
+  const connectStart = Date.now();
+  logger.info('HIU: pool.connect() start', {
+    attempt: 1, ...poolSnapshot(), ...ctx,
+  });
 
-    // Log BEFORE pool.connect() so a hang here is immediately visible.
-    // pool.connect() should return in < 1 ms when idle connections exist,
-    // or up to connectionTimeoutMillis(5 s) if pool is exhausted.
-    logger.info('HIU: pool.connect() start', {
-      attempt, ...poolSnapshot(), ...ctx,
-    });
+  const preConnect = poolSnapshot();
+  const client     = await pool.connect(); // connectionTimeoutMillis: 5000 protects this
+  const connectMs  = Date.now() - connectStart;
+  const isNew      = pool.totalCount > preConnect.poolTotal;
 
-    const preConnect = poolSnapshot();
-    const client = await pool.connect();
-    const connectMs = Date.now() - connectStart;
+  // Fetch backend PID with a short SET so the session inherits our timeouts.
+  // This also confirms the socket is alive without a separate ping round-trip.
+  // If this hangs (Neon suspended), the 25 s hard timer in _queryWithTimeout
+  // will reject and destroy the client.
+  const pidStart = Date.now();
+  try {
+    const r = await client.query(
+      `SELECT pg_backend_pid() AS pid,
+              current_setting('lock_timeout')      AS lock_to,
+              current_setting('statement_timeout') AS stmt_to`
+    );
+    const pidMs      = Date.now() - pidStart;
+    const backendPid = r.rows[0]?.pid;
+    client._hiuBackendPid = backendPid;
 
     logger.info('HIU: pool.connect() done', {
-      attempt, connectMs, isNewConnection: pool.totalCount > preConnect.poolTotal,
+      connectMs, pidMs, isNewConnection: isNew, backendPid,
+      lockTimeout:  r.rows[0]?.lock_to,
+      stmtTimeout:  r.rows[0]?.stmt_to,
       ...poolSnapshot(), ...ctx,
     });
-
-    // Distinguish reused vs. brand-new connection.
-    // pool.totalCount increases by 1 only when a NEW physical socket is opened.
-    const isNewConnection = pool.totalCount > preConnect.poolTotal;
-
-    const pingStart = Date.now();
-    try {
-      // Ping validates the socket AND fetches the PostgreSQL backend PID.
-      // _pingClient adds a 3 s hard timeout — without it, client.query('SELECT 1')
-      // hangs indefinitely on a dead socket, making _getVerifiedClient itself hang.
-      const pingRes    = await _pingClient(client);
-      const pingMs     = Date.now() - pingStart;
-      const backendPid = pingRes.rows[0]?.pid;
-
-      logger.info('HIU: connection verified', {
-        attempt,
-        isNewConnection,
-        backendPid,
-        connectMs,
-        pingMs,
-        ...poolSnapshot(),
-        ...ctx,
-      });
-
-      client._hiuBackendPid = backendPid;
-      return client;
-
-    } catch (pingErr) {
-      const pingMs = Date.now() - pingStart;
-      client.release(true); // destroy — pool opens a fresh socket on next connect()
-
-      logger.warn('HIU: stale connection destroyed', {
-        attempt,
-        maxRetries:  MAX_CONNECT_RETRIES,
-        isNewConnection,
-        connectMs,
-        pingMs,
-        pingError:   pingErr.message,
-        pingCode:    pingErr.code,
-        ...poolSnapshot(),
-        ...ctx,
-        DIAGNOSIS: pingErr.code === 'PING_TIMEOUT'
-          ? 'PING_TIMEOUT: socket alive at TCP level but PG not responding — Neon compute suspended or overloaded'
-          : isNewConnection
-            ? 'CRITICAL: brand-new socket failed ping — possible DNS/TLS or server overload'
-            : 'EXPECTED: idle socket closed server-side (Neon idle timeout)',
-      });
-
-      if (attempt === MAX_CONNECT_RETRIES) {
-        throw Object.assign(
-          new Error(`All ${MAX_CONNECT_RETRIES} connection attempts failed: ${pingErr.message}`),
-          { code: pingErr.code, isConnectionError: true }
-        );
-      }
-      // Small backoff so the pool opens a fresh socket before next attempt
-      await new Promise(r => setTimeout(r, attempt * 50));
-    }
+    return client;
+  } catch (err) {
+    client.release(true);
+    logger.warn('HIU: pool.connect() pid-fetch failed — destroying connection', {
+      connectMs, pidMs: Date.now() - pidStart,
+      isNewConnection: isNew,
+      error: err.message, code: err.code,
+      ...poolSnapshot(), ...ctx,
+      DIAGNOSIS: ['ECONNRESET','EPIPE','ENOTCONN'].includes(err.code)
+        ? 'Dead socket (Neon closed idle TCP) — pool will open fresh connection next call'
+        : 'Unexpected error during session setup',
+    });
+    throw Object.assign(err, { isConnectionError: true });
   }
 }
 
@@ -1479,7 +1442,7 @@ const healthInfoPush = async (req, res) => {
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
            ON CONFLICT (transaction_id, care_context_reference) DO NOTHING`,
           [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount],
-          12_000, // 12 s hard backstop — fires even if query_timeout + statement_timeout stall
+          25_000, // 25 s — must survive Neon cold-start (compute wake-up = 5–15 s)
           { transactionId, idx, careContextRef: entry.careContextReference }
         );
 
