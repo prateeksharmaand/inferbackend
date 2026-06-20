@@ -70,6 +70,53 @@ function ConsultTimer({ since }) {
   );
 }
 
+// 1-hour OPD token window timer — shows elapsed + remaining countdown
+const TOKEN_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+function TokenExpiryTimer({ createdAt }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!createdAt) return null;
+  const start     = new Date(createdAt).getTime();
+  const elapsed   = now - start;
+  const remaining = TOKEN_WINDOW_MS - elapsed;
+  const expired   = remaining <= 0;
+
+  const fmt = (ms) => {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  const pct        = Math.min(100, (elapsed / TOKEN_WINDOW_MS) * 100);
+  const color      = expired ? '#dc2626' : remaining < 10 * 60000 ? '#f59e0b' : '#16a34a';
+  const bgColor    = expired ? '#fef2f2' : remaining < 10 * 60000 ? '#fffbeb' : '#f0fdf4';
+
+  return (
+    <div style={{ margin: '6px 0 4px', padding: '6px 10px', borderRadius: 8, background: bgColor, border: `1px solid ${color}22` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Clock size={10} /> {expired ? 'TOKEN EXPIRED' : 'TOKEN VALID'}
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 800, color, fontFamily: 'monospace' }}>
+          {expired ? '0:00' : fmt(remaining)} left
+        </span>
+      </div>
+      {/* Progress bar */}
+      <div style={{ height: 3, borderRadius: 2, background: '#e2e8f0', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width 1s linear' }} />
+      </div>
+      <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 3 }}>
+        Elapsed: {sinceText(createdAt)}
+      </div>
+    </div>
+  );
+}
+
 function reminderTime(timeStr) {
   if (!timeStr) return null;
   const [h, m] = timeStr.split(':').map(Number);
@@ -180,6 +227,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           {/* ── Row 1: token · name · status · edit ── */}
           <div className={styles.row1}>
             <span className={styles.token}>#{appt.token_number}</span>
+            {appt.patient_abha && (
+              <span style={{ fontSize: 9, fontWeight: 700, background: '#2563eb', color: '#fff', borderRadius: 4, padding: '2px 6px', letterSpacing: 0.3, flexShrink: 0 }}>
+                ABHA
+              </span>
+            )}
             <span className={styles.name}>
               <span className={styles.nameLink} onClick={e => { e.stopPropagation(); onOpen('profile'); }}>
                 {appt.patient_name}
@@ -271,6 +323,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {resolvedTags.length === 0 ? 'Tag' : '+'}
             </button>
           </div>
+
+          {/* ── OPD token window timer (booked appointments from scan-and-share) ── */}
+          {appt.status === 'booked' && appt.created_at && (
+            <TokenExpiryTimer createdAt={appt.created_at} />
+          )}
 
           {/* ── Booked actions ── */}
           {appt.status === 'booked' && (
