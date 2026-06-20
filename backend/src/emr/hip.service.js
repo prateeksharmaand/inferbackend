@@ -511,7 +511,7 @@ function buildFhirBundle(patient, careContext) {
 // M3-FHIR: OPConsultation - Full consultation with vitals, conditions, prescriptions
 function buildOPConsultationBundle(patient, careContext) {
   const now            = new Date().toISOString();
-  const hipId          = HIP_ID || 'noushealthhip';
+  const hipId          = HIP_ID || 'infer-hip';
   const bundleId       = uuid().toLowerCase();
   const compositionId  = uuid().toLowerCase();
   const patientId      = uuid().toLowerCase();
@@ -700,7 +700,7 @@ function buildOPConsultationBundle(patient, careContext) {
 // M3-FHIR: DiagnosticReport - Lab/imaging results with observations
 function buildDiagnosticReportBundle(patient, careContext) {
   const now            = new Date().toISOString();
-  const hipId          = HIP_ID || 'noushealthhip';
+  const hipId          = HIP_ID || 'infer-hip';
   const bundleId       = uuid().toLowerCase();
   const reportId       = uuid().toLowerCase();
   const patientId      = uuid().toLowerCase();
@@ -787,7 +787,7 @@ function buildDiagnosticReportBundle(patient, careContext) {
 // M3-FHIR: Prescription - Medication orders with conditions
 function buildPrescriptionBundle(patient, careContext) {
   const now            = new Date().toISOString();
-  const hipId          = HIP_ID || 'noushealthhip';
+  const hipId          = HIP_ID || 'infer-hip';
   const bundleId       = uuid().toLowerCase();
   const compositionId  = uuid().toLowerCase();
   const patientId      = uuid().toLowerCase();
@@ -872,7 +872,7 @@ function buildPrescriptionBundle(patient, careContext) {
 // M3-FHIR: ImmunizationRecord - Vaccine administration
 function buildImmunizationBundle(patient, careContext) {
   const now            = new Date().toISOString();
-  const hipId          = HIP_ID || 'noushealthhip';
+  const hipId          = HIP_ID || 'infer-hip';
   const bundleId       = uuid().toLowerCase();
   const patientId      = uuid().toLowerCase();
   const practitionerId = uuid().toLowerCase();
@@ -928,7 +928,7 @@ function buildImmunizationBundle(patient, careContext) {
 // M3-FHIR: DischargeSummary - Hospital discharge with encounter, conditions, medications
 function buildDischargeSummaryBundle(patient, careContext) {
   const now            = new Date().toISOString();
-  const hipId          = HIP_ID || 'noushealthhip';
+  const hipId          = HIP_ID || 'infer-hip';
   const bundleId       = uuid().toLowerCase();
   const compositionId  = uuid().toLowerCase();
   const patientId      = uuid().toLowerCase();

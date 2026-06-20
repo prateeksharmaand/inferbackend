@@ -8,10 +8,10 @@ import styles from './Patients.module.css';
 // ── Facility QR Modal ─────────────────────────────────────────────────────────
 // Patients scan this QR with ABDM PHR app → profile is shared to HIP
 function FacilityQrModal({ onClose }) {
-  const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
+  const hipId = import.meta.env.VITE_ABDM_HIP_ID || '';
 
   // ABDM deep-link for patient profile sharing (SHARE_PATIENT_PROFILE_701)
-  const qrValue = `https://phrsbx.abdm.gov.in/share-profile?hip-id=noushealthhip&counter-id=12345`;
+  const qrValue = hipId ? `https://phrsbx.abdm.gov.in/share-profile?hip-id=${encodeURIComponent(hipId)}&counter-id=12345` : '';
 
   const handlePrint = () => window.print();
 

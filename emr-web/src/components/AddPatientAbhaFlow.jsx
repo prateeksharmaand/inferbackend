@@ -352,7 +352,7 @@ function ShareProfileTab({ onSuccess }) {
 
   if (status === 'done' && patient) return <PatientCard patient={patient} onSuccess={onSuccess} />;
 
-  const hipId   = clinicAbdm?.hip_id   || import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
+  const hipId   = clinicAbdm?.hip_id   || import.meta.env.VITE_ABDM_HIP_ID || '';
   const clinicName = clinicAbdm?.hip_name || null;
   const qrUrl   = `https://phrsbx.abdm.gov.in/share-profile?hip-id=${encodeURIComponent(hipId)}&counter-id=12345`;
 
@@ -405,7 +405,7 @@ function YesFlow({ onSuccess, onClose }) {
   const [byMobile, setByMobile] = useState(false);
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(false);
-  const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
+  const hipId = import.meta.env.VITE_ABDM_HIP_ID || '';
 
   const requestOtp = async () => {
     const val = abhaInput.trim() || mobile.trim();
