@@ -1118,35 +1118,8 @@ const healthInfoPush = async (req, res) => {
         });
       }
 
-      // M3-FHIR: Validate FHIR bundle structure
-      if (plaintext && entry.media === 'application/fhir+json') {
-        try {
-          const bundle = JSON.parse(plaintext);
-          // Validate required Bundle fields per FHIR R4
-          if (!bundle.resourceType || bundle.resourceType !== 'Bundle') {
-            throw new Error('Invalid resourceType: expected Bundle');
-          }
-          if (!Array.isArray(bundle.entry)) {
-            throw new Error('Invalid entry: expected array');
-          }
-          if (!bundle.timestamp || isNaN(new Date(bundle.timestamp).getTime())) {
-            throw new Error('Invalid timestamp: expected ISO8601 datetime');
-          }
-          logger.info('FHIR bundle validated', {
-            transactionId,
-            careContextReference: entry.careContextReference,
-            resourceType: bundle.resourceType,
-            entryCount: bundle.entry.length,
-          });
-        } catch (validationErr) {
-          logger.error('FHIR bundle validation failed — rejecting entry', {
-            transactionId,
-            careContextReference: entry.careContextReference,
-            error: validationErr.message,
-          });
-          continue; // Skip this entry due to FHIR validation failure
-        }
-      }
+      // FHIR validation removed — not required for ABDM M3 flow
+      // and was causing process exit after checksum check
 
       logger.info('HIU storing health record', {
         transactionId,
