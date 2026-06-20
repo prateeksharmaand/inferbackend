@@ -35,6 +35,70 @@ const ghostBtn = { width: '100%', padding: '11px', borderRadius: 9, border: '1.5
 const infoBox = { background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 9, padding: '10px 14px', fontSize: 12, color: '#1d4ed8', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 };
 const fieldLabel = { fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 5, letterSpacing: 0.2 };
 
+// ── 6-box OTP input ───────────────────────────────────────────────────────────
+function OtpBoxes({ value, onChange, autoFocus }) {
+  const r0 = useRef(null), r1 = useRef(null), r2 = useRef(null);
+  const r3 = useRef(null), r4 = useRef(null), r5 = useRef(null);
+  const refs = [r0, r1, r2, r3, r4, r5];
+  const digits = value.padEnd(6, '').split('').slice(0, 6);
+
+  const handleKey = (i, e) => {
+    if (e.key === 'Backspace') {
+      if (digits[i]) {
+        onChange(value.slice(0, i) + value.slice(i + 1));
+      } else if (i > 0) {
+        refs[i - 1].current?.focus();
+        onChange(value.slice(0, i - 1) + value.slice(i));
+      }
+      return;
+    }
+    if (e.key === 'ArrowLeft' && i > 0) { refs[i - 1].current?.focus(); return; }
+    if (e.key === 'ArrowRight' && i < 5) { refs[i + 1].current?.focus(); return; }
+  };
+
+  const handleChange = (i, e) => {
+    const ch = e.target.value.replace(/\D/g, '').slice(-1);
+    if (!ch) return;
+    const arr = digits.slice();
+    arr[i] = ch;
+    onChange(arr.join('').replace(/ /g, ''));
+    if (i < 5) setTimeout(() => refs[i + 1].current?.focus(), 0);
+  };
+
+  const handlePaste = (e) => {
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (text) { onChange(text); setTimeout(() => refs[Math.min(text.length, 5)].current?.focus(), 0); }
+    e.preventDefault();
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <input
+          key={i}
+          ref={refs[i]}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={digits[i] !== ' ' ? digits[i] : ''}
+          autoFocus={autoFocus && i === 0}
+          onChange={e => handleChange(i, e)}
+          onKeyDown={e => handleKey(i, e)}
+          onPaste={handlePaste}
+          style={{
+            width: 44, height: 52, textAlign: 'center', fontSize: 22, fontWeight: 700,
+            borderRadius: 10, border: `2px solid ${digits[i] && digits[i] !== ' ' ? '#7c3aed' : '#e2e8f0'}`,
+            background: digits[i] && digits[i] !== ' ' ? '#faf5ff' : '#f8fafc',
+            color: '#1e293b', outline: 'none', caretColor: 'transparent',
+            boxShadow: digits[i] && digits[i] !== ' ' ? '0 0 0 3px rgba(124,58,237,.12)' : 'none',
+            transition: 'all 0.15s',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // Step indicator matching screenshot style
 function StepBadges({ steps, current, startAt = 2 }) {
   return (
@@ -434,10 +498,7 @@ function YesFlow({ onSuccess, onClose }) {
             <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Check your phone</p>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>OTP sent to your registered mobile number</p>
           </div>
-          <input
-            style={{ ...inp, textAlign: 'center', fontSize: 24, fontWeight: 700, letterSpacing: 8, padding: '14px', borderColor: otp ? '#7c3aed' : '#e2e8f0', color: '#1e293b' }}
-            placeholder="• • • • • •" value={otp}
-            onChange={e => setOtp(e.target.value.replace(/\D/g,'').slice(0, 6))} maxLength={6} />
+          <OtpBoxes value={otp} onChange={setOtp} autoFocus />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
             <button style={ghostBtn} onClick={() => setStep(1)}>← Back</button>
             <button style={primaryBtn(loading || otp.length < 6)} onClick={verifyOtp} disabled={loading || otp.length < 6}>
@@ -656,6 +717,11 @@ function NoFlow({ onSuccess, onClose }) {
 
   const STEPS = ['Aadhaar OTP', 'Verify OTP', 'Mobile OTP'];
 
+  // Auto-send mobile OTP as soon as step 3 is entered — no manual button needed
+  useEffect(() => {
+    if (step === 3) sendMobileOtp();
+  }, [step]);
+
   // Step 5: success
   if (step === 5 && createdPatient) {
     return <PatientCard patient={createdPatient} onSuccess={onSuccess} xToken={xToken} />;
@@ -668,15 +734,17 @@ function NoFlow({ onSuccess, onClose }) {
       {/* Step 1: Consent + Aadhaar + Mobile */}
       {step === 1 && (
         <>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Aadhaar Number</label>
-            <input style={inp} placeholder="12-digit Aadhaar" value={aadhaar}
-              onChange={e => setAadhaar(e.target.value)} maxLength={14} />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Mobile Number</label>
-            <input style={inp} placeholder="10-digit mobile" value={mobilePh}
-              onChange={e => setMobilePh(e.target.value)} maxLength={10} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={fieldLabel}>Aadhaar Number</label>
+              <input style={{ ...inp, borderColor: aadhaar ? '#7c3aed' : '#e2e8f0' }} placeholder="12-digit Aadhaar" value={aadhaar}
+                onChange={e => setAadhaar(e.target.value)} maxLength={14} />
+            </div>
+            <div>
+              <label style={fieldLabel}>Mobile Number</label>
+              <input style={{ ...inp, borderColor: mobilePh ? '#7c3aed' : '#e2e8f0' }} placeholder="10-digit mobile" value={mobilePh}
+                onChange={e => setMobilePh(e.target.value)} maxLength={10} />
+            </div>
           </div>
 
           {/* Patient consent */}
@@ -715,11 +783,11 @@ function NoFlow({ onSuccess, onClose }) {
             </label>
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
             <button style={ghostBtn} onClick={onClose}>Cancel</button>
             <button style={primaryBtn(!consent1 || !consent2 || loading)} onClick={sendOtp}
               disabled={!consent1 || !consent2 || loading}>
-              {loading ? 'Sending OTP…' : 'Send OTP'}
+              {loading ? '⏳ Sending OTP…' : 'Send OTP →'}
             </button>
           </div>
         </>
@@ -727,41 +795,48 @@ function NoFlow({ onSuccess, onClose }) {
 
       {/* Step 2: Verify Aadhaar OTP */}
       {step === 2 && (
-        <>
-          <div style={infoBox}><AlertCircle size={14} style={{ flexShrink: 0 }} /> OTP sent to Aadhaar-linked mobile number</div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Aadhaar OTP</label>
-            <input style={inp} placeholder="6-digit OTP" value={otp}
-              onChange={e => setOtp(e.target.value.slice(0, 6))} maxLength={6} />
+        <div className="abha-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 400, margin: '0 auto', width: '100%' }}>
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', marginBottom: 10 }}>
+              <span style={{ fontSize: 26 }}>🔐</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Enter Aadhaar OTP</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>OTP sent to your Aadhaar-linked mobile</p>
           </div>
-          <button style={primaryBtn(loading)} onClick={verifyAadhaarOtp} disabled={loading}>
-            {loading ? 'Verifying…' : 'Verify OTP'}
-          </button>
-        </>
+          <OtpBoxes value={otp} onChange={setOtp} autoFocus />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
+            <button style={ghostBtn} onClick={() => setStep(1)}>← Back</button>
+            <button style={primaryBtn(loading || otp.length < 6)} onClick={verifyAadhaarOtp} disabled={loading || otp.length < 6}>
+              {loading ? '⏳ Verifying…' : 'Verify OTP →'}
+            </button>
+          </div>
+        </div>
       )}
 
-      {/* Step 3: Mobile OTP */}
+      {/* Step 3: Mobile OTP — auto-sent on enter */}
       {step === 3 && (
-        <>
-          {linkedMobile && (
-            <div style={infoBox}><AlertCircle size={14} style={{ flexShrink: 0 }} />
-              Mobile linked to ABHA: <strong style={{ marginLeft: 4 }}>{linkedMobile}</strong>
+        <div className="abha-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 400, margin: '0 auto', width: '100%' }}>
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', marginBottom: 10 }}>
+              <span style={{ fontSize: 26 }}>📲</span>
             </div>
-          )}
-          <button style={{ ...ghostBtn, background: '#f0fdf4', borderColor: '#86efac', color: '#166534' }}
-            onClick={sendMobileOtp} disabled={loading}>
-            {loading ? 'Sending…' : 'Send Mobile OTP'}
-          </button>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Mobile OTP</label>
-            <input style={inp} placeholder="6-digit OTP" value={mobileOtp}
-              onChange={e => setMobileOtp(e.target.value.slice(0, 6))} maxLength={6} />
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#1e293b' }}>
+              {loading ? 'Sending OTP…' : 'OTP sent to your mobile'}
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>
+              {linkedMobile ? <>Sent to <strong>{linkedMobile}</strong></> : 'Check your registered mobile number'}
+            </p>
           </div>
-          <button style={primaryBtn(loading || !mobileOtp)} onClick={verifyMobileOtp}
-            disabled={loading || !mobileOtp}>
-            {loading ? 'Verifying…' : 'Verify Mobile OTP'}
+          <OtpBoxes value={mobileOtp} onChange={setMobileOtp} autoFocus />
+          <button style={primaryBtn(loading || mobileOtp.length < 6)} onClick={verifyMobileOtp}
+            disabled={loading || mobileOtp.length < 6}>
+            {loading ? '⏳ Verifying…' : 'Verify Mobile OTP →'}
           </button>
-        </>
+          <button style={{ background: 'none', border: 'none', color: '#7c3aed', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: 0, textAlign: 'center' }}
+            onClick={sendMobileOtp} disabled={loading}>
+            Resend OTP
+          </button>
+        </div>
       )}
 
       {/* Step 4: Choose ABHA Address */}
