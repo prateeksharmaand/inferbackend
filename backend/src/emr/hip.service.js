@@ -24,7 +24,7 @@ function _callFidelius(args) {
     });
 
     const JVM_HEAP = process.env.FIDELIUS_JVM_HEAP || '128m';
-    execFile('java', ['-Xms32m', `-Xmx${JVM_HEAP}`, '-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args],
+    execFile('java', ['-Xms32m', `-Xmx${JVM_HEAP}`, '-XX:+UseSerialGC', '-XX:+TieredCompilation', '-XX:TieredStopAtLevel=1', '-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args],
       { maxBuffer: 10 * 1024 * 1024, timeout: 30_000, killSignal: 'SIGKILL' },
       (err, stdout, stderr) => {
         const stdoutLen = stdout?.length ?? 0;
@@ -1396,9 +1396,10 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
 
     entries.push(...batchResults);
     logger.info('[ENCRYPT] batch complete', { completedSoFar: entries.length, total: careContexts.length });
-    // Give the OS 200ms to reclaim JVM heap pages before spawning the next JVM.
+    // Give the OS time to fully reclaim JVM resources before spawning the next JVM.
+    const interBatchDelay = parseInt(process.env.FIDELIUS_INTER_BATCH_DELAY_MS || '1500', 10);
     if (i + ENCRYPT_CONCURRENCY < careContexts.length) {
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, interBatchDelay));
     }
   }
 
