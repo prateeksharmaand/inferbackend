@@ -769,7 +769,9 @@ const pullConsentData = async (req, res) => {
     [requestId, clinicId]
   );
   if (!consent) return res.status(404).json({ error: 'Consent request not found' });
-  if (consent.status !== 'GRANTED') return res.status(400).json({ error: `Consent is ${consent.status}, not GRANTED` });
+  const PULLABLE_STATUSES = ['GRANTED', 'COMPLETED', 'HEALTH_INFO_RECEIVED', 'PARTIALLY_COMPLETED', 'PROCESSING_HEALTH_INFO', 'AWAITING_HIP_METADATA'];
+  if (!PULLABLE_STATUSES.includes(consent.status))
+    return res.status(400).json({ error: `Consent is ${consent.status} — cannot pull records` });
 
   // 1. Check if ABDM already delivered records for this consent (via healthInfoPush)
   // Check both single transaction_id AND transaction_id_map (multi-HIP)
