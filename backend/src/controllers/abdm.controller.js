@@ -1081,6 +1081,8 @@ const healthInfoPush = async (req, res) => {
 
     const rowsToInsert = [];
     for (const entry of entries) {
+      logger.info('HIU: loop entry start', { careContextRef: entry.careContextReference });
+      try {
       let content = entry.content;
       let plaintext = null;
 
@@ -1154,7 +1156,12 @@ const healthInfoPush = async (req, res) => {
         checksumVerified: !!plaintext && !!entry.checksum,
       });
       rowsToInsert.push([transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]);
+      logger.info('HIU: loop entry done', { careContextRef: entry.careContextReference });
+      } catch (entryErr) {
+        logger.error('HIU: loop entry error', { careContextRef: entry.careContextReference, error: entryErr.message, stack: entryErr.stack?.slice(0, 300) });
+      }
     }
+    logger.info('HIU: loop complete', { rowsToInsert: rowsToInsert.length });
 
     logger.info('HIU health-info push: inserting rows', { transactionId, rowCount: rowsToInsert.length });
     for (let ri = 0; ri < rowsToInsert.length; ri++) {
