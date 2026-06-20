@@ -3,6 +3,7 @@ const fhir        = require('../services/fhir.service');
 const hip         = require('./hip.service');
 const abdmSvc     = require('../services/abdm.service');
 const logger      = require('../utils/logger');
+const abdmResolver = require('../services/abdm-clinic-resolver.service');
 const { sendAppointmentConfirmation } = require('./emr.mailer');
 
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
@@ -47,7 +48,19 @@ async function attemptAbdmLink(refNum, display, patientId) {
     return;
   }
 
-  const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID || 'infer-hip';
+  // Resolve HIP ID from the patient's clinic — no env var fallback
+  const { rows: [patClinic] } = await pool.query(
+    `SELECT ec.hip_id FROM emr_clinics ec
+     JOIN emr_patients ep ON ep.clinic_id = ec.id
+     WHERE ep.id = $1 AND ec.abdm_enabled = true AND ec.hip_id IS NOT NULL
+     LIMIT 1`,
+    [patientId]
+  );
+  if (!patClinic?.hip_id) {
+    logger.info('ABDM link skipped — clinic has no ABDM HIP configured', { patientId });
+    return;
+  }
+  const hipId = patClinic.hip_id;
   const gender = normGender;
 
   try {

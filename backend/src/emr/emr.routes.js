@@ -90,6 +90,58 @@ router.get   ('/subscription/plans',             subscription.getPlans);
 router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
 
+// ── Clinic ABDM settings (self-service for clinic admins) ────────────────────
+router.get('/clinic-settings/abdm', async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT hip_id, hip_name, hiu_id, hiu_name, abdm_enabled, abdm_status, abdm_last_synced_at
+     FROM emr_clinics WHERE id = $1`,
+    [req.emrUser.clinic_id]
+  );
+  res.json(rows[0] || {});
+});
+
+router.patch('/clinic-settings/abdm', async (req, res) => {
+  if (req.emrUser.role !== 'admin')
+    return res.status(403).json({ error: 'Only clinic admins can update ABDM configuration' });
+
+  const { hip_id, hip_name, hiu_id, hiu_name, abdm_enabled } = req.body;
+  const abdmResolver = require('../services/abdm-clinic-resolver.service');
+
+  if (hip_id) {
+    const { rows } = await pool.query(
+      'SELECT id FROM emr_clinics WHERE hip_id=$1 AND id!=$2', [hip_id, req.emrUser.clinic_id]
+    );
+    if (rows.length) return res.status(409).json({ error: 'HIP ID already used by another clinic' });
+  }
+  if (hiu_id) {
+    const { rows } = await pool.query(
+      'SELECT id FROM emr_clinics WHERE hiu_id=$1 AND id!=$2', [hiu_id, req.emrUser.clinic_id]
+    );
+    if (rows.length) return res.status(409).json({ error: 'HIU ID already used by another clinic' });
+  }
+
+  const { rows: cur } = await pool.query('SELECT * FROM emr_clinics WHERE id=$1', [req.emrUser.clinic_id]);
+  const newHipId   = hip_id    ?? cur[0].hip_id;
+  const newEnabled = abdm_enabled ?? cur[0].abdm_enabled;
+  const abdmStatus = newEnabled && newHipId ? 'CONFIGURED' : 'NOT_CONFIGURED';
+
+  const { rows } = await pool.query(
+    `UPDATE emr_clinics
+     SET hip_id       = COALESCE($1, hip_id),
+         hip_name     = COALESCE($2, hip_name),
+         hiu_id       = COALESCE($3, hiu_id),
+         hiu_name     = COALESCE($4, hiu_name),
+         abdm_enabled = COALESCE($5, abdm_enabled),
+         abdm_status  = $6
+     WHERE id = $7
+     RETURNING hip_id, hip_name, hiu_id, hiu_name, abdm_enabled, abdm_status`,
+    [hip_id, hip_name, hiu_id, hiu_name, abdm_enabled, abdmStatus, req.emrUser.clinic_id]
+  );
+
+  abdmResolver.invalidateCache(req.emrUser.clinic_id);
+  res.json(rows[0]);
+});
+
 // Auth helpers
 router.post  ('/auth/logout',          auth.logout);
 router.post  ('/auth/change-password', auth.changePassword);

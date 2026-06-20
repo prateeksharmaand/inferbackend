@@ -5,14 +5,13 @@ import { CheckCircle, Clock, User, Phone, Calendar, Hash, RefreshCw, X, Calendar
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
 
-const QR_URL = 'https://phrsbx.abdm.gov.in/share-profile?hip-id=noushealthhip&counter-id=12345';
-
 const inp = { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box' };
 const label = { fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 };
 
 export default function ProfileShares() {
   const navigate = useNavigate();
   const [shares, setShares] = useState([]);
+  const [clinicAbdm, setClinicAbdm] = useState(null);
   const [selected, setSelected] = useState(null); // selected share
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -37,6 +36,10 @@ export default function ProfileShares() {
     load();
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    api.get('/clinic-settings/abdm').then(setClinicAbdm).catch(() => {});
   }, []);
 
   const pick = (share) => {
@@ -101,13 +104,33 @@ export default function ProfileShares() {
       <div style={{ width: 300, flexShrink: 0, borderRight: '1px solid #e2e8f0', background: '#fff', display: 'flex', flexDirection: 'column' }}>
 
         {/* QR section */}
-        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Facility QR Code</p>
-          <div style={{ display: 'inline-block', padding: 12, border: '2px solid #e2e8f0', borderRadius: 12, background: '#fff' }}>
-            <QRCodeSVG value={QR_URL} size={160} level="M" />
-          </div>
-          <p style={{ margin: '10px 0 0', fontSize: 11, color: '#94a3b8' }}>Patient scans this with ABDM PHR app</p>
-        </div>
+        {(() => {
+          const hipId = clinicAbdm?.hip_id || import.meta.env?.VITE_ABDM_HIP_ID || 'noushealthhip';
+          const clinicName = clinicAbdm?.hip_name || null;
+          const qrUrl = `https://phrsbx.abdm.gov.in/share-profile?hip-id=${encodeURIComponent(hipId)}&counter-id=12345`;
+          return (
+            <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Facility QR Code</p>
+              <div style={{
+                display: 'inline-block',
+                padding: '16px 16px 12px',
+                background: '#fff',
+                borderRadius: 16,
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.07), 0 10px 30px -4px rgba(0,0,0,0.10)',
+                border: '1px solid #f1f5f9',
+              }}>
+                <QRCodeSVG value={qrUrl} size={160} level="M" />
+                <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
+                  {clinicName
+                    ? <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{clinicName}</p>
+                    : <p style={{ margin: 0, fontSize: 10, color: '#94a3b8', fontFamily: 'monospace' }}>{hipId}</p>
+                  }
+                </div>
+              </div>
+              <p style={{ margin: '10px 0 0', fontSize: 11, color: '#94a3b8' }}>Patient scans this with ABDM PHR app</p>
+            </div>
+          );
+        })()}
 
         {/* Pending shares list */}
         <div style={{ flex: 1, overflow: 'auto' }}>

@@ -1,6 +1,7 @@
 const abdm   = require('../services/abdm.service');
 const { pool, poolSnapshot } = require('../config/database');
 const logger = require('../utils/logger');
+const abdmResolver = require('../services/abdm-clinic-resolver.service');
 
 // M3-SEC: Rate limiting for health-info requests (prevents DoS attacks)
 // Key: consentId + patient ABHA; Value: { count, resetTime }
@@ -470,21 +471,21 @@ const ALL_HI_TYPES = [
 
 const createConsent = async (req, res) => {
   const { purpose, dateFrom, dateTo } = req.body;
-  // hiuId must always be our registered HIU ID — never trust the frontend value
-  const hiuId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
-  if (!hiuId) return res.status(500).json({ error: 'ABDM_HIP_ID not configured' });
+  // Resolve HIU from the clinic this patient belongs to
+  const clinicCfg = await abdmResolver.getClinicAbdmConfigForPhrUser(req.user.id).catch(() => null);
+  const hiuId = clinicCfg?.hiuId || process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+  if (!hiuId) return res.status(500).json({ error: 'ABDM HIU not configured for your clinic' });
   if (!purpose) return res.status(400).json({ error: 'purpose required' });
   // Always send all 7 HI types — sending a subset disables grant in PHR if the
   // patient's care context hiType is not in the list
   const hiTypes = ALL_HI_TYPES;
 
-  const [abhaRes, clinicRes] = await Promise.all([
+  const [abhaRes] = await Promise.all([
     pool.query('SELECT abha_address FROM abha_accounts WHERE user_id=$1', [req.user.id]),
-    pool.query('SELECT name FROM emr_clinics ORDER BY id LIMIT 1'),
   ]);
   if (!abhaRes.rows.length) return res.status(400).json({ error: 'ABHA not linked' });
 
-  const clinicName = clinicRes.rows[0]?.name || process.env.ABDM_REQUESTER_NAME || 'Clinic HIU';
+  const clinicName = clinicCfg?.hiuName || clinicCfg?.clinicName || process.env.ABDM_REQUESTER_NAME || 'Clinic HIU';
 
   // Build consent dateRange (required by ABDM, persisted for health-info fetch)
   const consentDateRange = {

@@ -24,6 +24,8 @@ router.get('/clinics/:id',          clinicsCtrl.getClinic);
 router.patch('/clinics/:id',        clinicsCtrl.updateClinic);
 router.patch('/clinics/:id/suspend',  clinicsCtrl.suspendClinic);
 router.patch('/clinics/:id/activate', clinicsCtrl.activateClinic);
+router.patch('/clinics/:id/abdm',     clinicsCtrl.updateClinicAbdm);
+router.post('/clinics/sync-hips',     clinicsCtrl.syncClinicHips);
 
 // Subscription catalog
 router.get('/subscription-catalog',                subsCtrl.getCatalog);

@@ -41,6 +41,8 @@ export const adminApi = {
   updateClinic:   (id, body) => request('PATCH', `/clinics/${id}`, body),
   suspendClinic:  (id)  => request('PATCH', `/clinics/${id}/suspend`),
   activateClinic: (id)  => request('PATCH', `/clinics/${id}/activate`),
+  updateClinicAbdm: (id, body) => request('PATCH', `/clinics/${id}/abdm`, body),
+  syncClinicHips: () => request('POST', '/clinics/sync-hips'),
 
   getCatalog: () => request('GET', '/subscription-catalog'),
 

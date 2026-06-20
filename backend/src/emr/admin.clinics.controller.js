@@ -1,6 +1,7 @@
 const bcrypt       = require('bcryptjs');
 const nodemailer   = require('nodemailer');
 const { pool }     = require('../config/database');
+const resolver     = require('../services/abdm-clinic-resolver.service');
 
 // ── Email helper ──────────────────────────────────────────────────────────────
 
@@ -207,6 +208,82 @@ exports.updateClinic = async (req, res) => {
   );
 
   res.json(rows[0]);
+};
+
+// ── PATCH /api/admin/clinics/:id/abdm ────────────────────────────────────────
+
+exports.updateClinicAbdm = async (req, res) => {
+  const { id } = req.params;
+  const { hip_id, hip_name, hiu_id, hiu_name, abdm_enabled } = req.body;
+
+  if (hip_id) {
+    const { rows } = await pool.query(
+      'SELECT id FROM emr_clinics WHERE hip_id=$1 AND id!=$2', [hip_id, id]
+    );
+    if (rows.length) return res.status(409).json({ error: 'HIP ID already used by another clinic' });
+  }
+  if (hiu_id) {
+    const { rows } = await pool.query(
+      'SELECT id FROM emr_clinics WHERE hiu_id=$1 AND id!=$2', [hiu_id, id]
+    );
+    if (rows.length) return res.status(409).json({ error: 'HIU ID already used by another clinic' });
+  }
+
+  const { rows: cur } = await pool.query('SELECT * FROM emr_clinics WHERE id=$1', [id]);
+  if (!cur.length) return res.status(404).json({ error: 'Clinic not found' });
+
+  const newHipId  = hip_id       ?? cur[0].hip_id;
+  const newEnabled = abdm_enabled ?? cur[0].abdm_enabled;
+  const abdmStatus = newEnabled && newHipId ? 'CONFIGURED' : 'NOT_CONFIGURED';
+
+  const { rows } = await pool.query(
+    `UPDATE emr_clinics
+     SET hip_id      = COALESCE($1, hip_id),
+         hip_name    = COALESCE($2, hip_name),
+         hiu_id      = COALESCE($3, hiu_id),
+         hiu_name    = COALESCE($4, hiu_name),
+         abdm_enabled = COALESCE($5, abdm_enabled),
+         abdm_status  = $6
+     WHERE id = $7 RETURNING *`,
+    [hip_id, hip_name, hiu_id, hiu_name, abdm_enabled, abdmStatus, id]
+  );
+
+  resolver.invalidateCache(id);
+
+  await pool.query(
+    `INSERT INTO admin_audit_logs (admin_id, action, target_type, target_id, details)
+     VALUES ($1,'update_clinic_abdm','clinic',$2,$3)`,
+    [req.adminUser.id, id, JSON.stringify({ hip_id, hiu_id, abdm_enabled })]
+  );
+
+  res.json(rows[0]);
+};
+
+// ── POST /api/admin/clinics/sync-hips ────────────────────────────────────────
+// Pull registered services from the ABDM bridge and update abdm_status/abdm_last_synced_at
+
+exports.syncClinicHips = async (req, res) => {
+  const abdmSvc = require('../services/abdm.service');
+  const bridgeInfo = await abdmSvc.getBridgeInfo();
+  const services = bridgeInfo?.services ?? [];
+
+  const results = [];
+  for (const svc of services) {
+    const { rows } = await pool.query(
+      `UPDATE emr_clinics
+       SET abdm_status        = CASE WHEN abdm_enabled AND (hip_id=$1 OR hiu_id=$1) THEN 'ACTIVE' ELSE abdm_status END,
+           abdm_last_synced_at = NOW()
+       WHERE hip_id=$1 OR hiu_id=$1
+       RETURNING id, name, hip_id, hiu_id, abdm_status`,
+      [svc.id]
+    );
+    if (rows.length) {
+      results.push({ serviceId: svc.id, clinicId: rows[0].id, abdmStatus: rows[0].abdm_status });
+      resolver.invalidateCache(rows[0].id);
+    }
+  }
+
+  res.json({ synced: results.length, totalBridgeServices: services.length, details: results });
 };
 
 // ── PATCH /api/admin/clinics/:id/suspend ─────────────────────────────────────

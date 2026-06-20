@@ -224,10 +224,15 @@ function ScanQrTab({ onSuccess }) {
 }
 
 // ── Share Profile tab: show QR + auto-register when patient scans ────────────
-function ShareProfileTab({ onSuccess, hipId }) {
+function ShareProfileTab({ onSuccess }) {
   const [status, setStatus] = useState('waiting'); // waiting | registering | done
   const [patient, setPatient] = useState(null);
+  const [clinicAbdm, setClinicAbdm] = useState(null);
   const seenIds = useRef(new Set());
+
+  useEffect(() => {
+    api.get('/clinic-settings/abdm').then(setClinicAbdm).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const poll = async () => {
@@ -260,15 +265,35 @@ function ShareProfileTab({ onSuccess, hipId }) {
 
   if (status === 'done' && patient) return <PatientCard patient={patient} onSuccess={onSuccess} />;
 
+  const hipId   = clinicAbdm?.hip_id   || import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
+  const clinicName = clinicAbdm?.hip_name || null;
+  const qrUrl   = `https://phrsbx.abdm.gov.in/share-profile?hip-id=${encodeURIComponent(hipId)}&counter-id=12345`;
+
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={infoBox}><AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>Ask patient to open ABDM PHR app → tap <strong>Scan & Share</strong> → scan this QR. Profile will be auto-registered.</span>
       </div>
-      <div style={{ margin: '16px auto', display: 'inline-block', padding: 16, border: '2px solid #e2e8f0', borderRadius: 12 }}>
-        <QRCodeSVG value="https://phrsbx.abdm.gov.in/share-profile?hip-id=noushealthhip&counter-id=12345" size={170} level="M" />
+
+      {/* QR card with elevation */}
+      <div style={{
+        margin: '16px auto',
+        display: 'inline-block',
+        padding: '20px 24px 16px',
+        background: '#fff',
+        borderRadius: 16,
+        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.07), 0 10px 30px -4px rgba(0,0,0,0.10)',
+        border: '1px solid #f1f5f9',
+      }}>
+        <QRCodeSVG value={qrUrl} size={170} level="M" />
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
+          {clinicName
+            ? <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{clinicName}</p>
+            : <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{hipId}</p>
+          }
+        </div>
       </div>
-      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 12px' }}>HIP ID: <strong>{hipId}</strong></p>
+
       {status === 'waiting' && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: '#94a3b8' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7c3aed', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
@@ -392,7 +417,7 @@ function YesFlow({ onSuccess, onClose }) {
       )}
 
       {/* Share Profile tab */}
-      {tab === 'share' && <ShareProfileTab onSuccess={onSuccess} hipId={hipId} />}
+      {tab === 'share' && <ShareProfileTab onSuccess={onSuccess} />}
 
       {/* Scan QR tab */}
       {tab === 'qr' && <ScanQrTab onSuccess={onSuccess} />}

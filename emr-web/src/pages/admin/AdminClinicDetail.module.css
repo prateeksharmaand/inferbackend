@@ -54,3 +54,11 @@
 
 .empty { color: var(--color-text-3); font-size: 13px; margin: 0; }
 .notes { font-size: 13px; color: var(--color-text-2); line-height: 1.6; margin: 0; }
+
+/* ABDM form */
+.fieldLabel { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--color-text-2); }
+.input { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 8px 10px; font-size: 13px; color: var(--color-text); background: var(--color-bg); outline: none; width: 100%; box-sizing: border-box; }
+.input:focus { border-color: var(--color-primary); }
+.hint { font-size: 11px; font-weight: 400; color: var(--color-text-3); }
+.toggleRow { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--color-text); cursor: pointer; grid-column: 1 / -1; }
+.toggleRow input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; }

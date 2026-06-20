@@ -4,6 +4,7 @@ const hip      = require('./hip.service');
 const abdmSvc  = require('../services/abdm.service');
 const logger   = require('../utils/logger');
 const AbhaIdentity = require('./abha.identity');
+const abdmResolver = require('../services/abdm-clinic-resolver.service');
 
 // ── Patients ──────────────────────────────────────────────────────────────────
 
@@ -191,7 +192,7 @@ const addCareContext = async (req, res) => {
     resourceType: 'Bundle',
     id: bundleId,
     identifier: {
-      system: `https://${process.env.ABDM_HIP_ID || 'infer'}.hip.abdm.gov.in/bundles`,
+      system: `https://${(await abdmResolver.getClinicAbdmConfig(req.emrUser.clinic_id).catch(() => ({ hipId: 'infer' }))).hipId}.hip.abdm.gov.in/bundles`,
       value: bundleId,
     },
     type: 'document',
@@ -398,7 +399,8 @@ const addCareContext = async (req, res) => {
       logger.warn('ABDM link skipped — patient gender/DOB missing or invalid', { patientId, gender: patForLink.gender, yearOfBirth });
     } else
     try {
-      const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+      const clinicCfg = await abdmResolver.getClinicAbdmConfig(req.emrUser.clinic_id);
+      const hipId = clinicCfg.hipId;
       const tokenRes = await abdmSvc.generateLinkToken(
         hipId, patForLink.abha_number, patForLink.abha_address, patForLink.name, normGender, yearOfBirth
       );
@@ -477,7 +479,8 @@ const retryCareContextLink = async (req, res) => {
   }
 
   try {
-    const hipId = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+    const clinicCfg = await abdmResolver.getClinicAbdmConfig(req.emrUser.clinic_id);
+    const hipId = clinicCfg.hipId;
     const tokenRes = await abdmSvc.generateLinkToken(hipId, ctx.abha_number, ctx.abha_address, ctx.patient_name, normGender, yearOfBirth);
     await abdmSvc.linkCareContexts(
       hipId,

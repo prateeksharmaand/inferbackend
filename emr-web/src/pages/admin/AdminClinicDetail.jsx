@@ -14,12 +14,21 @@ function Badge({ text, color }) {
   );
 }
 
+const ABDM_STATUS_COLOR = {
+  ACTIVE: '#16a34a', CONFIGURED: '#2563eb',
+  NOT_CONFIGURED: '#64748b', INACTIVE: '#d97706',
+};
+
 export default function AdminClinicDetail() {
   const { id }   = useParams();
   const navigate = useNavigate();
   const [clinic, setClinic]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [items, setItems]     = useState([]);
+
+  const [abdmForm, setAbdmForm] = useState({ hip_id: '', hip_name: '', hiu_id: '', hiu_name: '', abdm_enabled: false });
+  const [abdmSaving, setAbdmSaving] = useState(false);
+  const [abdmEdit, setAbdmEdit] = useState(false);
 
   async function load() {
     try {
@@ -36,7 +45,43 @@ export default function AdminClinicDetail() {
     }
   }
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+  }, [id]);
+
+  // Sync ABDM form when clinic data loads
+  useEffect(() => {
+    if (clinic) {
+      setAbdmForm({
+        hip_id:      clinic.hip_id      || '',
+        hip_name:    clinic.hip_name    || '',
+        hiu_id:      clinic.hiu_id      || '',
+        hiu_name:    clinic.hiu_name    || '',
+        abdm_enabled: !!clinic.abdm_enabled,
+      });
+    }
+  }, [clinic]);
+
+  async function handleAbdmSave() {
+    setAbdmSaving(true);
+    try {
+      const payload = {
+        hip_id:      abdmForm.hip_id.trim()   || null,
+        hip_name:    abdmForm.hip_name.trim()  || null,
+        hiu_id:      abdmForm.hiu_id.trim()   || null,
+        hiu_name:    abdmForm.hiu_name.trim()  || null,
+        abdm_enabled: abdmForm.abdm_enabled,
+      };
+      await adminApi.updateClinicAbdm(id, payload);
+      toast.success('ABDM configuration saved');
+      setAbdmEdit(false);
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setAbdmSaving(false);
+    }
+  }
 
   async function handleSuspend() {
     if (!confirm('Suspend this clinic? They will lose access.')) return;
@@ -210,6 +255,121 @@ export default function AdminClinicDetail() {
             <p className={styles.notes}>{clinic.notes}</p>
           </div>
         )}
+
+        {/* ABDM Configuration */}
+        <div className={styles.card} style={{ gridColumn: '1 / -1' }}>
+          <div className={styles.cardTitle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>ABDM Configuration</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {!abdmEdit && (
+                <button className={styles.primaryBtn} onClick={() => setAbdmEdit(true)}>Edit</button>
+              )}
+            </div>
+          </div>
+
+          {!abdmEdit ? (
+            /* Read-only view */
+            <div className={styles.infoTable}>
+              <div className={styles.infoRow}>
+                <span>ABDM Enabled</span>
+                <Badge
+                  text={clinic.abdm_enabled ? 'Enabled' : 'Disabled'}
+                  color={clinic.abdm_enabled ? '#16a34a' : '#64748b'}
+                />
+              </div>
+              <div className={styles.infoRow}>
+                <span>Status</span>
+                <Badge
+                  text={clinic.abdm_status || 'NOT_CONFIGURED'}
+                  color={ABDM_STATUS_COLOR[clinic.abdm_status] || '#64748b'}
+                />
+              </div>
+              <div className={styles.infoRow}>
+                <span>HIP ID</span>
+                <code className={styles.code}>{clinic.hip_id || '—'}</code>
+              </div>
+              <div className={styles.infoRow}>
+                <span>HIP Name</span>
+                <strong>{clinic.hip_name || '—'}</strong>
+              </div>
+              <div className={styles.infoRow}>
+                <span>HIU ID</span>
+                <code className={styles.code}>{clinic.hiu_id || '—'}</code>
+              </div>
+              <div className={styles.infoRow}>
+                <span>HIU Name</span>
+                <strong>{clinic.hiu_name || '—'}</strong>
+              </div>
+              {clinic.abdm_last_synced_at && (
+                <div className={styles.infoRow}>
+                  <span>Last Synced</span>
+                  <strong>{new Date(clinic.abdm_last_synced_at).toLocaleString('en-IN')}</strong>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Edit form */
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <label className={styles.fieldLabel}>
+                HIP ID
+                <input
+                  className={styles.input}
+                  placeholder="e.g. noushealthhip"
+                  value={abdmForm.hip_id}
+                  onChange={e => setAbdmForm(f => ({ ...f, hip_id: e.target.value }))}
+                />
+                <span className={styles.hint}>Must match the service ID registered in ABDM bridge</span>
+              </label>
+
+              <label className={styles.fieldLabel}>
+                HIP Name
+                <input
+                  className={styles.input}
+                  placeholder="e.g. Nous Health HIP"
+                  value={abdmForm.hip_name}
+                  onChange={e => setAbdmForm(f => ({ ...f, hip_name: e.target.value }))}
+                />
+              </label>
+
+              <label className={styles.fieldLabel}>
+                HIU ID
+                <input
+                  className={styles.input}
+                  placeholder="e.g. noushealthhiu"
+                  value={abdmForm.hiu_id}
+                  onChange={e => setAbdmForm(f => ({ ...f, hiu_id: e.target.value }))}
+                />
+                <span className={styles.hint}>HIU ID for consent requests (can be same as HIP ID)</span>
+              </label>
+
+              <label className={styles.fieldLabel}>
+                HIU Name
+                <input
+                  className={styles.input}
+                  placeholder="e.g. Nous Health HIU"
+                  value={abdmForm.hiu_name}
+                  onChange={e => setAbdmForm(f => ({ ...f, hiu_name: e.target.value }))}
+                />
+              </label>
+
+              <label className={styles.toggleRow}>
+                <input
+                  type="checkbox"
+                  checked={abdmForm.abdm_enabled}
+                  onChange={e => setAbdmForm(f => ({ ...f, abdm_enabled: e.target.checked }))}
+                />
+                <span>Enable ABDM for this clinic</span>
+              </label>
+
+              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button className={styles.backBtn} onClick={() => setAbdmEdit(false)}>Cancel</button>
+                <button className={styles.primaryBtn} onClick={handleAbdmSave} disabled={abdmSaving}>
+                  {abdmSaving ? 'Saving…' : 'Save ABDM Config'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
