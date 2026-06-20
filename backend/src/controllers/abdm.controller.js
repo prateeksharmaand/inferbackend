@@ -1345,6 +1345,45 @@ const healthInfoPush = async (req, res) => {
       }
     }
 
+    // ── Orphan backend cleanup ────────────────────────────────────────────────
+    // Previous push sessions that ended with client.release(true) sent a TCP FIN
+    // to Neon. If Neon's load balancer buffered it, the PostgreSQL backend may still
+    // be alive holding a lock on the health_records index (idle in transaction or
+    // active). Without cleanup, our INSERT blocks on that lock until lock_timeout
+    // fires (6 s). This query terminates those orphaned backends proactively.
+    // We use pool.query() (raw, not verified) because this is a best-effort
+    // non-critical cleanup — if it fails, lock_timeout is the fallback.
+    try {
+      const orphanRes = await pool.query(`
+        SELECT pg_terminate_backend(pid), pid, state, wait_event_type, wait_event,
+               EXTRACT(EPOCH FROM (NOW() - state_change))::int AS state_age_s,
+               LEFT(query, 80) AS query_snippet
+        FROM pg_stat_activity
+        WHERE pid <> pg_backend_pid()
+          AND datname = current_database()
+          AND (
+            state = 'idle in transaction'
+            OR (state = 'active' AND query ILIKE '%health_records%')
+          )
+      `);
+      if (orphanRes.rows.length) {
+        logger.warn('HIU: terminated orphaned PostgreSQL backends before INSERT loop', {
+          transactionId,
+          killedCount: orphanRes.rows.length,
+          backends: orphanRes.rows.map(r => ({
+            pid: r.pid, state: r.state, stateAgeS: r.state_age_s,
+            waitEvent: r.wait_event, query: r.query_snippet,
+          })),
+        });
+      } else {
+        logger.info('HIU: no orphaned backends found', { transactionId });
+      }
+    } catch (cleanupErr) {
+      logger.warn('HIU: orphan cleanup query failed (non-fatal, lock_timeout is fallback)', {
+        transactionId, error: cleanupErr.message,
+      });
+    }
+
     let insertedCount = 0;
     const crypto = require('crypto');
 

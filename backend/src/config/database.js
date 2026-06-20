@@ -18,7 +18,12 @@ const pool = new Pool({
   query_timeout: 8000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 1000,
-  options: '-c statement_timeout=15000',
+  // statement_timeout: kills slow-running queries (e.g. full-table scans)
+  // lock_timeout: kills lock WAITS — critical for INSERT ON CONFLICT when a previous
+  //   session disconnected mid-transaction and left an orphaned lock on health_records.
+  //   Without lock_timeout, the INSERT blocks forever; with it, it throws after 6 s
+  //   and the catch block skips to the next entry.
+  options: '-c statement_timeout=15000 -c lock_timeout=6000',
 });
 
 // ── Pool lifecycle telemetry ──────────────────────────────────────────────────
