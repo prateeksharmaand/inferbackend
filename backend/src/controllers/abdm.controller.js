@@ -1515,8 +1515,12 @@ const healthInfoPush = async (req, res) => {
           ..._processVitals(),
         });
       }
+      // Explicit yield to allow event loop to drain between entries
+      logger.info('HIU: loop iteration end', { transactionId, idx, nextIdx: idx + 1, totalEntries: entries.length });
+      await new Promise(r => setImmediate(r));
     }
 
+    logger.info('HIU: loop completed', { transactionId, totalProcessed: insertedCount, totalEntries: entries.length });
     _tickerStopped = true;
     clearInterval(_ticker);
 
