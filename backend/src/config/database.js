@@ -17,7 +17,67 @@ const pool = new Pool({
   options: '-c statement_timeout=15000',
 });
 
-pool.on('error', (err) => logger.error('Unexpected DB pool error', err));
+// ── Pool lifecycle telemetry ──────────────────────────────────────────────────
+// Every physical connection event is logged with pool state so we can see
+// exactly when Neon closes idle sockets and when fresh ones are opened.
+
+pool.on('connect', (client) => {
+  // Fires when a brand-new physical TCP connection is established to PostgreSQL.
+  // idleCount will not yet include this client (it's being handed to caller).
+  logger.info('PG pool: new physical connection opened', {
+    poolTotal:   pool.totalCount,
+    poolIdle:    pool.idleCount,
+    poolWaiting: pool.waitingCount,
+    processId:   client.processID ?? 'unknown', // PostgreSQL backend PID (set after auth)
+  });
+});
+
+pool.on('acquire', (client) => {
+  // Fires every time a client is checked out from the pool (new OR reused).
+  logger.debug('PG pool: client acquired', {
+    poolTotal:   pool.totalCount,
+    poolIdle:    pool.idleCount,
+    poolWaiting: pool.waitingCount,
+    processId:   client.processID ?? 'unknown',
+  });
+});
+
+pool.on('remove', (client) => {
+  // Fires when a client is permanently removed (idle timeout, release(true), error).
+  // Seeing this frequently means connections are being destroyed and recreated —
+  // a sign of stale-socket churn from Neon's aggressive idle timeout.
+  logger.info('PG pool: client removed / destroyed', {
+    poolTotal:   pool.totalCount,
+    poolIdle:    pool.idleCount,
+    poolWaiting: pool.waitingCount,
+    processId:   client.processID ?? 'unknown',
+  });
+});
+
+pool.on('error', (err, client) => {
+  // Fires for errors on idle clients — the most common signal of a server-side
+  // TCP close (Neon, RDS) that the OS didn't immediately surface via ECONNRESET.
+  logger.error('PG pool: idle client error — stale connection removed', {
+    error:       err.message,
+    code:        err.code,
+    severity:    err.severity,
+    poolTotal:   pool.totalCount,
+    poolIdle:    pool.idleCount,
+    poolWaiting: pool.waitingCount,
+    processId:   client?.processID ?? 'unknown',
+    ACTION: 'pg pool auto-removes this client; next pool.connect() will open a fresh socket',
+  });
+});
+
+// Returns a consistent pool-state snapshot object — use this everywhere
+// instead of reading pool.totalCount etc. individually.
+function poolSnapshot() {
+  return {
+    poolTotal:   pool.totalCount,
+    poolIdle:    pool.idleCount,
+    poolWaiting: pool.waitingCount,
+  };
+}
 
 async function query(text, params) {
   const start = Date.now();
@@ -689,4 +749,4 @@ async function initializeDatabase() {
   }
 }
 
-module.exports = { pool, query, initializeDatabase };
+module.exports = { pool, query, poolSnapshot, initializeDatabase };

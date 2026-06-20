@@ -1,5 +1,5 @@
 const abdm   = require('../services/abdm.service');
-const { pool } = require('../config/database');
+const { pool, poolSnapshot } = require('../config/database');
 const logger = require('../utils/logger');
 
 // M3-SEC: Rate limiting for health-info requests (prevents DoS attacks)
@@ -1010,66 +1010,190 @@ const consentNotify = async (req, res) => {
   }
 };
 
-// Acquire a verified-live pg client from the pool.
-// Cloud PG providers (Neon, RDS) close idle TCP connections server-side without
-// notifying the pg client. pool.connect() happily returns a stale socket because
-// the pool sees it as "idle". We detect this instantly with a SELECT 1 ping —
-// a dead socket throws ECONNRESET/EPIPE immediately, we destroy it and get a
-// fresh one. Retry up to 3 times (in case multiple idle connections are stale).
+// ── Connection verification ───────────────────────────────────────────────────
+//
+// Problem (Neon / cloud PG): the server closes idle TCP connections after its
+// own idle timeout (often 5–300 s). The pg pool doesn't detect this passively —
+// no 'error' event fires on a cleanly-closed idle socket until the client tries
+// to write to it. pool.connect() returns the dead socket immediately (it looks
+// idle to the pool). The first write hangs until the OS surfaces ECONNRESET,
+// which — depending on TCP keepalive settings — can be minutes or never.
+//
+// Fix: issue a lightweight SELECT 1 immediately after pool.connect(). A dead
+// socket fails in < 1 ms (ECONNRESET / EPIPE). We destroy it, let the pool open
+// a fresh TCP connection, and retry. Up to MAX_RETRIES times.
+//
+// We also capture the PostgreSQL backend PID (pg_backend_pid()) so every log
+// line can be correlated with pg_stat_activity on the server.
+
+const MAX_CONNECT_RETRIES = 4; // handles pools where all idle connections are stale
+
 async function _getVerifiedClient(ctx) {
-  const MAX_RETRIES = 3;
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const client = await pool.connect(); // respects connectionTimeoutMillis: 5000
+  for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
+    const connectStart = Date.now();
+
+    // pool.connect() is protected by connectionTimeoutMillis: 5000 in pool config.
+    // If poolWaiting > 0 and poolTotal === max(20) this will throw after 5 s.
+    const preConnect = poolSnapshot();
+    const client = await pool.connect();
+    const connectMs = Date.now() - connectStart;
+
+    // Distinguish reused vs. brand-new connection.
+    // pool.totalCount increases by 1 only when a NEW physical socket is opened.
+    const isNewConnection = pool.totalCount > preConnect.poolTotal;
+
+    const pingStart = Date.now();
     try {
-      await client.query('SELECT 1'); // fast ping — fails instantly on dead sockets
-      return client;                  // connection is live
-    } catch (pingErr) {
-      client.release(true); // destroy stale connection — pool will open a fresh one
-      logger.warn('HIU: stale connection detected via ping, retrying', {
-        attempt, maxRetries: MAX_RETRIES,
-        pingError: pingErr.message,
-        poolTotal:   pool.totalCount,
-        poolIdle:    pool.idleCount,
-        poolWaiting: pool.waitingCount,
+      // SELECT 1 validates the socket AND fetches the server-assigned backend PID.
+      // pg_backend_pid() lets us find this session in pg_stat_activity if it hangs.
+      const pingRes = await client.query('SELECT 1 AS ok, pg_backend_pid() AS pid');
+      const pingMs  = Date.now() - pingStart;
+      const backendPid = pingRes.rows[0]?.pid;
+
+      logger.info('HIU: connection verified', {
+        attempt,
+        isNewConnection,
+        backendPid,          // correlate with pg_stat_activity on server
+        connectMs,
+        pingMs,
+        ...poolSnapshot(),
         ...ctx,
       });
-      if (attempt === MAX_RETRIES) {
-        throw new Error(`All ${MAX_RETRIES} connection attempts returned stale sockets: ${pingErr.message}`);
+
+      // Attach pid to client so _queryWithTimeout can log it on timeout
+      client._hiuBackendPid = backendPid;
+      return client;
+
+    } catch (pingErr) {
+      const pingMs = Date.now() - pingStart;
+      client.release(true); // destroy — pool will open a fresh socket on next connect()
+
+      logger.warn('HIU: stale connection destroyed', {
+        attempt,
+        maxRetries:  MAX_CONNECT_RETRIES,
+        isNewConnection,
+        connectMs,
+        pingMs,
+        pingError:   pingErr.message,
+        pingCode:    pingErr.code,
+        ...poolSnapshot(),
+        ...ctx,
+        DIAGNOSIS: isNewConnection
+          ? 'CRITICAL: brand-new socket failed ping — possible DNS/TLS or server overload'
+          : 'EXPECTED: idle socket was closed server-side (Neon idle timeout)',
+      });
+
+      if (attempt === MAX_CONNECT_RETRIES) {
+        throw Object.assign(
+          new Error(`All ${MAX_CONNECT_RETRIES} connection attempts failed: ${pingErr.message}`),
+          { code: pingErr.code, isConnectionError: true }
+        );
       }
+      // Small backoff so the pool has time to open a fresh socket before next attempt
+      await new Promise(r => setTimeout(r, attempt * 50));
     }
   }
 }
 
-// Hard-timeout wrapper — backstop in case the live query itself hangs
-// (e.g. PostgreSQL row lock, network partition mid-query).
+// ── Query execution with hard timeout ────────────────────────────────────────
+//
+// Even on a verified-live connection, a PostgreSQL-level lock (row lock,
+// advisory lock, or index-page lock from a concurrent INSERT ON CONFLICT)
+// can block the query indefinitely if statement_timeout is not honoured —
+// which happens when the pool connection pre-dates the SET statement_timeout
+// session config. The hard timer here fires unconditionally from JS-land.
+//
+// On timeout we:
+//   1. Log the PostgreSQL backend PID so you can run SELECT * FROM
+//      pg_stat_activity WHERE pid = <backendPid> to see the blocking query.
+//   2. Destroy the connection (release(true)) so the stuck backend process
+//      is terminated server-side (PostgreSQL drops the connection on client FIN).
+
 async function _queryWithTimeout(text, params, timeoutMs, ctx) {
+  const t0     = Date.now();
   const client = await _getVerifiedClient(ctx);
+  const verifyMs = Date.now() - t0;
+
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      logger.error('HIU: client.query TIMED OUT after verified connect — destroying connection', {
+      logger.error('HIU: query TIMED OUT — destroying connection to unblock server', {
         timeoutMs,
-        sql:         text.trim().slice(0, 80),
-        poolTotal:   pool.totalCount,
-        poolIdle:    pool.idleCount,
-        poolWaiting: pool.waitingCount,
+        verifyMs,
+        sql:        text.trim().slice(0, 120),
+        backendPid: client._hiuBackendPid,   // look up in pg_stat_activity
+        ...poolSnapshot(),
         ...ctx,
+        NEXT_STEPS: [
+          `Run on DB: SELECT pid,state,wait_event_type,wait_event,query FROM pg_stat_activity WHERE pid=${client._hiuBackendPid}`,
+          'If wait_event_type=Lock → another session holds a lock on health_records',
+          'If state=idle in transaction → a prior INSERT never committed (unreleased client)',
+          'If row is missing → backend already died; this is a network-level hang',
+        ],
       });
-      client.release(true);
-      reject(new Error(`pool.query hard-timeout after ${timeoutMs}ms [${JSON.stringify(ctx)}]`));
+      client.release(true); // sends TCP FIN → PostgreSQL terminates the backend process
+      reject(new Error(`query hard-timeout after ${timeoutMs}ms [pid=${client._hiuBackendPid}] [${JSON.stringify(ctx)}]`));
     }, timeoutMs);
 
+    const queryStart = Date.now();
     client.query(text, params)
       .then(r => {
         clearTimeout(timer);
+        const queryMs = Date.now() - queryStart;
+        logger.debug('HIU: query ok', {
+          queryMs,
+          verifyMs,
+          rowCount:   r.rowCount,
+          backendPid: client._hiuBackendPid,
+          sql:        text.trim().slice(0, 80),
+          ...ctx,
+        });
         client.release();
         resolve(r);
       })
       .catch(e => {
         clearTimeout(timer);
-        const isNetworkError = !e.code || e.severity === 'FATAL' || ['ECONNRESET','EPIPE','ENOTCONN','ETIMEDOUT'].includes(e.code);
-        client.release(isNetworkError);
+        const queryMs = Date.now() - queryStart;
+        // Network/protocol errors → destroy connection; app-level errors (e.g. 23505
+        // unique violation) → return connection to pool (it's still healthy).
+        const isNetErr = !e.code
+          || e.severity === 'FATAL'
+          || ['ECONNRESET','EPIPE','ENOTCONN','ETIMEDOUT','EIO'].includes(e.code);
+        client.release(isNetErr);
+        logger.error('HIU: query error', {
+          queryMs,
+          verifyMs,
+          error:      e.message,
+          code:       e.code,
+          severity:   e.severity,
+          backendPid: client._hiuBackendPid,
+          destroyed:  isNetErr,
+          sql:        text.trim().slice(0, 80),
+          ...ctx,
+        });
         reject(e);
       });
+  });
+}
+
+// Capture Node.js process vitals in one call — used at push entry and on errors.
+function _processVitals() {
+  const mem = process.memoryUsage();
+  return {
+    heapUsedMB:  Math.round(mem.heapUsed  / 1048576),
+    heapTotalMB: Math.round(mem.heapTotal / 1048576),
+    rssMB:       Math.round(mem.rss       / 1048576),
+    externalMB:  Math.round(mem.external  / 1048576),
+    uptimeS:     Math.round(process.uptime()),
+  };
+}
+
+// Measure event-loop lag in ms.  A healthy Node.js process should have < 5 ms.
+// High lag (> 50 ms) means synchronous work is blocking the loop — keepAlive
+// pings, timer callbacks, and pool error events all queue behind it.
+function _measureEventLoopLag() {
+  return new Promise(resolve => {
+    const start = Date.now();
+    setImmediate(() => resolve(Date.now() - start));
   });
 }
 
@@ -1078,15 +1202,16 @@ const healthInfoPush = async (req, res) => {
   const pushStart = Date.now();
   try {
     const { transactionId, entries, pageNumber, pageCount, keyMaterial } = req.body;
+    const eventLoopLagMs = await _measureEventLoopLag();
     logger.info('HIU health-info push received', {
       transactionId,
       page: `${pageNumber}/${pageCount}`,
       entries: entries?.length ?? 0,
       careContextRefs: entries?.map(e => e.careContextReference),
       encrypted: !!keyMaterial,
-      poolTotal:   pool.totalCount,
-      poolIdle:    pool.idleCount,
-      poolWaiting: pool.waitingCount,
+      eventLoopLagMs,
+      ..._processVitals(),
+      ...poolSnapshot(),
     });
 
     if (!entries?.length) {
@@ -1175,17 +1300,32 @@ const healthInfoPush = async (req, res) => {
 
     let insertedCount = 0;
     const crypto = require('crypto');
+
+    // Live pool telemetry ticker — fires every 3 s while the loop is running.
+    // If a log line appears from the ticker but NOT from the loop, the loop
+    // is blocked (either on a stale socket, a lock, or synchronous CPU work).
+    let _tickerStopped = false;
+    const _ticker = setInterval(() => {
+      if (_tickerStopped) return;
+      logger.info('HIU: pool telemetry tick', {
+        transactionId,
+        insertedSoFar: insertedCount,
+        totalEntries:  entries.length,
+        elapsedMs:     Date.now() - pushStart,
+        ...poolSnapshot(),
+        ..._processVitals(),
+      });
+    }, 3000);
+
     for (const [idx, entry] of entries.entries()) {
       const entryStart = Date.now();
+      const elMs = Date.now() - pushStart;
       logger.info('HIU: loop entry start', {
-        transactionId,
-        idx,
+        transactionId, idx,
         total: entries.length,
         careContextRef: entry.careContextReference,
-        elapsedMs: Date.now() - pushStart,
-        poolTotal:   pool.totalCount,
-        poolIdle:    pool.idleCount,
-        poolWaiting: pool.waitingCount,
+        elapsedMs: elMs,
+        ...poolSnapshot(),
       });
 
       try {
@@ -1213,33 +1353,37 @@ const healthInfoPush = async (req, res) => {
               decryptMs: Date.now() - t0,
             });
           } catch (decErr) {
-            logger.warn('HIU decrypt failed — storing raw', { transactionId, careContextRef: entry.careContextReference, error: decErr.message });
+            logger.warn('HIU decrypt failed — storing raw', {
+              transactionId, idx,
+              careContextRef: entry.careContextReference,
+              error: decErr.message,
+            });
           }
         } else {
           logger.info('HIU: step 1 - no decrypt key, storing raw encrypted content', { transactionId, idx });
         }
 
         // ── Step 2: Checksum ───────────────────────────────────────────────────
-        logger.info('HIU: step 2 - checksum', { transactionId, idx });
         if (plaintext && entry.checksum) {
           const computed = crypto.createHash('md5').update(plaintext).digest('hex');
           if (computed !== entry.checksum) {
-            logger.warn('HIU checksum mismatch — skipping', { transactionId, careContextRef: entry.careContextReference, expected: entry.checksum, computed });
+            logger.warn('HIU checksum mismatch — skipping', {
+              transactionId, idx,
+              careContextRef: entry.careContextReference,
+              expected: entry.checksum, computed,
+            });
             continue;
           }
           logger.info('HIU: step 2 - checksum ok', { transactionId, idx });
         }
 
-        // ── Step 3: DB INSERT (with hard 12 s timeout) ─────────────────────────
+        // ── Step 3: DB INSERT ──────────────────────────────────────────────────
         const storedBytes = content ? Buffer.byteLength(content, 'utf8') : 0;
         logger.info('HIU: step 3 - insert start', {
-          transactionId,
-          idx,
+          transactionId, idx,
           careContextRef: entry.careContextReference,
           storedBytes,
-          poolTotal:   pool.totalCount,
-          poolIdle:    pool.idleCount,
-          poolWaiting: pool.waitingCount,
+          ...poolSnapshot(),
         });
         const insertStart = Date.now();
 
@@ -1265,32 +1409,39 @@ const healthInfoPush = async (req, res) => {
         });
 
         logger.info('HIU: loop entry done', {
-          transactionId,
-          idx,
+          transactionId, idx,
           careContextRef: entry.careContextReference,
           entryMs: Date.now() - entryStart,
+          insertedCount,
         });
       } catch (entryErr) {
         logger.error('HIU entry error', {
-          transactionId,
-          idx,
+          transactionId, idx,
           careContextRef: entry.careContextReference,
-          error:    entryErr.message,
-          code:     entryErr.code,
-          entryMs:  Date.now() - entryStart,
-          poolTotal:   pool.totalCount,
-          poolIdle:    pool.idleCount,
-          poolWaiting: pool.waitingCount,
+          error:          entryErr.message,
+          code:           entryErr.code,
+          isConnectionError: !!entryErr.isConnectionError,
+          entryMs:        Date.now() - entryStart,
+          ...poolSnapshot(),
+          ..._processVitals(),
         });
       }
     }
 
-    logger.info('HIU health-info push stored', {
+    _tickerStopped = true;
+    clearInterval(_ticker);
+
+    const totalMs = Date.now() - pushStart;
+    logger.info('HIU health-info push complete', {
       transactionId,
       insertedCount,
-      totalEntries: entries.length,
-      totalMs: Date.now() - pushStart,
+      skippedCount:  entries.length - insertedCount,
+      totalEntries:  entries.length,
+      totalMs,
+      avgMsPerEntry: Math.round(totalMs / entries.length),
       consentId: consentIdForAck,
+      ...poolSnapshot(),
+      ..._processVitals(),
     });
 
     // Step 9: HIU sends notification to ABDM acknowledging receipt of health data
