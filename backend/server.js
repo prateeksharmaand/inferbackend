@@ -40,6 +40,24 @@ if (Buffer.from(process.env.ENCRYPTION_KEY ?? '', 'utf8').length < 32) {
   process.exit(1);
 }
 
+// Catch all unhandled promise rejections — Node v15+ terminates without this,
+// which causes silent death mid-batch (e.g., during parallel Fidelius encryption).
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('FATAL: Unhandled Promise Rejection — process will exit', {
+    reason: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('FATAL: Uncaught Exception — process will exit', {
+    error: err.message,
+    stack: err.stack,
+  });
+  process.exit(1);
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

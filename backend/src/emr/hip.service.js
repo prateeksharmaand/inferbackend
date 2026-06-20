@@ -1358,37 +1358,63 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     entryCount:   careContexts.length,
   });
 
-  const entries = await Promise.all(careContexts.map(async (ctx, idx) => {
-    const fhir = typeof ctx.fhir_content === 'string'
-      ? ctx.fhir_content
-      : buildFhirBundle(patient, ctx);
+  // Process sequentially to avoid spawning N concurrent JVMs (OOM risk with 14+ bundles).
+  // Each fidelius-cli JVM uses ~256-512 MB; parallel execution caused silent process death
+  // where the last bundle's execFile callback fired but the JS continuation never ran.
+  const ENCRYPT_CONCURRENCY = parseInt(process.env.HIP_ENCRYPT_CONCURRENCY || '2', 10);
+  logger.info('[ENCRYPT] starting batch encryption', {
+    totalBundles: careContexts.length,
+    concurrency: ENCRYPT_CONCURRENCY,
+  });
 
-    // Verify FHIR payload is valid JSON before encryption
-    try {
-      JSON.parse(fhir);
-    } catch (parseErr) {
-      logger.error('[ENCRYPT] FHIR bundle JSON validation failed', {
-        careContextIndex: idx,
-        careContextRef: ctx.reference_number,
-        fhirLength: fhir.length,
-        parseError: parseErr.message,
-        fhirPrefix: fhir.slice(0, 200),
-      });
-      throw parseErr;
-    }
-
-    logger.info('[ENCRYPT] FHIR bundle prepared', {
-      careContextIndex: idx,
-      careContextRef: ctx.reference_number,
-      fhirSize: fhir.length,
-      isString: typeof fhir === 'string',
+  const entries = [];
+  for (let i = 0; i < careContexts.length; i += ENCRYPT_CONCURRENCY) {
+    const batch = careContexts.slice(i, i + ENCRYPT_CONCURRENCY);
+    logger.info('[ENCRYPT] processing batch', {
+      batchStart: i,
+      batchEnd: Math.min(i + ENCRYPT_CONCURRENCY, careContexts.length) - 1,
+      batchSize: batch.length,
+      totalRemaining: careContexts.length - i,
     });
 
-    // ABDM wire format requires MD5 checksum (spec §4.3.2)
-    const checksum = crypto.createHash('md5').update(fhir).digest('hex');
-    const { encryptedData } = await encryptFhir(fhir, hiuPubKeyToUse, hiuNonce, hipKeyPair);
-    return { content: encryptedData, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
-  }));
+    const batchResults = await Promise.all(batch.map(async (ctx, batchIdx) => {
+      const idx = i + batchIdx;
+      const fhir = typeof ctx.fhir_content === 'string'
+        ? ctx.fhir_content
+        : buildFhirBundle(patient, ctx);
+
+      // Verify FHIR payload is valid JSON before encryption
+      try {
+        JSON.parse(fhir);
+      } catch (parseErr) {
+        logger.error('[ENCRYPT] FHIR bundle JSON validation failed', {
+          careContextIndex: idx,
+          careContextRef: ctx.reference_number,
+          fhirLength: fhir.length,
+          parseError: parseErr.message,
+          fhirPrefix: fhir.slice(0, 200),
+        });
+        throw parseErr;
+      }
+
+      logger.info('[ENCRYPT] FHIR bundle prepared', {
+        careContextIndex: idx,
+        careContextRef: ctx.reference_number,
+        fhirSize: fhir.length,
+        isString: typeof fhir === 'string',
+      });
+
+      // ABDM wire format requires MD5 checksum (spec §4.3.2)
+      const checksum = crypto.createHash('md5').update(fhir).digest('hex');
+      logger.info('[ENCRYPT] calling encryptFhir', { careContextIndex: idx, careContextRef: ctx.reference_number });
+      const { encryptedData } = await encryptFhir(fhir, hiuPubKeyToUse, hiuNonce, hipKeyPair);
+      logger.info('[ENCRYPT] encryptFhir returned', { careContextIndex: idx, careContextRef: ctx.reference_number, encLen: encryptedData?.length });
+      return { content: encryptedData, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
+    }));
+
+    entries.push(...batchResults);
+    logger.info('[ENCRYPT] batch complete', { completedSoFar: entries.length, total: careContexts.length });
+  }
 
   // Build respondingKeyMaterial once from the shared batch key pair
   const respondingKeyMaterial = {
