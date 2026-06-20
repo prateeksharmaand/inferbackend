@@ -23,7 +23,8 @@ function _callFidelius(args) {
       fullCommand: cmd.join(' '),
     });
 
-    execFile('java', ['-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args],
+    const JVM_HEAP = process.env.FIDELIUS_JVM_HEAP || '128m';
+    execFile('java', ['-Xms32m', `-Xmx${JVM_HEAP}`, '-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args],
       { maxBuffer: 10 * 1024 * 1024, timeout: 30_000, killSignal: 'SIGKILL' },
       (err, stdout, stderr) => {
         const stdoutLen = stdout?.length ?? 0;
@@ -1414,6 +1415,10 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
 
     entries.push(...batchResults);
     logger.info('[ENCRYPT] batch complete', { completedSoFar: entries.length, total: careContexts.length });
+    // Give the OS 200ms to reclaim JVM heap pages before spawning the next JVM.
+    if (i + ENCRYPT_CONCURRENCY < careContexts.length) {
+      await new Promise(r => setTimeout(r, 200));
+    }
   }
 
   // Build respondingKeyMaterial once from the shared batch key pair
