@@ -1515,11 +1515,14 @@ const healthInfoPush = async (req, res) => {
           ..._processVitals(),
         });
       }
-      // Explicit yield to allow event loop to drain between entries
-      logger.info('HIU: loop iteration end', { transactionId, idx, nextIdx: idx + 1, totalEntries: entries.length });
+      // Bypass Winston — write directly to stdout/stderr to catch any logger buffering issues
+      process.stdout.write(`[LOOP] iteration-end idx=${idx} nextIdx=${idx + 1} total=${entries.length} ts=${Date.now()}\n`);
+      process.stderr.write(`[LOOP-ERR] iteration-end idx=${idx}\n`);
       await new Promise(r => setImmediate(r));
+      process.stdout.write(`[LOOP] post-setImmediate idx=${idx} ts=${Date.now()}\n`);
     }
 
+    process.stdout.write(`[LOOP] completed totalProcessed=${insertedCount} total=${entries.length}\n`);
     logger.info('HIU: loop completed', { transactionId, totalProcessed: insertedCount, totalEntries: entries.length });
     _tickerStopped = true;
     clearInterval(_ticker);
