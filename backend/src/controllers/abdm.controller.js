@@ -1012,12 +1012,6 @@ const consentNotify = async (req, res) => {
 
 const healthInfoPush = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
-  // Run all processing with a client checked out directly to avoid pool queue blocking
-  const client = await pool.connect().catch(err => {
-    logger.error('healthInfoPush: failed to get DB client', { error: err.message });
-    return null;
-  });
-  if (!client) return;
   try {
     const { transactionId, entries, pageNumber, pageCount, keyMaterial } = req.body;
     logger.info('HIU health-info push received', {
@@ -1043,7 +1037,7 @@ const healthInfoPush = async (req, res) => {
     let consentIdForAck = null;
     if (hipPubKey && hipNonce) {
       // Primary: look up from hip_health_requests (HIP side stores consent_id here)
-      const { rows: hrRows } = await client.query(
+      const { rows: hrRows } = await pool.query(
         'SELECT consent_id, hiu_key_material FROM hip_health_requests WHERE transaction_id=$1 LIMIT 1',
         [transactionId]
       ).catch(() => ({ rows: [] }));
@@ -1061,7 +1055,7 @@ const healthInfoPush = async (req, res) => {
         }
         // 3. Try per-artefact JSONB map in emr_consent_requests
         if (!hiuKeyEntry) {
-          const { rows: crRows } = await client.query(
+          const { rows: crRows } = await pool.query(
             'SELECT hiu_key_material FROM emr_consent_requests WHERE (request_id=$1 OR abdm_request_id=$1) AND hiu_key_material IS NOT NULL LIMIT 1',
             [consentId]
           ).catch(() => ({ rows: [] }));
@@ -1142,11 +1136,11 @@ const healthInfoPush = async (req, res) => {
           }
         }
 
-        await client.query(
+        await pool.query(
           `INSERT INTO health_records
              (transaction_id, care_context_reference, hi_type, content, media, checksum, page_number, page_count)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-           ON CONFLICT DO NOTHING`,
+           ON CONFLICT (transaction_id, care_context_reference) DO NOTHING`,
           [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]
         );
         insertedCount++;
@@ -1184,8 +1178,6 @@ const healthInfoPush = async (req, res) => {
     }
   } catch (err) {
     logger.error('healthInfoPush error', { message: err.message, stack: err.stack?.slice(0, 300) });
-  } finally {
-    client.release();
   }
 };
 
