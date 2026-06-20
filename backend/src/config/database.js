@@ -9,11 +9,16 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   max: 20,
-  // 2 s idle recycle — shorter than Neon's server-side idle timeout (~5 s on free tier).
-  // Pool proactively destroys idle connections before the server closes them,
-  // preventing stale-socket hangs on the next pool.connect(). The tradeoff is
-  // more frequent reconnects, which is acceptable for low-frequency ABDM pushes.
-  idleTimeoutMillis: 2000,
+  // min:1 keeps one warm connection alive at all times. Without this, Neon cold-start
+  // (5-15 s compute wake-up) hits every pool.connect() call after an idle period,
+  // causing the pid-fetch query inside _queryWithTimeout to hang for up to 15 s.
+  // With min:1 the pool proactively reconnects when the idle connection approaches
+  // its timeout, so there is always at least one live socket ready to use.
+  min: 1,
+  // 30 s idle recycle — long enough that the persistent min:1 connection has time to
+  // be refreshed before Neon closes it (~5 min free-tier idle limit). The min:1
+  // keepAlive takes care of the warm connection; other connections recycle at 30 s.
+  idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
   query_timeout: 8000,
   keepAlive: true,
@@ -76,6 +81,22 @@ pool.on('error', (err, client) => {
     processId:   client?.processID ?? 'unknown',
     ACTION: 'pg pool auto-removes this client; next pool.connect() will open a fresh socket',
   });
+});
+
+// Warm up the pool's min:1 connection immediately after module load.
+// Without this, Neon's compute is suspended at startup and the first
+// pool.connect() call (from an ABDM push) triggers a 5-15 s cold-start.
+// This ping fires in the background; if it fails, it is non-fatal — the
+// pool will retry on next use. The wake-up cost is paid at startup, not
+// during the first health-info push.
+setImmediate(async () => {
+  try {
+    const t0 = Date.now();
+    await pool.query('SELECT 1');
+    logger.info('PG pool: startup warm-up ping ok', { ms: Date.now() - t0, ...poolSnapshot() });
+  } catch (e) {
+    logger.warn('PG pool: startup warm-up ping failed (non-fatal)', { error: e.message });
+  }
 });
 
 // Returns a consistent pool-state snapshot object — use this everywhere
