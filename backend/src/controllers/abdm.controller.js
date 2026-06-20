@@ -1120,13 +1120,31 @@ async function _acquireVerifiedClient(label, timeoutMs = 20_000) {
   });
 }
 
-// Execute a query on an already-verified client (no pool.connect() overhead).
-// client must have been obtained from _acquireVerifiedClient.
+// Execute a query on an already-verified client.
+// Includes a hard 15 s timeout — even a verified connection can lose its
+// TCP session between the pid-fetch and the next query (network blip,
+// PostgreSQL process killed, mid-session NAT timeout). Without a timeout
+// client.query() hangs forever with zero logs.
+const EXEC_TIMEOUT_MS = 15_000;
 function _execOnClient(client, text, params, ctx) {
   return new Promise((resolve, reject) => {
     const queryStart = Date.now();
+
+    const timer = setTimeout(() => {
+      logger.error('HIU: _execOnClient TIMED OUT', {
+        timeoutMs:  EXEC_TIMEOUT_MS,
+        sql:        text.trim().slice(0, 120),
+        backendPid: client._hiuBackendPid,
+        ...poolSnapshot(), ...ctx,
+        DIAGNOSIS: `Run on DB: SELECT pid,state,wait_event_type,wait_event,query FROM pg_stat_activity WHERE pid=${client._hiuBackendPid}`,
+      });
+      // Don't release — caller owns the client lifecycle; let them destroy it
+      reject(new Error(`_execOnClient timeout after ${EXEC_TIMEOUT_MS}ms [${JSON.stringify(ctx)}]`));
+    }, EXEC_TIMEOUT_MS);
+
     client.query(text, params)
       .then(r => {
+        clearTimeout(timer);
         logger.info('HIU: query ok', {
           queryMs:    Date.now() - queryStart,
           rowCount:   r.rowCount,
@@ -1137,6 +1155,7 @@ function _execOnClient(client, text, params, ctx) {
         resolve(r);
       })
       .catch(e => {
+        clearTimeout(timer);
         logger.error('HIU: query error', {
           queryMs:    Date.now() - queryStart,
           error:      e.message,
@@ -1236,7 +1255,6 @@ const healthInfoPush = async (req, res) => {
     let hiuKeyEntry = null;
     let consentIdForAck = null;
     if (hipPubKey && hipNonce) {
-      // Key lookup on the shared verified connection — no stale-socket risk
       let hrRows = [];
       try {
         const r = await _execOnClient(
@@ -1248,6 +1266,18 @@ const healthInfoPush = async (req, res) => {
         hrRows = r.rows;
       } catch (e) {
         logger.warn('HIU: key lookup 1 failed', { transactionId, error: e.message, code: e.code });
+        // If _execOnClient timed out the connection is unusable — re-acquire
+        if (e.message?.includes('_execOnClient timeout')) {
+          pushClient.release(true);
+          pushClient = null;
+          try {
+            pushClient = await _acquireVerifiedClient(`push-retry:${transactionId}`, 20_000);
+            logger.info('HIU: re-acquired connection after key-lookup timeout', { transactionId });
+          } catch (retryErr) {
+            logger.error('HIU: re-acquire failed — aborting push', { transactionId, error: retryErr.message });
+            return;
+          }
+        }
       }
       const consentId = hrRows[0]?.consent_id;
       consentIdForAck = consentId;
