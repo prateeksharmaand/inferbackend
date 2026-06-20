@@ -1010,25 +1010,41 @@ const consentNotify = async (req, res) => {
   }
 };
 
-// Hard-timeout wrapper around pool.query() — guards against promises that never settle
-// (stale TCP connection, PostgreSQL lock, cloud PG idle timeout ignoring query_timeout config).
-function _queryWithTimeout(text, params, timeoutMs, ctx) {
+// Hard-timeout wrapper using explicit pool.connect() so stale connections can be
+// force-destroyed (client.release(true)) instead of returned to the pool.
+// This fixes the case where cloud PG (Neon, RDS) closes idle TCP connections
+// server-side without notifying the pg client — pool.query() hangs forever on
+// a dead socket, while pool state looks healthy (idleCount > 0, waitingCount = 0).
+async function _queryWithTimeout(text, params, timeoutMs, ctx) {
+  // pool.connect() respects connectionTimeoutMillis: 5000, so this won't hang
+  const client = await pool.connect();
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      logger.error('HIU: pool.query TIMED OUT — promise never settled', {
+      logger.error('HIU: client.query TIMED OUT — destroying stale connection', {
         timeoutMs,
-        sql: text.trim().slice(0, 80),
+        sql:         text.trim().slice(0, 80),
         poolTotal:   pool.totalCount,
         poolIdle:    pool.idleCount,
         poolWaiting: pool.waitingCount,
         ...ctx,
       });
+      client.release(true); // true = destroy, do NOT return stale socket to pool
       reject(new Error(`pool.query hard-timeout after ${timeoutMs}ms [${JSON.stringify(ctx)}]`));
     }, timeoutMs);
 
-    pool.query(text, params)
-      .then(r  => { clearTimeout(timer); resolve(r); })
-      .catch(e => { clearTimeout(timer); reject(e); });
+    client.query(text, params)
+      .then(r => {
+        clearTimeout(timer);
+        client.release(); // healthy — return to pool
+        resolve(r);
+      })
+      .catch(e => {
+        clearTimeout(timer);
+        // Destroy on network/protocol errors; return to pool on app-level errors (e.g. unique violation)
+        const isNetworkError = !e.code || e.severity === 'FATAL' || ['ECONNRESET','EPIPE','ENOTCONN','ETIMEDOUT'].includes(e.code);
+        client.release(isNetworkError);
+        reject(e);
+      });
   });
 }
 
