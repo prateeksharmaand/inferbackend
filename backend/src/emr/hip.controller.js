@@ -769,6 +769,70 @@ const handleConsentNotify = async (req, res) => {
 
     logger.info('HIP consent notify: stored artifact', { consentId, status, hasPatientAbha: !!patientAbha });
 
+    // Race condition fix: HIU and HIP receive the same consent notify simultaneously.
+    // HIU arrives first, finds no hip_consent_artifact yet, marks consent as AWAITING_HIP_METADATA.
+    // Now that we've stored the artifact, check if HIU is waiting and trigger the health info fetch.
+    if (status === 'GRANTED') {
+      const { pool } = require('../config/database');
+      const { rows: waiting } = await pool.query(
+        `SELECT request_id, abdm_request_id, permission_date_range, artefacts
+         FROM emr_consent_requests
+         WHERE status='AWAITING_HIP_METADATA'
+           AND (
+             request_id = $1 OR abdm_request_id = $1
+             OR artefacts::text LIKE $2
+           )
+         LIMIT 1`,
+        [consentId, `%${consentId}%`]
+      ).catch(() => ({ rows: [] }));
+
+      if (waiting.length) {
+        const consent = waiting[0];
+        logger.info('HIP consent notify: resuming HIU AWAITING_HIP_METADATA consent', {
+          consentId,
+          consentRequestId: consent.request_id,
+        });
+        // Small delay to ensure artifact is committed before HIU reads it
+        setTimeout(async () => {
+          try {
+            const abdmCtrl = require('../controllers/abdm.controller');
+            // Re-trigger consentNotify by calling the HIU notification handler directly
+            // with the original notification that was stored in hip_consent_artifacts
+            const { rows: artRows } = await pool.query(
+              `SELECT raw FROM hip_consent_artifacts WHERE consent_id=$1 LIMIT 1`,
+              [consentId]
+            );
+            if (artRows[0]?.raw) {
+              // Mark consent back to GRANTED so consentNotify will process it
+              await pool.query(
+                `UPDATE emr_consent_requests SET status='GRANTED', updated_at=NOW()
+                 WHERE request_id=$1 OR abdm_request_id=$1`,
+                [consent.request_id || consent.abdm_request_id]
+              );
+              // Synthesize a minimal notification and re-invoke the HIU consent handler
+              const syntheticReq = {
+                body: {
+                  notification: {
+                    consentRequestId: consent.request_id || consent.abdm_request_id,
+                    status: 'GRANTED',
+                    consentArtefacts: [{ id: consentId }],
+                  },
+                },
+              };
+              const syntheticRes = { status: () => ({ json: () => {} }) };
+              abdmCtrl.consentNotify(syntheticReq, syntheticRes);
+              logger.info('HIP consent notify: re-triggered HIU consentNotify for AWAITING_HIP_METADATA', {
+                consentId,
+                consentRequestId: consent.request_id,
+              });
+            }
+          } catch (e) {
+            logger.warn('HIP consent notify: failed to resume HIU AWAITING_HIP_METADATA', { error: e.message });
+          }
+        }, 500); // 500ms ensures artifact DB commit is visible
+      }
+    }
+
     await hip.gwPost('/v0.5/consents/hip/on-notify', {
       requestId: hip.uuid(),
       timestamp: new Date().toISOString(),
