@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar      from './Sidebar';
 import TopBar       from './TopBar';
 import Banner       from './Banner';
+import InfoStrip    from './InfoStrip';
 import UpgradeModal from './UpgradeModal';
 import styles       from './Layout.module.css';
 
@@ -25,6 +26,7 @@ export default function Layout() {
       <Sidebar />
       <div className={styles.main}>
         {!hideBanner && <Banner />}
+        {!hideBanner && <InfoStrip />}
         {!hideTopBar && <TopBar />}
         <div className={styles.content}>
           <Outlet />
