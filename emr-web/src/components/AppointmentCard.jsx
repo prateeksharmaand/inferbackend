@@ -72,7 +72,7 @@ function ConsultTimer({ since }) {
 
 // Profile share token timer — shows live countdown to expiry
 const TOKEN_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-function TokenExpiryTimer({ expiresAt, createdAt }) {
+function TokenExpiryTimer({ expiresAt, createdAt, tokenCode }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -100,6 +100,7 @@ function TokenExpiryTimer({ expiresAt, createdAt }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <span style={{ fontSize: 9, fontWeight: 700, color, display: 'flex', alignItems: 'center', gap: 3, textTransform: 'uppercase', letterSpacing: 0.3 }}>
           <Clock size={9} /> {expired ? 'Share Token Expired' : 'ABHA Share Token'}
+          {tokenCode && <span style={{ fontFamily: 'monospace', fontSize: 10, background: color + '22', padding: '1px 6px', borderRadius: 4, letterSpacing: 1 }}>#{tokenCode}</span>}
         </span>
         <span style={{ fontSize: 11, fontWeight: 800, color, fontFamily: 'monospace' }}>
           {expired ? 'Expired' : fmt(remaining)}
@@ -321,7 +322,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
 
           {/* ── Profile share token timer — all booked appointments ── */}
           {appt.status === 'booked' && (
-            <TokenExpiryTimer expiresAt={appt.share_token_expires_at} createdAt={appt.created_at} />
+            <TokenExpiryTimer expiresAt={appt.share_token_expires_at} createdAt={appt.created_at} tokenCode={appt.share_token_code} />
           )}
 
           {/* ── Booked actions ── */}

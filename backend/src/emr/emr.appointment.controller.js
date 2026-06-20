@@ -109,11 +109,12 @@ const listAppointments = async (req, res) => {
                          AND p.id < a.id) = 0
                  ELSE false
                END AS is_new_patient,
-               hps.token_expires_at AS share_token_expires_at
+               hps.token_expires_at AS share_token_expires_at,
+               hps.share_code AS share_token_code
              FROM emr_appointments a
              LEFT JOIN emr_doctors d ON d.id = a.doctor_id
              LEFT JOIN LATERAL (
-               SELECT token_expires_at FROM hip_profile_shares
+               SELECT token_expires_at, share_code FROM hip_profile_shares
                WHERE patient_id = a.emr_patient_id AND status = 'linked'
                ORDER BY created_at DESC LIMIT 1
              ) hps ON true
