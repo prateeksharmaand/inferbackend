@@ -218,7 +218,8 @@ const handleLinkInit = async (req, res) => {
     audit.abdmLinkInit(req, linkRefNumber);
 
     // Resolve hipId: prefer X-HIP-ID header (ABDM tells us which service was queried),
-    // then patient's clinic hip_id, then env var — never fall back to bridge/client ID.
+    // then patient's clinic hip_id, then env var, then first active clinic in DB.
+    // NEVER fall back to bridge/client ID — ABDM can't route confirm to a bridge ID.
     let resolvedHipId = req.headers['x-hip-id'] || null;
     if (!resolvedHipId && pt?.id) {
       const { rows: clinicRows } = await pool.query(
@@ -230,7 +231,17 @@ const handleLinkInit = async (req, res) => {
       resolvedHipId = clinicRows[0]?.hip_id || null;
     }
     if (!resolvedHipId) resolvedHipId = process.env.ABDM_HIP_ID || null;
-    logger.info('HIP link/init: resolved hipId', { resolvedHipId, fromHeader: !!req.headers['x-hip-id'] });
+    // Last resort: first active clinic with a hip_id — ensures confirm is routable
+    if (!resolvedHipId) {
+      const { rows: anyClinic } = await pool.query(
+        `SELECT hip_id FROM emr_clinics WHERE hip_id IS NOT NULL AND abdm_enabled = true ORDER BY id LIMIT 1`
+      );
+      resolvedHipId = anyClinic[0]?.hip_id || null;
+    }
+    logger.info('HIP link/init: resolved hipId', { resolvedHipId, fromHeader: !!req.headers['x-hip-id'], patientId: pt?.id });
+    if (!resolvedHipId) {
+      logger.error('HIP link/init: no hipId resolved — confirm will not route. Set ABDM_HIP_ID or configure a clinic with hip_id.');
+    }
     await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber, hipId: resolvedHipId });
   } catch (err) {
     logger.error('handleLinkInit error', err);
