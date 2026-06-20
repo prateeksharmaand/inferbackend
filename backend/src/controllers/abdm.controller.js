@@ -1010,17 +1010,43 @@ const consentNotify = async (req, res) => {
   }
 };
 
-// Hard-timeout wrapper using explicit pool.connect() so stale connections can be
-// force-destroyed (client.release(true)) instead of returned to the pool.
-// This fixes the case where cloud PG (Neon, RDS) closes idle TCP connections
-// server-side without notifying the pg client — pool.query() hangs forever on
-// a dead socket, while pool state looks healthy (idleCount > 0, waitingCount = 0).
+// Acquire a verified-live pg client from the pool.
+// Cloud PG providers (Neon, RDS) close idle TCP connections server-side without
+// notifying the pg client. pool.connect() happily returns a stale socket because
+// the pool sees it as "idle". We detect this instantly with a SELECT 1 ping —
+// a dead socket throws ECONNRESET/EPIPE immediately, we destroy it and get a
+// fresh one. Retry up to 3 times (in case multiple idle connections are stale).
+async function _getVerifiedClient(ctx) {
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const client = await pool.connect(); // respects connectionTimeoutMillis: 5000
+    try {
+      await client.query('SELECT 1'); // fast ping — fails instantly on dead sockets
+      return client;                  // connection is live
+    } catch (pingErr) {
+      client.release(true); // destroy stale connection — pool will open a fresh one
+      logger.warn('HIU: stale connection detected via ping, retrying', {
+        attempt, maxRetries: MAX_RETRIES,
+        pingError: pingErr.message,
+        poolTotal:   pool.totalCount,
+        poolIdle:    pool.idleCount,
+        poolWaiting: pool.waitingCount,
+        ...ctx,
+      });
+      if (attempt === MAX_RETRIES) {
+        throw new Error(`All ${MAX_RETRIES} connection attempts returned stale sockets: ${pingErr.message}`);
+      }
+    }
+  }
+}
+
+// Hard-timeout wrapper — backstop in case the live query itself hangs
+// (e.g. PostgreSQL row lock, network partition mid-query).
 async function _queryWithTimeout(text, params, timeoutMs, ctx) {
-  // pool.connect() respects connectionTimeoutMillis: 5000, so this won't hang
-  const client = await pool.connect();
+  const client = await _getVerifiedClient(ctx);
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      logger.error('HIU: client.query TIMED OUT — destroying stale connection', {
+      logger.error('HIU: client.query TIMED OUT after verified connect — destroying connection', {
         timeoutMs,
         sql:         text.trim().slice(0, 80),
         poolTotal:   pool.totalCount,
@@ -1028,19 +1054,18 @@ async function _queryWithTimeout(text, params, timeoutMs, ctx) {
         poolWaiting: pool.waitingCount,
         ...ctx,
       });
-      client.release(true); // true = destroy, do NOT return stale socket to pool
+      client.release(true);
       reject(new Error(`pool.query hard-timeout after ${timeoutMs}ms [${JSON.stringify(ctx)}]`));
     }, timeoutMs);
 
     client.query(text, params)
       .then(r => {
         clearTimeout(timer);
-        client.release(); // healthy — return to pool
+        client.release();
         resolve(r);
       })
       .catch(e => {
         clearTimeout(timer);
-        // Destroy on network/protocol errors; return to pool on app-level errors (e.g. unique violation)
         const isNetworkError = !e.code || e.severity === 'FATAL' || ['ECONNRESET','EPIPE','ENOTCONN','ETIMEDOUT'].includes(e.code);
         client.release(isNetworkError);
         reject(e);
