@@ -41,27 +41,8 @@ function _callFidelius(args) {
           errorMessage: err?.message,
         });
 
-        // Write raw outputs to temp files for inspection
-        if (stdoutLen > 0) {
-          const tmpStdout = path.join(os.tmpdir(), `fidelius-${Date.now()}.stdout.txt`);
-          try {
-            fs.writeFileSync(tmpStdout, stdout, { mode: 0o600 });
-            logger.info('[FIDELIUS] stdout written', { file: tmpStdout, length: stdoutLen });
-          } catch (e) {
-            logger.warn('[FIDELIUS] failed to write stdout', { error: e.message });
-          }
-        }
-
         if (stderrLen > 0) {
-          const tmpStderr = path.join(os.tmpdir(), `fidelius-${Date.now()}.stderr.txt`);
-          try {
-            fs.writeFileSync(tmpStderr, stderr, { mode: 0o600 });
-            logger.info('[FIDELIUS] stderr written', { file: tmpStderr, length: stderrLen });
-            // Surface stderr in error instead of generic "Unexpected end of JSON input"
-            logger.error('[FIDELIUS] stderr content', { stderr: stderr.trim().slice(0, 500) });
-          } catch (e) {
-            logger.warn('[FIDELIUS] failed to write stderr', { error: e.message });
-          }
+          logger.error('[FIDELIUS] stderr content', { stderr: stderr.trim().slice(0, 500) });
         }
 
         // Check for empty stdout BEFORE attempting JSON.parse
