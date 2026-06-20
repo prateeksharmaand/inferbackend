@@ -8,7 +8,10 @@ import styles from './Patients.module.css';
 // ── Facility QR Modal ─────────────────────────────────────────────────────────
 // Patients scan this QR with ABDM PHR app → profile is shared to HIP
 function FacilityQrModal({ onClose }) {
-  const hipId = import.meta.env.VITE_ABDM_HIP_ID || '';
+  const [clinicAbdm, setClinicAbdm] = useState(null);
+  useEffect(() => { api.get('/clinic-settings/abdm').then(setClinicAbdm).catch(() => {}); }, []);
+  const hipId = clinicAbdm?.hip_id || '';
+  const clinicName = clinicAbdm?.hip_name || '';
 
   // ABDM deep-link for patient profile sharing (SHARE_PATIENT_PROFILE_701)
   const qrValue = hipId ? `https://phrsbx.abdm.gov.in/share-profile?hip-id=${encodeURIComponent(hipId)}&counter-id=12345` : '';
@@ -63,7 +66,7 @@ function FacilityQrModal({ onClose }) {
           borderRadius: 8, padding: '3px 12px', fontSize: 11, color: '#0284c7',
           fontWeight: 600, marginBottom: 20,
         }}>
-          HIP ID: {hipId}
+          {clinicName || hipId || 'HIP not configured'}
         </div>
 
         {/* QR Code */}

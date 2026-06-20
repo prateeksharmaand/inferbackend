@@ -105,7 +105,7 @@ export default function ProfileShares() {
 
         {/* QR section */}
         {(() => {
-          const hipId = clinicAbdm?.hip_id || import.meta.env?.VITE_ABDM_HIP_ID || 'noushealthhip';
+          const hipId = clinicAbdm?.hip_id || '';
           const clinicName = clinicAbdm?.hip_name || null;
           const qrUrl = `https://phrsbx.abdm.gov.in/share-profile?hip-id=${encodeURIComponent(hipId)}&counter-id=12345`;
           return (

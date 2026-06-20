@@ -826,10 +826,13 @@ function ConsentCard({ c, onFetched, abha }) {
 
 function ConsentsTab({ appt, patientAbhaAddress }) {
   const abha  = patientAbhaAddress || appt?.patient_abha || '';
-  const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
+  const [clinicAbdm, setClinicAbdm] = useState(null);
+  const hipId = clinicAbdm?.hiu_id || clinicAbdm?.hip_id || '';
   const [consents,  setConsents]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => { api.get('/clinic-settings/abdm').then(setClinicAbdm).catch(() => {}); }, []);
 
   const load = () => {
     api.get('/consents').then(rows => {

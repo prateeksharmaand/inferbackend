@@ -224,7 +224,9 @@ const PURPOSE_OPTIONS = [
 
 function ConsentModal({ patient, onClose, onSent }) {
   const abha = patient?.abha_address || patient?.abha_number || '';
-  const hipId = import.meta.env.VITE_ABDM_HIP_ID || 'noushealthhip';
+  const [clinicAbdm, setClinicAbdm] = useState(null);
+  const hipId = clinicAbdm?.hiu_id || clinicAbdm?.hip_id || '';
+  useEffect(() => { api.get('/clinic-settings/abdm').then(setClinicAbdm).catch(() => {}); }, []);
   const [purpose,   setPurpose]   = useState('CAREMGT');
   const [dateFrom,  setDateFrom]  = useState('');
   const [dateTo,    setDateTo]    = useState('');
@@ -398,7 +400,14 @@ function ConsentTab({ patient, refreshKey }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <button
+          onClick={loadConsents}
+          title="Refresh consents"
+          style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}
+        >
+          <RefreshCw size={13} /> Refresh
+        </button>
         <button
           onClick={() => setShowModal(true)}
           style={{ padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
