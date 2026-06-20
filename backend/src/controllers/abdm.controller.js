@@ -1112,88 +1112,50 @@ const healthInfoPush = async (req, res) => {
       }
     }
 
-    const rowsToInsert = [];
+    let insertedCount = 0;
+    const crypto = require('crypto');
     for (const entry of entries) {
-      logger.info('HIU: loop entry start', { careContextRef: entry.careContextReference });
       try {
-      let content = entry.content;
-      let plaintext = null;
+        let content = entry.content;
+        let plaintext = null;
 
-      // AES-GCM decrypt using pre-derived key (avoids 14 redundant ECDH + HKDF operations)
-      if (derivedDecryptKey && derivedIv) {
-        try {
-          const crypto = require('crypto');
-          const raw  = Buffer.from(content, 'base64');
-          const tag  = raw.slice(-16);
-          const ct   = raw.slice(0, -16);
-          const dec  = require('crypto').createDecipheriv('aes-256-gcm', derivedDecryptKey, derivedIv);
-          dec.setAuthTag(tag);
-          const decrypted = Buffer.concat([dec.update(ct), dec.final()]).toString('utf8');
-          plaintext = decrypted;
-          content   = Buffer.from(decrypted).toString('base64');
-          logger.info('HIU decrypted health record', { transactionId, careContextReference: entry.careContextReference });
-        } catch (decErr) {
-          logger.warn('HIU decrypt failed — storing raw content', { transactionId, error: decErr.message });
+        if (derivedDecryptKey && derivedIv) {
+          try {
+            const raw = Buffer.from(content, 'base64');
+            const tag = raw.slice(-16);
+            const ct  = raw.slice(0, -16);
+            const dec = crypto.createDecipheriv('aes-256-gcm', derivedDecryptKey, derivedIv);
+            dec.setAuthTag(tag);
+            const decrypted = Buffer.concat([dec.update(ct), dec.final()]).toString('utf8');
+            plaintext = decrypted;
+            content   = Buffer.from(decrypted).toString('base64');
+          } catch (decErr) {
+            logger.warn('HIU decrypt failed — storing raw', { transactionId, careContextRef: entry.careContextReference, error: decErr.message });
+          }
         }
-      }
 
-      // M3-SEC: Verify MD5 checksum if we have plaintext (ABDM spec §4.3.2)
-      if (plaintext && entry.checksum) {
-        const crypto = require('crypto');
-        const computedChecksum = crypto.createHash('md5').update(plaintext).digest('hex');
-        if (computedChecksum !== entry.checksum) {
-          logger.error('Checksum mismatch — rejecting entry', {
-            transactionId,
-            careContextReference: entry.careContextReference,
-            expected: entry.checksum,
-            computed: computedChecksum,
-          });
-          continue; // Skip this entry due to checksum mismatch
+        if (plaintext && entry.checksum) {
+          const computed = crypto.createHash('md5').update(plaintext).digest('hex');
+          if (computed !== entry.checksum) {
+            logger.warn('HIU checksum mismatch — skipping', { transactionId, careContextRef: entry.careContextReference });
+            continue;
+          }
         }
-        logger.info('Checksum verified', {
-          transactionId,
-          careContextReference: entry.careContextReference,
-          checksum: entry.checksum.slice(0, 16) + '...',
-        });
-      }
 
-      logger.info('HIU: post-checksum reached', { careContextRef: entry.careContextReference });
-
-      logger.info('HIU storing health record', {
-        transactionId,
-        careContextReference: entry.careContextReference,
-        media: entry.media,
-        contentLen: content?.length,
-        checksumVerified: !!plaintext && !!entry.checksum,
-      });
-      rowsToInsert.push([transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]);
-      logger.info('HIU: loop entry done', { careContextRef: entry.careContextReference });
+        await client.query(
+          `INSERT INTO health_records
+             (transaction_id, care_context_reference, hi_type, content, media, checksum, page_number, page_count)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           ON CONFLICT DO NOTHING`,
+          [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]
+        );
+        insertedCount++;
+        logger.info('HIU stored entry', { transactionId, careContextRef: entry.careContextReference, insertedCount });
       } catch (entryErr) {
-        logger.error('HIU: loop entry error', { careContextRef: entry.careContextReference, error: entryErr.message, stack: entryErr.stack?.slice(0, 300) });
+        logger.error('HIU entry error', { careContextRef: entry.careContextReference, error: entryErr.message });
       }
     }
-    logger.info('HIU: loop complete', { rowsToInsert: rowsToInsert.length });
-
-    logger.info('HIU health-info push: inserting rows', { transactionId, rowCount: rowsToInsert.length });
-    for (let ri = 0; ri < rowsToInsert.length; ri++) {
-      const row = rowsToInsert[ri];
-      logger.info('HIU health-info push: insert row', { transactionId, ri, careContextRef: row[1] });
-      await client.query(
-        `INSERT INTO health_records
-           (transaction_id, care_context_reference, hi_type, content, media, checksum, page_number, page_count)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-         ON CONFLICT DO NOTHING`,
-        row
-      );
-      logger.info('HIU health-info push: insert row done', { transactionId, ri });
-    }
-    logger.info('HIU health-info push stored', {
-      transactionId,
-      count:              entries.length,
-      careContextRefs:    entries.map(e => e.careContextReference),
-      consentId:          consentIdForAck,
-      MULTI_HIP_TRACKING: `Stored ${entries.length} bundle(s) under txn=${transactionId} consent=${consentIdForAck}`,
-    });
+    logger.info('HIU health-info push stored', { transactionId, insertedCount, consentId: consentIdForAck });
 
     // Step 9: HIU sends notification to ABDM acknowledging receipt of health data
     // (ABDM spec: POST /v0.5/health-information/notify)
