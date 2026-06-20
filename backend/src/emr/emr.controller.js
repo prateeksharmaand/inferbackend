@@ -399,8 +399,14 @@ const addCareContext = async (req, res) => {
       logger.warn('ABDM link skipped — patient gender/DOB missing or invalid', { patientId, gender: patForLink.gender, yearOfBirth });
     } else
     try {
-      const clinicCfg = await abdmResolver.getClinicAbdmConfig(req.emrUser.clinic_id);
-      const hipId = clinicCfg.hipId;
+      // Care context was just created under req.emrUser.clinic_id — use that as owner
+      const clinicCfg = await abdmResolver.getClinicAbdmConfig(req.emrUser.clinic_id).catch(() => null);
+      const hipId = clinicCfg?.hipId;
+      if (!hipId) {
+        logger.info('ABDM link skipped — clinic has no HIP configured', { clinicId: req.emrUser.clinic_id });
+        res.status(201).json({ ...careCtx, sampleBundleCreated: true, bundleEntries: fhirBundle.entry.length, abdmLinked: false });
+        return;
+      }
       const tokenRes = await abdmSvc.generateLinkToken(
         hipId, patForLink.abha_number, patForLink.abha_address, patForLink.name, normGender, yearOfBirth
       );
@@ -479,7 +485,10 @@ const retryCareContextLink = async (req, res) => {
   }
 
   try {
-    const clinicCfg = await abdmResolver.getClinicAbdmConfig(req.emrUser.clinic_id);
+    // Use the care context's own clinic_id (authoritative owner), not the staff's login clinic.
+    // A staff logged into DeenBandhu can retry an Adinath care context — must use Adinath's HIP.
+    const ownerClinicId = ctx.clinic_id || req.emrUser.clinic_id;
+    const clinicCfg = await abdmResolver.getClinicAbdmConfig(ownerClinicId);
     const hipId = clinicCfg.hipId;
     const tokenRes = await abdmSvc.generateLinkToken(hipId, ctx.abha_number, ctx.abha_address, ctx.patient_name, normGender, yearOfBirth);
     await abdmSvc.linkCareContexts(
