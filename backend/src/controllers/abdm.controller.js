@@ -1010,8 +1010,31 @@ const consentNotify = async (req, res) => {
   }
 };
 
+// Hard-timeout wrapper around pool.query() — guards against promises that never settle
+// (stale TCP connection, PostgreSQL lock, cloud PG idle timeout ignoring query_timeout config).
+function _queryWithTimeout(text, params, timeoutMs, ctx) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      logger.error('HIU: pool.query TIMED OUT — promise never settled', {
+        timeoutMs,
+        sql: text.trim().slice(0, 80),
+        poolTotal:   pool.totalCount,
+        poolIdle:    pool.idleCount,
+        poolWaiting: pool.waitingCount,
+        ...ctx,
+      });
+      reject(new Error(`pool.query hard-timeout after ${timeoutMs}ms [${JSON.stringify(ctx)}]`));
+    }, timeoutMs);
+
+    pool.query(text, params)
+      .then(r  => { clearTimeout(timer); resolve(r); })
+      .catch(e => { clearTimeout(timer); reject(e); });
+  });
+}
+
 const healthInfoPush = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
+  const pushStart = Date.now();
   try {
     const { transactionId, entries, pageNumber, pageCount, keyMaterial } = req.body;
     logger.info('HIU health-info push received', {
@@ -1020,6 +1043,9 @@ const healthInfoPush = async (req, res) => {
       entries: entries?.length ?? 0,
       careContextRefs: entries?.map(e => e.careContextReference),
       encrypted: !!keyMaterial,
+      poolTotal:   pool.totalCount,
+      poolIdle:    pool.idleCount,
+      poolWaiting: pool.waitingCount,
     });
 
     if (!entries?.length) {
@@ -1108,13 +1134,29 @@ const healthInfoPush = async (req, res) => {
 
     let insertedCount = 0;
     const crypto = require('crypto');
-    for (const entry of entries) {
+    for (const [idx, entry] of entries.entries()) {
+      const entryStart = Date.now();
+      logger.info('HIU: loop entry start', {
+        transactionId,
+        idx,
+        total: entries.length,
+        careContextRef: entry.careContextReference,
+        elapsedMs: Date.now() - pushStart,
+        poolTotal:   pool.totalCount,
+        poolIdle:    pool.idleCount,
+        poolWaiting: pool.waitingCount,
+      });
+
       try {
+        // ── Step 1: Decrypt ────────────────────────────────────────────────────
         let content = entry.content;
         let plaintext = null;
+        const rawInputBytes = content ? Buffer.byteLength(content, 'utf8') : 0;
 
         if (derivedDecryptKey && derivedIv) {
           try {
+            logger.info('HIU: step 1 - decrypt start', { transactionId, idx, rawInputBytes });
+            const t0 = Date.now();
             const raw = Buffer.from(content, 'base64');
             const tag = raw.slice(-16);
             const ct  = raw.slice(0, -16);
@@ -1123,33 +1165,92 @@ const healthInfoPush = async (req, res) => {
             const decrypted = Buffer.concat([dec.update(ct), dec.final()]).toString('utf8');
             plaintext = decrypted;
             content   = Buffer.from(decrypted).toString('base64');
+            logger.info('HIU: step 1 - decrypt done', {
+              transactionId, idx,
+              decryptedBytes: decrypted.length,
+              reEncodedBytes: content.length,
+              decryptMs: Date.now() - t0,
+            });
           } catch (decErr) {
             logger.warn('HIU decrypt failed — storing raw', { transactionId, careContextRef: entry.careContextReference, error: decErr.message });
           }
+        } else {
+          logger.info('HIU: step 1 - no decrypt key, storing raw encrypted content', { transactionId, idx });
         }
 
+        // ── Step 2: Checksum ───────────────────────────────────────────────────
+        logger.info('HIU: step 2 - checksum', { transactionId, idx });
         if (plaintext && entry.checksum) {
           const computed = crypto.createHash('md5').update(plaintext).digest('hex');
           if (computed !== entry.checksum) {
-            logger.warn('HIU checksum mismatch — skipping', { transactionId, careContextRef: entry.careContextReference });
+            logger.warn('HIU checksum mismatch — skipping', { transactionId, careContextRef: entry.careContextReference, expected: entry.checksum, computed });
             continue;
           }
+          logger.info('HIU: step 2 - checksum ok', { transactionId, idx });
         }
 
-        await pool.query(
+        // ── Step 3: DB INSERT (with hard 12 s timeout) ─────────────────────────
+        const storedBytes = content ? Buffer.byteLength(content, 'utf8') : 0;
+        logger.info('HIU: step 3 - insert start', {
+          transactionId,
+          idx,
+          careContextRef: entry.careContextReference,
+          storedBytes,
+          poolTotal:   pool.totalCount,
+          poolIdle:    pool.idleCount,
+          poolWaiting: pool.waitingCount,
+        });
+        const insertStart = Date.now();
+
+        await _queryWithTimeout(
           `INSERT INTO health_records
              (transaction_id, care_context_reference, hi_type, content, media, checksum, page_number, page_count)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
            ON CONFLICT (transaction_id, care_context_reference) DO NOTHING`,
-          [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]
+          [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount],
+          12_000, // 12 s hard backstop — fires even if query_timeout + statement_timeout stall
+          { transactionId, idx, careContextRef: entry.careContextReference }
         );
+
+        const insertMs = Date.now() - insertStart;
         insertedCount++;
-        logger.info('HIU stored entry', { transactionId, careContextRef: entry.careContextReference, insertedCount });
+        logger.info('HIU: step 3 - insert done', {
+          transactionId,
+          idx,
+          careContextRef: entry.careContextReference,
+          insertMs,
+          insertedCount,
+          storedBytes,
+        });
+
+        logger.info('HIU: loop entry done', {
+          transactionId,
+          idx,
+          careContextRef: entry.careContextReference,
+          entryMs: Date.now() - entryStart,
+        });
       } catch (entryErr) {
-        logger.error('HIU entry error', { careContextRef: entry.careContextReference, error: entryErr.message });
+        logger.error('HIU entry error', {
+          transactionId,
+          idx,
+          careContextRef: entry.careContextReference,
+          error:    entryErr.message,
+          code:     entryErr.code,
+          entryMs:  Date.now() - entryStart,
+          poolTotal:   pool.totalCount,
+          poolIdle:    pool.idleCount,
+          poolWaiting: pool.waitingCount,
+        });
       }
     }
-    logger.info('HIU health-info push stored', { transactionId, insertedCount, consentId: consentIdForAck });
+
+    logger.info('HIU health-info push stored', {
+      transactionId,
+      insertedCount,
+      totalEntries: entries.length,
+      totalMs: Date.now() - pushStart,
+      consentId: consentIdForAck,
+    });
 
     // Step 9: HIU sends notification to ABDM acknowledging receipt of health data
     // (ABDM spec: POST /v0.5/health-information/notify)
