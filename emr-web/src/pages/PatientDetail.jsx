@@ -1,4 +1,11 @@
 import { useState, useEffect } from 'react';
+
+if (typeof document !== 'undefined' && !document.getElementById('pd-styles')) {
+  const s = document.createElement('style');
+  s.id = 'pd-styles';
+  s.textContent = `@keyframes abhaSpinner { to { transform: rotate(360deg); } }`;
+  document.head.appendChild(s);
+}
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Link2, FileText, AlertCircle, CheckCircle, Clock, RefreshCw, Plus, Unlink, Send } from 'lucide-react';
 import { api } from '../api/client';
@@ -457,6 +464,7 @@ export default function PatientDetail() {
   const [tab,        setTab]        = useState('Overview');
   const [loading,    setLoading]    = useState(true);
   const [consentKey, setConsentKey] = useState(0);
+  const [abhaCard,   setAbhaCard]   = useState(null); // base64 data URL
 
   const load = () => {
     setLoading(true);
@@ -467,6 +475,14 @@ export default function PatientDetail() {
   };
 
   useEffect(() => { load(); }, [id]);
+
+  // Fetch ABHA card when patient loads and has ABHA
+  useEffect(() => {
+    if (!patient?.abha_number && !patient?.abha_address) return;
+    api.get(`/patients/${id}/abha/card`).then(res => {
+      if (res?.image) setAbhaCard(`data:${res.mimeType || 'image/png'};base64,${res.image}`);
+    }).catch(() => {});
+  }, [patient?.abha_number, patient?.abha_address]);
 
   if (loading) return <div style={{ padding: 40, color: '#94a3b8' }}>Loading patient…</div>;
   if (!patient) return <div style={{ padding: 40, color: '#ef4444' }}>Patient not found.</div>;
@@ -550,21 +566,57 @@ export default function PatientDetail() {
 
       {/* Tab content */}
       {tab === 'Overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          {[
-            { label: 'Full Name',     value: patient.name },
-            { label: 'Mobile',        value: patient.mobile || '—' },
-            { label: 'Gender',        value: patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender || '—' },
-            { label: 'Date of Birth', value: patient.dob ? new Date(patient.dob).toLocaleDateString('en-IN') : '—' },
-            { label: 'ABHA Number',   value: patient.abha_number  || '—' },
-            { label: 'ABHA Address',  value: patient.abha_address || '—' },
-            { label: 'Care Contexts', value: careCtxs.length },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px' }}>
-              <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
-              <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 14 }}>{String(value)}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Info grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {[
+              { label: 'Full Name',     value: patient.name },
+              { label: 'Mobile',        value: patient.mobile || '—' },
+              { label: 'Gender',        value: patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender || '—' },
+              { label: 'Date of Birth', value: patient.dob ? new Date(patient.dob).toLocaleDateString('en-IN') : '—' },
+              { label: 'ABHA Number',   value: patient.abha_number  || '—' },
+              { label: 'ABHA Address',  value: patient.abha_address || '—' },
+              { label: 'Care Contexts', value: careCtxs.length },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px' }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
+                <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 14 }}>{String(value)}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* ABHA Health Card */}
+          {hasAbha && (
+            <div style={{ background: 'linear-gradient(135deg,#faf5ff,#f5f3ff)', border: '1.5px solid #e9d5ff', borderRadius: 12, padding: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Shield size={16} color="#7c3aed" />
+                  <span style={{ fontWeight: 700, fontSize: 14, color: '#5b21b6' }}>ABHA Health Card</span>
+                </div>
+                {abhaCard && (
+                  <a
+                    href={abhaCard}
+                    download={`ABHA-${patient.abha_number || patient.name || 'card'}.png`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 8, background: '#7c3aed', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none', boxShadow: '0 2px 8px rgba(124,58,237,.3)' }}
+                  >
+                    ⬇ Download
+                  </a>
+                )}
+              </div>
+              {abhaCard ? (
+                <img
+                  src={abhaCard}
+                  alt="ABHA Health Card"
+                  style={{ width: '100%', maxWidth: 420, borderRadius: 10, border: '1px solid #e9d5ff', boxShadow: '0 4px 16px rgba(124,58,237,.12)', display: 'block' }}
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 0', color: '#94a3b8', fontSize: 13 }}>
+                  <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #c4b5fd', borderTopColor: 'transparent', display: 'inline-block', animation: 'abhaSpinner 0.8s linear infinite' }} />
+                  Loading ABHA card…
+                </div>
+              )}
             </div>
-          ))}
+          )}
         </div>
       )}
 

@@ -587,7 +587,16 @@ function PatientCard({ patient, onSuccess, xToken }) {
         )}
         {cardImg && (
           <div className="abha-fade-in">
-            <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 0.5 }}>ABHA Health Card</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 0.5 }}>ABHA Health Card</p>
+              <a
+                href={cardImg}
+                download={`ABHA-${p.abha_number || p.name || 'card'}.png`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8, background: '#7c3aed', color: '#fff', fontSize: 11, fontWeight: 700, textDecoration: 'none', boxShadow: '0 2px 6px rgba(124,58,237,.3)' }}
+              >
+                ⬇ Download
+              </a>
+            </div>
             <img src={cardImg} alt="ABHA Card" style={{ width: '100%', borderRadius: 12, border: '1.5px solid #e9d5ff', boxShadow: '0 4px 16px rgba(124,58,237,.15)' }} />
           </div>
         )}
