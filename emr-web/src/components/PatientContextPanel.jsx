@@ -837,14 +837,13 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
     }).catch(() => {}).finally(() => setLoading(false));
   };
 
-  // Poll every 5s while any consent is REQUESTED or GRANTED-but-no-records-fetched yet
+  // Poll every 5s while any consent is in a transitional state
+  const IN_PROGRESS = ['REQUESTED', 'GRANTED', 'AWAITING_HIP_METADATA', 'PROCESSING_HEALTH_INFO', 'HEALTH_INFO_RECEIVED'];
   useEffect(() => {
     setLoading(true);
     load();
     const timer = setInterval(() => {
-      const hasRequested = consents.some(c => c.status === 'REQUESTED');
-      const hasGrantedUnfetched = consents.some(c => c.status === 'GRANTED');
-      if (hasRequested || hasGrantedUnfetched) load();
+      if (consents.some(c => IN_PROGRESS.includes(c.status))) load();
     }, 5000);
     return () => clearInterval(timer);
   }, [appt?.id, abha]); // eslint-disable-line
@@ -860,7 +859,10 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
     <div style={{ padding: '8px 0' }}>
       <div style={{ padding: '0 12px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: '#94a3b8' }}>
-          {consents.some(c => c.status === 'REQUESTED') && '⏳ Waiting for patient…'}
+          {consents.some(c => c.status === 'REQUESTED')               && '⏳ Waiting for patient to grant…'}
+          {consents.some(c => c.status === 'AWAITING_HIP_METADATA')   && '🔄 Waiting for HIP to confirm…'}
+          {consents.some(c => c.status === 'PROCESSING_HEALTH_INFO')  && '📥 Receiving records…'}
+          {consents.some(c => c.status === 'HEALTH_INFO_RECEIVED')    && '✓ Records received'}
         </span>
         <button onClick={() => setShowModal(true)}
           style={{ padding: '6px 12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
