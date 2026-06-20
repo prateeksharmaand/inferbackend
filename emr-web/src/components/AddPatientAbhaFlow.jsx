@@ -17,6 +17,7 @@ if (typeof document !== 'undefined' && !document.getElementById('abha-flow-style
     @keyframes abhaFloat   { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
     @keyframes abhaSpinner { to { transform:rotate(360deg); } }
     @keyframes abhaBounce  { 0%,100%{transform:translateY(0);} 40%{transform:translateY(-8px);} 70%{transform:translateY(-4px);} }
+    @keyframes abhaShimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
     .abha-fade-in  { animation: abhaFadeIn  0.28s ease both; }
     .abha-slide-in { animation: abhaSlideIn 0.24s ease both; }
     .abha-float    { animation: abhaFloat   3s ease-in-out infinite; }
@@ -478,6 +479,9 @@ function PatientCard({ patient, onSuccess, xToken }) {
     finally { setLoadingCard(false); }
   };
 
+  // Auto-fetch card immediately when xToken is available
+  useEffect(() => { if (xToken) fetchCard(); }, [xToken]);
+
   return (
     <>
       <div className="abha-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -513,14 +517,18 @@ function PatientCard({ patient, onSuccess, xToken }) {
           </div>
         </div>
 
-        {/* ABHA Card image */}
-        {xToken && !cardImg && (
-          <button style={{ ...ghostBtn, fontSize: 12 }} onClick={fetchCard} disabled={loadingCard}>
-            {loadingCard ? '⏳ Loading ABHA Card…' : '📋 View ABHA Health Card'}
-          </button>
+        {/* ABHA Card — auto-loaded, shimmer while fetching */}
+        {xToken && loadingCard && (
+          <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #e9d5ff' }}>
+            <div style={{ height: 160, background: 'linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%)', backgroundSize: '200% 100%', animation: 'abhaShimmer 1.4s infinite', borderRadius: 12 }} />
+            <p style={{ margin: '8px 0', textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>Loading ABHA card…</p>
+          </div>
         )}
         {cardImg && (
-          <img src={cardImg} alt="ABHA Card" style={{ width: '100%', borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,.08)' }} />
+          <div className="abha-fade-in">
+            <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 0.5 }}>ABHA Health Card</p>
+            <img src={cardImg} alt="ABHA Card" style={{ width: '100%', borderRadius: 12, border: '1.5px solid #e9d5ff', boxShadow: '0 4px 16px rgba(124,58,237,.15)' }} />
+          </div>
         )}
 
         {/* Book appointment */}
