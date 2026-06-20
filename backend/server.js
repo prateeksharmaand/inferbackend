@@ -40,14 +40,14 @@ if (Buffer.from(process.env.ENCRYPTION_KEY ?? '', 'utf8').length < 32) {
   process.exit(1);
 }
 
-// Catch all unhandled promise rejections — Node v15+ terminates without this,
-// which causes silent death mid-batch (e.g., during parallel Fidelius encryption).
+// Log unhandled rejections but do NOT exit — stale _callFidelius promises from
+// previous abandoned test runs reject asynchronously and would otherwise kill the
+// current in-flight batch. uncaughtException still exits (true crashes).
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('FATAL: Unhandled Promise Rejection — process will exit', {
+  logger.error('WARNING: Unhandled Promise Rejection — continuing', {
     reason: reason instanceof Error ? reason.message : String(reason),
     stack: reason instanceof Error ? reason.stack : undefined,
   });
-  process.exit(1);
 });
 
 process.on('uncaughtException', (err) => {
