@@ -649,6 +649,8 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE hip_health_requests ADD COLUMN IF NOT EXISTS hiu_key_material JSONB`);
     await client.query(`ALTER TABLE emr_consent_requests ADD COLUMN IF NOT EXISTS hiu_key_material JSONB`);
     await client.query(`ALTER TABLE emr_consent_requests ADD COLUMN IF NOT EXISTS permission_date_range JSONB`);
+    await client.query(`ALTER TABLE emr_consent_requests ADD COLUMN IF NOT EXISTS transaction_id_map JSONB DEFAULT '{}'::jsonb`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_ecr_txn_map ON emr_consent_requests USING GIN (transaction_id_map)`);
     // ON CONFLICT requires a non-deferrable unique constraint — recreate if deferrable
     await client.query(`ALTER TABLE emr_care_contexts DROP CONSTRAINT IF EXISTS uq_care_ctx_ref_num`);
     await client.query(`ALTER TABLE emr_care_contexts ADD CONSTRAINT uq_care_ctx_ref_num UNIQUE (reference_number)`);

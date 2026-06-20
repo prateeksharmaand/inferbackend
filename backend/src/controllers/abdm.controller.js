@@ -887,11 +887,17 @@ const consentNotify = async (req, res) => {
             };
             await pool.query(
               `UPDATE emr_consent_requests
-               SET hiu_key_material = COALESCE(hiu_key_material, '{}'::jsonb) || $1::jsonb,
-                   transaction_id   = $2,
-                   updated_at       = NOW()
-               WHERE request_id=$3 OR abdm_request_id=$3`,
-              [JSON.stringify({ [artefact.id]: artefactEntry }), txnId, consentRequestId]
+               SET hiu_key_material   = COALESCE(hiu_key_material, '{}'::jsonb) || $1::jsonb,
+                   transaction_id_map = COALESCE(transaction_id_map, '{}'::jsonb) || $2::jsonb,
+                   transaction_id     = $3,
+                   updated_at         = NOW()
+               WHERE request_id=$4 OR abdm_request_id=$4`,
+              [
+                JSON.stringify({ [artefact.id]: artefactEntry }),
+                JSON.stringify({ [artefact.id]: txnId }),
+                txnId,
+                consentRequestId,
+              ]
             ).catch(() => {});
           }
         } catch (err) {

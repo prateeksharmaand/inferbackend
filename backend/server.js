@@ -190,15 +190,26 @@ const _onHiuHealthRequest = (req, res) => {
   // Also try matching by reqId directly (abdm_request_id or transaction_id placeholder).
   if (txnId && reqId) {
     const { pool } = require('./src/config/database');
+    // Replace the placeholder reqId with ABDM's real txnId in both the single column
+    // and the per-artefact transaction_id_map. The map key holding reqId gets updated to txnId.
     pool.query(
-      `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW()
+      `UPDATE emr_consent_requests
+       SET transaction_id     = $1,
+           transaction_id_map = (
+             SELECT COALESCE(jsonb_object_agg(
+               k,
+               CASE WHEN v = $2 THEN $1 ELSE v END
+             ), '{}'::jsonb)
+             FROM jsonb_each_text(COALESCE(transaction_id_map, '{}'::jsonb)) AS t(k, v)
+           ),
+           updated_at = NOW()
        WHERE transaction_id=$2 OR abdm_request_id=$2`,
       [txnId, reqId]
     ).then(result => {
       if (result.rowCount > 0) {
-        logger.info('HIU on-request: stored ABDM txnId in consent', { txnId, reqId, rowsUpdated: result.rowCount });
+        logger.info('HIU on-request: stored ABDM txnId in consent + map', { txnId, reqId, rowsUpdated: result.rowCount });
       } else {
-        logger.warn('HIU on-request: no consent row found for reqId — cannot link transactionId', { txnId, reqId });
+        logger.warn('HIU on-request: no consent row found for reqId', { txnId, reqId });
       }
     }).catch(e => logger.warn('HIU on-request: failed to store txnId', { error: e.message }));
   }

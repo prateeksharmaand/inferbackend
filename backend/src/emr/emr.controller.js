@@ -750,60 +750,31 @@ const pullConsentData = async (req, res) => {
   if (consent.status !== 'GRANTED') return res.status(400).json({ error: `Consent is ${consent.status}, not GRANTED` });
 
   // 1. Check if ABDM already delivered records for this consent (via healthInfoPush)
-  // Primary: match by transaction_id stored on consent
-  if (consent.transaction_id) {
-    const { rows: existing } = await pool.query(
-      `SELECT id FROM health_records WHERE transaction_id=$1 LIMIT 1`,
-      [consent.transaction_id]
-    );
-    if (existing.length) {
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      return res.json({ message: 'Records already delivered by ABDM', source: 'abdm', txnId: consent.transaction_id, count: existing.length });
-    }
-  }
-
-  // Fallback: find any records for this patient across all transactions
-  // (handles case where transaction_id linkage was not updated correctly)
-  if (consent.patient_abha) {
-    const { rows: byAbha } = await pool.query(
-      `SELECT hr.transaction_id, COUNT(*) as cnt
-       FROM health_records hr
-       JOIN emr_consent_requests ecr ON ecr.transaction_id = hr.transaction_id
-       WHERE ecr.patient_abha = $1 AND ecr.clinic_id = $2
-       GROUP BY hr.transaction_id
-       ORDER BY MAX(hr.received_at) DESC LIMIT 1`,
-      [consent.patient_abha, clinicId]
-    );
-    if (!byAbha.length) {
-      // Also try directly by patient_abha without the join (in case txnId not linked yet)
-      const { rows: directRows } = await pool.query(
-        `SELECT hr.transaction_id, COUNT(*) as cnt
-         FROM health_records hr
-         WHERE hr.transaction_id IN (
-           SELECT DISTINCT transaction_id FROM hip_health_requests
-           WHERE consent_id IN (
-             SELECT unnest(artefacts::text[]::uuid[]) FROM emr_consent_requests WHERE patient_abha=$1 AND clinic_id=$2
-           )
-         )
-         GROUP BY hr.transaction_id
-         ORDER BY MAX(hr.received_at) DESC LIMIT 1`,
-        [consent.patient_abha, clinicId]
-      ).catch(() => ({ rows: [] }));
-      if (directRows.length) {
-        const txnId = directRows[0].transaction_id;
-        await pool.query(`UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`, [txnId, requestId]);
-        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-        return res.json({ message: 'Records already delivered by ABDM', source: 'abdm', txnId, count: Number(directRows[0].cnt) });
-      }
-    } else {
-      // Found records — update the consent's transaction_id so future calls use primary path
-      const txnId = byAbha[0].transaction_id;
-      if (txnId !== consent.transaction_id) {
-        await pool.query(`UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`, [txnId, requestId]);
-      }
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      return res.json({ message: 'Records already delivered by ABDM', source: 'abdm', txnId, count: Number(byAbha[0].cnt) });
-    }
+  // Check both single transaction_id AND transaction_id_map (multi-HIP)
+  const { rows: existing } = await pool.query(
+    `SELECT hr.transaction_id, COUNT(*) AS cnt
+     FROM health_records hr
+     WHERE hr.transaction_id IN (
+       SELECT $1::text WHERE $1 IS NOT NULL
+       UNION
+       SELECT t.val
+       FROM jsonb_each_text(COALESCE($2::jsonb, '{}'::jsonb)) AS t(key, val)
+     )
+     GROUP BY hr.transaction_id
+     ORDER BY MAX(hr.received_at) DESC`,
+    [consent.transaction_id, consent.transaction_id_map ?? '{}']
+  );
+  if (existing.length) {
+    const totalCount = existing.reduce((s, r) => s + Number(r.cnt), 0);
+    const primaryTxn = existing[0].transaction_id;
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    return res.json({
+      message: 'Records already delivered by ABDM',
+      source: 'abdm',
+      txnId: consent.transaction_id || primaryTxn,
+      count: totalCount,
+      hipCount: existing.length,
+    });
   }
 
   // 2. No ABDM records yet — re-trigger fetchHealthInfo so ABDM asks the HIP again
@@ -838,8 +809,12 @@ const pullConsentData = async (req, res) => {
           const reqId = result?.reqId;
           if (reqId) {
             await pool.query(
-              `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
-              [reqId, requestId]
+              `UPDATE emr_consent_requests
+               SET transaction_id_map = COALESCE(transaction_id_map, '{}'::jsonb) || $1::jsonb,
+                   transaction_id     = $2,
+                   updated_at         = NOW()
+               WHERE request_id=$3`,
+              [JSON.stringify({ [artefact.id]: reqId }), reqId, requestId]
             ).catch(() => {});
           }
           logger.info('pullConsentData: re-triggered fetchHealthInfo', {
@@ -868,30 +843,47 @@ const pullConsentData = async (req, res) => {
 };
 
 const getConsentHealthRecords = async (req, res) => {
-  const clinicId     = req.emrUser.clinic_id;
-  // Optionally scope to a specific consent request (by patient_abha)
-  const patientAbha  = req.query.abha || null;
+  const clinicId    = req.emrUser.clinic_id;
+  const patientAbha = req.query.abha || null;
 
+  // Query health_records using BOTH the legacy single transaction_id column
+  // AND the new transaction_id_map JSONB (multi-HIP: one txnId per artefact).
+  // UNION ensures records from all HIPs are returned even if only some were
+  // stored under the single column before the map was introduced.
   let query, params;
   if (patientAbha) {
-    // Return records for the specific ABHA address consent only
-    query = `SELECT hr.*
-             FROM health_records hr
-             WHERE hr.transaction_id IN (
-               SELECT transaction_id FROM emr_consent_requests
-               WHERE clinic_id=$1 AND transaction_id IS NOT NULL
-                 AND patient_abha = $2
-             )
-             ORDER BY hr.received_at DESC LIMIT 100`;
+    query = `
+      SELECT hr.*
+      FROM health_records hr
+      WHERE hr.transaction_id IN (
+        -- Legacy: single transaction_id column (one HIP or last-write-wins)
+        SELECT transaction_id
+        FROM emr_consent_requests
+        WHERE clinic_id=$1 AND patient_abha=$2 AND transaction_id IS NOT NULL
+        UNION
+        -- Multi-HIP: all artefact txnIds stored in JSONB map
+        SELECT t.val
+        FROM emr_consent_requests ecr,
+             jsonb_each_text(COALESCE(ecr.transaction_id_map, '{}'::jsonb)) AS t(key, val)
+        WHERE ecr.clinic_id=$1 AND ecr.patient_abha=$2
+      )
+      ORDER BY hr.received_at DESC LIMIT 200`;
     params = [clinicId, patientAbha];
   } else {
-    query = `SELECT hr.*
-             FROM health_records hr
-             WHERE hr.transaction_id IN (
-               SELECT transaction_id FROM emr_consent_requests
-               WHERE clinic_id=$1 AND transaction_id IS NOT NULL
-             )
-             ORDER BY hr.received_at DESC LIMIT 100`;
+    query = `
+      SELECT hr.*
+      FROM health_records hr
+      WHERE hr.transaction_id IN (
+        SELECT transaction_id
+        FROM emr_consent_requests
+        WHERE clinic_id=$1 AND transaction_id IS NOT NULL
+        UNION
+        SELECT t.val
+        FROM emr_consent_requests ecr,
+             jsonb_each_text(COALESCE(ecr.transaction_id_map, '{}'::jsonb)) AS t(key, val)
+        WHERE ecr.clinic_id=$1
+      )
+      ORDER BY hr.received_at DESC LIMIT 200`;
     params = [clinicId];
   }
 
