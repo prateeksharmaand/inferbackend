@@ -5,6 +5,46 @@ import { CheckCircle, Clock, User, Phone, Calendar, Hash, RefreshCw, X, Calendar
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
 
+// Live countdown timer for profile share token (1-hour window)
+function ShareTokenTimer({ expiresAt, createdAt }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const expiry     = expiresAt ? new Date(expiresAt).getTime() : (new Date(createdAt).getTime() + 3600_000);
+  const remaining  = expiry - now;
+  const expired    = remaining <= 0;
+  const totalMs    = 3600_000;
+  const elapsed    = totalMs - Math.max(0, remaining);
+  const pct        = Math.min(100, (elapsed / totalMs) * 100);
+  const color      = expired ? '#dc2626' : remaining < 10 * 60000 ? '#f59e0b' : '#7c3aed';
+
+  const fmt = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+          {expired ? '⚠ Expired' : '⏱ Token valid'}
+        </span>
+        <span style={{ fontSize: 10, fontWeight: 800, color, fontFamily: 'monospace' }}>
+          {expired ? 'Expired' : fmt(remaining)}
+        </span>
+      </div>
+      <div style={{ height: 3, borderRadius: 2, background: '#e2e8f0' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width 1s linear' }} />
+      </div>
+    </div>
+  );
+}
+
 const inp = { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box' };
 const label = { fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 };
 
@@ -159,6 +199,7 @@ export default function ProfileShares() {
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1e293b', truncate: true }}>{share.name || 'Unknown'}</p>
                   {share.abha_number && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#7c3aed', fontFamily: 'monospace' }}>{share.abha_number}</p>}
                   <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>{new Date(share.created_at).toLocaleTimeString()}</p>
+                  <ShareTokenTimer expiresAt={share.token_expires_at} createdAt={share.created_at} />
                 </div>
                 <button onClick={e => { e.stopPropagation(); dismiss(share); }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', padding: 2, flexShrink: 0 }}>
