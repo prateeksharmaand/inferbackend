@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Clock, Activity, FileText, Syringe, Minimize2, ChevronLeft, FlaskConical, Shield, Send, Plus } from 'lucide-react';
+import { X, Clock, Activity, FileText, Syringe, Minimize2, ChevronLeft, FlaskConical, Shield, Send, Plus, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
 import s from './PatientContextPanel.module.css';
@@ -860,8 +860,36 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
     </div>
   );
 
+  // Pull-to-refresh state
+  const [pullStart, setPullStart] = useState(null);
+  const [pulling, setPulling] = useState(false);
+  const PULL_THRESHOLD = 60;
+
+  const onTouchStart = (e) => setPullStart(e.touches[0].clientY);
+  const onTouchMove = (e) => {
+    if (!pullStart) return;
+    const delta = e.touches[0].clientY - pullStart;
+    if (delta > PULL_THRESHOLD) setPulling(true);
+  };
+  const onTouchEnd = () => {
+    if (pulling) { load(); }
+    setPullStart(null);
+    setPulling(false);
+  };
+
   return (
-    <div style={{ padding: '8px 0' }}>
+    <div
+      style={{ padding: '8px 0' }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {pulling && (
+        <div style={{ textAlign: 'center', padding: '6px 0', fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>
+          ↓ Release to refresh
+        </div>
+      )}
+
       <div style={{ padding: '0 12px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: '#94a3b8' }}>
           {consents.some(c => c.status === 'REQUESTED')               && '⏳ Waiting for patient to grant…'}
@@ -870,10 +898,16 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
           {consents.some(c => c.status === 'HEALTH_INFO_RECEIVED')    && '📥 Records received, loading…'}
           {consents.some(c => c.status === 'COMPLETED')               && '✓ Records delivered'}
         </span>
-        <button onClick={() => setShowModal(true)}
-          style={{ padding: '6px 12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Plus size={12} /> Request
-        </button>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button onClick={load} title="Refresh"
+            style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+            <RefreshCw size={12} style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }} />
+          </button>
+          <button onClick={() => setShowModal(true)}
+            style={{ padding: '6px 12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Plus size={12} /> Request
+          </button>
+        </div>
       </div>
 
       {loading && !consents.length ? (
