@@ -23,7 +23,7 @@ function _callFidelius(args) {
       fullCommand: cmd.join(' '),
     });
 
-    const JVM_HEAP = process.env.FIDELIUS_JVM_HEAP || '128m';
+    const JVM_HEAP = process.env.FIDELIUS_JVM_HEAP || '64m';
     execFile('java', ['-Xms32m', `-Xmx${JVM_HEAP}`, '-XX:+UseSerialGC', '-XX:+TieredCompilation', '-XX:TieredStopAtLevel=1', '-cp', FIDELIUS_CP, 'com.mgrm.fidelius.FideliusApplication', ...args],
       { maxBuffer: 10 * 1024 * 1024, timeout: 30_000, killSignal: 'SIGKILL' },
       (err, stdout, stderr) => {
@@ -1395,13 +1395,24 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     }));
 
     entries.push(...batchResults);
-    logger.info('[ENCRYPT] batch complete', { completedSoFar: entries.length, total: careContexts.length });
-    // Give the OS time to fully reclaim JVM resources before spawning the next JVM.
-    const interBatchDelay = parseInt(process.env.FIDELIUS_INTER_BATCH_DELAY_MS || '1500', 10);
+    const mem = process.memoryUsage();
+    logger.info('[ENCRYPT] batch complete', {
+      completedSoFar: entries.length,
+      total: careContexts.length,
+      heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+      rssMB: Math.round(mem.rss / 1024 / 1024),
+      externalMB: Math.round(mem.external / 1024 / 1024),
+    });
+
     if (i + ENCRYPT_CONCURRENCY < careContexts.length) {
+      const interBatchDelay = parseInt(process.env.FIDELIUS_INTER_BATCH_DELAY_MS || '1500', 10);
+      logger.info('[ENCRYPT] inter-batch delay start', { nextBatch: i + ENCRYPT_CONCURRENCY, delayMs: interBatchDelay });
       await new Promise(r => setTimeout(r, interBatchDelay));
+      logger.info('[ENCRYPT] inter-batch delay end', { nextBatch: i + ENCRYPT_CONCURRENCY });
     }
   }
+  logger.info('[ENCRYPT] all batches complete', { totalEntries: entries.length });
 
   // Build respondingKeyMaterial once from the shared batch key pair
   const respondingKeyMaterial = {
