@@ -736,13 +736,18 @@ const consentNotify = async (req, res) => {
           }
         }
 
-        // Tier 2: Call ABDM API to expand the first artefact (works for external HIPs too)
+        // Tier 2: Call ABDM API to expand the first artefact (works for external HIPs too).
+        // Retry up to 3 times with 2s delay — ABDM sandbox sometimes 404s immediately after grant.
         if (!hipRaw) {
           logger.info('HIU consent: no local artifact found — calling ABDM to expand first artefact', {
             artefactId: allArtefactIds[0],
             consentRequestId,
           });
-          const expanded = await abdm.fetchConsentArtefact(allArtefactIds[0]);
+          let expanded = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try { expanded = await abdm.fetchConsentArtefact(allArtefactIds[0]); if (expanded) break; } catch { /* retry */ }
+            if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
+          }
           if (expanded?.permission?.dateRange) {
             permissionDateRange = expanded.permission.dateRange;
             logger.info('HIU consent: dateRange from ABDM artefact expansion', {
@@ -756,14 +761,19 @@ const consentNotify = async (req, res) => {
               [JSON.stringify(permissionDateRange), consentRequestId]
             ).catch(() => {});
           } else {
-            // No local artifact AND ABDM expansion failed → wait for own HIP to notify
+            // No local artifact AND ABDM expansion failed → wait for own HIP to notify.
+            // CRITICAL: also save artefact IDs so the HIP re-trigger lookup can find this consent.
             logger.warn('HIU consent: ABDM expansion failed — marking AWAITING_HIP_METADATA (will retry when own HIP notifies)', {
               consentRequestId,
               artefactIds: allArtefactIds,
             });
             await pool.query(
-              `UPDATE emr_consent_requests SET status='AWAITING_HIP_METADATA', updated_at=NOW() WHERE request_id=$1 OR abdm_request_id=$1`,
-              [consentRequestId]
+              `UPDATE emr_consent_requests
+               SET status='AWAITING_HIP_METADATA',
+                   artefacts = COALESCE(artefacts, $2::jsonb),
+                   updated_at = NOW()
+               WHERE request_id=$1 OR abdm_request_id=$1`,
+              [consentRequestId, JSON.stringify(allArtefactIds.map(id => ({ id })))]
             ).catch(() => {});
             return;
           }
