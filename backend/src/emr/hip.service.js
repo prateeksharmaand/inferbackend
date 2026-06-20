@@ -1062,103 +1062,49 @@ function _buildSpki(rawPub65) {
   return seq(Buffer.concat([algId, bit(rawPub65)]));
 }
 
-// Encrypt one FHIR bundle entry using fidelius-cli (reference BouncyCastle implementation).
-// Delegates to the JAR via subprocess so crypto is byte-for-byte compatible with ABDM.
+// Encrypt one FHIR bundle entry using pure Node.js — identical algorithm to fidelius-cli:
+//   1. ECDH on Weierstrass-Curve25519: sharedSecret = x-coord(hipPriv * hiuPub)
+//   2. XOR the two 32-byte nonces
+//   3. AES-256 key = SHA-256(xoredNonce || sharedSecret)
+//   4. AES-256-GCM encrypt with IV = xoredNonce[0:12], tag appended to ciphertext
 // hipKeyPair is generated ONCE per batch (see pushHealthData) and reused for all entries.
 // ABDM spec §4.3: one keyMaterial per push batch — all entries must use the same ephemeral key.
-async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
+function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
   const { hipPrivBase64, hipPubBytes, hipNonce } = hipKeyPair;
 
-  // Validate inputs before file write
-  if (!plaintext || typeof plaintext !== 'string') {
-    throw new Error(`Invalid plaintext: type=${typeof plaintext}, length=${plaintext?.length}`);
-  }
-  if (!hiuPubKeyBase64 || typeof hiuPubKeyBase64 !== 'string') {
-    throw new Error(`Invalid hiuPubKeyBase64: type=${typeof hiuPubKeyBase64}, length=${hiuPubKeyBase64?.length}`);
-  }
-  if (!hiuNonceBase64 || typeof hiuNonceBase64 !== 'string') {
-    throw new Error(`Invalid hiuNonceBase64: type=${typeof hiuNonceBase64}, length=${hiuNonceBase64?.length}`);
-  }
-  if (!hipPrivBase64 || typeof hipPrivBase64 !== 'string') {
-    throw new Error(`Invalid hipPrivBase64: type=${typeof hipPrivBase64}, length=${hipPrivBase64?.length}`);
-  }
-
-  // hiuPubKeyBase64 should be either:
-  // 1. Already extracted EC point (65 bytes uncompressed: 0x04 + X + Y) from caller
-  // 2. Raw key in some other format
-  // The EC point extraction happens in pushHealthData before calling this function.
-
-  // SEC-012: write PHI to a restricted subdirectory, delete synchronously after use
-  const tmpDir = path.join(os.tmpdir(), 'fidelius-hip');
-  fs.mkdirSync(tmpDir, { recursive: true, mode: 0o700 });
-  const tmpFile = path.join(tmpDir, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.txt`);
-
-  const inputLines = [
-    'e',                           // command must be first line when using -f
-    plaintext,
-    hipNonce.toString('base64'),   // sender nonce (HIP) — same for all entries in batch
-    hiuNonceBase64,                // requester nonce (HIU)
-    hipPrivBase64,                 // sender private key (HIP)
-    hiuPubKeyBase64,               // requester public key (HIU) — SPKI DER base64
-  ];
-
-  const inputContent = inputLines.join('\n');
-
-  logger.info('[ENCRYPT] input file content validation', {
-    lineCount: inputLines.length,
-    totalLength: inputContent.length,
-    line0: inputLines[0],
-    line1Len: inputLines[1].length,
-    line2Len: inputLines[2].length,
-    line3Len: inputLines[3].length,
-    line4Len: inputLines[4].length,
-    line5Len: inputLines[5].length,
-  });
-
-  fs.writeFileSync(tmpFile, inputContent, { mode: 0o600 });
-
   try {
-    // Verify public key and nonce before sending to fidelius
-    logger.info('[ENCRYPT] pre-fidelius verification', {
-      plaintextLen: plaintext.length,
-      hiuPubKeyLen: hiuPubKeyBase64?.length,
-      hiuNonceLen: hiuNonceBase64?.length,
-      hipPubBytesLen: hipPubBytes.length,
-      hipNonceLen: hipNonce.length,
-      hiuPubKeyIsBase64: /^[A-Za-z0-9+/=]+$/.test(hiuPubKeyBase64 ?? ''),
-      hiuNonceIsBase64: /^[A-Za-z0-9+/=]+$/.test(hiuNonceBase64 ?? ''),
-    });
+    // 1. Recover HIP private scalar from base64
+    const hipPrivBytes = Buffer.from(hipPrivBase64, 'base64');
+    const hipPrivScalar = BigInt('0x' + hipPrivBytes.toString('hex'));
 
-    const raw = await _callFidelius(['-f', tmpFile]);
+    // 2. Decode HIU public point (65-byte uncompressed 0x04 || X || Y)
+    const hiuPubBytes = Buffer.from(hiuPubKeyBase64, 'base64');
+    const hiuPubPoint = _c25519W.ProjectivePoint.fromHex(hiuPubBytes);
 
-    // Validate raw output before JSON.parse
-    logger.info('[ENCRYPT] fidelius output received', {
-      rawLength: raw.length,
-      rawPrefix: raw.slice(0, 100),
-      isJsonLike: raw.startsWith('{'),
-    });
+    // 3. ECDH: shared point = hipPriv * hiuPub; shared secret = x-coordinate (32 bytes BE)
+    const sharedPoint = hiuPubPoint.multiply(hipPrivScalar);
+    const sharedSecretHex = sharedPoint.toAffine().x.toString(16).padStart(64, '0');
+    const sharedSecret = Buffer.from(sharedSecretHex, 'hex');
 
-    if (!raw || raw.length === 0) {
-      throw new Error('fidelius-cli returned empty string');
-    }
+    // 4. XOR the two 32-byte nonces (HIP sender nonce XOR HIU requester nonce)
+    const hiuNonceBytes = Buffer.from(hiuNonceBase64, 'base64');
+    const xoredNonce = Buffer.alloc(32);
+    for (let i = 0; i < 32; i++) xoredNonce[i] = hipNonce[i] ^ hiuNonceBytes[i];
 
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (parseErr) {
-      logger.error('[ENCRYPT] JSON.parse failed', {
-        rawLength: raw.length,
-        raw: raw.slice(0, 500),
-        parseError: parseErr.message,
-      });
-      throw parseErr;
-    }
+    // 5. Derive AES-256 key: SHA-256(xoredNonce || sharedSecret)
+    const aesKey = crypto.createHash('sha256').update(xoredNonce).update(sharedSecret).digest();
 
-    const encryptedData = parsed.encryptedData ?? raw;
-    logger.info('[ENCRYPT] fidelius-cli encrypt ok', {
+    // 6. AES-256-GCM: IV = first 12 bytes of xoredNonce, 128-bit tag appended to ciphertext
+    const iv = xoredNonce.slice(0, 12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+    const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag(); // 16 bytes
+
+    const encryptedData = Buffer.concat([ciphertext, tag]).toString('base64');
+
+    logger.info('[ENCRYPT] native encrypt ok', {
       plaintextLen: plaintext.length,
       encLen: encryptedData.length,
-      parsedKeys: Object.keys(parsed),
     });
 
     return {
@@ -1167,16 +1113,11 @@ async function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPai
       hipNonce:     hipNonce.toString('base64'),
     };
   } catch (err) {
-    // R2-005: NEVER fall back to base64 — that is unencrypted PHI.
-    logger.error('[ENCRYPT] fidelius-cli encrypt FAILED — aborting health data push', {
+    logger.error('[ENCRYPT] native encrypt FAILED — aborting health data push', {
       error: err.message,
-      errorStack: err.stack?.slice(0, 500),
+      errorStack: err.stack?.slice(0, 300),
     });
-    throw new Error(`Fidelius encryption failed: ${err.message}`);
-  } finally {
-    try { fs.unlinkSync(tmpFile); } catch (e) {
-      logger.error('CRITICAL: failed to delete fidelius PHI tmpfile', { tmpFile, error: e.message });
-    }
+    throw new Error(`Encryption failed: ${err.message}`);
   }
 }
 
@@ -1343,7 +1284,8 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   // Process sequentially to avoid spawning N concurrent JVMs (OOM risk with 14+ bundles).
   // Each fidelius-cli JVM uses ~256-512 MB; parallel execution caused silent process death
   // where the last bundle's execFile callback fired but the JS continuation never ran.
-  const ENCRYPT_CONCURRENCY = parseInt(process.env.HIP_ENCRYPT_CONCURRENCY || '2', 10);
+  // Native crypto: no JVM limit — process all entries concurrently
+  const ENCRYPT_CONCURRENCY = parseInt(process.env.HIP_ENCRYPT_CONCURRENCY || '14', 10);
   logger.info('[ENCRYPT] starting batch encryption', {
     totalBundles: careContexts.length,
     concurrency: ENCRYPT_CONCURRENCY,
@@ -1405,12 +1347,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       externalMB: Math.round(mem.external / 1024 / 1024),
     });
 
-    if (i + ENCRYPT_CONCURRENCY < careContexts.length) {
-      const interBatchDelay = parseInt(process.env.FIDELIUS_INTER_BATCH_DELAY_MS || '1500', 10);
-      logger.info('[ENCRYPT] inter-batch delay start', { nextBatch: i + ENCRYPT_CONCURRENCY, delayMs: interBatchDelay });
-      await new Promise(r => setTimeout(r, interBatchDelay));
-      logger.info('[ENCRYPT] inter-batch delay end', { nextBatch: i + ENCRYPT_CONCURRENCY });
-    }
+    // No inter-batch delay needed — native crypto has no JVM spawning overhead.
   }
   logger.info('[ENCRYPT] all batches complete', { totalEntries: entries.length });
 
