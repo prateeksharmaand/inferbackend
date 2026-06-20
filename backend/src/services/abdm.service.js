@@ -757,6 +757,11 @@ function _formatAbhaNumber(raw) {
 }
 
 async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts, patientId) {
+  if (!linkToken || linkToken === 'undefined' || linkToken === 'null') {
+    const err = new Error(`linkCareContexts: X-LINK-TOKEN is required but got: "${linkToken}"`);
+    err.status = 400;
+    throw err;
+  }
   const token = await getGatewayToken();
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
 
