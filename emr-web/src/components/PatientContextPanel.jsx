@@ -391,8 +391,12 @@ const PURPOSE_OPTIONS = [
   { value: 'DSRCH',   label: 'Disease Research' },
 ];
 const STATUS_CFG_C = {
-  REQUESTED: { label: 'Requested', color: '#d97706', bg: '#fffbeb' },
-  GRANTED:   { label: 'Granted',   color: '#16a34a', bg: '#f0fdf4' },
+  REQUESTED:             { label: 'Requested',          color: '#d97706', bg: '#fffbeb' },
+  AWAITING_HIP_METADATA: { label: 'Pending HIP',        color: '#7c3aed', bg: '#f5f3ff' },
+  GRANTED:               { label: 'Granted',             color: '#16a34a', bg: '#f0fdf4' },
+  REVOKED:               { label: 'Revoked',             color: '#dc2626', bg: '#fef2f2' },
+  EXPIRED:               { label: 'Expired',             color: '#94a3b8', bg: '#f8fafc' },
+  DENIED:                { label: 'Denied',              color: '#dc2626', bg: '#fef2f2' },
   DENIED:    { label: 'Denied',    color: '#dc2626', bg: '#fef2f2' },
   REVOKED:   { label: 'Revoked',   color: '#dc2626', bg: '#fef2f2' },
   EXPIRED:   { label: 'Expired',   color: '#64748b', bg: '#f8fafc' },
