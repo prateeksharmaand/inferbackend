@@ -705,68 +705,103 @@ const consentNotify = async (req, res) => {
           || null;
       }
 
-      // CRITICAL FIX: Query HIP's stored artifact to get permission metadata
-      // ABDM's on-notify callback is MINIMAL (only {id, status, consentRequestId})
-      // The HIP side stores the COMPLETE notification in hip_consent_artifacts.raw
-      logger.info('HIU consent GRANTED: querying HIP artifact for permission metadata', {
-        consentRequestId,
-        artefactId: notification.consentArtefacts?.[0]?.id,
-      });
-
-      const artefactId = notification.consentArtefacts?.[0]?.id || consentRequestId;
-      const { rows: hipArtifacts } = await pool.query(
-        `SELECT raw FROM hip_consent_artifacts WHERE consent_id=$1 LIMIT 1`,
-        [artefactId]
-      ).catch(() => ({ rows: [] }));
-
-      // Extract permission.dateRange from HIP's stored notification
+      // Get permission.dateRange for health-info requests (prevents ABDM-1063).
+      // For multi-HIP consents, artefacts[0] may belong to an EXTERNAL HIP whose
+      // artifact is NEVER stored in our hip_consent_artifacts table.
+      // Strategy: scan ALL artefacts for one we have locally (own HIP), then
+      // fall back to ABDM API expansion for external HIPs.
       if (!permissionDateRange?.from || !permissionDateRange?.to) {
-        const hipRaw = hipArtifacts[0]?.raw;
-        if (hipRaw) {
-          const hipPermission = hipRaw.consentDetail?.permission
-            ?? hipRaw.permission
-            ?? null;
+        const allArtefactIds = notification.consentArtefacts.map(a => a.id);
 
+        logger.info('HIU consent GRANTED: scanning all artefacts for permission metadata', {
+          consentRequestId,
+          artefactCount: allArtefactIds.length,
+          artefactIds: allArtefactIds,
+        });
+
+        // Tier 1: Check our own hip_consent_artifacts for ANY of the artefacts
+        let hipRaw = null;
+        let foundArtefactId = null;
+        for (const artId of allArtefactIds) {
+          const { rows } = await pool.query(
+            `SELECT raw FROM hip_consent_artifacts WHERE consent_id=$1 LIMIT 1`,
+            [artId]
+          ).catch(() => ({ rows: [] }));
+          if (rows[0]?.raw) {
+            hipRaw = rows[0].raw;
+            foundArtefactId = artId;
+            logger.info('HIU consent: found own HIP artifact', { artefactId: artId, consentRequestId });
+            break;
+          }
+        }
+
+        // Tier 2: Call ABDM API to expand the first artefact (works for external HIPs too)
+        if (!hipRaw) {
+          logger.info('HIU consent: no local artifact found — calling ABDM to expand first artefact', {
+            artefactId: allArtefactIds[0],
+            consentRequestId,
+          });
+          const expanded = await abdm.fetchConsentArtefact(allArtefactIds[0]);
+          if (expanded?.permission?.dateRange) {
+            permissionDateRange = expanded.permission.dateRange;
+            logger.info('HIU consent: dateRange from ABDM artefact expansion', {
+              consentRequestId,
+              artefactId: allArtefactIds[0],
+              dateRangeFrom: permissionDateRange.from,
+              dateRangeTo: permissionDateRange.to,
+            });
+            await pool.query(
+              `UPDATE emr_consent_requests SET permission_date_range=$1, updated_at=NOW() WHERE request_id=$2 OR abdm_request_id=$2`,
+              [JSON.stringify(permissionDateRange), consentRequestId]
+            ).catch(() => {});
+          } else {
+            // No local artifact AND ABDM expansion failed → wait for own HIP to notify
+            logger.warn('HIU consent: ABDM expansion failed — marking AWAITING_HIP_METADATA (will retry when own HIP notifies)', {
+              consentRequestId,
+              artefactIds: allArtefactIds,
+            });
+            await pool.query(
+              `UPDATE emr_consent_requests SET status='AWAITING_HIP_METADATA', updated_at=NOW() WHERE request_id=$1 OR abdm_request_id=$1`,
+              [consentRequestId]
+            ).catch(() => {});
+            return;
+          }
+        } else {
+          // Extract from local HIP artifact
+          const hipPermission = hipRaw.consentDetail?.permission ?? hipRaw.permission ?? null;
           if (hipPermission?.dateRange) {
             permissionDateRange = hipPermission.dateRange;
             logger.info('HIU consent: extracted permission.dateRange from HIP artifact', {
               consentRequestId,
+              artefactId: foundArtefactId,
               source: 'hip_consent_artifacts.raw',
               dateRangeFrom: permissionDateRange.from,
               dateRangeTo: permissionDateRange.to,
             });
-            // Store the extracted dateRange
             await pool.query(
               `UPDATE emr_consent_requests SET permission_date_range=$1, updated_at=NOW() WHERE request_id=$2 OR abdm_request_id=$2`,
               [JSON.stringify(permissionDateRange), consentRequestId]
-            ).catch(err => logger.warn('HIU consent: failed to store extracted dateRange', { error: err.message }));
+            ).catch(() => {});
           } else {
-            logger.error('HIU consent GRANTED but permission.dateRange missing from HIP artifact', {
-              consentRequestId,
-              artefactId,
-              hipHasConsentDetail: !!hipRaw.consentDetail,
-              hipHasPermission: !!hipRaw.permission,
-            });
-            // Mark consent as invalid if no permission data from HIP
-            await pool.query(
-              `UPDATE emr_consent_requests SET status='INVALID_METADATA', updated_at=NOW() WHERE request_id=$1 OR abdm_request_id=$1`,
-              [consentRequestId]
-            ).catch(err => logger.warn('HIU consent: failed to mark invalid metadata', { error: err.message }));
-            // Skip health-info fetch to prevent ABDM-1063
-            return;
+            // Local artifact exists but has no permission — try ABDM expansion
+            const expanded = await abdm.fetchConsentArtefact(allArtefactIds[0]);
+            if (expanded?.permission?.dateRange) {
+              permissionDateRange = expanded.permission.dateRange;
+              await pool.query(
+                `UPDATE emr_consent_requests SET permission_date_range=$1, updated_at=NOW() WHERE request_id=$2 OR abdm_request_id=$2`,
+                [JSON.stringify(permissionDateRange), consentRequestId]
+              ).catch(() => {});
+            } else {
+              logger.error('HIU consent GRANTED but permission.dateRange unavailable from all sources', {
+                consentRequestId, artefactIds: allArtefactIds,
+              });
+              await pool.query(
+                `UPDATE emr_consent_requests SET status='INVALID_METADATA', updated_at=NOW() WHERE request_id=$1 OR abdm_request_id=$1`,
+                [consentRequestId]
+              ).catch(() => {});
+              return;
+            }
           }
-        } else {
-          logger.error('HIU consent GRANTED but HIP artifact not yet stored', {
-            consentRequestId,
-            artefactId,
-          });
-          // Consent processed but HIP hasn't notified yet - retry later
-          // For now, mark as needing metadata
-          await pool.query(
-            `UPDATE emr_consent_requests SET status='AWAITING_HIP_METADATA', updated_at=NOW() WHERE request_id=$1 OR abdm_request_id=$1`,
-            [consentRequestId]
-          ).catch(err => logger.warn('HIU consent: failed to mark awaiting metadata', { error: err.message }));
-          return;
         }
       }
 
