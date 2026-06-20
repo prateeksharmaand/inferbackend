@@ -840,7 +840,7 @@ const handlePatientShareProfile = async (req, res) => {
          (request_id, share_code, abha_number, abha_address, name, mobile, gender, dob, raw_profile, token_hash, token_expires_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        ON CONFLICT (request_id) DO NOTHING`,
-      [requestId, profile?.shareCode || null, abhaNumber, abhaAddress, name, mobile, gender, dob, profile || {}, tokenHash, tokenExpiresAt]
+      [requestId, token, abhaNumber, abhaAddress, name, mobile, gender, dob, profile || {}, tokenHash, tokenExpiresAt]
     );
 
     await hip.sendShareProfileAck({

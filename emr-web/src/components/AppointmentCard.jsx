@@ -320,8 +320,8 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </button>
           </div>
 
-          {/* ── Profile share token timer — all booked appointments ── */}
-          {appt.status === 'booked' && (
+          {/* ── Profile share token timer — only for scan-and-share appointments ── */}
+          {appt.status === 'booked' && appt.share_token_code && (
             <TokenExpiryTimer expiresAt={appt.share_token_expires_at} createdAt={appt.created_at} tokenCode={appt.share_token_code} />
           )}
 
