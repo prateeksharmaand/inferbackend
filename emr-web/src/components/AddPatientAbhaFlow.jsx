@@ -6,11 +6,33 @@ import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
 
+// ── Global animation styles injected once ─────────────────────────────────────
+if (typeof document !== 'undefined' && !document.getElementById('abha-flow-styles')) {
+  const s = document.createElement('style');
+  s.id = 'abha-flow-styles';
+  s.textContent = `
+    @keyframes abhaFadeIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes abhaSlideIn { from { opacity:0; transform:translateX(18px);} to { opacity:1; transform:translateX(0); } }
+    @keyframes abhaPulse   { 0%,100%{transform:scale(1);opacity:1;} 50%{transform:scale(1.25);opacity:.6;} }
+    @keyframes abhaFloat   { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
+    @keyframes abhaSpinner { to { transform:rotate(360deg); } }
+    @keyframes abhaBounce  { 0%,100%{transform:translateY(0);} 40%{transform:translateY(-8px);} 70%{transform:translateY(-4px);} }
+    .abha-fade-in  { animation: abhaFadeIn  0.28s ease both; }
+    .abha-slide-in { animation: abhaSlideIn 0.24s ease both; }
+    .abha-float    { animation: abhaFloat   3s ease-in-out infinite; }
+    .abha-option:hover { border-color: #7c3aed !important; background: #faf5ff !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(124,58,237,.12); }
+    .abha-option { transition: all 0.18s ease; }
+    .abha-tab-btn:hover { color: #7c3aed !important; }
+  `;
+  document.head.appendChild(s);
+}
+
 // ── Shared styles ──────────────────────────────────────────────────────────────
-const inp = { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box' };
-const primaryBtn = (disabled) => ({ width: '100%', padding: '11px', borderRadius: 8, border: 'none', background: disabled ? '#c4b5fd' : '#7c3aed', color: '#fff', fontWeight: 600, fontSize: 14, cursor: disabled ? 'not-allowed' : 'pointer' });
-const ghostBtn = { width: '100%', padding: '10px', borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontWeight: 600, fontSize: 13, cursor: 'pointer' };
-const infoBox = { background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#1d4ed8', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 };
+const inp = { width: '100%', padding: '11px 14px', borderRadius: 9, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s', fontFamily: 'inherit' };
+const primaryBtn = (disabled) => ({ width: '100%', padding: '12px', borderRadius: 9, border: 'none', background: disabled ? '#c4b5fd' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: disabled ? 'not-allowed' : 'pointer', boxShadow: disabled ? 'none' : '0 2px 8px rgba(124,58,237,.35)', transition: 'opacity 0.15s' });
+const ghostBtn = { width: '100%', padding: '11px', borderRadius: 9, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'border-color 0.15s' };
+const infoBox = { background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 9, padding: '10px 14px', fontSize: 12, color: '#1d4ed8', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 };
+const fieldLabel = { fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 5, letterSpacing: 0.2 };
 
 // Step indicator matching screenshot style
 function StepBadges({ steps, current, startAt = 2 }) {
@@ -296,7 +318,7 @@ function ShareProfileTab({ onSuccess }) {
 
       {status === 'waiting' && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: '#94a3b8' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7c3aed', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7c3aed', display: 'inline-block', animation: 'abhaPulse 1.5s ease-in-out infinite' }} />
           Waiting for patient to scan…
         </div>
       )}
@@ -372,21 +394,30 @@ function YesFlow({ onSuccess, onClose }) {
 
       {/* ABHA tab - Step 1 */}
       {tab === 'abha' && step === 1 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>ABHA Number</label>
-            <input style={inp} placeholder="e.g. 91-2345-6789-0123"
-              value={abhaInput} onChange={e => { setAbhaInput(e.target.value); if (e.target.value) setMobile(''); }} />
+        <div className="abha-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ background: 'linear-gradient(135deg,#faf5ff,#ede9fe)', borderRadius: 10, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <CreditCard size={20} color="#7c3aed" style={{ flexShrink: 0 }} />
+            <div>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#5b21b6' }}>Enter one of the following</p>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#7c3aed' }}>ABHA number OR registered mobile — not both</p>
+            </div>
           </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Mobile Number</label>
-            <input style={inp} placeholder="10-digit mobile"
-              value={mobile} onChange={e => { setMobile(e.target.value); if (e.target.value) setAbhaInput(''); }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={fieldLabel}>ABHA Number</label>
+              <input style={{ ...inp, borderColor: abhaInput ? '#7c3aed' : '#e2e8f0' }} placeholder="91-XXXX-XXXX-XXXX"
+                value={abhaInput} onChange={e => { setAbhaInput(e.target.value); if (e.target.value) setMobile(''); }} />
+            </div>
+            <div>
+              <label style={fieldLabel}>Mobile Number</label>
+              <input style={{ ...inp, borderColor: mobile ? '#7c3aed' : '#e2e8f0' }} placeholder="10-digit mobile"
+                value={mobile} onChange={e => { setMobile(e.target.value); if (e.target.value) setAbhaInput(''); }} />
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10, marginTop: 4 }}>
             <button style={ghostBtn} onClick={onClose}>Cancel</button>
-            <button style={primaryBtn(loading)} onClick={requestOtp} disabled={loading}>
-              {loading ? 'Sending OTP…' : 'Send OTP'}
+            <button style={primaryBtn(loading || (!abhaInput.trim() && !mobile.trim()))} onClick={requestOtp} disabled={loading || (!abhaInput.trim() && !mobile.trim())}>
+              {loading ? '⏳ Sending OTP…' : 'Send OTP →'}
             </button>
           </div>
         </div>
@@ -394,18 +425,22 @@ function YesFlow({ onSuccess, onClose }) {
 
       {/* ABHA tab - Step 2: Verify OTP */}
       {tab === 'abha' && step === 2 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <StepBadges steps={['Verify OTP']} current={2} />
-          <div style={infoBox}><AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /> OTP sent to registered mobile number</div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Enter OTP</label>
-            <input style={inp} placeholder="6-digit OTP" value={otp}
-              onChange={e => setOtp(e.target.value.slice(0, 6))} maxLength={6} />
+        <div className="abha-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', marginBottom: 10 }}>
+              <span style={{ fontSize: 26 }}>📱</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Check your phone</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>OTP sent to your registered mobile number</p>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button style={ghostBtn} onClick={() => setStep(1)}>Back</button>
-            <button style={primaryBtn(loading)} onClick={verifyOtp} disabled={loading}>
-              {loading ? 'Verifying…' : 'Verify & Fetch'}
+          <input
+            style={{ ...inp, textAlign: 'center', fontSize: 24, fontWeight: 700, letterSpacing: 8, padding: '14px', borderColor: otp ? '#7c3aed' : '#e2e8f0', color: '#1e293b' }}
+            placeholder="• • • • • •" value={otp}
+            onChange={e => setOtp(e.target.value.replace(/\D/g,'').slice(0, 6))} maxLength={6} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
+            <button style={ghostBtn} onClick={() => setStep(1)}>← Back</button>
+            <button style={primaryBtn(loading || otp.length < 6)} onClick={verifyOtp} disabled={loading || otp.length < 6}>
+              {loading ? '⏳ Verifying…' : 'Verify & Fetch →'}
             </button>
           </div>
         </div>
@@ -445,27 +480,32 @@ function PatientCard({ patient, onSuccess, xToken }) {
 
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="abha-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Success banner */}
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Check size={16} color="#16a34a" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: '#166534', fontWeight: 600 }}>
-            {patient.created ? 'New patient registered successfully!' : 'Patient fetched successfully!'}
-          </span>
+        <div style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1px solid #86efac', borderRadius: 10, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Check size={16} color="#fff" />
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#166534' }}>
+              {patient.created ? '🎉 New patient registered!' : '✓ Patient found'}
+            </p>
+            <p style={{ margin: '1px 0 0', fontSize: 11, color: '#15803d' }}>Health record linked to ABHA</p>
+          </div>
         </div>
 
         {/* Patient info card */}
-        <div style={{ background: '#f8fafc', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#7c3aed' }}>
+        <div style={{ background: 'linear-gradient(135deg,#faf5ff 0%,#f5f3ff 100%)', borderRadius: 12, padding: 18, border: '1.5px solid #e9d5ff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: '#fff', flexShrink: 0, boxShadow: '0 4px 12px rgba(124,58,237,.3)' }}>
               {p.name?.[0]?.toUpperCase() || '?'}
             </div>
-            <div>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: '#1e293b' }}>{p.name || 'Unknown'}</p>
-              {p.abha_number && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#7c3aed', fontFamily: 'monospace' }}>ABHA: {p.abha_number}</p>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: '#1e293b' }}>{p.name || 'Unknown'}</p>
+              {p.abha_number && <p style={{ margin: '3px 0 0', fontSize: 11, color: '#7c3aed', fontFamily: 'monospace', background: '#ede9fe', display: 'inline-block', padding: '1px 8px', borderRadius: 20 }}>ABHA: {p.abha_number}</p>}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px', background: '#fff', borderRadius: 8, padding: '12px 14px', border: '1px solid #e9d5ff' }}>
             {p.mobile       && <InfoRow label="Mobile"       value={p.mobile} />}
             {p.gender       && <InfoRow label="Gender"       value={p.gender} />}
             {p.dob          && <InfoRow label="DOB"          value={p.dob} />}
@@ -476,16 +516,16 @@ function PatientCard({ patient, onSuccess, xToken }) {
         {/* ABHA Card image */}
         {xToken && !cardImg && (
           <button style={{ ...ghostBtn, fontSize: 12 }} onClick={fetchCard} disabled={loadingCard}>
-            {loadingCard ? 'Loading ABHA Card…' : '📋 View ABHA Card'}
+            {loadingCard ? '⏳ Loading ABHA Card…' : '📋 View ABHA Health Card'}
           </button>
         )}
         {cardImg && (
-          <img src={cardImg} alt="ABHA Card" style={{ width: '100%', borderRadius: 10, border: '1px solid #e2e8f0' }} />
+          <img src={cardImg} alt="ABHA Card" style={{ width: '100%', borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,.08)' }} />
         )}
 
         {/* Book appointment */}
         <button style={primaryBtn(false)} onClick={() => setShowBook(true)}>
-          Book Appointment →
+          📅 Book Appointment →
         </button>
       </div>
 
@@ -835,28 +875,51 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
       <div style={{ padding: '24px', flex: 1, boxSizing: 'border-box', width: '100%' }}>
         {/* Step 0: Registered? */}
         {registered === null && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <p style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
-              Is the patient already registered with ABHA?
-            </p>
-            {[
-              { val: true,  title: 'Yes', desc: 'Patient already has an ABHA number, mobile, or ABHA card' },
-              { val: false, title: 'No',  desc: 'Create a new ABHA for this patient using Aadhaar' },
-            ].map(({ val, title, desc }) => (
-              <button key={title} onClick={() => setRegistered(val)}
-                style={{ padding: '16px 18px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', transition: 'border-color 0.15s' }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: '#1e293b' }}>{title}</p>
-                  <p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748b' }}>{desc}</p>
-                </div>
-                <ChevronRight size={18} color="#94a3b8" style={{ flexShrink: 0 }} />
-              </button>
-            ))}
+          <div className="abha-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {/* Hero illustration */}
+            <div style={{ textAlign: 'center', padding: '8px 0 24px' }}>
+              <div className="abha-float" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', marginBottom: 14 }}>
+                <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+                  <rect x="6" y="10" width="32" height="24" rx="4" fill="#7c3aed" opacity=".15"/>
+                  <rect x="10" y="14" width="24" height="16" rx="3" fill="#7c3aed" opacity=".25"/>
+                  <circle cx="22" cy="20" r="5" fill="#7c3aed"/>
+                  <path d="M14 30c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round"/>
+                  <rect x="28" y="8" width="10" height="14" rx="2" fill="#a78bfa"/>
+                  <line x1="30" y1="12" x2="36" y2="12" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="30" y1="15" x2="36" y2="15" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="30" y1="18" x2="34" y2="18" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Add Patient via ABHA</p>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>Does the patient already have an ABHA account?</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[
+                { val: true,  emoji: '✅', title: 'Yes, has ABHA',  desc: 'Fetch using ABHA number, mobile, QR or profile share', color: '#16a34a', bg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '#86efac' },
+                { val: false, emoji: '🆕', title: 'No, create ABHA', desc: 'Create a new ABHA for this patient via Aadhaar',         color: '#7c3aed', bg: 'linear-gradient(135deg,#faf5ff,#ede9fe)', border: '#c4b5fd' },
+              ].map(({ val, emoji, title, desc, color, bg, border }) => (
+                <button key={title} onClick={() => setRegistered(val)} className="abha-option"
+                  style={{ padding: '20px 16px', borderRadius: 12, border: `1.5px solid ${border}`, background: bg, cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' }}>
+                  <span style={{ fontSize: 28 }}>{emoji}</span>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: '#1e293b' }}>{title}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>{desc}</p>
+                  <span style={{ marginTop: 4, fontSize: 11, fontWeight: 700, color, background: '#fff', borderRadius: 20, padding: '3px 12px', border: `1px solid ${border}` }}>Select →</span>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 20, background: '#f8fafc', borderRadius: 10, padding: '12px 16px', border: '1px solid #f1f5f9' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 }}>What is ABHA?</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
+                ABHA (Ayushman Bharat Health Account) is a 14-digit unique health ID issued by NHA under ABDM. It enables patients to share health records digitally across all ABDM-compliant providers.
+              </p>
+            </div>
           </div>
         )}
 
-        {registered === true  && <YesFlow onSuccess={handleSuccess} onClose={onClose} />}
-        {registered === false && <NoFlow onSuccess={handleSuccess} onClose={onClose} />}
+        {registered === true  && <div className="abha-slide-in"><YesFlow onSuccess={handleSuccess} onClose={onClose} /></div>}
+        {registered === false && <div className="abha-slide-in"><NoFlow onSuccess={handleSuccess} onClose={onClose} /></div>}
       </div>
     </>
   );
@@ -873,10 +936,10 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(15,10,40,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16, backdropFilter: 'blur(2px)' }}
       onClick={e => e.target === e.currentTarget && onClose?.()}
     >
-      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 500, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <div className="abha-fade-in" style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 560, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,.32), 0 0 0 1px rgba(0,0,0,.06)', position: 'relative', display: 'flex', flexDirection: 'column' }}>
         {inner}
       </div>
     </div>
