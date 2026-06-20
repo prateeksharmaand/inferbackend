@@ -1313,6 +1313,17 @@ const healthInfoPush = async (req, res) => {
         }
       }
       logger.info('HIU health-info push: key lookup', { transactionId, consentId, hasKey: !!hiuKeyEntry });
+
+      // Transition to PROCESSING_HEALTH_INFO now that we have the consent ID
+      if (consentIdForAck) {
+        pool.query(
+          `UPDATE emr_consent_requests
+           SET status = 'PROCESSING_HEALTH_INFO', updated_at = NOW()
+           WHERE artefacts @> $1::jsonb
+             AND status IN ('AWAITING_HIP_METADATA','GRANTED')`,
+          [JSON.stringify([{ id: consentIdForAck }])]
+        ).catch(() => {});
+      }
     }
 
     // Pre-derive the AES key ONCE — all entries share the same hipPubKey + nonces,
@@ -1545,22 +1556,24 @@ const healthInfoPush = async (req, res) => {
     // actual transactionId. Without this update, the fast-path "records already
     // delivered" check never matches, and clicking "Fetch Medical Records" always
     // re-triggers ABDM instead of loading the stored records.
-    if (insertedCount > 0 && consentIdForAck && transactionId) {
+    if (consentIdForAck && transactionId) {
+      const newStatus = insertedCount > 0 ? 'HEALTH_INFO_RECEIVED' : 'AWAITING_HIP_METADATA';
       pool.query(
         `UPDATE emr_consent_requests
          SET transaction_id     = $1,
              transaction_id_map = COALESCE(transaction_id_map, '{}'::jsonb) || $2::jsonb,
+             status             = $4,
              updated_at         = NOW()
          WHERE clinic_id IS NOT NULL
-           AND status = 'GRANTED'
            AND artefacts @> $3::jsonb`,
         [
           transactionId,
           JSON.stringify({ [consentIdForAck]: transactionId }),
           JSON.stringify([{ id: consentIdForAck }]),
+          newStatus,
         ]
-      ).then(r => logger.info('HIU: consent txnId updated', { transactionId, consentIdForAck, rowsUpdated: r.rowCount }))
-       .catch(e => logger.warn('HIU: consent txnId update failed (non-fatal)', { error: e.message }));
+      ).then(r => logger.info('HIU: consent status updated', { transactionId, consentIdForAck, newStatus, rowsUpdated: r.rowCount }))
+       .catch(e => logger.warn('HIU: consent status update failed (non-fatal)', { error: e.message }));
     }
 
     // Step 9: HIU sends notification to ABDM acknowledging receipt of health data
@@ -1586,10 +1599,28 @@ const healthInfoPush = async (req, res) => {
         },
       };
       abdm.gwReqSilent('POST', `${process.env.ABDM_GATEWAY_URL || 'https://dev.abdm.gov.in/gateway'}/v0.5/health-information/notify`, notifyPayload)
+        .then(() => {
+          // Transition to COMPLETED after ABDM notified successfully
+          if (consentIdForAck && transactionId) {
+            pool.query(
+              `UPDATE emr_consent_requests SET status='COMPLETED', updated_at=NOW()
+               WHERE artefacts @> $1::jsonb AND status='HEALTH_INFO_RECEIVED'`,
+              [JSON.stringify([{ id: consentIdForAck }])]
+            ).catch(() => {});
+          }
+        })
         .catch(err => logger.warn('HIU health-info notify failed (non-critical)', { error: err.message }));
     }
   } catch (err) {
     if (pushClient) { pushClient.release(true); pushClient = null; }
+    // Transition to FAILED on unhandled push error
+    if (consentIdForAck) {
+      pool.query(
+        `UPDATE emr_consent_requests SET status='FAILED', updated_at=NOW()
+         WHERE artefacts @> $1::jsonb AND status NOT IN ('COMPLETED','HEALTH_INFO_RECEIVED')`,
+        [JSON.stringify([{ id: consentIdForAck }])]
+      ).catch(() => {});
+    }
     logger.error('healthInfoPush error', { message: err.message, stack: err.stack?.slice(0, 300) });
   }
 };
@@ -1902,6 +1933,52 @@ const debugConsentDetails = async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 };
+
+// ── Health-info request timeout background job ────────────────────────────────
+// Runs every 5 minutes. Transitions stale AWAITING_HIP_METADATA and
+// PROCESSING_HEALTH_INFO consents based on the user's state machine:
+//   - Any HIP responding → HEALTH_INFO_RECEIVED (done in healthInfoPush)
+//   - All HIPs responded → COMPLETED
+//   - Some responded + some timed out → PARTIALLY_COMPLETED
+//   - None responded (all timed out) → FAILED
+//   - Timeout window: 15 minutes from last status change
+setInterval(async () => {
+  try {
+    // Transition AWAITING_HIP_METADATA consents older than 15 minutes
+    // These are consents where the HIP never responded at all
+    const { rows: timedOut } = await pool.query(`
+      UPDATE emr_consent_requests
+      SET status = 'FAILED', updated_at = NOW()
+      WHERE status = 'AWAITING_HIP_METADATA'
+        AND updated_at < NOW() - INTERVAL '15 minutes'
+      RETURNING request_id, patient_abha
+    `);
+    if (timedOut.length) {
+      logger.warn('Health-info timeout: HIPs never responded', {
+        count: timedOut.length,
+        requestIds: timedOut.map(r => r.request_id),
+      });
+    }
+
+    // Transition PROCESSING_HEALTH_INFO consents older than 15 minutes to
+    // PARTIALLY_COMPLETED — some HIPs responded, others timed out
+    const { rows: partial } = await pool.query(`
+      UPDATE emr_consent_requests
+      SET status = 'PARTIALLY_COMPLETED', updated_at = NOW()
+      WHERE status = 'PROCESSING_HEALTH_INFO'
+        AND updated_at < NOW() - INTERVAL '15 minutes'
+      RETURNING request_id, patient_abha
+    `);
+    if (partial.length) {
+      logger.info('Health-info timeout: partial completion — showing available records', {
+        count: partial.length,
+        requestIds: partial.map(r => r.request_id),
+      });
+    }
+  } catch (e) {
+    logger.warn('Health-info timeout job error (non-fatal)', { error: e.message });
+  }
+}, 5 * 60 * 1000); // check every 5 minutes
 
 module.exports = {
   aadhaarGenerateOtp, aadhaarVerifyOtp,
