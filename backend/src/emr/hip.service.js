@@ -1108,11 +1108,13 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
       encLen: encryptedData.length,
     });
 
-    return {
-      encryptedData,
-      hipPublicKey: _buildSpki(hipPubBytes).toString('base64'),
-      hipNonce:     hipNonce.toString('base64'),
-    };
+    // Return only encryptedData — hipPublicKey and hipNonce are shared across
+    // ALL entries (same hipKeyPair) and are built once by the caller after the
+    // loop into respondingKeyMaterial. Computing _buildSpki() here per-entry
+    // allocated ~10 intermediate Buffers × 14 entries and was silently discarded
+    // by the caller (only encryptedData is destructured), triggering a major GC
+    // pause on the 14th call that blocked the microtask queue indefinitely.
+    return { encryptedData };
   } catch (err) {
     logger.error('[ENCRYPT] native encrypt FAILED — aborting health data push', {
       error: err.message,
