@@ -648,6 +648,7 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE health_records ADD COLUMN IF NOT EXISTS hi_type VARCHAR(50)`);
     await client.query(`ALTER TABLE hip_health_requests ADD COLUMN IF NOT EXISTS hiu_key_material JSONB`);
     await client.query(`ALTER TABLE emr_consent_requests ADD COLUMN IF NOT EXISTS hiu_key_material JSONB`);
+    await client.query(`ALTER TABLE emr_consent_requests ADD COLUMN IF NOT EXISTS permission_date_range JSONB`);
     // ON CONFLICT requires a non-deferrable unique constraint — recreate if deferrable
     await client.query(`ALTER TABLE emr_care_contexts DROP CONSTRAINT IF EXISTS uq_care_ctx_ref_num`);
     await client.query(`ALTER TABLE emr_care_contexts ADD CONSTRAINT uq_care_ctx_ref_num UNIQUE (reference_number)`);

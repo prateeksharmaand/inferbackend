@@ -30,13 +30,13 @@ async function fetchLOINC(query) {
   } catch { return []; }
 }
 
-// Drug search: single backend call that proxies eka.care → NLM fallback
-async function fetchDrugs(query) {
+async function fetchRxTerms(query) {
   try {
-    const r = await fetch(`/api/emr/autocomplete/drugs?q=${encodeURIComponent(query)}`);
-    if (!r.ok) throw new Error('non-200');
+    const r = await fetch(`${NLM}/rxterms/v3/search?terms=${encodeURIComponent(query)}&ef=STRENGTHS_AND_FORMS&maxList=12`);
     const data = await r.json();
-    return data.map(d => ({ ...d, label: d.name }));
+    const rows = data[3] || [];
+    const strengths = (data[2] && data[2].STRENGTHS_AND_FORMS) || [];
+    return rows.map((row, i) => ({ name: row[0], strength: (strengths[i] || []).join(', '), label: row[0] }));
   } catch { return []; }
 }
 
@@ -715,7 +715,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
                 <div key={i} className={styles.medCard}>
                   <div className={styles.medCardRow}>
                     <div className={styles.medNameCell}><label>Medicine</label>
-                      <AutocompleteInput value={m.name} onChange={v => updateMed(i, 'name', v)} onSelect={item => { updateMed(i, 'name', item.name); if (item.strength && !m.dose) updateMed(i, 'dose', item.strength.split(',')[0]?.trim() || ''); }} fetchSuggestions={fetchDrugs} placeholder="Search or type medicine…" inputClassName={styles.cellInput} renderItem={item => <div className={styles.acItem}><span className={styles.acName}>{item.name}</span><span className={styles.acSub}>{[item.strength, item.manufacturer].filter(Boolean).join(' · ')}</span>{item.source === 'ekacare' && <span style={{fontSize:'9px',background:'#e0f2fe',color:'#0369a1',borderRadius:'3px',padding:'1px 4px',marginLeft:'4px'}}>🇮🇳</span>}</div>} />
+                      <AutocompleteInput value={m.name} onChange={v => updateMed(i, 'name', v)} onSelect={item => updateMed(i, 'name', item.name)} fetchSuggestions={fetchRxTerms} placeholder="Search or type medicine…" inputClassName={styles.cellInput} renderItem={item => <div className={styles.acItem}><span className={styles.acName}>{item.name}</span>{item.strength && <span className={styles.acSub}>{item.strength}</span>}</div>} />
                     </div>
                     <div className={styles.medSmallCell}><label>Dose</label><input className={styles.cellInput} placeholder="e.g. 1 tablet" value={m.dose || m.dosage || ''} onChange={e => updateMed(i, 'dose', e.target.value)} /></div>
                     <div className={styles.medSmallCell}><label>Frequency</label><input className={styles.cellInput} placeholder="e.g. 1-0-1, TDS" value={m.frequency || ''} onChange={e => updateMed(i, 'frequency', e.target.value)} /></div>
@@ -856,7 +856,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
                   <div className={`${styles.tHead} ${styles.tHead4}`}><span>Name</span><span>Dose</span><span>Route</span><span>Frequency</span><span /></div>
                   {(form.injections || []).map((inj, i) => (
                     <div key={i} className={`${styles.tRow} ${styles.tRow4}`}>
-                      <AutocompleteInput value={inj.name || ''} onChange={v => { const a=[...(form.injections||[])]; a[i]={...a[i],name:v}; set('injections',a); }} onSelect={item => { const a=[...(form.injections||[])]; a[i]={...a[i],name:item.name}; set('injections',a); }} fetchSuggestions={fetchDrugs} placeholder="Search injection name…" inputClassName={styles.cellInput} renderItem={item => <div className={styles.acItem}><span className={styles.acName}>{item.name}</span><span className={styles.acSub}>{[item.strength, item.manufacturer].filter(Boolean).join(' · ')}</span>{item.source === 'ekacare' && <span style={{fontSize:'9px',background:'#e0f2fe',color:'#0369a1',borderRadius:'3px',padding:'1px 4px',marginLeft:'4px'}}>🇮🇳</span>}</div>} />
+                      <AutocompleteInput value={inj.name || ''} onChange={v => { const a=[...(form.injections||[])]; a[i]={...a[i],name:v}; set('injections',a); }} onSelect={item => { const a=[...(form.injections||[])]; a[i]={...a[i],name:item.name}; set('injections',a); }} fetchSuggestions={fetchRxTerms} placeholder="Search injection name…" inputClassName={styles.cellInput} renderItem={item => <div className={styles.acItem}><span className={styles.acName}>{item.name}</span>{item.strength && <span className={styles.acSub}>{item.strength}</span>}</div>} />
                       <input placeholder="e.g. 1g" value={inj.dose || ''} className={styles.cellInput} onChange={e => { const a=[...(form.injections||[])]; a[i]={...a[i],dose:e.target.value}; set('injections',a); }} />
                       <input placeholder="e.g. IV, IM, SC" value={inj.route || ''} className={styles.cellInput} onChange={e => { const a=[...(form.injections||[])]; a[i]={...a[i],route:e.target.value}; set('injections',a); }} />
                       <input placeholder="e.g. Once daily" value={inj.frequency || ''} className={styles.cellInput} onChange={e => { const a=[...(form.injections||[])]; a[i]={...a[i],frequency:e.target.value}; set('injections',a); }} />
