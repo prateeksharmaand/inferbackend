@@ -736,7 +736,7 @@ function ConsentCard({ c, onFetched, abha }) {
 
   const st = STATUS_CFG_C[c.status] || STATUS_CFG_C.REQUESTED;
   const PURPOSE_LABEL = { CAREMGT: 'Care Management', BTG: 'Break the Glass', PUBHLTH: 'Public Health', HPAYMT: 'Healthcare Payment', DSRCH: 'Disease Research' };
-  const isGranted = c.status === 'GRANTED';
+  const isGranted = ['GRANTED', 'COMPLETED', 'HEALTH_INFO_RECEIVED', 'PARTIALLY_COMPLETED', 'PROCESSING_HEALTH_INFO', 'AWAITING_HIP_METADATA'].includes(c.status);
 
   const fetchRecords = async () => {
     setFetching(true);
@@ -770,7 +770,7 @@ function ConsentCard({ c, onFetched, abha }) {
 
   return (
     <>
-      <div style={{ border: `1.5px solid ${isGranted ? '#86efac' : '#e2e8f0'}`, borderRadius: 10, padding: '10px 12px', background: isGranted ? '#f0fdf4' : '#fff' }}>
+      <div style={{ border: `1.5px solid ${c.status === 'GRANTED' ? '#86efac' : c.status === 'COMPLETED' || c.status === 'HEALTH_INFO_RECEIVED' ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: 10, padding: '10px 12px', background: c.status === 'GRANTED' ? '#f0fdf4' : c.status === 'COMPLETED' || c.status === 'HEALTH_INFO_RECEIVED' ? '#eff6ff' : '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <div style={{ fontWeight: 600, fontSize: 12, color: '#1e293b' }}>{PURPOSE_LABEL[c.purpose] || c.purpose}</div>
           <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: st.bg, color: st.color, flexShrink: 0 }}>{st.label}</span>
