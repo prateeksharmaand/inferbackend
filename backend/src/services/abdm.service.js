@@ -876,6 +876,44 @@ async function createConsentRequest(patientId, hiuId, purpose, hiTypes, dateRang
   return { reqId, ...response };
 }
 
+// ─── M3: Fetch full consent artefact details from ABDM CM ────────────────────
+// ABDM sends only {id} in on-consent/notify. Call this to expand to full
+// consent details: hipId, careContexts, hiTypes, permission.dateRange, etc.
+async function fetchConsentArtefact(artefactId) {
+  try {
+    const token = await getGatewayToken();
+    const res = await abdmAxios.get(
+      `${ABDM_GATEWAY}/v0.5/consents/${artefactId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'X-CM-ID': CM_ID,
+          'REQUEST-ID': uuid(),
+          TIMESTAMP: new Date().toISOString(),
+        },
+        timeout: 10_000,
+      }
+    );
+    const consent = res.data?.consent ?? res.data;
+    logger.info('fetchConsentArtefact: expanded artefact', {
+      artefactId,
+      hasHip:         !!consent?.hip?.id,
+      hipId:          consent?.hip?.id,
+      hasDateRange:   !!consent?.permission?.dateRange,
+      hiTypesCount:   consent?.hiTypes?.length,
+      careCtxCount:   consent?.careContexts?.length,
+    });
+    return consent;
+  } catch (err) {
+    logger.warn('fetchConsentArtefact: failed to expand artefact (non-fatal)', {
+      artefactId,
+      status:  err.response?.status,
+      message: err.response?.data?.error?.message || err.message,
+    });
+    return null;
+  }
+}
+
 // ─── M3: Fetch health information ─────────────────────────────────────────────
 
 async function fetchHealthInfo(consentId, dataPushUrl, options = {}) {
@@ -975,7 +1013,7 @@ module.exports = {
   getAbhaSuggestions,     setAbhaAddress,
   discoverCareContexts,   linkInit,             linkConfirm,
   generateLinkToken,      linkCareContexts,     _storeLinkToken,    _getStoredLinkToken,   _storeLinkTokenByRequestId: (reqId, token) => _linkTokenCache.set(`req:${reqId}`, { token, expiry: Date.now() + 9*60*1000 }),
-  createConsentRequest,   fetchHealthInfo,      gwReqSilent,
+  createConsentRequest,   fetchHealthInfo,      fetchConsentArtefact, gwReqSilent,
   generateHiuKeyMaterial, decryptHipEntry, getHiuKey,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,
   uuid,

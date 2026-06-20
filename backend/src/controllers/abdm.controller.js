@@ -798,12 +798,16 @@ const consentNotify = async (req, res) => {
       const dataPushUrl = `${process.env.BACKEND_URL}/api/abdm/health-info/push`;
       const ourHipId    = process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
 
-      logger.info('HIU consent GRANTED — initiating health-info fetch', {
+      // MULTI-HIP OBSERVABILITY: log complete artefact inventory before processing
+      logger.info('HIU consent GRANTED — multi-HIP inventory', {
         consentRequestId,
-        artefactCount: notification.consentArtefacts.length,
-        artefactIds: notification.consentArtefacts.map(a => a.id),
-        artefactHips: notification.consentArtefacts.map(a => a.hip?.id || a.hipId || 'unknown'),
+        totalArtefacts:  notification.consentArtefacts.length,
+        artefactIds:     notification.consentArtefacts.map(a => a.id),
+        artefactKeys:    notification.consentArtefacts.map(a => Object.keys(a)),
+        knownHips:       notification.consentArtefacts.map(a => a.hip?.id || a.hipId || 'EXPAND_NEEDED'),
         dataPushUrl,
+        permissionDateRange,
+        EXPECTED_SEQUENCE: `Will call fetchHealthInfo ${notification.consentArtefacts.length}x — one per artefact`,
       });
 
       // Per-artefact transaction map — stored as JSONB to avoid last-write-wins overwrite
@@ -816,7 +820,7 @@ const consentNotify = async (req, res) => {
           || artefact.consentDetail?.hip?.id;
 
         if (!artefactHip) {
-          // Look up the HIP from the stored artifact (received via HIP consent notify)
+          // 1. Try local HIP artifact store (populated if our HIP also received notify)
           const { rows: artRows } = await pool.query(
             `SELECT raw FROM hip_consent_artifacts WHERE consent_id=$1 LIMIT 1`,
             [artefact.id]
@@ -824,7 +828,47 @@ const consentNotify = async (req, res) => {
           artefactHip = artRows[0]?.raw?.consentDetail?.hip?.id
             || artRows[0]?.raw?.hip?.id
             || null;
+
+          // 2. If still missing (external HIP — artifact not in our DB), call ABDM to expand
+          if (!artefactHip) {
+            const expanded = await abdm.fetchConsentArtefact(artefact.id);
+            artefactHip = expanded?.hip?.id ?? null;
+
+            // Enrich artefact object with data from expanded response
+            if (expanded) {
+              artefact._expanded = expanded;
+              logger.info('HIU consentNotify: artefact expanded via ABDM GET', {
+                artefactId: artefact.id,
+                hipId: artefactHip,
+                careContextCount: expanded.careContexts?.length ?? 0,
+                hiTypes: expanded.hiTypes,
+                dateRange: expanded.permission?.dateRange,
+              });
+
+              // If permission.dateRange missing from notification, use expanded value
+              if ((!permissionDateRange?.from || !permissionDateRange?.to) && expanded.permission?.dateRange) {
+                permissionDateRange = expanded.permission.dateRange;
+                logger.info('HIU consentNotify: dateRange resolved from ABDM artefact expansion', {
+                  artefactId: artefact.id,
+                  dateRangeFrom: permissionDateRange.from,
+                  dateRangeTo: permissionDateRange.to,
+                });
+                await pool.query(
+                  `UPDATE emr_consent_requests SET permission_date_range=$1, updated_at=NOW()
+                   WHERE request_id=$2 OR abdm_request_id=$2`,
+                  [JSON.stringify(permissionDateRange), consentRequestId]
+                ).catch(() => {});
+              }
+            }
+          }
         }
+
+        logger.info('HIU consentNotify: artefact HIP resolved', {
+          artefactId: artefact.id,
+          artefactHip: artefactHip || 'UNKNOWN — ABDM will route to correct HIP',
+          source: artefactHip ? 'resolved' : 'unresolved',
+          isOwnHip: artefactHip === (process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID),
+        });
 
         // Full diagnostic dump so we can see exactly what ABDM sent
         logger.info('HIU consent artefact detail', {
@@ -912,9 +956,16 @@ const consentNotify = async (req, res) => {
 
       logger.info('HIU health-info fetch loop complete', {
         consentRequestId,
-        processed: Object.keys(artefactTxnMap).length,
-        skipped: notification.consentArtefacts.length - Object.keys(artefactTxnMap).length,
-        txnMap: artefactTxnMap,
+        totalArtefacts: notification.consentArtefacts.length,
+        processed:      Object.keys(artefactTxnMap).length,
+        skipped:        notification.consentArtefacts.length - Object.keys(artefactTxnMap).length,
+        txnMap:         artefactTxnMap,
+        MULTI_HIP_VERDICT: Object.keys(artefactTxnMap).length === notification.consentArtefacts.length
+          ? `ALL ${notification.consentArtefacts.length} HIPs requested ✓`
+          : `WARNING: ${notification.consentArtefacts.length - Object.keys(artefactTxnMap).length} HIP(s) skipped`,
+        NOTE: notification.consentArtefacts.length === 1
+          ? 'Only 1 artefact — patient may have care contexts linked in only 1 HIP in ABDM ecosystem'
+          : `${notification.consentArtefacts.length} artefacts from ${notification.consentArtefacts.length} HIPs`,
       });
     } else if (notification.status === 'GRANTED' && !notification.consentArtefacts?.length) {
       logger.warn('HIU consent GRANTED but no artefacts in notification', { consentRequestId });
@@ -1068,7 +1119,13 @@ const healthInfoPush = async (req, res) => {
         [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]
       );
     }
-    logger.info('HIU health-info push stored', { transactionId, count: entries.length });
+    logger.info('HIU health-info push stored', {
+      transactionId,
+      count:              entries.length,
+      careContextRefs:    entries.map(e => e.careContextReference),
+      consentId:          consentIdForAck,
+      MULTI_HIP_TRACKING: `Stored ${entries.length} bundle(s) under txn=${transactionId} consent=${consentIdForAck}`,
+    });
 
     // Step 9: HIU sends notification to ABDM acknowledging receipt of health data
     // (ABDM spec: POST /v0.5/health-information/notify)
