@@ -840,14 +840,16 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
     }).catch(() => {}).finally(() => setLoading(false));
   };
 
-  // Poll every 5s while any consent is in a transitional state
-  const IN_PROGRESS = ['REQUESTED', 'GRANTED', 'AWAITING_HIP_METADATA', 'PROCESSING_HEALTH_INFO', 'HEALTH_INFO_RECEIVED'];
+  // Poll every 5s while any consent is in a transitional state OR completed but records not yet shown
+  const IN_PROGRESS = ['REQUESTED', 'GRANTED', 'AWAITING_HIP_METADATA', 'PROCESSING_HEALTH_INFO', 'HEALTH_INFO_RECEIVED', 'COMPLETED', 'PARTIALLY_COMPLETED'];
   useEffect(() => {
     setLoading(true);
     load();
     const timer = setInterval(() => {
-      if (consents.some(c => IN_PROGRESS.includes(c.status))) load();
-    }, 5000);
+      // Keep polling if any consent is actively transitioning
+      const needsPoll = consents.some(c => IN_PROGRESS.includes(c.status));
+      if (needsPoll) load();
+    }, 4000);
     return () => clearInterval(timer);
   }, [appt?.id, abha]); // eslint-disable-line
 
@@ -865,7 +867,8 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
           {consents.some(c => c.status === 'REQUESTED')               && '⏳ Waiting for patient to grant…'}
           {consents.some(c => c.status === 'AWAITING_HIP_METADATA')   && '🔄 Waiting for HIP to confirm…'}
           {consents.some(c => c.status === 'PROCESSING_HEALTH_INFO')  && '📥 Receiving records…'}
-          {consents.some(c => c.status === 'HEALTH_INFO_RECEIVED')    && '✓ Records received'}
+          {consents.some(c => c.status === 'HEALTH_INFO_RECEIVED')    && '📥 Records received, loading…'}
+          {consents.some(c => c.status === 'COMPLETED')               && '✓ Records delivered'}
         </span>
         <button onClick={() => setShowModal(true)}
           style={{ padding: '6px 12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
