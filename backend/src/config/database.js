@@ -11,6 +11,7 @@ const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 5000,
+  query_timeout: 8000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 1000,
   options: '-c statement_timeout=15000',
