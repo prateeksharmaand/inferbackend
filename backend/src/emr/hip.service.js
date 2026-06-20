@@ -1327,9 +1327,15 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
 
       let fhir;
       try {
-        fhir = typeof ctx.fhir_content === 'string'
-          ? ctx.fhir_content
-          : buildFhirBundle(patient, ctx);
+        // fhir_content is JSONB — pg returns it as an object, not a string.
+        // Stringify if object; fall back to sample bundle only if truly absent.
+        if (ctx.fhir_content) {
+          fhir = typeof ctx.fhir_content === 'string'
+            ? ctx.fhir_content
+            : JSON.stringify(ctx.fhir_content);
+        } else {
+          fhir = buildFhirBundle(patient, ctx);
+        }
       } catch (buildErr) {
         logger.error('[ENCRYPT] buildFhirBundle threw', { careContextIndex: idx, error: buildErr.message });
         throw buildErr;
