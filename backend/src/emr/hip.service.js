@@ -222,14 +222,16 @@ async function sendLinkConfirmResultWithRetry({ requestId, patientId, careContex
     referenceNumber: c.referenceNumber ?? c.reference_number,
     display: c.display,
   }));
+  // ABDM spec: count must be 1-20. Slice to most recent 20 if patient has more.
+  const capped = mapped.slice(0, 20);
   await gwPostWithRetry('/v0.5/links/link/on-confirm', {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
     patient: {
       referenceNumber: patientId,
       display: patientId,
-      count: mapped.length,
-      careContexts: mapped,
+      count: capped.length,
+      careContexts: capped,
     },
     resp: { requestId },
   });

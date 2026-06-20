@@ -783,13 +783,10 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
   // ABDM /hip/v3/link/carecontext requires abhaNumber in XX-XXXX-XXXX-XXXX format
   const tokenAbhaNumberFormatted = _formatAbhaNumber(tokenAbhaNumberRaw);
 
-  // patient.referenceNumber MUST be the HIP's internal patient identifier.
-  // ABDM schema validation rejects ABHA addresses (containing @) as referenceNumber.
-  // Use patientId (HIP's internal DB ID) — stable, alphanumeric, ABDM-compliant.
-  // Fall back to formatted ABHA number if patientId not provided.
-  const patientRef = patientId
-    ? String(patientId)
-    : tokenAbhaNumberFormatted;
+  // ABDM v3 /hip/v3/link/carecontext: patient.referenceNumber must be the
+  // ABHA address (e.g. name@sbx), not the HIP internal DB id.
+  // Earlier v0.5 spec used the internal id; v3 uses ABHA address.
+  const patientRef = tokenAbhaAddress || abhaAddress || tokenAbhaNumberFormatted;
 
   // REQUEST-ID in body and header MUST be the same UUID (ABDM validates consistency)
   const linkReqId = uuid();
