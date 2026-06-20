@@ -1058,95 +1058,111 @@ const MAX_CONNECT_RETRIES = 4; // handles pools where all idle connections are s
 // connectionTimeoutMillis: 5000). After that, the timer is armed immediately
 // and every subsequent await is inside the protected Promise chain.
 
-async function _queryWithTimeout(text, params, timeoutMs, ctx) {
-  // pool.connect() — fast when idle connections exist; protected by connectionTimeoutMillis
-  const connectStart  = Date.now();
-  const preConnect    = poolSnapshot();
-  logger.info('HIU: pool.connect() start', { ...poolSnapshot(), ...ctx });
+// Acquire ONE verified connection for an entire healthInfoPush session.
+// Root cause of per-entry hangs: _queryWithTimeout was acquiring + releasing
+// a connection for each query (key lookup + 14 INSERTs = 15 acquisitions).
+// Each acquisition gambled on which of N idle pool connections was returned.
+// Connections created during startup may be stale (Neon closes idle TCP after
+// ~15 s); picking a stale one caused the pid-fetch query to hang for 25 s.
+//
+// Fix: acquire once at the start, verify it's alive via pid-fetch (covers
+// Neon cold-start too), then pass the live client to every subsequent query.
+// Release once at the end. Zero stale-socket lottery per entry.
+async function _acquireVerifiedClient(label, timeoutMs = 20_000) {
+  const connectStart = Date.now();
+  const preSnap      = poolSnapshot();
+  logger.info('HIU: pool.connect() start', { label, ...preSnap });
 
   const client    = await pool.connect();
   const connectMs = Date.now() - connectStart;
-  const isNew     = pool.totalCount > preConnect.poolTotal;
+  const isNew     = pool.totalCount > preSnap.poolTotal;
 
-  // Timer arms NOW — covers both the pid-fetch AND the real query.
-  // If either hangs (stale socket, Neon cold-start, PG lock), timer fires after timeoutMs.
+  // Verify socket and capture session config — covered by hard timer
   return new Promise((resolve, reject) => {
-    let backendPid = null;
-
-    const onTimeout = () => {
-      logger.error('HIU: query TIMED OUT', {
-        timeoutMs, connectMs,
-        sql:        text.trim().slice(0, 120),
-        backendPid,
-        phase:      backendPid ? 'real-query' : 'pid-fetch',
-        ...poolSnapshot(), ...ctx,
-        DIAGNOSIS: backendPid
-          ? `Run: SELECT pid,state,wait_event_type,wait_event,query FROM pg_stat_activity WHERE pid=${backendPid}`
-          : 'Timed out before pid-fetch completed — stale socket or Neon cold-start',
+    const timer = setTimeout(() => {
+      logger.error('HIU: connection verify TIMED OUT', {
+        label, timeoutMs, connectMs, isNewConnection: isNew, ...poolSnapshot(),
+        DIAGNOSIS: 'Stale socket or Neon cold-start — destroying and will retry on next push',
       });
       client.release(true);
-      reject(new Error(`query timeout after ${timeoutMs}ms [phase=${backendPid ? 'query' : 'pid-fetch'}] [${JSON.stringify(ctx)}]`));
-    };
+      reject(new Error(`connection verify timeout after ${timeoutMs}ms [${label}]`));
+    }, timeoutMs);
 
-    const timer = setTimeout(onTimeout, timeoutMs);
-
-    // Step 1: pid-fetch — confirms socket is alive, shows what timeouts the session has
     client.query(
-      `SELECT pg_backend_pid()                     AS pid,
-              current_setting('lock_timeout')       AS lock_to,
-              current_setting('statement_timeout')  AS stmt_to`
+      `SELECT pg_backend_pid()                    AS pid,
+              current_setting('lock_timeout')      AS lock_to,
+              current_setting('statement_timeout') AS stmt_to`
     )
-    .then(pidRes => {
-      backendPid             = pidRes.rows[0]?.pid;
-      client._hiuBackendPid  = backendPid;
-      logger.info('HIU: pool.connect() done', {
-        connectMs,
+    .then(r => {
+      clearTimeout(timer);
+      const backendPid = r.rows[0]?.pid;
+      client._hiuBackendPid = backendPid;
+      logger.info('HIU: connection verified', {
+        label, connectMs,
+        pidFetchMs:   Date.now() - connectStart - connectMs,
         isNewConnection: isNew,
         backendPid,
-        lockTimeout:  pidRes.rows[0]?.lock_to,
-        stmtTimeout:  pidRes.rows[0]?.stmt_to,
-        ...poolSnapshot(), ...ctx,
+        lockTimeout:  r.rows[0]?.lock_to,
+        stmtTimeout:  r.rows[0]?.stmt_to,
+        ...poolSnapshot(),
       });
-
-      // Step 2: real query — INSERT / SELECT protected by the same timer
-      const queryStart = Date.now();
-      return client.query(text, params).then(r => {
-        clearTimeout(timer);
-        logger.info('HIU: query ok', {
-          queryMs:    Date.now() - queryStart,
-          connectMs,
-          rowCount:   r.rowCount,
-          backendPid,
-          sql:        text.trim().slice(0, 80),
-          ...ctx,
-        });
-        client.release();
-        resolve(r);
-      });
+      resolve(client);
     })
     .catch(e => {
       clearTimeout(timer);
-      const isNetErr = !e.code
-        || e.severity === 'FATAL'
-        || ['ECONNRESET','EPIPE','ENOTCONN','ETIMEDOUT','EIO'].includes(e.code);
-      client.release(isNetErr);
-      logger.error('HIU: query error', {
-        connectMs,
-        error:      e.message,
-        code:       e.code,
-        severity:   e.severity,
-        backendPid,
-        destroyed:  isNetErr,
-        phase:      backendPid ? 'real-query' : 'pid-fetch',
-        sql:        text.trim().slice(0, 80),
-        DIAGNOSIS: isNetErr
-          ? 'Network error — connection destroyed, pool will open fresh socket next call'
-          : `PG error code ${e.code} — connection returned to pool (still healthy)`,
-        ...ctx,
+      client.release(true);
+      logger.warn('HIU: connection verify failed — stale socket destroyed', {
+        label, connectMs, isNewConnection: isNew,
+        error: e.message, code: e.code, ...poolSnapshot(),
       });
-      reject(e);
+      reject(Object.assign(e, { isConnectionError: true }));
     });
   });
+}
+
+// Execute a query on an already-verified client (no pool.connect() overhead).
+// client must have been obtained from _acquireVerifiedClient.
+function _execOnClient(client, text, params, ctx) {
+  return new Promise((resolve, reject) => {
+    const queryStart = Date.now();
+    client.query(text, params)
+      .then(r => {
+        logger.info('HIU: query ok', {
+          queryMs:    Date.now() - queryStart,
+          rowCount:   r.rowCount,
+          backendPid: client._hiuBackendPid,
+          sql:        text.trim().slice(0, 80),
+          ...ctx,
+        });
+        resolve(r);
+      })
+      .catch(e => {
+        logger.error('HIU: query error', {
+          queryMs:    Date.now() - queryStart,
+          error:      e.message,
+          code:       e.code,
+          backendPid: client._hiuBackendPid,
+          sql:        text.trim().slice(0, 80),
+          ...ctx,
+        });
+        reject(e);
+      });
+  });
+}
+
+// Legacy wrapper kept for any callers outside healthInfoPush
+async function _queryWithTimeout(text, params, timeoutMs, ctx) {
+  const client = await _acquireVerifiedClient(JSON.stringify(ctx), timeoutMs);
+  try {
+    const r = await _execOnClient(client, text, params, ctx);
+    client.release();
+    return r;
+  } catch (e) {
+    const isNetErr = !e.code || e.severity === 'FATAL'
+      || ['ECONNRESET','EPIPE','ENOTCONN','ETIMEDOUT','EIO'].includes(e.code);
+    client.release(isNetErr);
+    throw e;
+  }
 }
 
 // Capture Node.js process vitals in one call — used at push entry and on errors.
@@ -1201,16 +1217,33 @@ const healthInfoPush = async (req, res) => {
     // Find the consent artefact ID and HIU key for decryption.
     // Uses _queryWithTimeout (verified connection + hard timeout) — raw pool.query()
     // hangs indefinitely on stale idle sockets opened during server startup.
+    // Acquire ONE verified connection for the entire push session.
+    // Previously: _queryWithTimeout acquired + released a connection per query
+    // (key lookup + 14 INSERTs = 15 acquisitions). Each draw from the pool
+    // risked a stale socket (Neon closes idle TCP after ~15 s). One stale
+    // draw = 25 s timeout per entry. Now: one connection, one verification,
+    // used for every query in this push — zero stale-socket lottery per entry.
+    let pushClient = null;
+    try {
+      pushClient = await _acquireVerifiedClient(`push:${transactionId}`, 20_000);
+    } catch (connErr) {
+      logger.error('HIU: failed to acquire verified connection for push — aborting', {
+        transactionId, error: connErr.message,
+      });
+      return; // 202 already sent; ABDM will retry
+    }
+
     let hiuKeyEntry = null;
     let consentIdForAck = null;
     if (hipPubKey && hipNonce) {
-      // Primary: look up from hip_health_requests (HIP side stores consent_id here)
-      const ctx1 = { transactionId, step: 'key-lookup-1' };
+      // Key lookup on the shared verified connection — no stale-socket risk
       let hrRows = [];
       try {
-        const r = await _queryWithTimeout(
+        const r = await _execOnClient(
+          pushClient,
           'SELECT consent_id, hiu_key_material FROM hip_health_requests WHERE transaction_id=$1 LIMIT 1',
-          [transactionId], 8000, ctx1
+          [transactionId],
+          { transactionId, step: 'key-lookup-1' }
         );
         hrRows = r.rows;
       } catch (e) {
@@ -1220,22 +1253,20 @@ const healthInfoPush = async (req, res) => {
       consentIdForAck = consentId;
 
       if (consentId) {
-        // 1. Try in-memory cache
         hiuKeyEntry = abdm.getHiuKey(consentId);
-        // 2. Try DB from hip_health_requests
         if (!hiuKeyEntry && hrRows[0]?.hiu_key_material) {
           const km = hrRows[0].hiu_key_material;
           hiuKeyEntry = { privBytes: Buffer.from(km.privKey, 'base64'), nonce: km.nonce };
           logger.info('HIU key restored from hip_health_requests', { transactionId, consentId });
         }
-        // 3. Try per-artefact JSONB map in emr_consent_requests
         if (!hiuKeyEntry) {
-          const ctx2 = { transactionId, step: 'key-lookup-2', consentId };
           let crRows = [];
           try {
-            const r = await _queryWithTimeout(
+            const r = await _execOnClient(
+              pushClient,
               'SELECT hiu_key_material FROM emr_consent_requests WHERE (request_id=$1 OR abdm_request_id=$1) AND hiu_key_material IS NOT NULL LIMIT 1',
-              [consentId], 8000, ctx2
+              [consentId],
+              { transactionId, step: 'key-lookup-2', consentId }
             );
             crRows = r.rows;
           } catch (e) {
@@ -1296,7 +1327,7 @@ const healthInfoPush = async (req, res) => {
     // We use pool.query() (raw, not verified) because this is a best-effort
     // non-critical cleanup — if it fails, lock_timeout is the fallback.
     try {
-      const orphanRes = await pool.query(`
+      const orphanRes = await _execOnClient(pushClient, `
         SELECT pg_terminate_backend(pid), pid, state, wait_event_type, wait_event,
                EXTRACT(EPOCH FROM (NOW() - state_change))::int AS state_age_s,
                LEFT(query, 80) AS query_snippet
@@ -1307,7 +1338,7 @@ const healthInfoPush = async (req, res) => {
             state = 'idle in transaction'
             OR (state = 'active' AND query ILIKE '%health_records%')
           )
-      `);
+      `, [], { transactionId, step: 'orphan-cleanup' });
       if (orphanRes.rows.length) {
         logger.warn('HIU: terminated orphaned PostgreSQL backends before INSERT loop', {
           transactionId,
@@ -1415,13 +1446,13 @@ const healthInfoPush = async (req, res) => {
         });
         const insertStart = Date.now();
 
-        await _queryWithTimeout(
+        await _execOnClient(
+          pushClient,
           `INSERT INTO health_records
              (transaction_id, care_context_reference, hi_type, content, media, checksum, page_number, page_count)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
            ON CONFLICT (transaction_id, care_context_reference) DO NOTHING`,
           [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount],
-          25_000, // 25 s — must survive Neon cold-start (compute wake-up = 5–15 s)
           { transactionId, idx, careContextRef: entry.careContextReference }
         );
 
@@ -1458,6 +1489,12 @@ const healthInfoPush = async (req, res) => {
 
     _tickerStopped = true;
     clearInterval(_ticker);
+
+    // Release the shared connection back to the pool
+    if (pushClient) {
+      pushClient.release();
+      pushClient = null;
+    }
 
     const totalMs = Date.now() - pushStart;
     logger.info('HIU health-info push complete', {
@@ -1498,6 +1535,7 @@ const healthInfoPush = async (req, res) => {
         .catch(err => logger.warn('HIU health-info notify failed (non-critical)', { error: err.message }));
     }
   } catch (err) {
+    if (pushClient) { pushClient.release(true); pushClient = null; }
     logger.error('healthInfoPush error', { message: err.message, stack: err.stack?.slice(0, 300) });
   }
 };
