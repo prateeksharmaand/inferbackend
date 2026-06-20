@@ -480,25 +480,7 @@ const handleHealthInfoRequest = async (req, res) => {
       logger.info('HIP health-info: using inline consent (no stored artifact)', { consentId });
     }
 
-    // M3-SEC: Rate limit health-info requests per patient (prevents DoS)
     const patientAbha = artifact?.patient_abha || inlineConsent?.patient?.id;
-    if (patientAbha) {
-      const rateCheck = await checkHealthInfoRateLimit(patientAbha);
-      if (!rateCheck.allowed) {
-        logger.warn('Health-info request rate limit exceeded', {
-          patientAbha,
-          transactionId,
-          limit: HEALTH_INFO_RATE_LIMIT,
-          window: '1 hour',
-        });
-        // Return DENIED instead of blocking (per ABDM async pattern)
-        const requestId = req.headers['request-id'] || req.body.requestId;
-        await hip.sendHealthInfoOnRequest({ requestId, transactionId, sessionStatus: 'DENIED' });
-        await pool.query(`UPDATE hip_health_requests SET status='rate_limited' WHERE transaction_id=$1`, [transactionId]);
-        return;
-      }
-      logger.debug('Health-info rate limit check', { patientAbha, remaining: rateCheck.remaining });
-    }
 
     const ctxList =
       inlineConsent?.careContexts ??
