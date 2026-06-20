@@ -1028,6 +1028,26 @@ const consentNotify = async (req, res) => {
 
 const MAX_CONNECT_RETRIES = 4; // handles pools where all idle connections are stale
 
+// Ping a pg client with a hard timeout.
+// client.query('SELECT 1') hangs indefinitely on a stale socket — the same failure
+// mode as the main INSERT. This wrapper adds an independent setTimeout backstop so
+// a dead socket is detected and destroyed within PING_TIMEOUT_MS instead of hanging.
+const PING_TIMEOUT_MS = 3000;
+function _pingClient(client) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(Object.assign(
+        new Error(`SELECT 1 ping timed out after ${PING_TIMEOUT_MS}ms — stale socket`),
+        { code: 'PING_TIMEOUT' }
+      ));
+    }, PING_TIMEOUT_MS);
+
+    client.query('SELECT 1 AS ok, pg_backend_pid() AS pid')
+      .then(r  => { clearTimeout(timer); resolve(r); })
+      .catch(e => { clearTimeout(timer); reject(e); });
+  });
+}
+
 async function _getVerifiedClient(ctx) {
   for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
     const connectStart = Date.now();
@@ -1044,29 +1064,29 @@ async function _getVerifiedClient(ctx) {
 
     const pingStart = Date.now();
     try {
-      // SELECT 1 validates the socket AND fetches the server-assigned backend PID.
-      // pg_backend_pid() lets us find this session in pg_stat_activity if it hangs.
-      const pingRes = await client.query('SELECT 1 AS ok, pg_backend_pid() AS pid');
-      const pingMs  = Date.now() - pingStart;
+      // Ping validates the socket AND fetches the PostgreSQL backend PID.
+      // _pingClient adds a 3 s hard timeout — without it, client.query('SELECT 1')
+      // hangs indefinitely on a dead socket, making _getVerifiedClient itself hang.
+      const pingRes    = await _pingClient(client);
+      const pingMs     = Date.now() - pingStart;
       const backendPid = pingRes.rows[0]?.pid;
 
       logger.info('HIU: connection verified', {
         attempt,
         isNewConnection,
-        backendPid,          // correlate with pg_stat_activity on server
+        backendPid,
         connectMs,
         pingMs,
         ...poolSnapshot(),
         ...ctx,
       });
 
-      // Attach pid to client so _queryWithTimeout can log it on timeout
       client._hiuBackendPid = backendPid;
       return client;
 
     } catch (pingErr) {
       const pingMs = Date.now() - pingStart;
-      client.release(true); // destroy — pool will open a fresh socket on next connect()
+      client.release(true); // destroy — pool opens a fresh socket on next connect()
 
       logger.warn('HIU: stale connection destroyed', {
         attempt,
@@ -1078,9 +1098,11 @@ async function _getVerifiedClient(ctx) {
         pingCode:    pingErr.code,
         ...poolSnapshot(),
         ...ctx,
-        DIAGNOSIS: isNewConnection
-          ? 'CRITICAL: brand-new socket failed ping — possible DNS/TLS or server overload'
-          : 'EXPECTED: idle socket was closed server-side (Neon idle timeout)',
+        DIAGNOSIS: pingErr.code === 'PING_TIMEOUT'
+          ? 'PING_TIMEOUT: socket alive at TCP level but PG not responding — Neon compute suspended or overloaded'
+          : isNewConnection
+            ? 'CRITICAL: brand-new socket failed ping — possible DNS/TLS or server overload'
+            : 'EXPECTED: idle socket closed server-side (Neon idle timeout)',
       });
 
       if (attempt === MAX_CONNECT_RETRIES) {
@@ -1089,7 +1111,7 @@ async function _getVerifiedClient(ctx) {
           { code: pingErr.code, isConnectionError: true }
         );
       }
-      // Small backoff so the pool has time to open a fresh socket before next attempt
+      // Small backoff so the pool opens a fresh socket before next attempt
       await new Promise(r => setTimeout(r, attempt * 50));
     }
   }
