@@ -239,12 +239,26 @@ app.post('/v0.5/health-information/hiu/on-request',   verifyAbdmCallback, _onHiu
 app.post('/v3/hiu/health-information/transfer',           verifyAbdmCallback, abdmCtrl.healthInfoPush);
 app.post('/api/v3/hiu/health-information/transfer',       verifyAbdmCallback, abdmCtrl.healthInfoPush);
 app.post('/v0.5/health-information/transfer',             verifyAbdmCallback, abdmCtrl.healthInfoPush);
-app.post('/api/v3/hiu/health-information/notify',         verifyAbdmCallback, (req, res) => {
+app.post('/api/v3/hiu/health-information/notify',              verifyAbdmCallback, (req, res) => {
   logger.info('HIU health-info notify from CM', { body: JSON.stringify(req.body)?.slice(0, 200) });
   res.status(202).json({ status: 'accepted' });
 });
-app.post('/v3/hiu/health-information/notify',             verifyAbdmCallback, (req, res) => {
+app.post('/v3/hiu/health-information/notify',                  verifyAbdmCallback, (req, res) => {
   logger.info('HIU health-info notify from CM', { body: JSON.stringify(req.body)?.slice(0, 200) });
+  res.status(202).json({ status: 'accepted' });
+});
+
+// ABDM v3 — gateway notifies HIU after health data has been delivered by HIP
+app.post('/v0.5/health-information/hiu/on-health-information', verifyAbdmCallback, (req, res) => {
+  logger.info('HIU on-health-information', { body: JSON.stringify(req.body)?.slice(0, 300) });
+  res.status(202).json({ status: 'accepted' });
+});
+app.post('/api/v3/hiu/health-information/on-health-information', verifyAbdmCallback, (req, res) => {
+  logger.info('HIU on-health-information (v3)', { body: JSON.stringify(req.body)?.slice(0, 300) });
+  res.status(202).json({ status: 'accepted' });
+});
+app.post('/v3/hiu/health-information/on-health-information',     verifyAbdmCallback, (req, res) => {
+  logger.info('HIU on-health-information (v3 alt)', { body: JSON.stringify(req.body)?.slice(0, 300) });
   res.status(202).json({ status: 'accepted' });
 });
 
