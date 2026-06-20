@@ -9,8 +9,11 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   max: 20,
-  idleTimeoutMillis: 30000,
+  idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 5000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 1000,
+  options: '-c statement_timeout=15000',
 });
 
 pool.on('error', (err) => logger.error('Unexpected DB pool error', err));
