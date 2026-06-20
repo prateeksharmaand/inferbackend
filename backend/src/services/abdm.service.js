@@ -69,8 +69,9 @@ function decryptHipEntry(encryptedBase64, hipPubKeyBase64, hipNonceBase64, hiuKe
   try {
     if (!hiuKeyEntry) return null;
     const { privBytes, nonce: hiuNonceB64 } = hiuKeyEntry;
+    logger.info('[DECRYPT] step1: scalar');
     const scalar    = _c25519Scalar(privBytes);
-    // HIP public key is also SPKI-wrapped — extract raw 65-byte point
+    logger.info('[DECRYPT] step2: hipPubRaw', { encLen: encryptedBase64?.length, pubKeyLen: hipPubKeyBase64?.length });
     const hipPubRaw = Buffer.from(hipPubKeyBase64, 'base64');
     let   hipPubHex = hipPubRaw.toString('hex');
     if (hipPubRaw.length > 65) {
@@ -80,23 +81,30 @@ function decryptHipEntry(encryptedBase64, hipPubKeyBase64, hipNonceBase64, hiuKe
         }
       }
     }
+    logger.info('[DECRYPT] step3: fromHex', { hipPubHexLen: hipPubHex.length });
     const hipPub    = _c25519W.BASE.constructor.fromHex(hipPubHex);
+    logger.info('[DECRYPT] step4: multiply');
     const sharedX   = Buffer.from(hipPub.multiply(scalar).toAffine().x.toString(16).padStart(64,'0'), 'hex');
+    logger.info('[DECRYPT] step5: xorNonce');
     const hipNonce  = Buffer.from(hipNonceBase64, 'base64');
     const hiuNonceB = Buffer.from(hiuNonceB64,   'base64');
     const xorNonce = Buffer.alloc(32);
     for (let i = 0; i < 32; i++) xorNonce[i] = hipNonce[i] ^ (hiuNonceB[i] ?? 0);
+    logger.info('[DECRYPT] step6: hkdf');
     const salt   = xorNonce.slice(0, 20);
     const aesKey = Buffer.from(crypto.hkdfSync('sha256', sharedX, salt, Buffer.alloc(0), 32));
+    logger.info('[DECRYPT] step7: aes-gcm');
     const iv     = xorNonce.slice(20, 32);
     const raw    = Buffer.from(encryptedBase64, 'base64');
     const tag    = raw.slice(-16);
     const ct     = raw.slice(0, -16);
     const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, iv);
     decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
+    const result = Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
+    logger.info('[DECRYPT] step8: done', { resultLen: result.length });
+    return result;
   } catch (err) {
-    logger.warn('HIU decryptHipEntry failed', { error: err.message });
+    logger.warn('HIU decryptHipEntry failed', { error: err.message, stack: err.stack?.slice(0,200) });
     return null;
   }
 }

@@ -1088,7 +1088,15 @@ const healthInfoPush = async (req, res) => {
 
       // M3-SEC: Decrypt entry if keyMaterial provided
       if (hipPubKey && hipNonce && hiuKeyEntry) {
-        const decrypted = abdm.decryptHipEntry(content, hipPubKey, hipNonce, hiuKeyEntry);
+        logger.info('HIU: calling decryptHipEntry', { careContextRef: entry.careContextReference });
+        let decrypted;
+        try {
+          decrypted = abdm.decryptHipEntry(content, hipPubKey, hipNonce, hiuKeyEntry);
+        } catch (decErr) {
+          logger.error('HIU: decryptHipEntry threw', { careContextRef: entry.careContextReference, error: decErr.message });
+          decrypted = null;
+        }
+        logger.info('HIU: decryptHipEntry returned', { careContextRef: entry.careContextReference, hasResult: !!decrypted });
         if (decrypted) {
           plaintext = decrypted; // Keep plaintext for checksum verification
           content = Buffer.from(decrypted).toString('base64');
