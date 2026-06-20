@@ -1069,38 +1069,45 @@ function _buildSpki(rawPub65) {
 //   4. AES-256-GCM encrypt with IV = xoredNonce[0:12], tag appended to ciphertext
 // hipKeyPair is generated ONCE per batch (see pushHealthData) and reused for all entries.
 // ABDM spec §4.3: one keyMaterial per push batch — all entries must use the same ephemeral key.
-function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
-  const { hipPrivBase64, hipPubBytes, hipNonce } = hipKeyPair;
+// Precompute the session key material that is IDENTICAL for every bundle in a batch.
+// ECDH + HKDF are done once here; encryptFhir only does AES-GCM per plaintext.
+function deriveSessionKey(hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
+  const { hipPrivBase64, hipNonce } = hipKeyPair;
 
+  // 1. Recover HIP private scalar
+  const hipPrivBytes  = Buffer.from(hipPrivBase64, 'base64');
+  const hipPrivScalar = BigInt('0x' + hipPrivBytes.toString('hex'));
+
+  // 2. Decode HIU public point (65-byte uncompressed)
+  const hiuPubBytes  = Buffer.from(hiuPubKeyBase64, 'base64');
+  const hiuPubPoint  = _c25519W.BASE.constructor.fromHex(hiuPubBytes.toString('hex'));
+
+  // 3. ECDH — expensive BigInt multiply, done exactly ONCE per batch
+  const sharedPoint     = hiuPubPoint.multiply(hipPrivScalar);
+  const sharedSecretHex = sharedPoint.toAffine().x.toString(16).padStart(64, '0');
+  const sharedSecret    = Buffer.from(sharedSecretHex, 'hex');
+
+  // 4. XOR nonces
+  const hiuNonceBytes = Buffer.from(hiuNonceBase64, 'base64');
+  const xoredNonce    = Buffer.alloc(32);
+  for (let i = 0; i < 32; i++) xoredNonce[i] = hipNonce[i] ^ hiuNonceBytes[i];
+
+  // 5. HKDF → AES key + IV
+  const salt   = xoredNonce.slice(0, 20);
+  const aesKey = Buffer.from(crypto.hkdfSync('sha256', sharedSecret, salt, Buffer.alloc(0), 32));
+  const iv     = xoredNonce.slice(20, 32);
+
+  return { aesKey, iv };
+}
+
+function encryptFhir(plaintext, sessionKey) {
   try {
-    // 1. Recover HIP private scalar from base64
-    const hipPrivBytes = Buffer.from(hipPrivBase64, 'base64');
-    const hipPrivScalar = BigInt('0x' + hipPrivBytes.toString('hex'));
+    const { aesKey, iv } = sessionKey;
 
-    // 2. Decode HIU public point (65-byte uncompressed 0x04 || X || Y)
-    const hiuPubBytes = Buffer.from(hiuPubKeyBase64, 'base64');
-    const hiuPubPoint = _c25519W.BASE.constructor.fromHex(hiuPubBytes.toString('hex'));
-
-    // 3. ECDH: shared point = hipPriv * hiuPub; shared secret = x-coordinate (32 bytes BE)
-    const sharedPoint = hiuPubPoint.multiply(hipPrivScalar);
-    const sharedSecretHex = sharedPoint.toAffine().x.toString(16).padStart(64, '0');
-    const sharedSecret = Buffer.from(sharedSecretHex, 'hex');
-
-    // 4. XOR the two 32-byte nonces (HIP sender nonce XOR HIU requester nonce)
-    const hiuNonceBytes = Buffer.from(hiuNonceBase64, 'base64');
-    const xoredNonce = Buffer.alloc(32);
-    for (let i = 0; i < 32; i++) xoredNonce[i] = hipNonce[i] ^ hiuNonceBytes[i];
-
-    // 5. Derive AES-256 key: HKDF-SHA256(IKM=sharedSecret, salt=xorNonce[0:20], info=empty)
-    const salt = xoredNonce.slice(0, 20);
-    const aesKey = Buffer.from(crypto.hkdfSync('sha256', sharedSecret, salt, Buffer.alloc(0), 32));
-
-    // 6. AES-256-GCM: IV = last 12 bytes of xoredNonce, 128-bit tag appended to ciphertext
-    const iv = xoredNonce.slice(20, 32);
-    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+    // AES-256-GCM — only this part differs per bundle
+    const cipher     = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
     const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-    const tag = cipher.getAuthTag(); // 16 bytes
-
+    const tag        = cipher.getAuthTag(); // 16 bytes
     const encryptedData = Buffer.concat([ciphertext, tag]).toString('base64');
 
     logger.info('[ENCRYPT] native encrypt ok', {
@@ -1108,12 +1115,6 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
       encLen: encryptedData.length,
     });
 
-    // Return only encryptedData — hipPublicKey and hipNonce are shared across
-    // ALL entries (same hipKeyPair) and are built once by the caller after the
-    // loop into respondingKeyMaterial. Computing _buildSpki() here per-entry
-    // allocated ~10 intermediate Buffers × 14 entries and was silently discarded
-    // by the caller (only encryptedData is destructured), triggering a major GC
-    // pause on the 14th call that blocked the microtask queue indefinitely.
     return { encryptedData };
   } catch (err) {
     logger.error('[ENCRYPT] native encrypt FAILED — aborting health data push', {
@@ -1284,6 +1285,12 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
     entryCount:   careContexts.length,
   });
 
+  // Precompute ECDH+HKDF once — same result for every bundle in this batch.
+  // Doing it inside encryptFhir per-bundle caused GC pressure on BigInt intermediates
+  // that blocked the synchronous multiply on the 4th+ call and hung the process.
+  const sessionKey = deriveSessionKey(hiuPubKeyToUse, hiuNonce, hipKeyPair);
+  logger.info('[ENCRYPT] session key derived (ECDH+HKDF done once for batch)');
+
   // Process sequentially to avoid spawning N concurrent JVMs (OOM risk with 14+ bundles).
   // Each fidelius-cli JVM uses ~256-512 MB; parallel execution caused silent process death
   // where the last bundle's execFile callback fired but the JS continuation never ran.
@@ -1349,7 +1356,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
 
       let encryptedData;
       try {
-        ({ encryptedData } = encryptFhir(fhir, hiuPubKeyToUse, hiuNonce, hipKeyPair));
+        ({ encryptedData } = encryptFhir(fhir, sessionKey));
       } catch (encErr) {
         logger.error('[ENCRYPT] encryptFhir threw', { careContextIndex: idx, error: encErr.message });
         throw encErr;
