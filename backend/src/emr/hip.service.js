@@ -235,7 +235,7 @@ async function sendLinkConfirmResultWithRetry({ requestId, patientId, careContex
   });
 }
 
-async function hiecmPost(path, body) {
+async function hiecmPost(path, body, hipIdOverride) {
   const token = await getToken();
   try {
     const res = await axios.post(`${HIECM}${path}`, body, {
@@ -243,7 +243,7 @@ async function hiecmPost(path, body) {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         'X-CM-ID': CM_ID,
-        'X-HIP-ID': HIP_ID,
+        'X-HIP-ID': hipIdOverride || HIP_ID,
         'REQUEST-ID': uuid(),
         TIMESTAMP: new Date().toISOString(),
       },
@@ -329,7 +329,7 @@ async function sendDiscoverResult({ requestId, transactionId, patientId, patient
   });
 }
 
-async function sendLinkInitResult({ requestId, transactionId, linkRefNumber }) {
+async function sendLinkInitResult({ requestId, transactionId, linkRefNumber, hipId }) {
   await gwPost('/v0.5/links/link/on-init', {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
@@ -342,7 +342,7 @@ async function sendLinkInitResult({ requestId, transactionId, linkRefNumber }) {
         communicationHint: 'OTP sent to patient mobile',
         communicationExpiry: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       },
-      hip: { id: HIP_ID },
+      hip: { id: hipId || HIP_ID },
     },
     resp: { requestId },
   });
@@ -1195,7 +1195,7 @@ function _extractEcPointFromSpki(spkiBase64) {
   }
 }
 
-async function pushHealthData({ dataPushUrl, transactionId, careContexts, patient, keyMaterial }) {
+async function pushHealthData({ dataPushUrl, transactionId, careContexts, patient, keyMaterial, hipId }) {
   // CRITICAL: Validate transactionId at entry point
   if (!transactionId) {
     throw new Error('Missing ABDM transactionId in pushHealthData');
@@ -1502,7 +1502,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${pushToken?.slice(0, 20)}...`,
       'X-CM-ID': CM_ID,
-      'X-HIP-ID': HIP_ID,
+      'X-HIP-ID': hipId || HIP_ID,
       'REQUEST-ID': requestId,
       'TIMESTAMP': timestamp,
     },
@@ -1515,7 +1515,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
         'Content-Type':  'application/json',
         'Authorization': `Bearer ${pushToken}`,
         'X-CM-ID':       CM_ID,
-        'X-HIP-ID':      HIP_ID,
+        'X-HIP-ID':      hipId || HIP_ID,
         'REQUEST-ID':    requestId,
         'TIMESTAMP':     timestamp,
       },
@@ -1560,7 +1560,7 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       requestPayloadKeys: Object.keys(pushBody),
       headers: {
         'X-CM-ID': CM_ID,
-        'X-HIP-ID': HIP_ID,
+        'X-HIP-ID': hipId || HIP_ID,
       },
     });
     throw postErr; // Re-throw to caller

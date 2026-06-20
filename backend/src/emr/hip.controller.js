@@ -54,11 +54,16 @@ const handleDiscovery = async (req, res) => {
     const requestId = req.headers['request-id'] || req.body.requestId;
     const { transactionId, patient } = req.body;
     _validateIds(requestId, transactionId);
+
+    // ABDM sends X-HIP-ID to identify which HIP service it's querying.
+    // Use it to scope care contexts to the correct clinic.
+    const requestedHipId = req.headers['x-hip-id'] || process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID;
+
     // R2-013: mask ABHA address in logs (PHI)
     const maskedAbha = patient?.id
       ? patient.id.replace(/^(.{3}).*(@.*)$/, '$1***$2')
       : null;
-    logger.info('HIP discover request', { requestId, transactionId, maskedAbha });
+    logger.info('HIP discover request', { requestId, transactionId, maskedAbha, requestedHipId });
 
     let rows = [];
     let matchedBy = ['MOBILE'];
@@ -105,15 +110,40 @@ const handleDiscovery = async (req, res) => {
     }
 
     const pt = rows[0];
-    // R3-010: select only metadata columns — fhir_content not needed for discovery
-    const { rows: ctxRows } = await pool.query(
-      `SELECT id, reference_number, display, hi_type, created_at
-       FROM emr_care_contexts
-       WHERE patient_id=$1
-       ORDER BY created_at DESC
-       LIMIT 20`,
-      [pt.id]
+
+    // Resolve clinic_id from the requesting HIP ID — scope care contexts to that clinic only.
+    // This ensures Clinic A's discovery returns only Clinic A's records, and Clinic B's
+    // discovery returns only Clinic B's records, allowing both to appear in consent.
+    const { rows: clinicRows } = await pool.query(
+      `SELECT id FROM emr_clinics WHERE hip_id = $1 LIMIT 1`,
+      [requestedHipId]
     );
+    const clinicId = clinicRows[0]?.id ?? null;
+
+    // R3-010: select only metadata columns — fhir_content not needed for discovery
+    let ctxRows;
+    if (clinicId) {
+      // Multi-tenant: return only care contexts for this clinic's patients
+      ({ rows: ctxRows } = await pool.query(
+        `SELECT cc.id, cc.reference_number, cc.display, cc.hi_type, cc.created_at
+         FROM emr_care_contexts cc
+         JOIN emr_patients p ON p.id = cc.patient_id
+         WHERE cc.patient_id = $1 AND p.clinic_id = $2
+         ORDER BY cc.created_at DESC
+         LIMIT 20`,
+        [pt.id, clinicId]
+      ));
+    } else {
+      // Fallback: no clinic mapped to this HIP ID, return all (single-tenant compat)
+      ({ rows: ctxRows } = await pool.query(
+        `SELECT id, reference_number, display, hi_type, created_at
+         FROM emr_care_contexts
+         WHERE patient_id = $1
+         ORDER BY created_at DESC
+         LIMIT 20`,
+        [pt.id]
+      ));
+    }
 
     // ABDM: discovery response must echo back the exact identifier used in the request.
     // If query used abha_address, respond with abha_address — never substitute abha_number.
@@ -188,7 +218,7 @@ const handleLinkInit = async (req, res) => {
     // TODO: wire up SMS: await sendSms(pt?.mobile, `Your ABDM linking OTP: ${otp}. Valid 10 min.`);
     audit.abdmLinkInit(req, linkRefNumber);
 
-    await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber });
+    await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber, hipId: req.headers['x-hip-id'] || process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID });
   } catch (err) {
     logger.error('handleLinkInit error', err);
   }
@@ -690,7 +720,20 @@ const handleHealthInfoRequest = async (req, res) => {
       dataPushUrl: dataPushUrl ? 'present' : 'missing',
     });
 
-    await hip.pushHealthData({ dataPushUrl, transactionId, careContexts: rows, patient, keyMaterial });
+    // Resolve HIP ID from the consent's clinic — use X-HIP-ID header if present,
+    // otherwise look up from the consent request's clinic_id
+    let pushHipId = req.headers['x-hip-id'] || null;
+    if (!pushHipId && consentId) {
+      const { rows: consentClinic } = await pool.query(
+        `SELECT ec.hip_id FROM emr_clinics ec
+         JOIN emr_consent_requests cr ON cr.clinic_id = ec.id
+         WHERE cr.abdm_request_id = $1 OR cr.request_id = $1
+         LIMIT 1`,
+        [consentId]
+      ).catch(() => ({ rows: [] }));
+      pushHipId = consentClinic[0]?.hip_id || null;
+    }
+    await hip.pushHealthData({ dataPushUrl, transactionId, careContexts: rows, patient, keyMaterial, hipId: pushHipId });
 
     logger.info('ABDM Transaction Trace', {
       stage: 'transfer_request_sent',
