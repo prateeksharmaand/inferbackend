@@ -142,9 +142,11 @@ async function getToken() {
   if (_tokenRefreshPromise) return _tokenRefreshPromise;
 
   _tokenRefreshPromise = (async () => {
-    const res = await axios.post(`${HIECM}/gateway/v3/sessions`,
-      { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
-      { headers: { 'Content-Type': 'application/json', 'X-CM-ID': CM_ID, 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() }, timeout: 10_000 }
+    // ABDM HIECM v3 sessions endpoint (/api/hiecm/gateway/v3/sessions) is suspended in sandbox.
+    // Use the stable gateway v0.5 sessions endpoint instead.
+    const res = await axios.post(`${GATEWAY}/v0.5/sessions`,
+      { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET },
+      { headers: { 'Content-Type': 'application/json', 'REQUEST-ID': uuid(), TIMESTAMP: new Date().toISOString() }, timeout: 10_000 }
     );
     _token = res.data.accessToken;
     _tokenExpiry = Date.now() + ((res.data.expiresIn ?? 300) - 30) * 1000;

@@ -150,7 +150,9 @@ abdmAxios.interceptors.response.use(
 const ABDM_GATEWAY   = process.env.ABDM_GATEWAY_URL  || 'https://dev.abdm.gov.in/gateway';
 const ABHA_BASE      = process.env.ABHA_BASE_URL      || 'https://abhasbx.abdm.gov.in/abha/api/v3';
 const ABDM_HIECM     = process.env.ABDM_HIECM_URL     || 'https://dev.abdm.gov.in/api/hiecm';
-const ABDM_SESSION_URL = `${ABDM_HIECM}/gateway/v3/sessions`;
+// ABDM HIECM v3 sessions (/api/hiecm/gateway/v3/sessions) is suspended in sandbox.
+// Use the stable gateway v0.5/sessions endpoint.
+const ABDM_SESSION_URL = `${ABDM_GATEWAY}/v0.5/sessions`;
 const CLIENT_ID      = process.env.ABDM_CLIENT_ID;
 const CLIENT_SECRET  = process.env.ABDM_CLIENT_SECRET;
 // CM_ID: 'sbx' for sandbox, 'abdm' for production — used in X-CM-ID header
@@ -172,11 +174,10 @@ async function getGatewayToken() {
   try {
     const res = await abdmAxios.post(
       ABDM_SESSION_URL,
-      { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, grantType: 'client_credentials' },
+      { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET },
       {
         headers: {
           'Content-Type': 'application/json',
-          'X-CM-ID': 'sbx',
           'REQUEST-ID': uuid(),
           TIMESTAMP: new Date().toISOString(),
         },
