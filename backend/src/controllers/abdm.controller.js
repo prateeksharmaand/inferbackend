@@ -1079,6 +1079,39 @@ const healthInfoPush = async (req, res) => {
       logger.info('HIU health-info push: key lookup', { transactionId, consentId, hasKey: !!hiuKeyEntry });
     }
 
+    // Pre-derive the AES key ONCE — all entries share the same hipPubKey + nonces,
+    // so the ECDH shared secret and derived key are identical for every entry.
+    let derivedDecryptKey = null;
+    let derivedIv = null;
+    if (hipPubKey && hipNonce && hiuKeyEntry) {
+      try {
+        const crypto = require('crypto');
+        const { privBytes, nonce: hiuNonceB64 } = hiuKeyEntry;
+        const scalar    = abdm._c25519Scalar(privBytes);
+        const hipPubRaw = Buffer.from(hipPubKey, 'base64');
+        let hipPubHex   = hipPubRaw.toString('hex');
+        if (hipPubRaw.length > 65) {
+          for (let i = 0; i < hipPubRaw.length - 67; i++) {
+            if (hipPubRaw[i] === 0x03 && hipPubRaw[i+1] === 0x42 && hipPubRaw[i+2] === 0x00 && hipPubRaw[i+3] === 0x04) {
+              hipPubHex = hipPubRaw.slice(i + 3, i + 68).toString('hex'); break;
+            }
+          }
+        }
+        const hipPub  = abdm._c25519W.BASE.constructor.fromHex(hipPubHex);
+        const sharedX = Buffer.from(hipPub.multiply(scalar).toAffine().x.toString(16).padStart(64, '0'), 'hex');
+        const hipNonceB  = Buffer.from(hipNonce, 'base64');
+        const hiuNonceB  = Buffer.from(hiuNonceB64, 'base64');
+        const xorNonce = Buffer.alloc(32);
+        for (let i = 0; i < 32; i++) xorNonce[i] = hipNonceB[i] ^ (hiuNonceB[i] ?? 0);
+        const salt = xorNonce.slice(0, 20);
+        derivedDecryptKey = Buffer.from(crypto.hkdfSync('sha256', sharedX, salt, Buffer.alloc(0), 32));
+        derivedIv = xorNonce.slice(20, 32);
+        logger.info('HIU: derived decrypt key ok', { transactionId });
+      } catch (keyErr) {
+        logger.error('HIU: key derivation failed', { transactionId, error: keyErr.message });
+      }
+    }
+
     const rowsToInsert = [];
     for (const entry of entries) {
       logger.info('HIU: loop entry start', { careContextRef: entry.careContextReference });
@@ -1086,23 +1119,21 @@ const healthInfoPush = async (req, res) => {
       let content = entry.content;
       let plaintext = null;
 
-      // M3-SEC: Decrypt entry if keyMaterial provided
-      if (hipPubKey && hipNonce && hiuKeyEntry) {
-        logger.info('HIU: calling decryptHipEntry', { careContextRef: entry.careContextReference });
-        let decrypted;
+      // AES-GCM decrypt using pre-derived key (avoids 14 redundant ECDH + HKDF operations)
+      if (derivedDecryptKey && derivedIv) {
         try {
-          decrypted = abdm.decryptHipEntry(content, hipPubKey, hipNonce, hiuKeyEntry);
-        } catch (decErr) {
-          logger.error('HIU: decryptHipEntry threw', { careContextRef: entry.careContextReference, error: decErr.message });
-          decrypted = null;
-        }
-        logger.info('HIU: decryptHipEntry returned', { careContextRef: entry.careContextReference, hasResult: !!decrypted });
-        if (decrypted) {
-          plaintext = decrypted; // Keep plaintext for checksum verification
-          content = Buffer.from(decrypted).toString('base64');
+          const crypto = require('crypto');
+          const raw  = Buffer.from(content, 'base64');
+          const tag  = raw.slice(-16);
+          const ct   = raw.slice(0, -16);
+          const dec  = require('crypto').createDecipheriv('aes-256-gcm', derivedDecryptKey, derivedIv);
+          dec.setAuthTag(tag);
+          const decrypted = Buffer.concat([dec.update(ct), dec.final()]).toString('utf8');
+          plaintext = decrypted;
+          content   = Buffer.from(decrypted).toString('base64');
           logger.info('HIU decrypted health record', { transactionId, careContextReference: entry.careContextReference });
-        } else {
-          logger.warn('HIU decrypt failed — storing raw content', { transactionId });
+        } catch (decErr) {
+          logger.warn('HIU decrypt failed — storing raw content', { transactionId, error: decErr.message });
         }
       }
 

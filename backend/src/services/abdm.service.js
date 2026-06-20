@@ -1073,6 +1073,7 @@ module.exports = {
   generateLinkToken,      linkCareContexts,     _storeLinkToken,    _getStoredLinkToken,   _storeLinkTokenByRequestId: (reqId, token) => _linkTokenCache.set(`req:${reqId}`, { token, expiry: Date.now() + 9*60*1000 }),
   createConsentRequest,   fetchHealthInfo,      fetchConsentArtefact, gwReqSilent,
   generateHiuKeyMaterial, decryptHipEntry, getHiuKey,
+  _c25519W, _c25519Scalar,
   getBridgeInfo,          updateBridgeUrl,      updateHipServices,
   uuid,
 };
