@@ -622,11 +622,14 @@ const handleHealthInfoRequest = async (req, res) => {
             ? [resolvedPatientId, consentFrom, consentTo]
             : [resolvedPatientId];
 
+          // Push care contexts regardless of link_status — if ABDM sent a health-info
+          // request, patient has granted consent. link_status reflects ABDM discovery
+          // linking, not whether we have the data. Pending/failed contexts still have data.
           const { rows: abhaRows } = await pool.query(
             `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender, ep.abha_address
              FROM emr_care_contexts ecc
              JOIN emr_patients ep ON ep.id = ecc.patient_id
-             WHERE ep.abha_address = $1 AND ecc.link_status = 'linked'
+             WHERE ep.abha_address = $1
              ${dateFilter}
              ORDER BY ecc.created_at DESC`,
             params

@@ -853,12 +853,14 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
       status:      errStatus,
       errorCode:   errCode,
       errorMsg:    errMsg,
-      rawResponse: errRaw?.slice(0, 500),
+      rawResponse: errRaw?.slice(0, 1000),  // expanded to 1000 to capture more detail
       contentType: errHeaders?.['content-type'],
       sentAbhaNumber:   tokenAbhaNumberFormatted,
       sentPatientRef:   patientRef,
       sentCareContexts: careContexts.map(c => c.referenceNumber),
+      linkTokenExpiry:  decoded?.expiry ?? 'unknown',
       linkTokenPrefix:  linkToken?.slice(0, 30) + '...',
+      requestBody:      body,  // log the exact body sent to ABDM
     });
 
     const fwd = new Error(`ABDM link carecontext failed [${errStatus}] ${errCode}: ${errMsg}`);
