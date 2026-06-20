@@ -11,7 +11,7 @@ const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
 
 // ── Shared: attempt HIP-initiated ABDM care context link ─────────────────────
 // Flow: skip if already linked → reuse cached token → generate new token
-async function attemptAbdmLink(refNum, display, patientId) {
+async function attemptAbdmLink(refNum, display, patientId, clinicId) {
   // 1. Skip if already linked
   const { rows: [cc] } = await pool.query(
     `SELECT link_status FROM emr_care_contexts WHERE reference_number=$1`,
@@ -48,19 +48,18 @@ async function attemptAbdmLink(refNum, display, patientId) {
     return;
   }
 
-  // Resolve HIP ID from the patient's clinic — no env var fallback
-  const { rows: [patClinic] } = await pool.query(
-    `SELECT ec.hip_id FROM emr_clinics ec
-     JOIN emr_patients ep ON ep.clinic_id = ec.id
-     WHERE ep.id = $1 AND ec.abdm_enabled = true AND ec.hip_id IS NOT NULL
-     LIMIT 1`,
-    [patientId]
-  );
-  if (!patClinic?.hip_id) {
-    logger.info('ABDM link skipped — clinic has no ABDM HIP configured', { patientId });
+  // Resolve HIP ID from the appointment's clinic (not patient's default clinic).
+  // A patient can visit multiple clinics; the care context must be linked under
+  // the HIP of the clinic where THIS appointment was booked.
+  const clinicQuery = clinicId
+    ? pool.query(`SELECT hip_id FROM emr_clinics WHERE id = $1 AND abdm_enabled = true AND hip_id IS NOT NULL LIMIT 1`, [clinicId])
+    : pool.query(`SELECT ec.hip_id FROM emr_clinics ec JOIN emr_patients ep ON ep.clinic_id = ec.id WHERE ep.id = $1 AND ec.abdm_enabled = true AND ec.hip_id IS NOT NULL LIMIT 1`, [patientId]);
+  const { rows: [apptClinic] } = await clinicQuery;
+  if (!apptClinic?.hip_id) {
+    logger.info('ABDM link skipped — clinic has no ABDM HIP configured', { patientId, clinicId });
     return;
   }
-  const hipId = patClinic.hip_id;
+  const hipId = apptClinic.hip_id;
   const gender = normGender;
 
   try {
@@ -280,7 +279,7 @@ const updateStatus = async (req, res) => {
         if (!ccRows.length) return; // already existed — saveEncounter will update it with FHIR content
 
         logger.info('Care context created on status change', { refNum, status, patientId: a.emr_patient_id });
-        await attemptAbdmLink(refNum, display, a.emr_patient_id);
+        await attemptAbdmLink(refNum, display, a.emr_patient_id, a.clinic_id);
       } catch (err) {
         logger.error('Care context creation on status change failed', { error: err.message });
       }
@@ -482,7 +481,7 @@ const saveEncounter = async (req, res) => {
       // Only link on fresh insert — status change to 'ongoing' already triggered the first link.
       // On update (FHIR refresh), skip if already linked or pending (avoid ABDM-1092).
       if (isInsert) {
-        await attemptAbdmLink(refNum, display, a.emr_patient_id);
+        await attemptAbdmLink(refNum, display, a.emr_patient_id, a.clinic_id);
       }
     }).catch(err => {
       logger.error('[ABDM] care context upsert failed', {
