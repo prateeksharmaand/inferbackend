@@ -1224,15 +1224,24 @@ const healthInfoPush = async (req, res) => {
     const hipPubKey = keyMaterial?.dhPublicKey?.keyValue;
     const hipNonce  = keyMaterial?.nonce;
 
-    // Find the consent artefact ID and HIU key for decryption
+    // Find the consent artefact ID and HIU key for decryption.
+    // Uses _queryWithTimeout (verified connection + hard timeout) — raw pool.query()
+    // hangs indefinitely on stale idle sockets opened during server startup.
     let hiuKeyEntry = null;
     let consentIdForAck = null;
     if (hipPubKey && hipNonce) {
       // Primary: look up from hip_health_requests (HIP side stores consent_id here)
-      const { rows: hrRows } = await pool.query(
-        'SELECT consent_id, hiu_key_material FROM hip_health_requests WHERE transaction_id=$1 LIMIT 1',
-        [transactionId]
-      ).catch(() => ({ rows: [] }));
+      const ctx1 = { transactionId, step: 'key-lookup-1' };
+      let hrRows = [];
+      try {
+        const r = await _queryWithTimeout(
+          'SELECT consent_id, hiu_key_material FROM hip_health_requests WHERE transaction_id=$1 LIMIT 1',
+          [transactionId], 8000, ctx1
+        );
+        hrRows = r.rows;
+      } catch (e) {
+        logger.warn('HIU: key lookup 1 failed', { transactionId, error: e.message, code: e.code });
+      }
       const consentId = hrRows[0]?.consent_id;
       consentIdForAck = consentId;
 
@@ -1247,13 +1256,19 @@ const healthInfoPush = async (req, res) => {
         }
         // 3. Try per-artefact JSONB map in emr_consent_requests
         if (!hiuKeyEntry) {
-          const { rows: crRows } = await pool.query(
-            'SELECT hiu_key_material FROM emr_consent_requests WHERE (request_id=$1 OR abdm_request_id=$1) AND hiu_key_material IS NOT NULL LIMIT 1',
-            [consentId]
-          ).catch(() => ({ rows: [] }));
+          const ctx2 = { transactionId, step: 'key-lookup-2', consentId };
+          let crRows = [];
+          try {
+            const r = await _queryWithTimeout(
+              'SELECT hiu_key_material FROM emr_consent_requests WHERE (request_id=$1 OR abdm_request_id=$1) AND hiu_key_material IS NOT NULL LIMIT 1',
+              [consentId], 8000, ctx2
+            );
+            crRows = r.rows;
+          } catch (e) {
+            logger.warn('HIU: key lookup 2 failed', { transactionId, consentId, error: e.message, code: e.code });
+          }
           if (crRows[0]?.hiu_key_material) {
             const km = crRows[0].hiu_key_material;
-            // New format: {artefactId: {privKey, nonce, txnId}} — find by consentId key
             const entry = km[consentId] ?? Object.values(km)[0];
             if (entry?.privKey) {
               hiuKeyEntry = { privBytes: Buffer.from(entry.privKey, 'base64'), nonce: entry.nonce };

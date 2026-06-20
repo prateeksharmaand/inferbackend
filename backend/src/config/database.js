@@ -9,7 +9,11 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   max: 20,
-  idleTimeoutMillis: 10000,
+  // 2 s idle recycle — shorter than Neon's server-side idle timeout (~5 s on free tier).
+  // Pool proactively destroys idle connections before the server closes them,
+  // preventing stale-socket hangs on the next pool.connect(). The tradeoff is
+  // more frequent reconnects, which is acceptable for low-frequency ABDM pushes.
+  idleTimeoutMillis: 2000,
   connectionTimeoutMillis: 5000,
   query_timeout: 8000,
   keepAlive: true,
