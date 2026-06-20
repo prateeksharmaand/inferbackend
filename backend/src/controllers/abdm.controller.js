@@ -1118,8 +1118,7 @@ const healthInfoPush = async (req, res) => {
         });
       }
 
-      // FHIR validation removed — not required for ABDM M3 flow
-      // and was causing process exit after checksum check
+      logger.info('HIU: post-checksum reached', { careContextRef: entry.careContextReference });
 
       logger.info('HIU storing health record', {
         transactionId,
