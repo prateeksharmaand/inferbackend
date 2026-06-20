@@ -227,11 +227,6 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           {/* ── Row 1: token · name · status · edit ── */}
           <div className={styles.row1}>
             <span className={styles.token}>#{appt.token_number}</span>
-            {appt.patient_abha && (
-              <span style={{ fontSize: 9, fontWeight: 700, background: '#2563eb', color: '#fff', borderRadius: 4, padding: '2px 6px', letterSpacing: 0.3, flexShrink: 0 }}>
-                ABHA
-              </span>
-            )}
             <span className={styles.name}>
               <span className={styles.nameLink} onClick={e => { e.stopPropagation(); onOpen('profile'); }}>
                 {appt.patient_name}
@@ -243,6 +238,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               )}
             </span>
             <div className={styles.row1Right}>
+              {appt.patient_abha && (
+                <span style={{ fontSize: 9, fontWeight: 700, background: '#2563eb', color: '#fff', borderRadius: 4, padding: '2px 6px', letterSpacing: 0.3, flexShrink: 0 }}>
+                  ABHA
+                </span>
+              )}
               {appt.status === 'ongoing' && appt.checked_in_at
                 ? <ConsultTimer since={appt.checked_in_at} />
                 : <span className={styles.status} style={{ color }}>{appt.status.replace('_', ' ')}</span>
