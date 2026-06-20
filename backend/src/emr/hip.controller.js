@@ -382,11 +382,13 @@ const handleHealthInfoRequest = async (req, res) => {
   try {
     const { hiRequest } = req.body;
 
-    // ABDM v3 puts transactionId inside hiRequest; v0.5 puts it at the top level.
-    // Always prefer hiRequest.transactionId — that is what ABDM validates at the transfer endpoint.
+    // ABDM v0.5: transactionId is at the TOP LEVEL of the body (not inside hiRequest).
+    // ABDM v3: transactionId may also appear inside hiRequest.
+    // The TOP-LEVEL transactionId is what ABDM validates at the /health-information/transfer endpoint.
     const topLevelTxnId    = req.body?.transactionId;
     const hiRequestTxnId   = hiRequest?.transactionId;
-    const rawTransactionId = hiRequestTxnId ?? topLevelTxnId;
+    // Prefer top-level; fall back to hiRequest for v3 flows where it may differ
+    const rawTransactionId = topLevelTxnId ?? hiRequestTxnId;
 
     // Diagnostic log — compare both locations so ABDM-1017 mismatches are immediately visible
     logger.info('ABDM handleHealthInfoRequest transactionId sources', {

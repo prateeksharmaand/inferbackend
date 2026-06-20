@@ -1437,6 +1437,17 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
 
   const pushBody = { pageNumber: 1, pageCount: 1, transactionId, entries, keyMaterial: respondingKeyMaterial };
 
+  // TRANSFER TX: log transactionId immediately before push so any mutation is visible
+  logger.info('TRANSFER TX', {
+    transactionId,
+    payloadTransactionId: pushBody.transactionId,
+    match: pushBody.transactionId === transactionId,
+    pageNumber: pushBody.pageNumber,
+    pageCount: pushBody.pageCount,
+    entriesCount: pushBody.entries?.length,
+    keyMaterialPresent: !!pushBody.keyMaterial,
+  });
+
   // CRITICAL: Verify transactionId in payload matches what we received
   if (pushBody.transactionId !== transactionId) {
     throw new Error(`Payload transactionId mismatch: ${pushBody.transactionId} !== ${transactionId}`);
