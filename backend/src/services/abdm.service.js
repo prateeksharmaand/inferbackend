@@ -576,7 +576,7 @@ async function _storeLinkToken(cacheKey, linkToken) {
        SET token=$3, status='active', expires_at=$4, updated_at=NOW()`,
     [patientRef, hipId, linkToken, expiresAt]
   ).catch(err => logger.warn('_storeLinkToken DB persist failed', { error: err.message }));
-  logger.info('generateLinkToken: token stored (cache+DB)', { cacheKey: cacheKey.slice(-12) });
+  logger.info('generateLinkToken: token stored (cache+DB)', { hipId: cacheKey.split(':')[1], patientSuffix: cacheKey.split(':')[0].slice(-4) });
 }
 
 async function _getStoredLinkToken(patientRef, hipId) {
@@ -584,7 +584,7 @@ async function _getStoredLinkToken(patientRef, hipId) {
   const cacheKey = `${patientRef}:${hipId}`;
   const cached = _linkTokenCache.get(cacheKey);
   if (cached && Date.now() < cached.expiry) {
-    logger.info('generateLinkToken: reusing in-memory token', { cacheKey: cacheKey.slice(-12) });
+    logger.info('generateLinkToken: reusing in-memory token', { hipId: cacheKey.split(':')[1], patientSuffix: cacheKey.split(':')[0].slice(-4) });
     return cached.token;
   }
   // 2. Check DB (handles restarts)
@@ -599,7 +599,7 @@ async function _getStoredLinkToken(patientRef, hipId) {
   if (rows[0]?.token) {
     // Warm the in-memory cache from DB
     _linkTokenCache.set(cacheKey, { token: rows[0].token, expiry: new Date(rows[0].expires_at).getTime() });
-    logger.info('generateLinkToken: reusing DB-persisted token', { cacheKey: cacheKey.slice(-12), status: rows[0].status });
+    logger.info('generateLinkToken: reusing DB-persisted token', { hipId: cacheKey.split(':')[1], patientSuffix: cacheKey.split(':')[0].slice(-4), status: rows[0].status });
     return rows[0].token;
   }
   return null;
@@ -623,7 +623,7 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
   //    Deferred promise is registered SYNCHRONOUSLY (no await before _inFlight.set)
   //    so a second caller that arrives between any of the awaits below still coalesces.
   if (_inFlight.has(cacheKey)) {
-    logger.info('generateLinkToken: coalescing duplicate in-flight request', { cacheKey: cacheKey.slice(-12) });
+    logger.info('generateLinkToken: coalescing duplicate in-flight request', { hipId: cacheKey.split(':')[1], patientSuffix: cacheKey.split(':')[0].slice(-4) });
     return _inFlight.get(cacheKey);
   }
   let _deferResolve, _deferReject;
@@ -747,6 +747,13 @@ function _decodeLinkToken(linkToken) {
   }
 }
 
+// Format 14-digit ABHA number as XX-XXXX-XXXX-XXXX (ABDM standard)
+function _formatAbhaNumber(raw) {
+  const digits = String(raw).replace(/-/g, '').replace(/\D/g, '');
+  if (digits.length !== 14) return digits; // return as-is if not standard length
+  return `${digits.slice(0,2)}-${digits.slice(2,6)}-${digits.slice(6,10)}-${digits.slice(10,14)}`;
+}
+
 async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name, careContexts, patientId) {
   const token = await getGatewayToken();
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
@@ -754,45 +761,64 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
   // Decode the link token to verify what ABDM issued it for.
   const decoded = _decodeLinkToken(linkToken);
   const tokenAbhaAddress = decoded?.abhaAddress ?? abhaAddress;
-  const tokenAbhaNumber  = decoded?.abhaNumber  ? String(decoded.abhaNumber).replace(/-/g, '') : cleanAbha;
+  const tokenAbhaNumberRaw = decoded?.abhaNumber
+    ? String(decoded.abhaNumber).replace(/-/g, '')
+    : cleanAbha;
 
-  // patient.referenceNumber MUST match what was returned in on-discover.
-  // In handleDiscovery we echo back patient.id from ABDM's request — which is
-  // always the ABHA address (e.g. "sharmaprateek11@sbx"), never the ABHA number.
-  // Using the ABHA number here causes a 400 because ABDM validates consistency
-  // across the discover → link flow.
-  // Use the ABHA address from the decoded token (same address ABDM linked the token to).
-  const patientRef = tokenAbhaAddress;
+  // ABDM /hip/v3/link/carecontext requires abhaNumber in XX-XXXX-XXXX-XXXX format
+  const tokenAbhaNumberFormatted = _formatAbhaNumber(tokenAbhaNumberRaw);
+
+  // patient.referenceNumber MUST be the HIP's internal patient identifier.
+  // ABDM schema validation rejects ABHA addresses (containing @) as referenceNumber.
+  // Use patientId (HIP's internal DB ID) — stable, alphanumeric, ABDM-compliant.
+  // Fall back to formatted ABHA number if patientId not provided.
+  const patientRef = patientId
+    ? String(patientId)
+    : tokenAbhaNumberFormatted;
+
+  // REQUEST-ID in body and header MUST be the same UUID (ABDM validates consistency)
+  const linkReqId = uuid();
 
   logger.info('linkCareContexts: decoded link token', {
     tokenAbhaAddress,
-    tokenAbhaNumber:   tokenAbhaNumber.slice(-4) + ' (last 4)',
+    tokenAbhaNumberFormatted,
+    tokenAbhaNumberRaw:  tokenAbhaNumberRaw.slice(-4) + ' (last 4)',
     patientRef,
-    callerAbhaAddress: abhaAddress,
-    addressMatch:      tokenAbhaAddress === abhaAddress,
-    careContextCount:  careContexts.length,
+    callerAbhaAddress:   abhaAddress,
+    addressMatch:        tokenAbhaAddress === abhaAddress,
+    careContextCount:    careContexts.length,
+    linkReqId,
   });
 
-  // ABDM v3 /hip/v3/link/carecontext requires abhaNumber + abhaAddress at top level
-  // (same as ABDMv0.5 — removing them causes 400 with empty body).
-  // Use token-decoded values so they always match what ABDM issued the token for.
-  const linkReqId = uuid();
+  // ABDM v3 /hip/v3/link/carecontext correct schema:
+  // - abhaNumber: XX-XXXX-XXXX-XXXX (hyphenated, 14 digits)
+  // - abhaAddress: name@sbx (ABHA address)
+  // - patient.referenceNumber: HIP internal patient ID (NOT ABHA address)
+  // - REQUEST-ID header = requestId body (same UUID)
   const body = {
-    requestId: linkReqId,
-    timestamp: new Date().toISOString(),
-    abhaNumber: tokenAbhaNumber,
+    requestId:   linkReqId,
+    timestamp:   new Date().toISOString(),
+    abhaNumber:  tokenAbhaNumberFormatted,
     abhaAddress: tokenAbhaAddress,
     patient: {
       referenceNumber: patientRef,
-      display: name ?? tokenAbhaAddress ?? cleanAbha,
-      careContexts: careContexts.map(ctx => ({
+      display:         name ?? tokenAbhaAddress ?? cleanAbha,
+      careContexts:    careContexts.map(ctx => ({
         referenceNumber: ctx.referenceNumber,
-        display: ctx.display,
+        display:         ctx.display,
       })),
     },
   };
 
-  logger.info('linkCareContexts finalRequestBody', { hipId, body: JSON.stringify(body) });
+  logger.info('linkCareContexts request', {
+    hipId,
+    endpoint:    `${ABDM_HIECM}/hip/v3/link/carecontext`,
+    requestId:   linkReqId,
+    abhaNumber:  tokenAbhaNumberFormatted,
+    abhaAddress: tokenAbhaAddress,
+    patientRef,
+    careContextRefs: careContexts.map(c => c.referenceNumber),
+  });
 
   try {
     const res = await abdmAxios.post(
@@ -800,26 +826,41 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
       body,
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization:  `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'X-CM-ID': 'sbx',
-          'X-HIP-ID': hipId,
+          'X-CM-ID':      CM_ID,
+          'X-HIP-ID':     hipId,
           'X-LINK-TOKEN': linkToken,
-          'REQUEST-ID': uuid(),
-          TIMESTAMP: new Date().toISOString(),
+          'REQUEST-ID':   linkReqId,  // MUST match body.requestId
+          TIMESTAMP:      new Date().toISOString(),
         },
       }
     );
+    logger.info('linkCareContexts SUCCESS', { hipId, status: res.status, data: res.data });
     return res.data;
   } catch (err) {
-    const errBody = err.response?.data;
+    // Capture full ABDM error — response may be JSON, text, or HTML
+    const errStatus  = err.response?.status;
+    const errHeaders = err.response?.headers;
+    const errData    = err.response?.data;
+    const errRaw     = typeof errData === 'string' ? errData : JSON.stringify(errData);
+    const errCode    = errData?.error?.code ?? errData?.code ?? 'UNKNOWN';
+    const errMsg     = errData?.error?.message ?? errData?.message ?? err.message;
+
     logger.error('linkCareContexts FAILED', {
-      status:   err.response?.status,
-      body:     errBody,
-      sentBody: body,
+      status:      errStatus,
+      errorCode:   errCode,
+      errorMsg:    errMsg,
+      rawResponse: errRaw?.slice(0, 500),
+      contentType: errHeaders?.['content-type'],
+      sentAbhaNumber:   tokenAbhaNumberFormatted,
+      sentPatientRef:   patientRef,
+      sentCareContexts: careContexts.map(c => c.referenceNumber),
+      linkTokenPrefix:  linkToken?.slice(0, 30) + '...',
     });
-    const fwd = new Error(`ABDM link carecontext failed: ${errBody ? JSON.stringify(errBody) : err.message}`);
-    fwd.status = err.response?.status ?? 502;
+
+    const fwd = new Error(`ABDM link carecontext failed [${errStatus}] ${errCode}: ${errMsg}`);
+    fwd.status = errStatus ?? 502;
     throw fwd;
   }
 }
