@@ -1079,7 +1079,7 @@ function encryptFhir(plaintext, hiuPubKeyBase64, hiuNonceBase64, hipKeyPair) {
 
     // 2. Decode HIU public point (65-byte uncompressed 0x04 || X || Y)
     const hiuPubBytes = Buffer.from(hiuPubKeyBase64, 'base64');
-    const hiuPubPoint = _c25519W.ProjectivePoint.fromHex(hiuPubBytes);
+    const hiuPubPoint = _c25519W.BASE.constructor.fromHex(hiuPubBytes);
 
     // 3. ECDH: shared point = hipPriv * hiuPub; shared secret = x-coordinate (32 bytes BE)
     const sharedPoint = hiuPubPoint.multiply(hipPrivScalar);
