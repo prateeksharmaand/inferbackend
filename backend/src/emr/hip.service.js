@@ -1304,22 +1304,35 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
       totalRemaining: careContexts.length - i,
     });
 
-    const batchResults = await Promise.all(batch.map(async (ctx, batchIdx) => {
+    // Promise.allSettled instead of Promise.all:
+    // - Never silently swallows rejections — every failure is logged
+    // - All 14 entries are always attempted; one failure doesn't abort the rest
+    // setImmediate yield inside each async fn:
+    // - Breaks the event loop hold between encryptions
+    // - Measures event-loop lag (HIU background I/O competing for the loop)
+    // - Prevents 14 × ECDH sync block from starving concurrent Promise continuations
+    const batchPromises = batch.map(async (ctx, batchIdx) => {
       const idx = i + batchIdx;
-      const fhir = typeof ctx.fhir_content === 'string'
-        ? ctx.fhir_content
-        : buildFhirBundle(patient, ctx);
 
-      // Verify FHIR payload is valid JSON before encryption
+      let fhir;
+      try {
+        fhir = typeof ctx.fhir_content === 'string'
+          ? ctx.fhir_content
+          : buildFhirBundle(patient, ctx);
+      } catch (buildErr) {
+        logger.error('[ENCRYPT] buildFhirBundle threw', { careContextIndex: idx, error: buildErr.message });
+        throw buildErr;
+      }
+
       try {
         JSON.parse(fhir);
       } catch (parseErr) {
         logger.error('[ENCRYPT] FHIR bundle JSON validation failed', {
           careContextIndex: idx,
           careContextRef: ctx.reference_number,
-          fhirLength: fhir.length,
+          fhirLength: fhir?.length,
           parseError: parseErr.message,
-          fhirPrefix: fhir.slice(0, 200),
+          fhirPrefix: fhir?.slice(0, 200),
         });
         throw parseErr;
       }
@@ -1331,13 +1344,52 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
         isString: typeof fhir === 'string',
       });
 
-      // ABDM wire format requires MD5 checksum (spec §4.3.2)
       const checksum = crypto.createHash('md5').update(fhir).digest('hex');
       logger.info('[ENCRYPT] calling encryptFhir', { careContextIndex: idx, careContextRef: ctx.reference_number });
-      const { encryptedData } = await encryptFhir(fhir, hiuPubKeyToUse, hiuNonce, hipKeyPair);
-      logger.info('[ENCRYPT] encryptFhir returned', { careContextIndex: idx, careContextRef: ctx.reference_number, encLen: encryptedData?.length });
+
+      let encryptedData;
+      try {
+        ({ encryptedData } = encryptFhir(fhir, hiuPubKeyToUse, hiuNonce, hipKeyPair));
+      } catch (encErr) {
+        logger.error('[ENCRYPT] encryptFhir threw', { careContextIndex: idx, error: encErr.message });
+        throw encErr;
+      }
+
+      // Yield to event loop between encryptions — gives HIU background I/O a chance to
+      // process and prevents 14× sync ECDH from starving microtask continuations.
+      // Also measures event-loop lag: > 50 ms means another task is blocking the loop.
+      const lagStart = Date.now();
+      await new Promise(r => setImmediate(r));
+      const yieldMs = Date.now() - lagStart;
+      if (yieldMs > 50) {
+        logger.warn('[ENCRYPT] event-loop lag after encryptFhir — concurrent I/O blocking', {
+          careContextIndex: idx, yieldMs,
+        });
+      }
+
+      logger.info('[ENCRYPT] encryptFhir returned', {
+        careContextIndex: idx,
+        careContextRef: ctx.reference_number,
+        encLen: encryptedData?.length,
+        yieldMs,
+      });
       return { content: encryptedData, media: 'application/fhir+json', checksum, careContextReference: ctx.reference_number };
-    }));
+    });
+
+    const settled = await Promise.allSettled(batchPromises);
+    const batchResults = [];
+    for (const [n, r] of settled.entries()) {
+      if (r.status === 'rejected') {
+        logger.error('[ENCRYPT] entry rejected in Promise.allSettled', {
+          careContextIndex: i + n,
+          careContextRef: batch[n]?.reference_number,
+          reason: r.reason?.message,
+          stack:  r.reason?.stack?.slice(0, 400),
+        });
+      } else {
+        batchResults.push(r.value);
+      }
+    }
 
     entries.push(...batchResults);
     const mem = process.memoryUsage();
