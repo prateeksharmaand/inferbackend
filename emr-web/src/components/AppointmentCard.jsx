@@ -319,8 +319,8 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </button>
           </div>
 
-          {/* ── Profile share token timer (booked appointments from scan-and-share) ── */}
-          {appt.status === 'booked' && (appt.share_token_expires_at || appt.patient_abha) && (
+          {/* ── Profile share token timer — all booked appointments ── */}
+          {appt.status === 'booked' && (
             <TokenExpiryTimer expiresAt={appt.share_token_expires_at} createdAt={appt.created_at} />
           )}
 
