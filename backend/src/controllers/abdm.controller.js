@@ -1052,11 +1052,21 @@ async function _getVerifiedClient(ctx) {
   for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
     const connectStart = Date.now();
 
-    // pool.connect() is protected by connectionTimeoutMillis: 5000 in pool config.
-    // If poolWaiting > 0 and poolTotal === max(20) this will throw after 5 s.
+    // Log BEFORE pool.connect() so a hang here is immediately visible.
+    // pool.connect() should return in < 1 ms when idle connections exist,
+    // or up to connectionTimeoutMillis(5 s) if pool is exhausted.
+    logger.info('HIU: pool.connect() start', {
+      attempt, ...poolSnapshot(), ...ctx,
+    });
+
     const preConnect = poolSnapshot();
     const client = await pool.connect();
     const connectMs = Date.now() - connectStart;
+
+    logger.info('HIU: pool.connect() done', {
+      attempt, connectMs, isNewConnection: pool.totalCount > preConnect.poolTotal,
+      ...poolSnapshot(), ...ctx,
+    });
 
     // Distinguish reused vs. brand-new connection.
     // pool.totalCount increases by 1 only when a NEW physical socket is opened.
