@@ -108,9 +108,15 @@ const listAppointments = async (req, res) => {
                          AND p.patient_mobile = a.patient_mobile
                          AND p.id < a.id) = 0
                  ELSE false
-               END AS is_new_patient
+               END AS is_new_patient,
+               hps.token_expires_at AS share_token_expires_at
              FROM emr_appointments a
              LEFT JOIN emr_doctors d ON d.id = a.doctor_id
+             LEFT JOIN LATERAL (
+               SELECT token_expires_at FROM hip_profile_shares
+               WHERE patient_id = a.emr_patient_id AND status = 'linked'
+               ORDER BY created_at DESC LIMIT 1
+             ) hps ON true
              WHERE a.clinic_id = $1 AND a.appointment_date = $2`;
   const params = [req.emrUser.clinic_id, apptDate];
   let idx = 3;
