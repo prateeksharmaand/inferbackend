@@ -217,7 +217,21 @@ const handleLinkInit = async (req, res) => {
     // TODO: wire up SMS: await sendSms(pt?.mobile, `Your ABDM linking OTP: ${otp}. Valid 10 min.`);
     audit.abdmLinkInit(req, linkRefNumber);
 
-    await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber, hipId: req.headers['x-hip-id'] || process.env.ABDM_HIP_ID || process.env.ABDM_CLIENT_ID });
+    // Resolve hipId: prefer X-HIP-ID header (ABDM tells us which service was queried),
+    // then patient's clinic hip_id, then env var — never fall back to bridge/client ID.
+    let resolvedHipId = req.headers['x-hip-id'] || null;
+    if (!resolvedHipId && pt?.id) {
+      const { rows: clinicRows } = await pool.query(
+        `SELECT ec.hip_id FROM emr_clinics ec
+         JOIN emr_patients ep ON ep.clinic_id = ec.id
+         WHERE ep.id = $1 AND ec.hip_id IS NOT NULL LIMIT 1`,
+        [pt.id]
+      );
+      resolvedHipId = clinicRows[0]?.hip_id || null;
+    }
+    if (!resolvedHipId) resolvedHipId = process.env.ABDM_HIP_ID || null;
+    logger.info('HIP link/init: resolved hipId', { resolvedHipId, fromHeader: !!req.headers['x-hip-id'] });
+    await hip.sendLinkInitResult({ requestId, transactionId, linkRefNumber, hipId: resolvedHipId });
   } catch (err) {
     logger.error('handleLinkInit error', err);
   }

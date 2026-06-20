@@ -40,6 +40,16 @@ function _jwkToPem(jwk) {
 }
 
 async function verifyAbdmCallback(req, res, next) {
+  // Log every inbound ABDM callback — helps trace silent failures even before auth
+  logger.info('ABDM callback received', {
+    path:      req.path,
+    method:    req.method,
+    requestId: req.headers['request-id'],
+    xHipId:    req.headers['x-hip-id'],
+    hasAuth:   !!req.headers['authorization'],
+    ip:        req.ip,
+  });
+
   const authHeader = req.headers['authorization'];
 
   if (!authHeader?.startsWith('Bearer ')) {
@@ -52,17 +62,16 @@ async function verifyAbdmCallback(req, res, next) {
 
   const token = authHeader.slice(7);
 
-  // Sandbox bypass — set ABDM_SKIP_JWT_VERIFY=true in .env for sandbox
-  // (ABDM sandbox does not publish a JWKS endpoint so signature verification always fails)
+  // Sandbox bypass — set ABDM_SKIP_JWT_VERIFY=true in .env for sandbox.
+  // ABDM sandbox does not publish a JWKS endpoint and often sends tokens with
+  // very short expiry (or already expired by the time the confirm callback fires).
+  // In bypass mode we only decode the payload — no signature or expiry check.
   if (process.env.ABDM_SKIP_JWT_VERIFY === 'true') {
     try {
-      const parts      = token.split('.');
+      const parts       = token.split('.');
       const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
-      const payload    = JSON.parse(payloadJson);
-      if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) {
-        throw new Error('Token expired');
-      }
-      req.abdmGateway = payload;
+      const payload     = JSON.parse(payloadJson);
+      req.abdmGateway   = payload;
       return next();
     } catch (err) {
       logger.warn('ABDM callback: sandbox token decode failed', { error: err.message });
