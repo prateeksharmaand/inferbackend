@@ -742,10 +742,12 @@ function ConsentCard({ c, onFetched, abha }) {
       }
       const abhaParam = abha ? `?abha=${encodeURIComponent(abha)}` : '';
       const recs = await api.get(`/consents/health-records${abhaParam}`);
-      // Filter by txnId from pull-data response (authoritative), or fall back to consent's stored txnId.
-      // Don't use c.transaction_id alone — it may be stale/null for patient-initiated consents.
+      // Filter by txnId from pull-data response (authoritative — backend now returns actual
+      // health_records.transaction_id, not the stale reqId placeholder).
+      // Fall back to showing ALL records if filter yields nothing (defensive).
       const txnId = pullRes.txnId || c.transaction_id;
-      const mine = txnId ? recs.filter(r => r.transaction_id === txnId) : recs;
+      const filtered = txnId ? recs.filter(r => r.transaction_id === txnId) : recs;
+      const mine = filtered.length > 0 ? filtered : recs;
       setRecords(mine);
       setExpanded(true);
       setDataSource(pullRes.source || 'unknown');
@@ -826,11 +828,15 @@ function ConsentsTab({ appt, patientAbhaAddress }) {
     }).catch(() => {}).finally(() => setLoading(false));
   };
 
-  // Initial load + poll every 8s while any consent is REQUESTED
+  // Poll every 5s while any consent is REQUESTED or GRANTED-but-no-records-fetched yet
   useEffect(() => {
     setLoading(true);
     load();
-    const timer = setInterval(load, 8000);
+    const timer = setInterval(() => {
+      const hasRequested = consents.some(c => c.status === 'REQUESTED');
+      const hasGrantedUnfetched = consents.some(c => c.status === 'GRANTED');
+      if (hasRequested || hasGrantedUnfetched) load();
+    }, 5000);
     return () => clearInterval(timer);
   }, [appt?.id, abha]); // eslint-disable-line
 

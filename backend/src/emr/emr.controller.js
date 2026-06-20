@@ -778,10 +778,20 @@ const pullConsentData = async (req, res) => {
     const totalCount = existing.reduce((s, r) => s + Number(r.cnt), 0);
     const primaryTxn = existing[0].transaction_id;
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    // Always return primaryTxn (actual transaction_id from health_records).
+    // consent.transaction_id may still hold the reqId placeholder (set during fetchHealthInfo)
+    // and won't match health_records.transaction_id — causing frontend filter to return empty.
+    // Update consent row to point at the real txnId for future fast-path lookups.
+    if (primaryTxn && primaryTxn !== consent.transaction_id) {
+      pool.query(
+        `UPDATE emr_consent_requests SET transaction_id=$1, updated_at=NOW() WHERE request_id=$2`,
+        [primaryTxn, requestId]
+      ).catch(() => {});
+    }
     return res.json({
       message: 'Records already delivered by ABDM',
       source: 'abdm',
-      txnId: consent.transaction_id || primaryTxn,
+      txnId: primaryTxn,   // actual txnId from health_records — matches frontend filter
       count: totalCount,
       hipCount: existing.length,
     });
