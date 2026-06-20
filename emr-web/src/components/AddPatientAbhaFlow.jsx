@@ -459,7 +459,7 @@ function YesFlow({ onSuccess, onClose }) {
 
       {/* ABHA tab - Step 1 */}
       {tab === 'abha' && step === 1 && (
-        <div className="abha-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="abha-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 460, margin: '0 auto', width: '100%' }}>
           <div style={{ background: 'linear-gradient(135deg,#faf5ff,#ede9fe)', borderRadius: 10, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center' }}>
             <CreditCard size={20} color="#7c3aed" style={{ flexShrink: 0 }} />
             <div>
@@ -479,9 +479,9 @@ function YesFlow({ onSuccess, onClose }) {
                 value={mobile} onChange={e => { setMobile(e.target.value); if (e.target.value) setAbhaInput(''); }} />
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10, marginTop: 4 }}>
-            <button style={ghostBtn} onClick={onClose}>Cancel</button>
-            <button style={primaryBtn(loading || (!abhaInput.trim() && !mobile.trim()))} onClick={requestOtp} disabled={loading || (!abhaInput.trim() && !mobile.trim())}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button style={{ ...ghostBtn, width: 'auto', padding: '11px 24px' }} onClick={onClose}>Cancel</button>
+            <button style={{ ...primaryBtn(loading || (!abhaInput.trim() && !mobile.trim())), width: 'auto', padding: '11px 32px' }} onClick={requestOtp} disabled={loading || (!abhaInput.trim() && !mobile.trim())}>
               {loading ? '⏳ Sending OTP…' : 'Send OTP →'}
             </button>
           </div>
@@ -499,9 +499,9 @@ function YesFlow({ onSuccess, onClose }) {
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>OTP sent to your registered mobile number</p>
           </div>
           <OtpBoxes value={otp} onChange={setOtp} autoFocus />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
-            <button style={ghostBtn} onClick={() => setStep(1)}>← Back</button>
-            <button style={primaryBtn(loading || otp.length < 6)} onClick={verifyOtp} disabled={loading || otp.length < 6}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button style={{ ...ghostBtn, width: 'auto', padding: '11px 24px' }} onClick={() => setStep(1)}>← Back</button>
+            <button style={{ ...primaryBtn(loading || otp.length < 6), width: 'auto', padding: '11px 32px' }} onClick={verifyOtp} disabled={loading || otp.length < 6}>
               {loading ? '⏳ Verifying…' : 'Verify & Fetch →'}
             </button>
           </div>
@@ -733,7 +733,7 @@ function NoFlow({ onSuccess, onClose }) {
 
       {/* Step 1: Consent + Aadhaar + Mobile */}
       {step === 1 && (
-        <>
+        <div style={{ maxWidth: 460, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={fieldLabel}>Aadhaar Number</label>
@@ -783,14 +783,14 @@ function NoFlow({ onSuccess, onClose }) {
             </label>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
-            <button style={ghostBtn} onClick={onClose}>Cancel</button>
-            <button style={primaryBtn(!consent1 || !consent2 || loading)} onClick={sendOtp}
-              disabled={!consent1 || !consent2 || loading}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button style={{ ...ghostBtn, width: 'auto', padding: '11px 24px' }} onClick={onClose}>Cancel</button>
+            <button style={{ ...primaryBtn(!consent1 || !consent2 || loading), width: 'auto', padding: '11px 32px' }}
+              onClick={sendOtp} disabled={!consent1 || !consent2 || loading}>
               {loading ? '⏳ Sending OTP…' : 'Send OTP →'}
             </button>
           </div>
-        </>
+        </div>
       )}
 
       {/* Step 2: Verify Aadhaar OTP */}
@@ -804,9 +804,9 @@ function NoFlow({ onSuccess, onClose }) {
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>OTP sent to your Aadhaar-linked mobile</p>
           </div>
           <OtpBoxes value={otp} onChange={setOtp} autoFocus />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
-            <button style={ghostBtn} onClick={() => setStep(1)}>← Back</button>
-            <button style={primaryBtn(loading || otp.length < 6)} onClick={verifyAadhaarOtp} disabled={loading || otp.length < 6}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button style={{ ...ghostBtn, width: 'auto', padding: '11px 24px' }} onClick={() => setStep(1)}>← Back</button>
+            <button style={{ ...primaryBtn(loading || otp.length < 6), width: 'auto', padding: '11px 32px' }} onClick={verifyAadhaarOtp} disabled={loading || otp.length < 6}>
               {loading ? '⏳ Verifying…' : 'Verify OTP →'}
             </button>
           </div>
@@ -828,14 +828,14 @@ function NoFlow({ onSuccess, onClose }) {
             </p>
           </div>
           <OtpBoxes value={mobileOtp} onChange={setMobileOtp} autoFocus />
-          <button style={primaryBtn(loading || mobileOtp.length < 6)} onClick={verifyMobileOtp}
-            disabled={loading || mobileOtp.length < 6}>
-            {loading ? '⏳ Verifying…' : 'Verify Mobile OTP →'}
-          </button>
-          <button style={{ background: 'none', border: 'none', color: '#7c3aed', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: 0, textAlign: 'center' }}
-            onClick={sendMobileOtp} disabled={loading}>
-            Resend OTP
-          </button>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button style={{ background: 'none', border: 'none', color: '#7c3aed', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: '11px 0' }}
+              onClick={sendMobileOtp} disabled={loading}>Resend OTP</button>
+            <button style={{ ...primaryBtn(loading || mobileOtp.length < 6), width: 'auto', padding: '11px 32px' }} onClick={verifyMobileOtp}
+              disabled={loading || mobileOtp.length < 6}>
+              {loading ? '⏳ Verifying…' : 'Verify OTP →'}
+            </button>
+          </div>
         </div>
       )}
 
