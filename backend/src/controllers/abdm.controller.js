@@ -1073,6 +1073,7 @@ const healthInfoPush = async (req, res) => {
       logger.info('HIU health-info push: key lookup', { transactionId, consentId, hasKey: !!hiuKeyEntry });
     }
 
+    const rowsToInsert = [];
     for (const entry of entries) {
       let content = entry.content;
       let plaintext = null;
@@ -1146,12 +1147,22 @@ const healthInfoPush = async (req, res) => {
         contentLen: content?.length,
         checksumVerified: !!plaintext && !!entry.checksum,
       });
+      rowsToInsert.push([transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]);
+    }
+
+    // Bulk insert all records in a single query — avoids connection pool exhaustion
+    // from 14 sequential awaited pool.query calls.
+    if (rowsToInsert.length > 0) {
+      const placeholders = rowsToInsert.map((_, i) => {
+        const base = i * 8;
+        return `($${base+1},$${base+2},$${base+3},$${base+4},$${base+5},$${base+6},$${base+7},$${base+8})`;
+      }).join(',');
       await pool.query(
         `INSERT INTO health_records
            (transaction_id, care_context_reference, hi_type, content, media, checksum, page_number, page_count)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         VALUES ${placeholders}
          ON CONFLICT DO NOTHING`,
-        [transactionId, entry.careContextReference, entry.hiType || null, content, entry.media, entry.checksum, pageNumber, pageCount]
+        rowsToInsert.flat()
       );
     }
     logger.info('HIU health-info push stored', {
