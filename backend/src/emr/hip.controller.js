@@ -529,8 +529,12 @@ const handleHealthInfoRequest = async (req, res) => {
     logger.info('HIP health-info: consent filter', {
       consentId,
       consentedRefCount: consentedRefs.length,
+      consentedRefs,                          // DIAGNOSTIC: exact refs in consent
       hasPatientId: !!patientId,
+      patientId,
       source: inlineConsent ? 'inline' : 'stored',
+      consentFrom,
+      consentTo,
     });
 
     let resolvedPatientId = patientId;
@@ -564,14 +568,82 @@ const handleHealthInfoRequest = async (req, res) => {
     let rows;
     if (consentedRefs.length) {
       const { rows: r } = await pool.query(
-        `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender
+        `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender, ep.abha_address
          FROM emr_care_contexts ecc
          JOIN emr_patients ep ON ep.id = ecc.patient_id
          WHERE ecc.reference_number = ANY($1::text[])
          ORDER BY ecc.created_at DESC`,
         [consentedRefs]
       );
-      rows = r;
+
+      // DIAGNOSTIC: log exactly what refs were found vs what was requested
+      const foundRefs  = r.map(row => row.reference_number);
+      const missingRefs = consentedRefs.filter(ref => !foundRefs.includes(ref));
+      logger.info('HIP health-info: consent reference lookup result', {
+        consentId,
+        requestedRefs:  consentedRefs,
+        foundRefs,
+        missingRefs,
+        foundCount:    r.length,
+        missedCount:   missingRefs.length,
+        VERDICT: r.length === 0
+          ? 'MISMATCH — consent refs not in emr_care_contexts. Check if these are the correct patient or if care contexts were linked under a different session.'
+          : r.length < consentedRefs.length
+            ? `PARTIAL — ${r.length}/${consentedRefs.length} refs found`
+            : 'ALL_MATCHED',
+      });
+
+      // If exact ref match fails but we have patient identity, fall back to ABHA lookup
+      if (r.length === 0 && resolvedPatientId) {
+        logger.info('HIP health-info: ref match returned 0 — trying patient ABHA fallback', {
+          consentId,
+          resolvedPatientId,
+        });
+
+        // First check if patient exists in our DB with this ABHA address
+        const { rows: patientRows } = await pool.query(
+          `SELECT id, abha_address, name FROM emr_patients
+           WHERE abha_address = $1 AND deleted_at IS NULL LIMIT 1`,
+          [resolvedPatientId]
+        ).catch(() => ({ rows: [] }));
+
+        logger.info('HIP health-info: patient lookup for ABHA fallback', {
+          resolvedPatientId,
+          patientFound: patientRows.length > 0,
+          patientId: patientRows[0]?.id,
+        });
+
+        if (patientRows.length > 0) {
+          // Get all linked care contexts for this patient within consent date range
+          const dateFilter = (consentFrom && consentTo)
+            ? `AND ecc.created_at BETWEEN $2::timestamptz AND $3::timestamptz`
+            : '';
+          const params = consentFrom && consentTo
+            ? [resolvedPatientId, consentFrom, consentTo]
+            : [resolvedPatientId];
+
+          const { rows: abhaRows } = await pool.query(
+            `SELECT ecc.*, ep.name, ep.mobile, ep.dob, ep.gender, ep.abha_address
+             FROM emr_care_contexts ecc
+             JOIN emr_patients ep ON ep.id = ecc.patient_id
+             WHERE ep.abha_address = $1 AND ecc.link_status = 'linked'
+             ${dateFilter}
+             ORDER BY ecc.created_at DESC`,
+            params
+          );
+          logger.info('HIP health-info: ABHA fallback result', {
+            consentId,
+            resolvedPatientId,
+            count: abhaRows.length,
+            refs: abhaRows.map(r => r.reference_number),
+          });
+          rows = abhaRows;
+        } else {
+          rows = r; // keep empty
+        }
+      } else {
+        rows = r;
+      }
     } else if (resolvedPatientId) {
       // SEC-008: apply consent date range filter when no explicit refs
       const dateFilter = (consentFrom && consentTo)
@@ -596,10 +668,20 @@ const handleHealthInfoRequest = async (req, res) => {
       rows = [];
     }
 
-    logger.info('HIP health-info: care contexts to push', { count: rows.length });
+    logger.info('HIP health-info: care contexts to push', {
+      count: rows.length,
+      refs:  rows.map(r => r.reference_number),
+    });
 
     if (!rows.length) {
-      logger.warn('HIP health-info: no care contexts to push');
+      logger.warn('HIP health-info: no care contexts to push', {
+        consentId,
+        consentedRefs,
+        resolvedPatientId,
+        DIAGNOSIS: consentedRefs.length > 0
+          ? `Consent has ${consentedRefs.length} refs but none found in emr_care_contexts. Refs in consent: ${consentedRefs.join(', ')}. Verify patient ABHA address matches and care contexts are linked.`
+          : 'Consent has no care context references and no patient ID could be resolved.',
+      });
       await pool.query(`UPDATE hip_health_requests SET status='sent' WHERE transaction_id=$1`, [transactionId]);
       return;
     }

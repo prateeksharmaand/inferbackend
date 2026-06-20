@@ -145,6 +145,8 @@ const ABDM_HIECM     = process.env.ABDM_HIECM_URL     || 'https://dev.abdm.gov.i
 const ABDM_SESSION_URL = `${ABDM_HIECM}/gateway/v3/sessions`;
 const CLIENT_ID      = process.env.ABDM_CLIENT_ID;
 const CLIENT_SECRET  = process.env.ABDM_CLIENT_SECRET;
+// CM_ID: 'sbx' for sandbox, 'abdm' for production — used in X-CM-ID header
+const CM_ID          = process.env.ABDM_CM_ID || (process.env.NODE_ENV === 'production' ? 'abdm' : 'sbx');
 
 let _accessToken = null;
 let _tokenExpiry  = 0;
