@@ -273,13 +273,14 @@
 .permGroups { overflow-y: scroll; flex: 1; min-height: 0; padding: 12px 20px 20px; display: flex; flex-direction: column; gap: 8px; }
 
 .permGroup {
-  border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden;
-  background: var(--color-surface);
+  border: 1px solid var(--color-border); border-radius: 10px;
+  background: var(--color-surface); overflow: visible;
 }
 .permGroupHeader {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; cursor: pointer; user-select: none; min-height: 44px;
+  padding: 12px 16px; cursor: pointer; user-select: none; min-height: 48px;
   transition: background .1s; color: var(--color-text-2);
+  border-radius: 10px 10px 0 0;
 }
 .permGroupHeader:hover { background: var(--color-bg); }
 .permGroupLeft { display: flex; align-items: center; gap: 12px; }
@@ -292,16 +293,29 @@
 .groupToggleOn { background: var(--color-primary); border-color: var(--color-primary); }
 
 .permGroupLabel { font-size: 13px; font-weight: 600; color: var(--color-text); }
-.permGroupCount { font-size: 11px; color: var(--color-text-3); font-weight: 500; background: var(--color-bg); padding: 1px 7px; border-radius: 20px; }
+.permGroupCount {
+  font-size: 11px; color: var(--color-text-3); font-weight: 500;
+  background: var(--color-bg); padding: 2px 8px; border-radius: 20px;
+  border: 1px solid var(--color-border);
+}
 
-.permList { padding: 4px 16px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+.permList {
+  padding: 6px 16px 12px;
+  display: flex; flex-wrap: wrap;
+  border-top: 1px solid var(--color-border);
+}
 .permRow {
   display: flex; align-items: center; gap: 10px;
-  padding: 9px 8px; border-radius: 6px; cursor: pointer; transition: background .1s; min-height: 36px;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  transition: background .1s;
+  width: 50%; box-sizing: border-box; min-height: 40px;
 }
 .permRow:hover { background: var(--color-bg); }
-.permCheck { width: 15px; height: 15px; accent-color: var(--color-primary); cursor: pointer; flex-shrink: 0; }
-.permLabel { font-size: 13px; color: var(--color-text); line-height: 1.3; }
+.permCheck {
+  width: 16px; height: 16px; flex-shrink: 0;
+  accent-color: var(--color-primary); cursor: pointer;
+}
+.permLabel { font-size: 13px; color: var(--color-text); line-height: 1.4; }
 
 .permModalFooter {
   display: flex; justify-content: flex-end; gap: 10px;
