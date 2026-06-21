@@ -137,7 +137,12 @@ const listAppointments = async (req, res) => {
 
   // Group for the board
   const booked    = rows.filter(r => ['booked','rescheduled'].includes(r.status));
-  const myOpd     = rows.filter(r => ['checked_in','ongoing','parked'].includes(r.status));
+  const myOpd     = rows.filter(r => {
+    if (!['checked_in','ongoing','parked'].includes(r.status)) return false;
+    // Doctors only see their own appointments in MY OPD; admins/staff see all
+    if (req.emrUser.role === 'doctor') return r.doctor_id === req.emrUser.id;
+    return true;
+  });
   const completed = rows.filter(r => ['completed','no_show','aborted','cancelled'].includes(r.status));
 
   res.json({ date: apptDate, booked, my_opd: myOpd, completed, total: rows.length });
