@@ -8,25 +8,24 @@ export default function Login() {
   const { login } = useAuth();
   const navigate  = useNavigate();
   const [searchParams] = useSearchParams();
-  const suspended  = searchParams.get('suspended') === '1';
-  const [role,     setRole]     = useState('staff');
+  const suspended = searchParams.get('suspended') === '1';
+
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
 
-  // Forgot password state
-  const [showForgot,   setShowForgot]   = useState(false);
-  const [fpEmail,      setFpEmail]      = useState('');
-  const [fpLoading,    setFpLoading]    = useState(false);
-  const [fpMsg,        setFpMsg]        = useState('');
-  const [fpError,      setFpError]      = useState('');
+  const [showForgot, setShowForgot] = useState(false);
+  const [fpEmail,    setFpEmail]    = useState('');
+  const [fpLoading,  setFpLoading]  = useState(false);
+  const [fpMsg,      setFpMsg]      = useState('');
+  const [fpError,    setFpError]    = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      const data = await api.post('/auth/login', { email, password, role });
+      const data = await api.post('/auth/login', { email, password, role: 'staff' });
       login(data.token, data.user);
       navigate('/queue');
     } catch (err) {
@@ -40,7 +39,7 @@ export default function Login() {
     e.preventDefault();
     setFpError(''); setFpMsg(''); setFpLoading(true);
     try {
-      const data = await api.post('/auth/forgot-password', { email: fpEmail, role });
+      const data = await api.post('/auth/forgot-password', { email: fpEmail, role: 'staff' });
       setFpMsg(data.message || 'Reset link sent. Check your email.');
     } catch (err) {
       setFpError(err.message || 'Something went wrong. Please try again.');
@@ -64,19 +63,6 @@ export default function Login() {
           <p style={{ fontSize: 13, color: 'var(--color-text-2)', marginBottom: 16 }}>
             Enter your email and we'll send you a reset link.
           </p>
-
-          <div className={styles.roleTabs}>
-            {['staff', 'doctor'].map(r => (
-              <button
-                key={r}
-                className={`${styles.roleTab} ${role === r ? styles.roleTabActive : ''}`}
-                onClick={() => setRole(r)}
-              >
-                {r === 'staff' ? 'Clinic / Staff' : 'Doctor'}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={handleForgotPassword} className={styles.form}>
             <label className={styles.label}>Email</label>
             <input
@@ -91,7 +77,6 @@ export default function Login() {
               {fpLoading ? 'Sending…' : 'Send Reset Link'}
             </button>
           </form>
-
           <button
             onClick={() => { setShowForgot(false); setFpMsg(''); setFpError(''); }}
             style={{ marginTop: 16, background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: 13, cursor: 'pointer' }}
@@ -121,18 +106,6 @@ export default function Login() {
         )}
         <h2 className={styles.title}>Sign in to your clinic</h2>
 
-        <div className={styles.roleTabs}>
-          {['staff', 'doctor'].map(r => (
-            <button
-              key={r}
-              className={`${styles.roleTab} ${role === r ? styles.roleTabActive : ''}`}
-              onClick={() => setRole(r)}
-            >
-              {r === 'staff' ? 'Clinic / Staff' : 'Doctor'}
-            </button>
-          ))}
-        </div>
-
         <form onSubmit={handleSubmit} className={styles.form}>
           <label className={styles.label}>Email</label>
           <input
@@ -141,7 +114,6 @@ export default function Login() {
             value={email} onChange={e => setEmail(e.target.value)}
             placeholder="you@clinic.com"
           />
-
           <label className={styles.label}>Password</label>
           <input
             className={styles.input}
@@ -149,9 +121,7 @@ export default function Login() {
             value={password} onChange={e => setPassword(e.target.value)}
             placeholder="••••••••"
           />
-
           {error && <p className={styles.error}>{error}</p>}
-
           <button className={styles.btn} type="submit" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign In'}
           </button>

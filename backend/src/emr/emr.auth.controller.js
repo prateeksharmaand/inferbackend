@@ -53,30 +53,14 @@ const login = async (req, res) => {
   const { email, password, role = 'staff' } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
 
-  // Look up user — doctors may live in either emr_clinic_staff (Staff screen)
-  // or the legacy emr_doctors table. Try emr_clinic_staff first for everyone.
-  let rows = [];
-  let sourceTable = 'emr_clinic_staff';
-
-  ({ rows } = await pool.query(
+  // Single source of truth: all users (doctors, admins, staff) live in emr_clinic_staff.
+  const { rows } = await pool.query(
     `SELECT d.*, c.name AS clinic_name, c.address AS clinic_address, c.phone AS clinic_phone, c.plan, c.max_patients
      FROM emr_clinic_staff d
      JOIN emr_clinics c ON c.id = d.clinic_id
      WHERE d.email = $1 AND d.is_active = true`,
     [email]
-  ));
-
-  // If not found in staff table AND the caller chose the doctor tab, also try emr_doctors
-  if (!rows.length && role === 'doctor') {
-    sourceTable = 'emr_doctors';
-    ({ rows } = await pool.query(
-      `SELECT d.*, c.name AS clinic_name, c.address AS clinic_address, c.phone AS clinic_phone, c.plan, c.max_patients
-       FROM emr_doctors d
-       JOIN emr_clinics c ON c.id = d.clinic_id
-       WHERE d.email = $1 AND d.is_active = true`,
-      [email]
-    ));
-  }
+  );
 
   if (!rows.length) {
     audit.loginFail(req, email, 'user not found');
@@ -95,10 +79,8 @@ const login = async (req, res) => {
     return res.status(403).json({ error: 'Your clinic account has been suspended. Please contact support.' });
   }
 
-  // effectiveRole: always use the role column from the DB record.
-  // For legacy emr_doctors rows the column doesn't exist so fall back to 'doctor'.
-  // For emr_clinic_staff rows, user.role is the actual assigned role slug.
-  const effectiveRole = user.role || (sourceTable === 'emr_doctors' ? 'doctor' : 'staff');
+  // effectiveRole: always the role column from emr_clinic_staff
+  const effectiveRole = user.role || 'staff';
 
   audit.loginSuccess(req, user, effectiveRole);
 

@@ -1,4 +1,4 @@
-const { pool }    = require('../config/database');
+﻿const { pool }    = require('../config/database');
 const fhir        = require('../services/fhir.service');
 const hip         = require('./hip.service');
 const abdmSvc     = require('../services/abdm.service');
@@ -9,8 +9,8 @@ const { sendAppointmentConfirmation } = require('./emr.mailer');
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
   'rescheduled','follow_up','parked','no_show','aborted'];
 
-// ── Shared: attempt HIP-initiated ABDM care context link ─────────────────────
-// Flow: skip if already linked → reuse cached token → generate new token
+// â”€â”€ Shared: attempt HIP-initiated ABDM care context link â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Flow: skip if already linked â†’ reuse cached token â†’ generate new token
 async function attemptAbdmLink(refNum, display, patientId, clinicId) {
   // 1. Skip if already linked
   const { rows: [cc] } = await pool.query(
@@ -18,7 +18,7 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
     [refNum]
   );
   if (cc?.link_status === 'linked') {
-    logger.info('ABDM link skipped — already linked', { refNum });
+    logger.info('ABDM link skipped â€” already linked', { refNum });
     return;
   }
 
@@ -30,26 +30,26 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
     [patientId]
   );
   if (!patient?.abha_number || !patient?.abha_address) {
-    logger.info('ABDM link skipped — patient missing abha_number or abha_address', { patientId });
+    logger.info('ABDM link skipped â€” patient missing abha_number or abha_address', { patientId });
     return;
   }
 
-  // ABDM requires yearOfBirth and gender that match Aadhaar exactly — no guessing defaults
+  // ABDM requires yearOfBirth and gender that match Aadhaar exactly â€” no guessing defaults
   const VALID_GENDERS = ['M', 'F', 'O', 'D', 'T', 'U'];
   const normGender  = patient.gender === 'Male' ? 'M' : patient.gender === 'Female' ? 'F' : patient.gender === 'Other' ? 'O' : patient.gender;
   const yearOfBirth = patient.birth_year;
 
   if (!yearOfBirth || yearOfBirth < 1900) {
-    logger.warn('ABDM link skipped — patient DOB not stored. Enrol patient via ABHA flow to capture DOB.', { patientId });
+    logger.warn('ABDM link skipped â€” patient DOB not stored. Enrol patient via ABHA flow to capture DOB.', { patientId });
     return;
   }
   if (!normGender || !VALID_GENDERS.includes(normGender)) {
-    logger.warn('ABDM link skipped — patient gender missing or invalid for ABDM. Got: ' + patient.gender, { patientId });
+    logger.warn('ABDM link skipped â€” patient gender missing or invalid for ABDM. Got: ' + patient.gender, { patientId });
     return;
   }
 
   // Resolve HIP ID from the care context's own clinic_id (authoritative ownership).
-  // Falls back to the passed clinicId, then patient's default clinic — never env var.
+  // Falls back to the passed clinicId, then patient's default clinic â€” never env var.
   const { rows: [resolvedClinic] } = await pool.query(
     `SELECT ec.hip_id, ec.id AS clinic_id
      FROM emr_clinics ec
@@ -63,7 +63,7 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
     [refNum, clinicId, patientId]
   );
   if (!resolvedClinic?.hip_id) {
-    logger.info('ABDM link skipped — clinic has no ABDM HIP configured', { patientId, clinicId, refNum });
+    logger.info('ABDM link skipped â€” clinic has no ABDM HIP configured', { patientId, clinicId, refNum });
     return;
   }
   const hipId = resolvedClinic.hip_id;
@@ -100,7 +100,7 @@ const listAppointments = async (req, res) => {
   const { queue_id, date, status, doctor_id } = req.query;
   const apptDate = date || new Date().toISOString().slice(0, 10);
 
-  let sql = `SELECT a.*, COALESCE(sd.name, d.name) AS doctor_name,
+  let sql = `SELECT a.*, d.name AS doctor_name,
                CASE
                  WHEN a.patient_mobile IS NOT NULL AND a.patient_mobile != ''
                  THEN (SELECT COUNT(*) FROM emr_appointments p
@@ -112,8 +112,7 @@ const listAppointments = async (req, res) => {
                hps.token_expires_at AS share_token_expires_at,
                hps.share_code AS share_token_code
              FROM emr_appointments a
-             LEFT JOIN emr_doctors d       ON d.id  = a.doctor_id
-             LEFT JOIN emr_clinic_staff sd  ON sd.id = a.doctor_id AND sd.role = 'doctor'
+             LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
              LEFT JOIN LATERAL (
                SELECT token_expires_at, share_code FROM hip_profile_shares
                WHERE patient_id = a.emr_patient_id AND status = 'linked'
@@ -227,10 +226,7 @@ const createAppointment = async (req, res) => {
   if (patient_email) {
     const { rows: [clinic] } = await pool.query(`SELECT name FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
     const { rows: [doc] }    = await pool.query(
-      `SELECT COALESCE(d.name, sd.name) AS name
-       FROM (SELECT $1::integer AS id) x
-       LEFT JOIN emr_doctors d      ON d.id  = x.id
-       LEFT JOIN emr_clinic_staff sd ON sd.id = x.id AND sd.role = 'doctor'`,
+      `SELECT name FROM emr_clinic_staff WHERE id=$1 AND role='doctor' LIMIT 1`,
       [doctor_id || null]
     ).catch(() => ({ rows: [] }));
     sendAppointmentConfirmation({
@@ -318,7 +314,7 @@ const updateStatus = async (req, res) => {
           [a.emr_patient_id, a.clinic_id, refNum, display]
         );
 
-        if (!ccRows.length) return; // already existed — saveEncounter will update it with FHIR content
+        if (!ccRows.length) return; // already existed â€” saveEncounter will update it with FHIR content
 
         logger.info('Care context created on status change', { refNum, status, patientId: a.emr_patient_id });
         await attemptAbdmLink(refNum, display, a.emr_patient_id, a.clinic_id);
@@ -338,7 +334,7 @@ const getAppointment = async (req, res) => {
        e.lab_investigations, e.lab_results, e.examination_findings,
        e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image, e.custom_sections, e.vaccinations, e.rx_language, e.calc_results
      FROM emr_appointments a
-     LEFT JOIN emr_doctors d ON d.id = a.doctor_id
+     LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
      WHERE a.id=$1 AND a.clinic_id=$2`,
     [req.params.id, req.emrUser.clinic_id]
@@ -353,7 +349,7 @@ const getAppointment = async (req, res) => {
       `SELECT e.notes, a.appointment_date, d.name AS doctor_name
        FROM emr_encounters e
        JOIN emr_appointments a ON a.id = e.appointment_id
-       LEFT JOIN emr_doctors d ON d.id = a.doctor_id
+       LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
        WHERE a.clinic_id = $1
          AND a.patient_mobile = $2
          AND a.id != $3
@@ -480,11 +476,11 @@ const saveEncounter = async (req, res) => {
   // Auto-mark appointment as completed
   await pool.query(`UPDATE emr_appointments SET status='completed', completed_at=NOW() WHERE id=$1`, [a.id]);
 
-  // ── ABDM: auto-create / update care context so this encounter is discoverable ──
+  // â”€â”€ ABDM: auto-create / update care context so this encounter is discoverable â”€â”€
   // Rule: ONE Care Context per encounter (keyed by appointment ID + date).
   //       Re-saving the same encounter UPDATES the existing CC (ON CONFLICT).
   //       Clinical data (Rx, notes, labs) within the same visit reuses this CC.
-  //       A new visit on a different date gets a NEW appointment → new CC ref.
+  //       A new visit on a different date gets a NEW appointment â†’ new CC ref.
   if (a.emr_patient_id) {
     const apptIso  = a.appointment_date instanceof Date
       ? a.appointment_date.toISOString().slice(0, 10)
@@ -521,7 +517,7 @@ const saveEncounter = async (req, res) => {
         patientId: a.emr_patient_id, referenceNumber: refNum, appointmentId: a.id,
         linkStatus: row?.link_status,
       });
-      // Only link on fresh insert — status change to 'ongoing' already triggered the first link.
+      // Only link on fresh insert â€” status change to 'ongoing' already triggered the first link.
       // On update (FHIR refresh), skip if already linked or pending (avoid ABDM-1092).
       if (isInsert) {
         await attemptAbdmLink(refNum, display, a.emr_patient_id, a.clinic_id);
@@ -600,3 +596,4 @@ const listPatientHistory = async (req, res) => {
 };
 
 module.exports = { listAppointments, createAppointment, updateStatus, getAppointment, saveEncounter, sendReminder, listPatientHistory };
+

@@ -1,9 +1,9 @@
-const router    = require('express').Router();
+﻿const router    = require('express').Router();
 const rateLimit = require('express-rate-limit');
 const { emrAuth } = require('./emr.middleware');
 const { pool }  = require('../config/database');
 
-// SEC-023: tight rate limit for all ABHA OTP generation endpoints (10 per 10 sec per IP — relaxed for dev)
+// SEC-023: tight rate limit for all ABHA OTP generation endpoints (10 per 10 sec per IP â€” relaxed for dev)
 const otpLimiter = rateLimit({
   windowMs: 10 * 1000,
   max: 10,
@@ -47,8 +47,8 @@ const docassist   = require('./emr.docassist.controller');
 const rxpublic    = require('./emr.rxpublic.controller');
 const subscription = require('./emr.subscription.controller');
 
-// ── Public ────────────────────────────────────────────────────────────────────
-// Staff invitation acceptance (public — no JWT)
+// â”€â”€ Public â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Staff invitation acceptance (public â€” no JWT)
 router.get ('/invite/:token',         staff.getInvitation);
 router.post('/invite/:token/accept',  staff.acceptInvitation);
 
@@ -58,23 +58,23 @@ router.post('/auth/lab/login',        labStaff.loginStaff);
 router.post('/auth/forgot-password',  auth.forgotPassword);
 router.post('/auth/reset-password',   auth.resetPassword);
 
-// Autocomplete proxy (ICD-10 / RxTerms via NLM — public, avoids CSP)
+// Autocomplete proxy (ICD-10 / RxTerms via NLM â€” public, avoids CSP)
 router.get('/autocomplete/icd10',   ac.searchICD10);
 router.get('/autocomplete/rxterms', ac.searchRxTerms);
 router.get('/autocomplete/ping',    ac.ping);
 
-// Scribe health — public so ops can check without a token
+// Scribe health â€” public so ops can check without a token
 router.get('/scribe/status', scribe.status);
 
-// Public prescription view — no auth, token-verified via HMAC
+// Public prescription view â€” no auth, token-verified via HMAC
 router.get('/public/rx/:apptId', rxpublic.getPublicRx);
 
-// ── Protected (all routes below require EMR JWT) ───────────────────────────
+// â”€â”€ Protected (all routes below require EMR JWT) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.use(emrAuth);
 
 const { proOnlyCheck } = subscription;
 
-// ── AI features — Pro plan only ───────────────────────────────────────────────
+// â”€â”€ AI features â€” Pro plan only â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.post  ('/docassist',                          proOnlyCheck('ai_docassist'), docassist.chat);
 router.post  ('/docassist/document',                 proOnlyCheck('ai_docassist'), docassist.generateDocument);
 router.get   ('/docassist/patient-context/:patientId', proOnlyCheck('ai_docassist'), docassist.getPatientContext);
@@ -97,7 +97,7 @@ router.get   ('/subscription/plans',             subscription.getPlans);
 router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
 
-// ── Clinic ABDM settings (self-service for clinic admins) ────────────────────
+// â”€â”€ Clinic ABDM settings (self-service for clinic admins) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/clinic-settings/abdm', async (req, res) => {
   const { rows } = await pool.query(
     `SELECT hip_id, hip_name, hiu_id, hiu_name, abdm_enabled, abdm_status, abdm_last_synced_at
@@ -158,7 +158,7 @@ router.get   ('/auth/doctors',       auth.listDoctors);
 router.patch ('/auth/doctors/:id',   auth.updateDoctor);
 router.delete('/auth/doctors/:id',   auth.deleteDoctor);
 
-// ── Staff & RBAC management (admin only — enforced inside controller) ─────────
+// â”€â”€ Staff & RBAC management (admin only â€” enforced inside controller) â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get   ('/staff/doctors',            staff.listStaffDoctors);
 router.get   ('/staff',                   staff.listStaff);
 router.post  ('/staff',                   staff.createStaff);
@@ -177,7 +177,7 @@ router.delete('/staff/invitations/:id',   staff.revokeInvitation);
 
 router.get   ('/staff/activity-logs',     staff.listActivityLogs);
 
-// Lab Staff (managed from OPD Settings → Lab Staff tab)
+// Lab Staff (managed from OPD Settings â†’ Lab Staff tab)
 router.get   ('/labs/staff',         labStaff.listStaff);
 router.post  ('/labs/staff',         labStaff.createStaff);
 router.patch ('/labs/staff/:id',     labStaff.updateStaff);
@@ -195,7 +195,7 @@ router.post  ('/patients/:id/care-contexts',              emr.addCareContext);
 router.delete('/patients/:id/care-contexts/:ctxId',       emr.deleteCareContext);
 router.post  ('/patients/:id/care-contexts/:ctxId/link',  emr.retryCareContextLink);
 
-// ABHA Creation (M1) — OTP endpoints rate-limited
+// ABHA Creation (M1) â€” OTP endpoints rate-limited
 router.post('/patients/:id/abha/create-otp',        otpLimiter, emr.abhaCreateOtp);
 router.post('/patients/:id/abha/create-verify',     emr.abhaCreateVerify);
 router.post('/patients/:id/abha/mobile-otp',        otpLimiter, emr.abhaCreateMobileOtp);
@@ -271,12 +271,12 @@ router.patch('/settings/theme',  theme.updateTheme);
 router.get  ('/settings/clinic-assets', assets.getAssets);
 router.patch('/settings/clinic-assets', assets.updateAssets);
 
-// Prescription PDF download — same PDF used for email
+// Prescription PDF download â€” same PDF used for email
 const { generatePrescriptionPDF } = require('./emr.pdfgen');
 router.get('/appointments/:id/prescription.pdf', async (req, res) => {
   try {
     const { rows: [appt] } = await pool.query(
-      `SELECT a.*, d.name AS doctor_name FROM emr_appointments a LEFT JOIN emr_doctors d ON d.id=a.doctor_id WHERE a.id=$1 AND a.clinic_id=$2`,
+      `SELECT a.*, d.name AS doctor_name FROM emr_appointments a LEFT JOIN emr_clinic_staff d ON d.id=a.doctor_id AND d.role='doctor' WHERE a.id=$1 AND a.clinic_id=$2`,
       [req.params.id, req.emrUser.clinic_id]
     );
     if (!appt) return res.status(404).json({ error: 'Appointment not found' });
@@ -300,7 +300,7 @@ router.get('/appointments/:id/prescription.pdf', async (req, res) => {
   }
 });
 
-// Patient email notifications — fire-and-forget so SMTP delays never 500 the client
+// Patient email notifications â€” fire-and-forget so SMTP delays never 500 the client
 router.post('/email/prescription', async (req, res) => {
   const { to, patient_name, appointment_id } = req.body;
   if (!to) return res.status(400).json({ error: 'to is required' });
@@ -320,10 +320,10 @@ router.post('/email/prescription', async (req, res) => {
       ? await pool.query(`SELECT * FROM emr_encounters WHERE appointment_id=$1`, [appointment_id])
       : { rows: [null] };
     const { rows: [doctor] } = appt?.doctor_id
-      ? await pool.query(`SELECT name FROM emr_doctors WHERE id=$1`, [appt.doctor_id])
+      ? await pool.query(`SELECT name FROM emr_clinic_staff WHERE id=$1`, [appt.doctor_id])
       : { rows: [null] };
 
-    // Respond immediately — generate PDF and send email in background
+    // Respond immediately â€” generate PDF and send email in background
     res.json({ ok: true, queued: true });
 
     mailer.sendPrescriptionFromAppt({
@@ -385,12 +385,12 @@ router.get('/activity',        emr.activityLog);
 router.get ('/abdm/bridge',        emr.abdmGetBridge);
 router.post('/abdm/bridge/update', emr.abdmUpdateBridge);
 
-// Patient profile shares (QR walk-in — SHARE_PATIENT_PROFILE_701)
+// Patient profile shares (QR walk-in â€” SHARE_PATIENT_PROFILE_701)
 router.get   ('/profile-shares',                        emr.listProfileShares);
 router.patch ('/profile-shares/:id/dismiss',            emr.dismissProfileShare);
 router.post  ('/profile-shares/:id/link-patient',       emr.linkProfileShareToPatient);
 
-// Add Patient via Aadhaar (standalone) — OTP endpoints rate-limited
+// Add Patient via Aadhaar (standalone) â€” OTP endpoints rate-limited
 router.post('/abha/aadhaar-otp',          otpLimiter, emr.abhaCreateOtp);
 router.post('/abha/aadhaar-verify',       emr.abhaCreateVerify);
 router.post('/abha/aadhaar-mobile-otp',   otpLimiter, emr.abhaCreateMobileOtp);
@@ -400,7 +400,7 @@ router.post('/abha/aadhaar-set-address',  emr.abhaAadhaarSetAddress);
 router.post('/abha/aadhaar-finalize',     emr.abhaAadhaarCreate);
 router.get ('/abha/card',                 emr.abhaGetCard);
 
-// Add Patient via ABHA (standalone — no existing patient needed)
+// Add Patient via ABHA (standalone â€” no existing patient needed)
 router.post('/abha/request-otp',   otpLimiter, emr.abhaAddOtp);
 router.post('/abha/verify-create', emr.abhaAddCreate);
 
@@ -420,7 +420,7 @@ router.post('/consents/:requestId/pull-data',   emr.pullConsentData);
 // Use this to verify that other HIPs have linked care contexts before testing consent
 router.get('/consents/linked-hips/:abha',       emr.getLinkedHipsForPatient);
 
-// Lab results for EMR patient view — look up by mobile (bridges EMR ↔ lab system)
+// Lab results for EMR patient view â€” look up by mobile (bridges EMR â†” lab system)
 router.get('/patients/:id/lab-results', async (req, res) => {
   try {
     const { pool } = require('../config/database');
@@ -454,7 +454,7 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
   try {
     const { pool } = require('../config/database');
 
-    // 1. Resolve UHID — prefer query param, then look up from emr_appointments
+    // 1. Resolve UHID â€” prefer query param, then look up from emr_appointments
     let uhid = req.query.uhid || null;
     if (!uhid) {
       const { rows: uhidRows } = await pool.query(
@@ -607,7 +607,7 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
   }
 });
 
-// R2-006: authenticated file download — medical documents require valid EMR JWT
+// R2-006: authenticated file download â€” medical documents require valid EMR JWT
 router.get('/uploads/:filename', (req, res) => {
   const fs        = require('fs');
   const pathMod   = require('path');
@@ -617,7 +617,7 @@ router.get('/uploads/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-// ── Audit log viewer (OWASP A10 / ABDM mandatory trail) ──────────────────────
+// â”€â”€ Audit log viewer (OWASP A10 / ABDM mandatory trail) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/audit-logs', async (req, res) => {
   const audit = require('../services/auditLogger');
   const { eventType, status, severity, ip, limit = 100, offset = 0 } = req.query;
@@ -645,7 +645,7 @@ router.use('/inbound', inbound);
 // Diet charts + food library
 router.use('/diet', require('../routes/diet.routes'));
 
-// POST /ai/lab-summary — AI-driven clinical interpretation of lab results
+// POST /ai/lab-summary â€” AI-driven clinical interpretation of lab results
 router.post('/ai/lab-summary', async (req, res) => {
   try {
     const axios = require('axios');
@@ -660,7 +660,7 @@ router.post('/ai/lab-summary', async (req, res) => {
           : (r.result_value > r.reference_range_high) ? 'HIGH'
           : (r.result_value < r.reference_range_low) ? 'LOW' : 'Normal';
         const range = r.reference_range_low != null && r.reference_range_high != null
-          ? ` (ref: ${r.reference_range_low}–${r.reference_range_high} ${r.result_unit || ''})` : '';
+          ? ` (ref: ${r.reference_range_low}â€“${r.reference_range_high} ${r.result_unit || ''})` : '';
         return `- ${r.test_name}: ${r.result_value} ${r.result_unit || ''}${range} [${flag}]`;
       }).join('\n');
 
@@ -677,7 +677,7 @@ Instructions:
 2. Highlight any critical or abnormal values and their clinical significance
 3. Suggest any follow-up tests or clinical actions if warranted
 4. Keep language concise and suitable for a doctor's notes
-5. Do NOT diagnose — interpret findings only`;
+5. Do NOT diagnose â€” interpret findings only`;
 
     const body = {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -699,3 +699,4 @@ Instructions:
 });
 
 module.exports = router;
+
