@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import MedicalHistorySection from './MedicalHistorySection';
 import MedicalRecordsTab from './MedicalRecordsTab';
 import DietChartTab from './DietChartTab';
@@ -745,6 +746,10 @@ function CareContextsTab({ patientId }) {
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
+  const { user } = useAuth();
+  const perms    = user?.permissions || {};
+  const canAbdm  = user?.role === 'admin' || user?.role === 'doctor' || !!(perms.all || perms['abdm.abha_linking']);
+
   const [tab,            setTab]            = useState('Past Visits');
   const [history,        setHistory]        = useState([]);
   const [histLoading,    setHistLoading]    = useState(true);
@@ -824,16 +829,19 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
 
           {/* Left tab nav */}
           <nav className={styles.tabNav}>
-            {TABS.map(({ key, icon: Icon }) => (
-              <button
-                key={key}
-                className={`${styles.tabBtn} ${tab === key ? styles.tabBtnActive : ''}`}
-                onClick={() => setTab(key)}
-              >
-                <Icon size={14} strokeWidth={2} />
-                <span>{key}</span>
-              </button>
-            ))}
+            {TABS
+              .filter(({ key }) => canAbdm || (key !== 'ABHA & Linking' && key !== 'Care Contexts'))
+              .map(({ key, icon: Icon }) => (
+                <button
+                  key={key}
+                  className={`${styles.tabBtn} ${tab === key ? styles.tabBtnActive : ''}`}
+                  onClick={() => setTab(key)}
+                >
+                  <Icon size={14} strokeWidth={2} />
+                  <span>{key}</span>
+                </button>
+              ))
+            }
           </nav>
 
           {/* Tab content */}

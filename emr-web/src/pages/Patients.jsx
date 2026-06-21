@@ -3,6 +3,7 @@ import { Trash2, QrCode, X, Download, Printer, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import styles from './Patients.module.css';
 
 // ── Facility QR Modal ─────────────────────────────────────────────────────────
@@ -126,6 +127,10 @@ function FacilityQrModal({ onClose }) {
 
 // ── Main Patients Page ────────────────────────────────────────────────────────
 export default function Patients() {
+  const { user } = useAuth();
+  const perms   = user?.permissions || {};
+  const canAbdm = user?.role === 'admin' || user?.role === 'doctor' || !!(perms.all || perms['abdm.abha_linking']);
+
   const [patients,     setPatients]     = useState([]);
   const [search,       setSearch]       = useState('');
   const [deleting,     setDeleting]     = useState(null);
@@ -162,12 +167,14 @@ export default function Patients() {
         <div style={{ display: 'flex', gap: 10, flex: 1, maxWidth: 600 }}>
           <input className={styles.search} placeholder="Search by name, mobile or ABHA…"
             value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
-          <button
-            onClick={() => navigate('/add-patient-abha')}
-            style={{ padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-          >
-            <Plus size={15} /> Add Patient via ABHA
-          </button>
+          {canAbdm && (
+            <button
+              onClick={() => navigate('/add-patient-abha')}
+              style={{ padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+            >
+              <Plus size={15} /> Add Patient via ABHA
+            </button>
+          )}
         </div>
       </div>
 
@@ -211,15 +218,17 @@ export default function Patients() {
         <span>Facility QR</span>
       </button>
 
-      {/* ABHA QR scan FAB */}
-      <button
-        className={styles.fab}
-        onClick={() => navigate('/abha-qr-scan')}
-        title="Register patient via ABHA QR code"
-      >
-        <QrCode size={22} />
-        <span>ABHA QR</span>
-      </button>
+      {/* ABHA QR scan FAB — only for users with ABDM permission */}
+      {canAbdm && (
+        <button
+          className={styles.fab}
+          onClick={() => navigate('/abha-qr-scan')}
+          title="Register patient via ABHA QR code"
+        >
+          <QrCode size={22} />
+          <span>ABHA QR</span>
+        </button>
+      )}
 
       {/* Modals */}
       {showFacQr && <FacilityQrModal onClose={() => setShowFacQr(false)} />}
