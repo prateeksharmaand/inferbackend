@@ -245,8 +245,9 @@
 /* Permission editor modal — wider */
 .permModal {
   background: #fff; border-radius: 16px; width: 100%; max-width: 660px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.2); overflow: visible;
-  display: flex; flex-direction: column; max-height: 90vh; min-height: 0;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  display: flex; flex-direction: column; height: 85vh; max-height: 700px; min-height: 400px;
+  overflow: hidden;
 }
 .permModalHeader {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -269,7 +270,7 @@
   border: 1px solid #fde68a;
 }
 
-.permGroups { overflow-y: auto; flex: 1; min-height: 0; padding: 12px 20px; display: flex; flex-direction: column; gap: 8px; }
+.permGroups { overflow-y: scroll; flex: 1; min-height: 0; padding: 12px 20px 20px; display: flex; flex-direction: column; gap: 8px; }
 
 .permGroup {
   border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden;
@@ -277,11 +278,11 @@
 }
 .permGroupHeader {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px; cursor: pointer; user-select: none;
+  padding: 12px 16px; cursor: pointer; user-select: none; min-height: 44px;
   transition: background .1s; color: var(--color-text-2);
 }
 .permGroupHeader:hover { background: var(--color-bg); }
-.permGroupLeft { display: flex; align-items: center; gap: 10px; }
+.permGroupLeft { display: flex; align-items: center; gap: 12px; }
 
 .groupToggle {
   width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--color-border);
@@ -290,17 +291,17 @@
 }
 .groupToggleOn { background: var(--color-primary); border-color: var(--color-primary); }
 
-.permGroupLabel { font-size: 12px; font-weight: 600; color: var(--color-text); }
-.permGroupCount { font-size: 10px; color: var(--color-text-3); font-weight: 500; }
+.permGroupLabel { font-size: 13px; font-weight: 600; color: var(--color-text); }
+.permGroupCount { font-size: 11px; color: var(--color-text-3); font-weight: 500; background: var(--color-bg); padding: 1px 7px; border-radius: 20px; }
 
-.permList { padding: 4px 14px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; }
+.permList { padding: 4px 16px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
 .permRow {
   display: flex; align-items: center; gap: 10px;
-  padding: 7px 6px; border-radius: 6px; cursor: pointer; transition: background .1s;
+  padding: 9px 8px; border-radius: 6px; cursor: pointer; transition: background .1s; min-height: 36px;
 }
 .permRow:hover { background: var(--color-bg); }
 .permCheck { width: 15px; height: 15px; accent-color: var(--color-primary); cursor: pointer; flex-shrink: 0; }
-.permLabel { font-size: 12px; color: var(--color-text); }
+.permLabel { font-size: 13px; color: var(--color-text); line-height: 1.3; }
 
 .permModalFooter {
   display: flex; justify-content: flex-end; gap: 10px;
