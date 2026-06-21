@@ -74,6 +74,26 @@
 .vInputAuto { background: #f0fdf4; border-color: #86efac !important; color: #065f46; font-weight: 700; }
 
 /* â”€â”€ Chips â”€â”€ */
+/* ── Template suggestion chips ── */
+.suggestionRow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 8px 10px; margin-bottom: 8px;
+  background: #faf5ff; border: 1px dashed #ddd6fe; border-radius: 8px;
+}
+.suggestionLabel {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; color: #7c3aed;
+  text-transform: uppercase; letter-spacing: .4px; flex-shrink: 0;
+  margin-right: 2px;
+}
+.suggestionChip {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 20px; border: 1.5px solid #c4b5fd;
+  background: #fff; color: #6d28d9; font-size: 11px; font-weight: 500;
+  cursor: pointer; transition: all .12s;
+}
+.suggestionChip:hover { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+
 .chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 4px; }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;

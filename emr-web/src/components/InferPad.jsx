@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, Fragment } from 'react';
-import { Plus, ChevronDown, Settings2, X, Search, GripVertical } from 'lucide-react';
+import { Plus, ChevronDown, Settings2, X, Search, GripVertical, Sparkles } from 'lucide-react';
+import { getTemplateSuggestions } from '../data/templateSuggestions';
 import styles from './InferPad.module.css';
 import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
@@ -373,7 +374,8 @@ function SeverityPills({ value, onChange }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function InferPad({ form, set, setVital, setCalcResult, appt, pastNotes = [], clinicId = 'default' }) {
+export default function InferPad({ form, set, setVital, setCalcResult, appt, pastNotes = [], clinicId = 'default', activeTemplate }) {
+  const suggestions = getTemplateSuggestions(activeTemplate);
   const [showVitalsCfg, setShowVitalsCfg] = useState(false);
   const [vitalsOrder,   setVitalsOrder]   = useState(() => getVitalsPrefs(clinicId));
   const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
@@ -601,6 +603,18 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   return (
     <div className={styles.wrap}>
 
+      {/* ── Active template banner ── */}
+      {activeTemplate && (
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 14px', marginBottom:10, background:'#faf5ff', border:'1.5px solid #ddd6fe', borderRadius:10 }}>
+          <Sparkles size={14} style={{ color:'#7c3aed', flexShrink:0 }} />
+          <div style={{ flex:1, minWidth:0 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'#6d28d9' }}>{activeTemplate.name}</span>
+            {activeTemplate.specialty && <span style={{ fontSize:11, color:'#9ca3af', marginLeft:6, textTransform:'capitalize' }}>· {activeTemplate.specialty}</span>}
+            <span style={{ fontSize:11, color:'#9ca3af', marginLeft:6 }}>— specialty suggestions shown below ↓</span>
+          </div>
+        </div>
+      )}
+
       {/* ── Sample data button ── */}
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:4 }}>
         <button onClick={fillSampleData}
@@ -670,6 +684,19 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         );
         if (key === 'symptoms') return (
           <ICard key="symptoms" title="Symptoms" icon="🤒" color="#f59e0b">
+            {/* Template suggestion chips */}
+            {suggestions?.symptoms?.length > 0 && (() => {
+              const existing = new Set(form.symptoms.map(s => (typeof s === 'string' ? s : s.name).toLowerCase()));
+              const remaining = suggestions.symptoms.filter(s => !existing.has(s.toLowerCase()));
+              return remaining.length > 0 ? (
+                <div className={styles.suggestionRow}>
+                  <span className={styles.suggestionLabel}><Sparkles size={11} /> Quick add</span>
+                  {remaining.slice(0, 8).map(s => (
+                    <button key={s} className={styles.suggestionChip} onClick={() => addSymptom(s)}>{s}</button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
             <div className={styles.chips}>
               {form.symptoms.map((s, i) => {
                 const name = typeof s === 'string' ? s : s.name;
@@ -693,6 +720,18 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         );
         if (key === 'diagnosis') return (
           <ICard key="diagnosis" title="Diagnosis" icon="🔬" color="#eab308">
+            {suggestions?.diagnoses?.length > 0 && (() => {
+              const existing = new Set(form.diagnosis.map(d => d.display.toLowerCase()));
+              const remaining = suggestions.diagnoses.filter(d => !existing.has(d.toLowerCase()));
+              return remaining.length > 0 ? (
+                <div className={styles.suggestionRow}>
+                  <span className={styles.suggestionLabel}><Sparkles size={11} /> Quick add</span>
+                  {remaining.slice(0, 6).map(d => (
+                    <button key={d} className={styles.suggestionChip} onClick={() => addDiag(d)}>{d}</button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
             <div className={styles.chips}>
               {form.diagnosis.map((d, i) => (
                 <span key={i} className={`${styles.chip} ${styles.chipDiag}`}>
@@ -735,6 +774,20 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         );
         if (key === 'lab_investigations') return (
           <ICard key="lab_investigations" title="Lab Investigations" icon="🧪" color="#0891b2">
+            {suggestions?.investigations?.length > 0 && (() => {
+              const existing = new Set(form.lab_investigations.map(l => (typeof l === 'string' ? l : l.test).toLowerCase()));
+              const remaining = suggestions.investigations.filter(t => !existing.has(t.toLowerCase()));
+              return remaining.length > 0 ? (
+                <div className={styles.suggestionRow}>
+                  <span className={styles.suggestionLabel}><Sparkles size={11} /> Quick add</span>
+                  {remaining.slice(0, 8).map(t => (
+                    <button key={t} className={styles.suggestionChip} onClick={() => {
+                      set('lab_investigations', [...form.lab_investigations, { test: t, repeat_on: '', remarks: '' }]);
+                    }}>{t}</button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
             <div className={styles.labInvList}>
               {form.lab_investigations.map((l, i) => {
                 const isStr = typeof l === 'string';
