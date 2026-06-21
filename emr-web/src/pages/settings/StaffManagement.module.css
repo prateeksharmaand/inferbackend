@@ -293,15 +293,14 @@
 .permGroupLabel { font-size: 12px; font-weight: 600; color: var(--color-text); }
 .permGroupCount { font-size: 10px; color: var(--color-text-3); font-weight: 500; }
 
-.permList { padding: 4px 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+.permList { padding: 4px 14px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; }
 .permRow {
   display: flex; align-items: center; gap: 10px;
   padding: 7px 6px; border-radius: 6px; cursor: pointer; transition: background .1s;
 }
 .permRow:hover { background: var(--color-bg); }
 .permCheck { width: 15px; height: 15px; accent-color: var(--color-primary); cursor: pointer; flex-shrink: 0; }
-.permLabel { flex: 1; font-size: 12px; color: var(--color-text); }
-.permKey   { font-size: 9px; color: var(--color-text-3); font-family: monospace; }
+.permLabel { font-size: 12px; color: var(--color-text); }
 
 .permModalFooter {
   display: flex; justify-content: flex-end; gap: 10px;

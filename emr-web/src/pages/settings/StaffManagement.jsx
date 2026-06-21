@@ -184,7 +184,6 @@ function PermissionEditor({ role, onSave, onClose }) {
                           onChange={() => toggle(perm.key)}
                         />
                         <span className={s.permLabel}>{perm.label}</span>
-                        <span className={s.permKey}>{perm.key}</span>
                       </label>
                     ))}
                   </div>
