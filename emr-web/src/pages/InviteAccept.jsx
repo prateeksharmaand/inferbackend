@@ -34,8 +34,8 @@ export default function InviteAccept() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim())  return setError('Name is required');
-    if (!email.trim()) return setError('Email is required');
+    if (!name.trim())              return setError('Name is required');
+    if (!info?.email && !email.trim()) return setError('Email is required');
     if (!password)     return setError('Password is required');
     if (password.length < 8) return setError('Password must be at least 8 characters');
     if (password !== confirm) return setError('Passwords do not match');
@@ -120,17 +120,19 @@ export default function InviteAccept() {
             />
           </div>
 
-          <div className={s.field}>
-            <label>Email <span className={s.req}>*</span></label>
-            <input
-              className={s.input}
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="you@clinic.com"
-              readOnly={!!info?.email}
-            />
-          </div>
+          {/* Only ask for email if it wasn't set when the invitation was created */}
+          {!info?.email && (
+            <div className={s.field}>
+              <label>Email <span className={s.req}>*</span></label>
+              <input
+                className={s.input}
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@clinic.com"
+              />
+            </div>
+          )}
 
           <div className={s.field}>
             <label>Password <span className={s.req}>*</span></label>
