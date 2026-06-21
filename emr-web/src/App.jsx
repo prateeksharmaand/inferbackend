@@ -26,6 +26,7 @@ import LabPortal from './components/laboratory/LabPortal';
 import LabResultViewer from './components/laboratory/LabResultViewer';
 import AdminDashboard from './components/laboratory/AdminDashboard';
 import RxPublicView from './pages/RxPublicView';
+import InviteAccept from './pages/InviteAccept';
 
 // Super Admin Portal
 import AdminLogin        from './pages/admin/AdminLogin';
@@ -100,6 +101,9 @@ export default function App() {
 
           {/* Public prescription view — no auth required */}
           <Route path="/rx-view/:apptId" element={<RxPublicView />} />
+
+          {/* Staff invitation acceptance — public, no auth */}
+          <Route path="/invite/:token" element={<InviteAccept />} />
 
           {/* Lab Routes (standalone, no clinic layout) */}
           <Route path="/lab-login" element={<LabLogin />} />

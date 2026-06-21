@@ -80,6 +80,24 @@ const login = async (req, res) => {
 
   audit.loginSuccess(req, user, role);
   const token = sign({ id: user.id, clinic_id: user.clinic_id, role, email });
+
+  // Resolve permissions: merge role-level permissions with per-user overrides
+  let permissions = {};
+  if (role === 'staff') {
+    const actualRole = user.role || 'staff'; // the user's assigned role slug
+    const { rows: roleRows } = await pool.query(
+      `SELECT permissions FROM staff_roles WHERE clinic_id=$1 AND slug=$2 LIMIT 1`,
+      [user.clinic_id, actualRole]
+    );
+    if (roleRows.length) permissions = roleRows[0].permissions || {};
+    // Per-user overrides (stored in emr_clinic_staff.permissions JSONB)
+    if (user.permissions && typeof user.permissions === 'object') {
+      permissions = { ...permissions, ...user.permissions };
+    }
+  } else if (role === 'doctor') {
+    permissions = { 'patients.view': true, 'patients.edit': true, 'appointments.view': true, 'consultations.view': true, 'consultations.create': true, 'consultations.edit': true, 'prescriptions.print': true, 'assessments.view': true, 'assessments.create': true, 'inferpad.view': true, 'inferpad.create': true, 'dashboard.view': true };
+  }
+
   res.json({
     token,
     user: {
@@ -93,6 +111,7 @@ const login = async (req, res) => {
       clinic_phone:   user.clinic_phone   || '',
       plan:           user.plan,
       max_patients:   user.max_patients,
+      permissions,
       ...(role === 'doctor' ? { specialization: user.specialization, qualification: user.qualification, google_review_link: user.google_review_link || '' } : {}),
     },
   });

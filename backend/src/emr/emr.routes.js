@@ -25,6 +25,7 @@ const loginLimiter = rateLimit({
 });
 const auth      = require('./emr.auth.controller');
 const labStaff  = require('./emr.labstaff.controller');
+const staff     = require('./emr.staff.controller');
 const emr     = require('./emr.controller');
 const queue   = require('./emr.queue.controller');
 const appt    = require('./emr.appointment.controller');
@@ -47,6 +48,10 @@ const rxpublic    = require('./emr.rxpublic.controller');
 const subscription = require('./emr.subscription.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
+// Staff invitation acceptance (public — no JWT)
+router.get ('/invite/:token',         staff.getInvitation);
+router.post('/invite/:token/accept',  staff.acceptInvitation);
+
 router.post('/auth/login',            loginLimiter, auth.login);
 router.post('/auth/register-clinic',  auth.registerClinic);
 router.post('/auth/lab/login',        labStaff.loginStaff);
@@ -150,6 +155,24 @@ router.post  ('/auth/add-doctor',    auth.addDoctor);
 router.get   ('/auth/doctors',       auth.listDoctors);
 router.patch ('/auth/doctors/:id',   auth.updateDoctor);
 router.delete('/auth/doctors/:id',   auth.deleteDoctor);
+
+// ── Staff & RBAC management (admin only — enforced inside controller) ─────────
+router.get   ('/staff',                   staff.listStaff);
+router.post  ('/staff',                   staff.createStaff);
+router.patch ('/staff/:id',               staff.updateStaff);
+router.delete('/staff/:id',               staff.deleteStaff);
+
+router.get   ('/staff/roles',             staff.listRoles);
+router.post  ('/staff/roles',             staff.createRole);
+router.patch ('/staff/roles/:id',         staff.updateRole);
+router.delete('/staff/roles/:id',         staff.deleteRole);
+router.post  ('/staff/roles/:id/clone',   staff.cloneRole);
+
+router.get   ('/staff/invitations',       staff.listInvitations);
+router.post  ('/staff/invitations',       staff.createInvitation);
+router.delete('/staff/invitations/:id',   staff.revokeInvitation);
+
+router.get   ('/staff/activity-logs',     staff.listActivityLogs);
 
 // Lab Staff (managed from OPD Settings → Lab Staff tab)
 router.get   ('/labs/staff',         labStaff.listStaff);
