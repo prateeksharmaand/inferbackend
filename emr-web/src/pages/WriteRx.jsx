@@ -631,6 +631,9 @@ export default function WriteRx() {
   const [prescriptionMode,setPrescriptionMode] = useState(false);
   const [showPreview,     setShowPreview]     = useState(false);
   const [showConfigure,   setShowConfigure]   = useState(false);
+  const [activeTemplate,  setActiveTemplate]  = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`rx_active_tpl_${user?.id}`) || 'null'); } catch { return null; }
+  });
   const [showScribe,      setShowScribe]      = useState(false);
   const [scribeMinimized, setScribeMinimized] = useState(false);
   const [showAssessment,  setShowAssessment]  = useState(false);
@@ -1408,6 +1411,17 @@ export default function WriteRx() {
               </span>
             )}
           </div>
+          {activeTemplate && (
+            <button
+              className={styles.btnConfigurePad}
+              style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe' }}
+              onClick={() => setShowConfigure(true)}
+              title={`Active template: ${activeTemplate.name}`}
+            >
+              <span style={{ fontSize: 12 }}>📋</span>
+              {activeTemplate.name}
+            </button>
+          )}
           <button className={styles.btnConfigurePad} onClick={() => setShowConfigure(true)} title="Configure your Pad">
             <Settings2 size={15} strokeWidth={1.8} /> Configure your Pad
           </button>
@@ -1684,7 +1698,17 @@ export default function WriteRx() {
       )}
 
       {showConfigure && (
-        <ConfigureInferPadModal clinicId={user?.clinic_id || 'default'} onClose={() => setShowConfigure(false)} />
+        <ConfigureInferPadModal
+          clinicId={user?.clinic_id || 'default'}
+          onClose={() => {
+            setShowConfigure(false);
+            // Re-read active template from localStorage in case it changed
+            try {
+              const stored = JSON.parse(localStorage.getItem(`rx_active_tpl_${user?.id}`) || 'null');
+              setActiveTemplate(stored);
+            } catch {}
+          }}
+        />
       )}
 
       {showPreview && (

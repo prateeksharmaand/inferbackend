@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
-import { X, GripVertical, Upload, Trash2, Check, PenLine, Scissors } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { X, GripVertical, Upload, Trash2, Check, PenLine, Scissors, BookOpen, ChevronRight } from 'lucide-react';
 import LetterheadCropper from './LetterheadCropper';
+import TemplateSelector, { getDisabledSectionsForSpecialty } from './TemplateSelector';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import SignaturePad from './SignaturePad';
@@ -13,7 +14,7 @@ import {
 } from '../pages/settings/InferPadSettings';
 import styles from './ConfigureInferPadModal.module.css';
 
-const TABS = ['Pad Order', 'Features', 'Appearance'];
+const TABS = ['Template', 'Pad Order', 'Features', 'Appearance'];
 
 // ── Image upload helper ──────────────────────────────────────────────────────
 function ImageUpload({ title, hint, value, onChange }) {
@@ -75,7 +76,20 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   const key  = t => `rx_${t}_${cid}`;
   const sigK = () => `rx_sig_${uid}_${cid}`;
 
-  const [activeTab, setActiveTab] = useState('Pad Order');
+  const [activeTab, setActiveTab] = useState('Template');
+
+  // ── Active template state ──
+  const [activeTemplate,   setActiveTemplate]   = useState(null);
+  const [showTplSelector,  setShowTplSelector]  = useState(false);
+  const [tplLoading,       setTplLoading]       = useState(true);
+
+  useEffect(() => {
+    if (user?.role !== 'doctor') { setTplLoading(false); return; }
+    api.get('/scribe/active-template')
+      .then(d => setActiveTemplate(d.template || null))
+      .catch(() => {})
+      .finally(() => setTplLoading(false));
+  }, []);
 
   // ── Features state ──
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(key('vaccination_chart')) === 'true');
@@ -191,6 +205,85 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
 
         {/* Body */}
         <div className={styles.body} style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+
+          {/* ── Template ── */}
+          {activeTab === 'Template' && (
+            <div className={styles.section}>
+              <div className={styles.sectionTitle} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <BookOpen size={14} /> Consultation Template
+              </div>
+              <div className={styles.sectionHint}>
+                Set a specialty template to auto-configure InferPad sections and guide the AI scribe.
+              </div>
+
+              {user?.role !== 'doctor' ? (
+                <div style={{ padding: '16px', background: '#f8fafc', borderRadius: 8, fontSize: 12, color: '#64748b' }}>
+                  Template selection is available for doctors only.
+                </div>
+              ) : tplLoading ? (
+                <div style={{ padding: '16px', fontSize: 13, color: '#9ca3af' }}>Loading…</div>
+              ) : (
+                <>
+                  {/* Current template card */}
+                  <div style={{ border: '1.5px solid', borderColor: activeTemplate ? '#7c3aed' : '#e5e7eb', borderRadius: 12, padding: 16, background: activeTemplate ? '#faf5ff' : '#f8fafc', marginBottom: 12 }}>
+                    {activeTemplate ? (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <BookOpen size={16} style={{ color: '#7c3aed' }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{activeTemplate.name}</div>
+                          {activeTemplate.specialty && (
+                            <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, marginTop: 2, textTransform: 'capitalize' }}>{activeTemplate.specialty}</div>
+                          )}
+                          {activeTemplate.description && (
+                            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4, lineHeight: 1.4 }}>{activeTemplate.description}</div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <BookOpen size={20} style={{ color: '#9ca3af' }} />
+                        <div style={{ fontSize: 13, color: '#6b7280' }}>No active template — using default InferPad configuration.</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setShowTplSelector(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      <BookOpen size={13} /> {activeTemplate ? 'Change Template' : 'Browse Templates'} <ChevronRight size={13} />
+                    </button>
+
+                    {activeTemplate && getDisabledSectionsForSpecialty(activeTemplate.specialty).length > 0 && (
+                      <button
+                        onClick={() => {
+                          const toDisable = getDisabledSectionsForSpecialty(activeTemplate.specialty);
+                          setDisabledSections(toDisable);
+                          saveDisabledSections(cid, toDisable);
+                          window.dispatchEvent(new Event('storage'));
+                          // Switch to Pad Order tab so doctor can see the result
+                          setActiveTab('Pad Order');
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f0fdf4', color: '#16a34a', border: '1.5px solid #bbf7d0', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        <Check size={13} /> Apply Sections to Pad
+                      </button>
+                    )}
+                  </div>
+
+                  {activeTemplate?.specialty && (
+                    <div style={{ marginTop: 10, fontSize: 11, color: '#9ca3af' }}>
+                      "Apply Sections to Pad" will enable sections relevant to <strong>{activeTemplate.specialty}</strong> and hide unrelated ones. You can still adjust manually in the Pad Order tab.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* ── Pad Order ── */}
           {activeTab === 'Pad Order' && (
@@ -326,6 +419,28 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
           <button className={styles.btnCancel} onClick={onClose}>Close</button>
         </div>
       </div>
+
+      {showTplSelector && (
+        <TemplateSelector
+          currentTemplate={activeTemplate}
+          onClose={() => setShowTplSelector(false)}
+          onApply={(tpl) => {
+            setActiveTemplate(tpl);
+            // Persist to localStorage so WriteRx chip can read it
+            const lsKey = `rx_active_tpl_${uid}`;
+            tpl ? localStorage.setItem(lsKey, JSON.stringify(tpl)) : localStorage.removeItem(lsKey);
+            // Auto-apply section visibility when template has a specialty mapping
+            if (tpl?.specialty) {
+              const toDisable = getDisabledSectionsForSpecialty(tpl.specialty);
+              if (toDisable.length > 0) {
+                setDisabledSections(toDisable);
+                saveDisabledSections(cid, toDisable);
+                window.dispatchEvent(new Event('storage'));
+              }
+            }
+          }}
+        />
+      )}
 
       {showCropper && (
         <LetterheadCropper

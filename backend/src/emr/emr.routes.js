@@ -80,10 +80,12 @@ router.post  ('/docassist/document',                 proOnlyCheck('ai_docassist'
 router.get   ('/docassist/patient-context/:patientId', proOnlyCheck('ai_docassist'), docassist.getPatientContext);
 router.post  ('/scribe/transcribe',    proOnlyCheck('scribe'),       ...scribe.transcribe);
 router.post  ('/scribe/soap',          proOnlyCheck('scribe'),       scribe.extractSOAP);
-router.get   ('/scribe/templates',     proOnlyCheck('scribe'),       tpl.listTemplates);
-router.post  ('/scribe/templates',     proOnlyCheck('scribe'),       tpl.createTemplate);
-router.put   ('/scribe/templates/:id', proOnlyCheck('scribe'),       tpl.updateTemplate);
-router.delete('/scribe/templates/:id', proOnlyCheck('scribe'),       tpl.deleteTemplate);
+router.get   ('/scribe/templates',       proOnlyCheck('scribe'), tpl.listTemplates);
+router.post  ('/scribe/templates',       proOnlyCheck('scribe'), tpl.createTemplate);
+router.put   ('/scribe/templates/:id',   proOnlyCheck('scribe'), tpl.updateTemplate);
+router.delete('/scribe/templates/:id',   proOnlyCheck('scribe'), tpl.deleteTemplate);
+router.get   ('/scribe/active-template', tpl.getActiveTemplate);
+router.patch ('/scribe/active-template', tpl.setActiveTemplate);
 router.post  ('/assessment/questions', proOnlyCheck('ai_assessment'), assessment.generateQuestions);
 router.post  ('/assessment/analyze',   proOnlyCheck('ai_assessment'), assessment.analyzeAnswers);
 
