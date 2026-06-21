@@ -278,6 +278,12 @@ const updateStatus = async (req, res) => {
   if (!rows.length) return res.status(404).json({ error: 'Appointment not found' });
   res.json(rows[0]);
 
+  // Log appointment status change
+  if (status) {
+    const { logActivity } = require('./emr.staff.controller');
+    logActivity({ req, action: `APPOINTMENT_${status.toUpperCase()}`, resource: 'appointment', resourceId: req.params.id, details: { patient_name: rows[0].patient_name, status } });
+  }
+
   // Auto-create care context when consultation starts or ends (if patient is ABDM-linked)
   // Create care context + attempt link only on first transition to 'ongoing'.
   // saveEncounter handles the FHIR update; it skips the link if already linked/pending.

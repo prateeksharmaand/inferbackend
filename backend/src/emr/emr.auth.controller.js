@@ -83,6 +83,14 @@ const login = async (req, res) => {
   const effectiveRole = role === 'doctor' ? 'doctor' : (user.role || 'staff');
 
   audit.loginSuccess(req, user, effectiveRole);
+
+  // Log to staff_activity_logs (fire-and-forget, non-fatal)
+  pool.query(
+    `INSERT INTO staff_activity_logs (clinic_id, staff_id, staff_email, staff_role, action, ip_address, user_agent)
+     VALUES ($1,$2,$3,$4,'LOGIN',$5,$6)`,
+    [user.clinic_id, user.id, user.email, effectiveRole, req.ip, req.headers?.['user-agent'] || null]
+  ).catch(() => {});
+
   const token = sign({ id: user.id, clinic_id: user.clinic_id, role: effectiveRole, email });
 
   // Resolve permissions: merge role-level permissions with per-user overrides

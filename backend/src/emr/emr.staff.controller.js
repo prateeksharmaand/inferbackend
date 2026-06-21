@@ -3,6 +3,29 @@ const crypto = require('crypto');
 const { pool } = require('../config/database');
 const mailer = require('./emr.mailer');
 
+async function logActivity({ clinicId, req, action, resource, resourceId, details }) {
+  const user = req?.emrUser || {};
+  pool.query(
+    `INSERT INTO staff_activity_logs
+       (clinic_id, staff_id, staff_email, staff_role, action, resource, resource_id, details, ip_address, user_agent)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    [
+      clinicId || user.clinic_id,
+      user.id   || null,
+      user.email || null,
+      user.role  || null,
+      action,
+      resource   || null,
+      resourceId ? String(resourceId) : null,
+      details ? JSON.stringify(details) : null,
+      req?.ip || null,
+      req?.headers?.['user-agent'] || null,
+    ]
+  ).catch(e => console.error('[activity-log]', e.message));
+}
+
+module.exports.logActivity = logActivity;
+
 const BCRYPT_ROUNDS = 12;
 
 function requireAdmin(req, res) {
@@ -45,6 +68,7 @@ const createStaff = async (req, res) => {
       [req.emrUser.clinic_id, name.trim(), email.trim().toLowerCase(), hash, role,
        mobile || null, employee_id || null, department || null, designation || null]
     );
+    logActivity({ req, action: 'STAFF_CREATED', resource: 'staff', resourceId: rows[0].id, details: { name: rows[0].name, role: rows[0].role } });
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email already registered' });
@@ -81,6 +105,7 @@ const updateStaff = async (req, res) => {
     vals
   );
   if (!rows.length) return res.status(404).json({ error: 'Staff member not found' });
+  logActivity({ req, action: 'STAFF_UPDATED', resource: 'staff', resourceId: req.params.id });
   res.json(rows[0]);
 };
 
@@ -94,6 +119,7 @@ const deleteStaff = async (req, res) => {
     [req.params.id, req.emrUser.clinic_id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Staff member not found' });
+  logActivity({ req, action: 'STAFF_DELETED', resource: 'staff', resourceId: req.params.id });
   res.json({ ok: true });
 };
 
@@ -146,6 +172,7 @@ const updateRole = async (req, res) => {
     vals
   );
   if (!rows.length) return res.status(404).json({ error: 'Role not found' });
+  logActivity({ req, action: 'ROLE_UPDATED', resource: 'role', resourceId: req.params.id, details: { name: rows[0].name } });
   res.json(rows[0]);
 };
 
@@ -233,6 +260,7 @@ const createInvitation = async (req, res) => {
     }).catch(err => console.error('[invite-email] failed:', err.message));
   }
 
+  logActivity({ req, action: 'INVITATION_CREATED', resource: 'invitation', resourceId: inv.id, details: { email: inv.email, role: inv.role } });
   res.status(201).json({ ...inv, invite_url: inviteUrl });
 };
 

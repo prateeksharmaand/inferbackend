@@ -125,8 +125,16 @@ function reminderTime(timeStr) {
   return `${rh12}:${String(rm).padStart(2, '0')} ${ampm}`;
 }
 
+function canDoClinic(user) {
+  if (!user) return false;
+  if (user.role === 'doctor' || user.role === 'admin') return true;
+  const p = user.permissions || {};
+  return !!(p.all || p['consultations.create']);
+}
+
 export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen, onDragStart, onDelete, onInferAssist }) {
   const { user } = useAuth();
+  const isDoctor = canDoClinic(user);
   const [appt,           setAppt]           = useState(initialAppt);
   useEffect(() => { setAppt(initialAppt); }, [initialAppt.status, initialAppt.tags]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showTagDialog,  setShowTagDialog]  = useState(false);
@@ -341,7 +349,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 title="Upload Lab Report">
                 <FlaskConical size={12} strokeWidth={2} /> Lab
               </button>
-              {onInferAssist && (
+              {isDoctor && onInferAssist && (
                 <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
                   onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
                   title="Ask InferAssist about this patient">
@@ -355,7 +363,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 </button>
                 {showMore && (
                   <ul className={styles.moreMenu}>
-                    {MORE_ACTIONS.map(a => <li key={a} onClick={e => { e.stopPropagation(); handleAction(a); }}>{a}</li>)}
+                    {(isDoctor ? MORE_ACTIONS : MORE_ACTIONS.filter(a => a !== 'Write Rx')).map(a =>
+                      <li key={a} onClick={e => { e.stopPropagation(); handleAction(a); }}>{a}</li>
+                    )}
                     {onDelete && <li style={{ color: '#dc2626', borderTop: '1px solid #f1f5f9', marginTop: 2, paddingTop: 6 }} onClick={e => { e.stopPropagation(); handleAction('Delete Appointment'); }}>🗑 Delete Appointment</li>}
                   </ul>
                 )}
@@ -363,12 +373,15 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </div>
           )}
 
-          {/* ── Other status actions ── */}
+          {/* ── Other status actions (checked_in / ongoing / parked) ── */}
           {appt.status !== 'booked' && appt.status !== 'completed' && actions.length > 0 && (
             <div className={styles.actions} onClick={e => e.stopPropagation()}>
-              {actions.map(a => (
-                <button key={a} className={`${styles.actionBtn} ${a === 'Resume' ? styles.actionBtnResume : ''}`} onClick={() => handleAction(a)}>{a}</button>
-              ))}
+              {actions
+                .filter(a => isDoctor || (a !== 'Start' && a !== 'Resume' && a !== 'Complete' && a !== 'Write Rx'))
+                .map(a => (
+                  <button key={a} className={`${styles.actionBtn} ${a === 'Resume' ? styles.actionBtnResume : ''}`} onClick={() => handleAction(a)}>{a}</button>
+                ))
+              }
               <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
                 onClick={e => { e.stopPropagation(); setShowSlip(true); }}>
                 <Printer size={12} strokeWidth={2} /> Slip
@@ -382,7 +395,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
-              {onInferAssist && (
+              {isDoctor && onInferAssist && (
                 <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
                   onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
                   title="Ask InferAssist about this patient">
@@ -417,10 +430,12 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 title="Upload Lab Report">
                 <FlaskConical size={12} strokeWidth={2} /> Lab
               </button>
-              <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
-                onClick={e => { e.stopPropagation(); onOpen('print'); }}>
-                <Printer size={12} strokeWidth={2} /> Rx Print
-              </button>
+              {isDoctor && (
+                <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
+                  onClick={e => { e.stopPropagation(); onOpen('print'); }}>
+                  <Printer size={12} strokeWidth={2} /> Rx Print
+                </button>
+              )}
               <button className={`${styles.actionBtn} ${styles.actionBtnPrint}`}
                 onClick={e => { e.stopPropagation(); setShowSlip(true); }}>
                 <Printer size={12} strokeWidth={2} /> Slip
@@ -429,7 +444,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
-              {onInferAssist && (
+              {isDoctor && onInferAssist && (
                 <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
                   onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
                   title="Ask InferAssist about this patient">
