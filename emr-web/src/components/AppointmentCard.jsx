@@ -132,9 +132,17 @@ function canDoClinic(user) {
   return !!(p.all || p['consultations.create']);
 }
 
+function canUseAI(user) {
+  if (!user) return false;
+  if (user.role === 'doctor' || user.role === 'admin') return true;
+  const p = user.permissions || {};
+  return !!(p.all || p['inferassist.use'] || p['consultations.create']);
+}
+
 export default function AppointmentCard({ appt: initialAppt, clinicTags = [], onStatusChange, onTagUpdate, onOpen, onDragStart, onDelete, onInferAssist }) {
   const { user } = useAuth();
-  const isDoctor = canDoClinic(user);
+  const isDoctor  = canDoClinic(user);
+  const isAIUser  = canUseAI(user);
   const [appt,           setAppt]           = useState(initialAppt);
   useEffect(() => { setAppt(initialAppt); }, [initialAppt.status, initialAppt.tags]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showTagDialog,  setShowTagDialog]  = useState(false);
@@ -349,7 +357,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 title="Upload Lab Report">
                 <FlaskConical size={12} strokeWidth={2} /> Lab
               </button>
-              {isDoctor && onInferAssist && (
+              {isAIUser && onInferAssist && (
                 <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
                   onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
                   title="Ask InferAssist about this patient">
@@ -395,7 +403,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
-              {isDoctor && onInferAssist && (
+              {isAIUser && onInferAssist && (
                 <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
                   onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
                   title="Ask InferAssist about this patient">
@@ -444,7 +452,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
-              {isDoctor && onInferAssist && (
+              {isAIUser && onInferAssist && (
                 <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
                   onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
                   title="Ask InferAssist about this patient">

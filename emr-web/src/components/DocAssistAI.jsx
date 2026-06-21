@@ -685,7 +685,7 @@ function ChatTab({ appt, onClearPatient }) {
 export default function InferAssistAI({ appt: propAppt }) {
   const { user } = useAuth();
   const isDoctor = user?.role === 'doctor' || user?.role === 'admin'
-    || !!(user?.permissions?.all || user?.permissions?.['consultations.create']);
+    || !!(user?.permissions?.all || user?.permissions?.['consultations.create'] || user?.permissions?.['inferassist.use']);
 
   const [open,        setOpen]        = useState(false);
   const [activeAppt,  setActiveAppt]  = useState(null);

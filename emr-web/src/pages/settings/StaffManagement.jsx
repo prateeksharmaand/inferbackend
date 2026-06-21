@@ -66,6 +66,13 @@ const PERM_GROUPS = [
     { key: 'lab.view', label: 'View Lab Results' },
     { key: 'lab.edit', label: 'Edit Lab Data' },
   ]},
+  { key: 'ai', label: 'AI & InferAssist', perms: [
+    { key: 'consultations.create', label: 'Use InferAssist (AI)' },
+    { key: 'inferassist.use',      label: 'Open InferAssist Panel' },
+    { key: 'inferassist.scribe',   label: 'Voice Scribe (AI Transcription)' },
+    { key: 'inferassist.docassist',label: 'Document AI Assistant' },
+    { key: 'inferassist.summary',  label: 'AI Lab Summary' },
+  ]},
   { key: 'settings', label: 'Settings Access', perms: [
     { key: 'settings.clinic',        label: 'Clinic Settings' },
     { key: 'settings.staff',         label: 'Staff Management' },
