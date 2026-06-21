@@ -10,35 +10,35 @@
 .logoIcon {
   width: 36px; height: 36px; border-radius: 10px;
   background: var(--color-primary); color: #fff;
-  font-size: 15px; font-weight: 800;
+  font-size: 17px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
 }
 .logoTextWrap { display: flex; flex-direction: column; gap: 1px; }
-.logoText { font-size: 15px; font-weight: 700; color: var(--color-text); line-height: 1.2; }
-.logoSub  { font-size: 8px; font-weight: 500; color: var(--color-text-2); letter-spacing: .3px; }
-.title { font-size: 19px; font-weight: 700; margin-bottom: 20px; }
+.logoText { font-size: 17px; font-weight: 700; color: var(--color-text); line-height: 1.2; }
+.logoSub  { font-size: 10px; font-weight: 500; color: var(--color-text-2); letter-spacing: .3px; }
+.title { font-size: 21px; font-weight: 700; margin-bottom: 20px; }
 
 .roleTabs { display: flex; border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
-.roleTab { flex: 1; padding: 8px; background: none; border: none; font-size: 10px; color: var(--color-text-2); transition: all .15s; }
+.roleTab { flex: 1; padding: 8px; background: none; border: none; font-size: 12px; color: var(--color-text-2); transition: all .15s; }
 .roleTabActive { background: var(--color-primary); color: #fff; font-weight: 600; }
 
 .form { display: flex; flex-direction: column; gap: 12px; }
-.label { font-size: 10px; font-weight: 500; color: var(--color-text); }
+.label { font-size: 12px; font-weight: 500; color: var(--color-text); }
 .input {
   border: 1px solid var(--color-border); border-radius: 8px;
   padding: 10px 12px; width: 100%; outline: none; transition: border-color .15s;
 }
 .input:focus { border-color: var(--color-primary); }
-.error { color: var(--color-danger); font-size: 10px; }
+.error { color: var(--color-danger); font-size: 12px; }
 .suspendedBanner {
   background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius);
-  color: #991b1b; font-size: 10px; padding: 10px 14px; margin-bottom: 16px; line-height: 1.5;
+  color: #991b1b; font-size: 12px; padding: 10px 14px; margin-bottom: 16px; line-height: 1.5;
 }
 .suspendedBanner a { color: #991b1b; font-weight: 600; text-decoration: underline; }
 .btn {
   margin-top: 8px; padding: 12px;
   background: var(--color-primary); color: #fff;
-  border: none; border-radius: 8px; font-size: 12px; font-weight: 600;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
   transition: background .15s;
 }
 .btn:hover:not(:disabled) { background: var(--color-primary-dk); }

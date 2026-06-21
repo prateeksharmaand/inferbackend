@@ -13,27 +13,27 @@
   display: flex; align-items: center; justify-content: space-between; gap: 4px;
 }
 .rowLabel {
-  font-size: 8px; font-weight: 600; color: var(--color-text-2, #64748b);
+  font-size: 10px; font-weight: 600; color: var(--color-text-2, #64748b);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
 }
 
 .rowInput {
   width: 100%; padding: 7px 10px; box-sizing: border-box;
   border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px;
-  font-size: 10px; font-weight: 600; color: #1e293b; background: #f8fafc;
+  font-size: 12px; font-weight: 600; color: #1e293b; background: #f8fafc;
   outline: none; cursor: default; text-align: center;
   transition: border-color .15s, color .15s;
 }
 
 .rowInterp {
-  font-size: 6px; font-weight: 600; text-align: center;
+  font-size: 8px; font-weight: 600; text-align: center;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .rowBtn {
   width: 100%; padding: 5px 0;
   border: 1px solid var(--color-primary); border-radius: 6px;
-  background: none; color: var(--color-primary); font-size: 8px; font-weight: 600;
+  background: none; color: var(--color-primary); font-size: 10px; font-weight: 600;
   cursor: pointer; transition: all .12s;
 }
 .rowBtn:hover { background: var(--color-primary); color: #fff; }
@@ -69,8 +69,8 @@
   background: var(--color-primary); color: #fff;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.mTitle { font-size: 11px; font-weight: 700; color: #1e293b; }
-.mDesc  { font-size: 8px; color: #64748b; margin-top: 2px; }
+.mTitle { font-size: 13px; font-weight: 700; color: #1e293b; }
+.mDesc  { font-size: 10px; color: #64748b; margin-top: 2px; }
 .mClose {
   background: none; border: none; cursor: pointer; color: #94a3b8;
   padding: 4px; border-radius: 6px; flex-shrink: 0; display: flex;
@@ -100,7 +100,7 @@
 .infoTab {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 10px 8px; border: none; background: none; cursor: pointer;
-  font-size: 9px; font-weight: 600; color: #64748b;
+  font-size: 11px; font-weight: 600; color: #64748b;
   border-bottom: 2px solid transparent; transition: all .15s;
 }
 .infoTab:hover { color: var(--color-primary); background: #f5f3ff; }
@@ -109,27 +109,27 @@
   flex: 1; overflow-y: auto; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 10px;
 }
-.infoDesc  { font-size: 9px; color: #475569; line-height: 1.6; margin: 0; }
+.infoDesc  { font-size: 11px; color: #475569; line-height: 1.6; margin: 0; }
 .infoFormula {
   background: #f1f5f9; border-radius: 8px; padding: 8px 12px;
   border-left: 3px solid var(--color-primary);
 }
 .infoFormulaLbl {
-  font-size: 7px; font-weight: 700; text-transform: uppercase;
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .4px; color: var(--color-primary); display: block; margin-bottom: 3px;
 }
 .infoFormulaText {
-  font-family: monospace; font-size: 8px; color: #1e293b;
+  font-family: monospace; font-size: 10px; color: #1e293b;
   margin: 0; white-space: pre-wrap; line-height: 1.5;
 }
 
 /* Interpretation table */
 .interpTable {
-  width: 100%; border-collapse: collapse; font-size: 9px;
+  width: 100%; border-collapse: collapse; font-size: 11px;
 }
 .interpTable th {
   text-align: left; padding: 6px 8px;
-  font-size: 7px; font-weight: 700; letter-spacing: .4px;
+  font-size: 9px; font-weight: 700; letter-spacing: .4px;
   color: #94a3b8; border-bottom: 1px solid #e2e8f0;
 }
 .interpTable td {
@@ -141,8 +141,8 @@
 
 /* How to use */
 .howToUse { display: flex; flex-direction: column; gap: 4px; }
-.howLine  { font-size: 9px; color: #1e293b; margin: 0; line-height: 1.6; }
-.howNote  { font-size: 8px; color: #64748b; margin: 0; line-height: 1.6; font-style: italic; }
+.howLine  { font-size: 11px; color: #1e293b; margin: 0; line-height: 1.6; }
+.howNote  { font-size: 10px; color: #64748b; margin: 0; line-height: 1.6; font-style: italic; }
 
 /* Input fields */
 .mInputs {
@@ -151,19 +151,19 @@
 .mField { display: flex; flex-direction: column; gap: 4px; }
 .mFieldCheck { grid-column: 1 / -1; }
 
-.mLabel { font-size: 8px; font-weight: 600; color: #64748b; }
-.mUnit  { font-weight: 400; color: #94a3b8; font-size: 7px; }
+.mLabel { font-size: 10px; font-weight: 600; color: #64748b; }
+.mUnit  { font-weight: 400; color: #94a3b8; font-size: 9px; }
 
 .mInput, .mSelect {
   padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 7px;
-  font-size: 10px; color: #1e293b; outline: none; transition: border-color .12s;
+  font-size: 12px; color: #1e293b; outline: none; transition: border-color .12s;
   background: #f8fafc; width: 100%; box-sizing: border-box;
 }
 .mInput:focus, .mSelect:focus { border-color: var(--color-primary); background: #fff; }
 
 .mCheckLabel {
   display: flex; align-items: center; gap: 8px;
-  font-size: 9px; color: #1e293b; cursor: pointer;
+  font-size: 11px; color: #1e293b; cursor: pointer;
   padding: 6px 10px; border-radius: 7px; transition: background .1s;
 }
 .mCheckLabel:hover { background: #f5f3ff; }
@@ -179,26 +179,26 @@
   flex: 1; display: flex; flex-direction: column; gap: 4px;
 }
 .mResultLbl {
-  font-size: 8px; font-weight: 700; color: #64748b;
+  font-size: 10px; font-weight: 700; color: #64748b;
   text-transform: uppercase; letter-spacing: .3px;
 }
 .mResultBox {
   width: 100%; padding: 10px 14px;
   border: 2px solid #e2e8f0; border-radius: 9px;
-  font-size: 15px; font-weight: 800; color: #1e293b;
+  font-size: 17px; font-weight: 800; color: #1e293b;
   background: #f8fafc; outline: none; cursor: default;
   transition: border-color .15s, color .15s;
   box-sizing: border-box;
 }
 .mResultInterp {
-  font-size: 9px; font-weight: 600; margin-top: 2px;
+  font-size: 11px; font-weight: 600; margin-top: 2px;
 }
 /* Calculate button */
 .mCalcBtn {
   display: flex; align-items: center; justify-content: center; gap: 7px;
   padding: 10px 20px; border-radius: 9px; flex-shrink: 0;
   background: var(--color-primary); color: #fff; border: none; cursor: pointer;
-  font-size: 10px; font-weight: 600; transition: background .12s;
+  font-size: 12px; font-weight: 600; transition: background .12s;
   height: 44px;
 }
 .mCalcBtn:hover { background: var(--color-primary-dk, #6d28d9); }
@@ -211,19 +211,19 @@
   flex-shrink: 0;
 }
 .mLongDesc {
-  font-size: 9px; color: #475569; line-height: 1.6; margin: 0;
+  font-size: 11px; color: #475569; line-height: 1.6; margin: 0;
 }
 .mFormula {
   background: #f1f5f9; border-radius: 8px; padding: 10px 12px;
   border-left: 3px solid var(--color-primary);
 }
 .mFormulaLabel {
-  font-size: 7px; font-weight: 700; text-transform: uppercase;
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .4px; color: var(--color-primary); display: block; margin-bottom: 4px;
 }
 .mFormulaText {
   font-family: 'Fira Code', 'Cascadia Code', monospace;
-  font-size: 8px; color: #1e293b; margin: 0;
+  font-size: 10px; color: #1e293b; margin: 0;
   white-space: pre-wrap; line-height: 1.6;
 }
 

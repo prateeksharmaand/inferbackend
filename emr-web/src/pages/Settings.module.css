@@ -2,8 +2,8 @@
 
 .header  { display: flex; align-items: flex-start; gap: 12px; }
 .headerIcon { color: var(--color-primary); margin-top: 2px; }
-.title   { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
-.sub     { font-size: 10px; color: var(--color-text-2); line-height: 1.5; }
+.title   { font-size: 19px; font-weight: 700; margin-bottom: 4px; }
+.sub     { font-size: 12px; color: var(--color-text-2); line-height: 1.5; }
 
 .tabs {
   display: flex; gap: 4px;
@@ -13,7 +13,7 @@
 .tab {
   display: flex; align-items: center; gap: 7px;
   padding: 9px 18px; border: none; background: none;
-  font-size: 10px; font-weight: 600; color: var(--color-text-2);
+  font-size: 12px; font-weight: 600; color: var(--color-text-2);
   cursor: pointer; border-bottom: 2px solid transparent;
   margin-bottom: -2px; border-radius: 8px 8px 0 0;
   transition: all .15s;

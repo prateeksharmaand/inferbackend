@@ -45,7 +45,7 @@
 }
 
 .headerTitle {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: #111827;
   white-space: nowrap;
@@ -129,14 +129,14 @@
 }
 
 .catName {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 600;
   color: #111827;
   line-height: 1.3;
 }
 
 .catCount {
-  font-size: 7px;
+  font-size: 9px;
   color: #9ca3af;
 }
 
@@ -154,7 +154,7 @@
   padding: 8px 12px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 12px;
   color: #111827;
   outline: none;
   background: #fafafa;
@@ -177,7 +177,7 @@
   border: 1px solid #f0f0f0;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   color: #111827;
   text-align: left;
   transition: background 0.12s, border-color 0.12s;
@@ -195,7 +195,7 @@
   justify-content: center;
   gap: 14px;
   color: #6b7280;
-  font-size: 11px;
+  font-size: 13px;
   padding: 40px 24px;
   text-align: center;
 }
@@ -237,20 +237,20 @@
 }
 
 .progressLabel {
-  font-size: 8px;
+  font-size: 10px;
   color: #9ca3af;
   white-space: nowrap;
 }
 
 .questionType {
-  font-size: 8px;
+  font-size: 10px;
   color: #9ca3af;
   font-style: italic;
   margin: 0;
 }
 
 .questionText {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #111827;
   line-height: 1.5;
@@ -272,7 +272,7 @@
   border: 1.5px solid #e5e7eb;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   color: #374151;
   text-align: left;
   transition: all 0.12s;
@@ -312,7 +312,7 @@
   gap: 5px;
   padding: 8px 16px;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   border: none;
@@ -364,19 +364,19 @@
 }
 
 .riskLabel {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .riskSubcat {
-  font-size: 9px;
+  font-size: 11px;
   color: #6b7280;
   margin-top: 2px;
 }
 
 .riskScore {
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 800;
   border: 2.5px solid;
   border-radius: 50%;
@@ -406,7 +406,7 @@
 }
 
 .sectionTitle {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -415,14 +415,14 @@
 }
 
 .summaryText {
-  font-size: 10px;
+  font-size: 12px;
   color: #374151;
   line-height: 1.6;
   margin: 0;
 }
 
 .resultList {
-  font-size: 10px;
+  font-size: 12px;
   color: #374151;
   line-height: 1.6;
   padding-left: 18px;
@@ -433,7 +433,7 @@
 }
 
 .disclaimer {
-  font-size: 8px;
+  font-size: 10px;
   color: #9ca3af;
   text-align: center;
   margin: 0;
@@ -452,7 +452,7 @@
   background: #f3f4f6;
   border: none;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: 12px;
   color: #374151;
   cursor: pointer;
 }
@@ -466,7 +466,7 @@
   background: #7c3aed;
   border: none;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   color: #fff;
   cursor: pointer;
@@ -476,7 +476,7 @@
 
 /* ── Shared ── */
 .error {
-  font-size: 9px;
+  font-size: 11px;
   color: #dc2626;
   background: #fef2f2;
   border: 1px solid #fecaca;

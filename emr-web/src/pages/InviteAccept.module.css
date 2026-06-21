@@ -16,20 +16,20 @@
   color: var(--color-primary, #7c3aed);
 }
 .logoIcon { color: var(--color-primary, #7c3aed); }
-.logoText  { font-size: 13px; font-weight: 800; color: var(--color-primary, #7c3aed); }
+.logoText  { font-size: 15px; font-weight: 800; color: var(--color-primary, #7c3aed); }
 
-.title { font-size: 17px; font-weight: 800; color: #0f172a; margin: 0; text-align: center; }
-.sub   { font-size: 11px; color: #64748b; margin: 0; text-align: center; line-height: 1.5; }
+.title { font-size: 19px; font-weight: 800; color: #0f172a; margin: 0; text-align: center; }
+.sub   { font-size: 13px; color: #64748b; margin: 0; text-align: center; line-height: 1.5; }
 
 .form { width: 100%; display: flex; flex-direction: column; gap: 14px; }
 
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field label { font-size: 9px; font-weight: 700; color: #475569; }
+.field label { font-size: 11px; font-weight: 700; color: #475569; }
 .req { color: #ef4444; }
 
 .input {
   padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 9px;
-  font-size: 11px; outline: none; transition: border-color .15s;
+  font-size: 13px; outline: none; transition: border-color .15s;
   background: #f8fafc; font-family: inherit; width: 100%; box-sizing: border-box; color: #0f172a;
 }
 .input:focus { border-color: var(--color-primary, #7c3aed); box-shadow: 0 0 0 3px rgba(124,58,237,.1); background: #fff; }
@@ -43,12 +43,12 @@
 }
 .pwToggle:hover { color: #475569; }
 
-.errorMsg { color: #dc2626; font-size: 10px; margin-top: -4px; }
+.errorMsg { color: #dc2626; font-size: 12px; margin-top: -4px; }
 
 .btnPrimary {
   width: 100%; padding: 12px; background: var(--color-primary, #7c3aed);
   color: #fff; border: none; border-radius: 10px;
-  font-size: 11px; font-weight: 700; cursor: pointer; transition: background .1s;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: background .1s;
   margin-top: 4px;
 }
 .btnPrimary:hover    { background: #6d28d9; }
@@ -56,12 +56,12 @@
 
 .btnSecondary {
   padding: 10px 24px; background: none; border: 1.5px solid #e2e8f0;
-  color: #475569; border-radius: 10px; font-size: 11px; font-weight: 600;
+  color: #475569; border-radius: 10px; font-size: 13px; font-weight: 600;
   cursor: pointer; transition: all .12s; margin-top: 4px;
 }
 .btnSecondary:hover { background: #f8fafc; border-color: #cbd5e1; }
 
-.loadingText { font-size: 11px; color: #94a3b8; margin: 0; }
+.loadingText { font-size: 13px; color: #94a3b8; margin: 0; }
 
 .spinner {
   color: var(--color-primary, #7c3aed);
@@ -76,4 +76,4 @@
 }
 
 .errorIcon { color: #dc2626; }
-.errorText { font-size: 11px; color: #64748b; text-align: center; margin: 0; }
+.errorText { font-size: 13px; color: #64748b; text-align: center; margin: 0; }
