@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, UserRound, LayoutList, FlaskConical, Zap, KeyRound, Palette, ShieldCheck } from 'lucide-react';
+import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, LayoutList, FlaskConical, Zap, KeyRound, Palette, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import UhidSettings from './settings/UhidSettings';
 import CustomAttributes from './settings/CustomAttributes';
 import ServicesSettings from './settings/ServicesSettings';
 import InferPadSettings from './settings/InferPadSettings';
-import DoctorsSettings from './settings/DoctorsSettings';
 import QueuesSettings from './settings/QueuesSettings';
 import LabStaffSettings from './settings/LabStaffSettings';
 import SubscriptionSettings from './settings/SubscriptionSettings';
@@ -18,7 +17,6 @@ const ALL_TABS = [
   { key: 'subscription', Icon: Zap,           label: 'Subscription',         adminOnly: false },
   { key: 'staff',        Icon: ShieldCheck,    label: 'Staff & Access',       adminOnly: true  },
   { key: 'queues',       Icon: LayoutList,     label: 'Queues',               adminOnly: false },
-  { key: 'doctors',      Icon: UserRound,      label: 'Doctors',              adminOnly: false },
   { key: 'labstaff',     Icon: FlaskConical,   label: 'Lab Staff',            adminOnly: false },
   { key: 'uhid',         Icon: Hash,           label: 'UHID Settings',        adminOnly: false },
   { key: 'tags',         Icon: Tag,            label: 'Custom Attributes',    adminOnly: false },
@@ -62,7 +60,6 @@ export default function Settings() {
         {tab === 'subscription' && <SubscriptionSettings />}
         {tab === 'staff'        && <StaffManagement />}
         {tab === 'queues'       && <QueuesSettings />}
-        {tab === 'doctors'      && <DoctorsSettings />}
         {tab === 'labstaff'     && <LabStaffSettings />}
         {tab === 'uhid'         && <UhidSettings />}
         {tab === 'tags'         && <CustomAttributes />}
