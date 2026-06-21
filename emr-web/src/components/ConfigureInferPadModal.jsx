@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, GripVertical, Upload, Trash2, Check, PenLine, Scissors, BookOpen, ChevronRight } from 'lucide-react';
+import { X, GripVertical, Upload, Trash2, Check, PenLine, Scissors, BookOpen, Search } from 'lucide-react';
 import LetterheadCropper from './LetterheadCropper';
-import TemplateSelector, { getDisabledSectionsForSpecialty } from './TemplateSelector';
+import { getDisabledSectionsForSpecialty } from './TemplateSelector';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import SignaturePad from './SignaturePad';
@@ -79,17 +79,43 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   const [activeTab, setActiveTab] = useState('Template');
 
   // ── Active template state ──
-  const [activeTemplate,   setActiveTemplate]   = useState(null);
-  const [showTplSelector,  setShowTplSelector]  = useState(false);
-  const [tplLoading,       setTplLoading]       = useState(true);
+  const [activeTemplate,  setActiveTemplate]  = useState(null);
+  const [allTemplates,    setAllTemplates]    = useState([]);
+  const [tplLoading,      setTplLoading]      = useState(true);
+  const [tplSearch,       setTplSearch]       = useState('');
+  const [settingTpl,      setSettingTpl]      = useState(null); // id being saved
 
   useEffect(() => {
     if (user?.role !== 'doctor') { setTplLoading(false); return; }
-    api.get('/scribe/active-template')
-      .then(d => setActiveTemplate(d.template || null))
-      .catch(() => {})
-      .finally(() => setTplLoading(false));
+    Promise.all([
+      api.get('/scribe/active-template').catch(() => ({ template: null })),
+      api.get('/scribe/templates').catch(() => ({ predefined: [], custom: [] })),
+    ]).then(([active, tpls]) => {
+      setActiveTemplate(active.template || null);
+      setAllTemplates([...(tpls.predefined || []), ...(tpls.custom || [])]);
+    }).finally(() => setTplLoading(false));
   }, []);
+
+  const handleSetTemplate = async (tpl) => {
+    setSettingTpl(tpl.id);
+    try {
+      await api.patch('/scribe/active-template', { template_id: tpl.id, is_predefined: !!tpl.is_predefined });
+      setActiveTemplate(tpl);
+      const lsKey = `rx_active_tpl_${uid}`;
+      localStorage.setItem(lsKey, JSON.stringify(tpl));
+      if (tpl.specialty) {
+        const toDisable = getDisabledSectionsForSpecialty(tpl.specialty);
+        if (toDisable.length > 0) { setDisabledSections(toDisable); saveDisabledSections(cid, toDisable); }
+      }
+      window.dispatchEvent(new Event('storage'));
+    } catch {} finally { setSettingTpl(null); }
+  };
+
+  const handleClearTemplate = async () => {
+    await api.patch('/scribe/active-template', { template_id: null }).catch(() => {});
+    setActiveTemplate(null);
+    localStorage.removeItem(`rx_active_tpl_${uid}`);
+  };
 
   // ── Features state ──
   const [vaccChart,    setVaccChart]    = useState(() => localStorage.getItem(key('vaccination_chart')) === 'true');
@@ -208,78 +234,110 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
 
           {/* ── Template ── */}
           {activeTab === 'Template' && (
-            <div className={styles.section}>
+            <div className={styles.section} style={{ gap: 12 }}>
               <div className={styles.sectionTitle} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <BookOpen size={14} /> Consultation Template
               </div>
               <div className={styles.sectionHint}>
-                Set a specialty template to auto-configure InferPad sections and guide the AI scribe.
+                Select a specialty template. It will auto-configure InferPad sections and show relevant quick-add suggestions.
               </div>
 
               {user?.role !== 'doctor' ? (
-                <div style={{ padding: '16px', background: '#f8fafc', borderRadius: 8, fontSize: 12, color: '#64748b' }}>
+                <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8, fontSize: 12, color: '#64748b' }}>
                   Template selection is available for doctors only.
                 </div>
               ) : tplLoading ? (
-                <div style={{ padding: '16px', fontSize: 13, color: '#9ca3af' }}>Loading…</div>
+                <div style={{ padding: 16, fontSize: 13, color: '#9ca3af' }}>Loading templates…</div>
               ) : (
                 <>
-                  {/* Current template card */}
-                  <div style={{ border: '1.5px solid', borderColor: activeTemplate ? '#7c3aed' : '#e5e7eb', borderRadius: 12, padding: 16, background: activeTemplate ? '#faf5ff' : '#f8fafc', marginBottom: 12 }}>
-                    {activeTemplate ? (
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <BookOpen size={16} style={{ color: '#7c3aed' }} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{activeTemplate.name}</div>
-                          {activeTemplate.specialty && (
-                            <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, marginTop: 2, textTransform: 'capitalize' }}>{activeTemplate.specialty}</div>
-                          )}
-                          {activeTemplate.description && (
-                            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4, lineHeight: 1.4 }}>{activeTemplate.description}</div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <BookOpen size={20} style={{ color: '#9ca3af' }} />
-                        <div style={{ fontSize: 13, color: '#6b7280' }}>No active template — using default InferPad configuration.</div>
-                      </div>
-                    )}
+                  {/* Search */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #e5e7eb', borderRadius: 8, padding: '0 10px', background: '#fafafa' }}>
+                    <Search size={13} style={{ color: '#9ca3af', flexShrink: 0 }} />
+                    <input
+                      style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, padding: '8px 0', color: '#111827' }}
+                      placeholder="Search templates…"
+                      value={tplSearch}
+                      onChange={e => setTplSearch(e.target.value)}
+                    />
+                    {tplSearch && <button onClick={() => setTplSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, display: 'flex' }}><X size={13} /></button>}
                   </div>
 
-                  {/* Action buttons */}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => setShowTplSelector(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      <BookOpen size={13} /> {activeTemplate ? 'Change Template' : 'Browse Templates'} <ChevronRight size={13} />
-                    </button>
-
-                    {activeTemplate && getDisabledSectionsForSpecialty(activeTemplate.specialty).length > 0 && (
-                      <button
-                        onClick={() => {
-                          const toDisable = getDisabledSectionsForSpecialty(activeTemplate.specialty);
-                          setDisabledSections(toDisable);
-                          saveDisabledSections(cid, toDisable);
-                          window.dispatchEvent(new Event('storage'));
-                          // Switch to Pad Order tab so doctor can see the result
-                          setActiveTab('Pad Order');
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f0fdf4', color: '#16a34a', border: '1.5px solid #bbf7d0', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                      >
-                        <Check size={13} /> Apply Sections to Pad
+                  {/* Clear selection */}
+                  {activeTemplate && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button onClick={handleClearTemplate} style={{ background: 'none', border: 'none', fontSize: 12, color: '#9ca3af', cursor: 'pointer', textDecoration: 'underline' }}>
+                        Clear active template
                       </button>
-                    )}
-                  </div>
-
-                  {activeTemplate?.specialty && (
-                    <div style={{ marginTop: 10, fontSize: 11, color: '#9ca3af' }}>
-                      "Apply Sections to Pad" will enable sections relevant to <strong>{activeTemplate.specialty}</strong> and hide unrelated ones. You can still adjust manually in the Pad Order tab.
                     </div>
                   )}
+
+                  {/* Inline template list */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 380, overflowY: 'auto' }}>
+                    {allTemplates
+                      .filter(t => !tplSearch || t.name.toLowerCase().includes(tplSearch.toLowerCase()) || (t.specialty || '').toLowerCase().includes(tplSearch.toLowerCase()))
+                      .map(tpl => {
+                        const isActive = tpl.id === activeTemplate?.id;
+                        const isSaving = settingTpl === tpl.id;
+                        return (
+                          <div
+                            key={tpl.id}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 12,
+                              padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                              border: `1.5px solid ${isActive ? '#7c3aed' : '#e5e7eb'}`,
+                              background: isActive ? '#faf5ff' : '#fff',
+                              transition: 'all .12s',
+                            }}
+                            onClick={() => !isActive && handleSetTemplate(tpl)}
+                          >
+                            {/* Icon */}
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: isActive ? '#ede9fe' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <BookOpen size={14} style={{ color: isActive ? '#7c3aed' : '#94a3b8' }} />
+                            </div>
+
+                            {/* Info */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: isActive ? '#6d28d9' : '#111827' }}>{tpl.name}</span>
+                                {isActive && (
+                                  <span style={{ fontSize: 10, fontWeight: 700, background: '#7c3aed', color: '#fff', padding: '2px 8px', borderRadius: 20, letterSpacing: .3 }}>
+                                    ✓ Base Template
+                                  </span>
+                                )}
+                                {!tpl.is_predefined && (
+                                  <span style={{ fontSize: 10, background: '#f1f5f9', color: '#64748b', padding: '2px 7px', borderRadius: 20, fontWeight: 600 }}>Custom</span>
+                                )}
+                              </div>
+                              {tpl.specialty && (
+                                <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 500, marginTop: 2, textTransform: 'capitalize' }}>{tpl.specialty}</div>
+                              )}
+                              {tpl.description && (
+                                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.description}</div>
+                              )}
+                            </div>
+
+                            {/* Action */}
+                            <div style={{ flexShrink: 0 }}>
+                              {isActive ? (
+                                <Check size={16} style={{ color: '#7c3aed' }} />
+                              ) : (
+                                <button
+                                  disabled={isSaving}
+                                  onClick={e => { e.stopPropagation(); handleSetTemplate(tpl); }}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', opacity: isSaving ? .5 : 1 }}
+                                >
+                                  {isSaving ? '…' : 'Set'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    }
+                    {allTemplates.filter(t => !tplSearch || t.name.toLowerCase().includes(tplSearch.toLowerCase()) || (t.specialty||'').toLowerCase().includes(tplSearch.toLowerCase())).length === 0 && (
+                      <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No templates match your search.</div>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -419,28 +477,6 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
           <button className={styles.btnCancel} onClick={onClose}>Close</button>
         </div>
       </div>
-
-      {showTplSelector && (
-        <TemplateSelector
-          currentTemplate={activeTemplate}
-          onClose={() => setShowTplSelector(false)}
-          onApply={(tpl) => {
-            setActiveTemplate(tpl);
-            // Persist to localStorage so WriteRx chip can read it
-            const lsKey = `rx_active_tpl_${uid}`;
-            tpl ? localStorage.setItem(lsKey, JSON.stringify(tpl)) : localStorage.removeItem(lsKey);
-            // Auto-apply section visibility when template has a specialty mapping
-            if (tpl?.specialty) {
-              const toDisable = getDisabledSectionsForSpecialty(tpl.specialty);
-              if (toDisable.length > 0) {
-                setDisabledSections(toDisable);
-                saveDisabledSections(cid, toDisable);
-                window.dispatchEvent(new Event('storage'));
-              }
-            }
-          }}
-        />
-      )}
 
       {showCropper && (
         <LetterheadCropper
