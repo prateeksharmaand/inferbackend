@@ -228,7 +228,13 @@ router.patch ('/tags/:id', tags.updateTag);
 router.delete('/tags/:id', tags.deleteTag);
 
 // Services
-router.get   ('/services',     svc.listServices);
+router.get   ('/services',              svc.listServices);
+router.get   ('/services/bulk-template',svc.bulkTemplate);
+router.post  ('/services/bulk-upload',  (() => {
+  const multer = require('multer');
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+  return [upload.single('file'), svc.bulkUpload];
+})());
 router.post  ('/services',     svc.createService);
 router.patch ('/services/:id', svc.updateService);
 router.delete('/services/:id', svc.deleteService);

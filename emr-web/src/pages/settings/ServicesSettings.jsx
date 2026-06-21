@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, X, Pencil, Trash2, Check, IndianRupee } from 'lucide-react';
+import { Plus, Search, X, Pencil, Trash2, Check, IndianRupee, Upload } from 'lucide-react';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import BulkUploadModal from './BulkUploadModal';
 import styles from './ServicesSettings.module.css';
 
 function ServiceModal({ service, onSave, onClose }) {
@@ -71,8 +72,10 @@ export default function ServicesSettings() {
   const [loading,     setLoading]     = useState(true);
   const [search,      setSearch]      = useState('');
   const [activeFilter, setActiveFilter] = useState('all');   // 'all' | 'active' | 'inactive'
-  const [showModal,   setShowModal]   = useState(false);
-  const [editService, setEditService] = useState(null);
+  const [showModal,       setShowModal]       = useState(false);
+  const [showBulkUpload,  setShowBulkUpload]  = useState(false);
+  const [editService,     setEditService]     = useState(null);
+  const isAdmin = user?.role === 'admin' || !!(user?.permissions?.all || user?.permissions?.['settings.clinic']);
 
   const load = async () => {
     setLoading(true);
@@ -152,10 +155,22 @@ export default function ServicesSettings() {
           )}
         </div>
 
-        {/* Create button */}
-        <button className={styles.btnCreate} onClick={() => setShowModal(true)}>
-          <Plus size={14} strokeWidth={2.5} /> New Service
-        </button>
+        {/* Bulk upload + create */}
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          {isAdmin && (
+            <button
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', border: '1.5px solid var(--color-border)', background: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-2)', transition: 'all .12s' }}
+              onClick={() => setShowBulkUpload(true)}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg)'; e.currentTarget.style.color = 'var(--color-text)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--color-text-2)'; }}
+            >
+              <Upload size={13} strokeWidth={2.5} /> Bulk Upload
+            </button>
+          )}
+          <button className={styles.btnCreate} onClick={() => setShowModal(true)}>
+            <Plus size={14} strokeWidth={2.5} /> New Service
+          </button>
+        </div>
       </div>
 
       {/* ── Service list ────────────────────────────── */}
@@ -206,6 +221,9 @@ export default function ServicesSettings() {
       )}
       {editService && (
         <ServiceModal service={editService} onSave={handleEdit} onClose={() => setEditService(null)} />
+      )}
+      {showBulkUpload && (
+        <BulkUploadModal onClose={() => setShowBulkUpload(false)} onImported={load} />
       )}
     </div>
   );
