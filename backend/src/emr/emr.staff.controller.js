@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { pool } = require('../config/database');
+const mailer = require('./emr.mailer');
 
 const BCRYPT_ROUNDS = 12;
 
@@ -205,8 +206,34 @@ const createInvitation = async (req, res) => {
     [req.emrUser.clinic_id, token, email || null, name || null, role,
      role_id || null, department || null, designation || null, req.emrUser.id]
   );
-  const base = process.env.APP_URL || 'http://localhost:5173';
-  res.status(201).json({ ...rows[0], invite_url: `${base}/opd/invite/${token}` });
+  const base      = process.env.APP_URL || 'http://localhost:5173';
+  const inviteUrl = `${base}/opd/invite/${token}`;
+  const inv       = rows[0];
+
+  // Look up clinic name + inviter name for the email
+  if (inv.email) {
+    pool.query(
+      `SELECT c.name AS clinic_name, s.name AS inviter_name, r.name AS role_name
+       FROM emr_clinics c
+       LEFT JOIN emr_clinic_staff s ON s.id = $2
+       LEFT JOIN staff_roles r ON r.id = $3
+       WHERE c.id = $1`,
+      [req.emrUser.clinic_id, req.emrUser.id, inv.role_id || null]
+    ).then(({ rows: meta }) => {
+      const m = meta[0] || {};
+      return mailer.sendStaffInvitation({
+        to:          inv.email,
+        name:        inv.name,
+        clinicName:  m.clinic_name  || 'Your Clinic',
+        roleName:    m.role_name    || inv.role || 'Staff',
+        inviterName: m.inviter_name || null,
+        inviteUrl,
+        expiresAt:   inv.expires_at,
+      });
+    }).catch(err => console.error('[invite-email] failed:', err.message));
+  }
+
+  res.status(201).json({ ...inv, invite_url: inviteUrl });
 };
 
 const revokeInvitation = async (req, res) => {

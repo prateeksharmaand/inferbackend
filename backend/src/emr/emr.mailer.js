@@ -142,4 +142,47 @@ async function sendReceipt({ to, patientName, clinicName, receiptData }) {
   });
 }
 
-module.exports = { sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt };
+// ── Staff invitation email ────────────────────────────────────────────────────
+async function sendStaffInvitation({ to, name, clinicName, roleName, inviteUrl, inviterName, expiresAt }) {
+  if (!to) return;
+  const mailer  = buildMailer();
+  const expiry  = new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  await mailer.sendMail({
+    from: FROM, to,
+    subject: `You're invited to join ${clinicName} on Infer EMR`,
+    html: `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+      <div style="background:#7c3aed;padding:20px 24px;">
+        <h2 style="color:#fff;margin:0;font-size:20px;">${clinicName}</h2>
+        <p style="color:#ddd6fe;margin:4px 0 0;font-size:13px;">Staff Invitation · Infer EMR</p>
+      </div>
+      <div style="padding:24px;">
+        <p style="margin:0 0 16px;font-size:15px;">Hi <strong>${name || 'there'}</strong>,</p>
+        <p style="margin:0 0 16px;color:#475569;font-size:14px;">
+          ${inviterName ? `<strong>${inviterName}</strong> has` : 'You have been'} invited you to join
+          <strong>${clinicName}</strong> as a <strong>${roleName}</strong> on Infer EMR.
+        </p>
+        <p style="margin:0 0 24px;color:#475569;font-size:14px;">
+          Click the button below to set up your account. This link expires on <strong>${expiry}</strong>.
+        </p>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${inviteUrl}"
+             style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;
+                    padding:13px 32px;border-radius:8px;font-size:15px;font-weight:700;">
+            Accept Invitation &amp; Set Up Account
+          </a>
+        </div>
+        <p style="margin:0;font-size:12px;color:#94a3b8;">
+          If the button doesn't work, copy and paste this link into your browser:<br/>
+          <a href="${inviteUrl}" style="color:#7c3aed;word-break:break-all;">${inviteUrl}</a>
+        </p>
+      </div>
+      <div style="padding:12px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">
+        Sent by Infer EMR · support@inferapp.online · If you didn't expect this, you can ignore it.
+      </div>
+    </div>`,
+  });
+}
+
+module.exports = { sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt, sendStaffInvitation };
