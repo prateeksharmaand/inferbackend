@@ -78,23 +78,26 @@ const login = async (req, res) => {
     return res.status(403).json({ error: 'Your clinic account has been suspended. Please contact support.' });
   }
 
-  audit.loginSuccess(req, user, role);
-  const token = sign({ id: user.id, clinic_id: user.clinic_id, role, email });
+  // effectiveRole: for staff logins, use the actual role stored in the DB (e.g. 'admin', 'receptionist')
+  // req.body.role only picks the table ('staff' vs 'doctor') — it is NOT the user's assigned role
+  const effectiveRole = role === 'doctor' ? 'doctor' : (user.role || 'staff');
+
+  audit.loginSuccess(req, user, effectiveRole);
+  const token = sign({ id: user.id, clinic_id: user.clinic_id, role: effectiveRole, email });
 
   // Resolve permissions: merge role-level permissions with per-user overrides
   let permissions = {};
-  if (role === 'staff') {
-    const actualRole = user.role || 'staff'; // the user's assigned role slug
+  if (role !== 'doctor') {
     const { rows: roleRows } = await pool.query(
       `SELECT permissions FROM staff_roles WHERE clinic_id=$1 AND slug=$2 LIMIT 1`,
-      [user.clinic_id, actualRole]
+      [user.clinic_id, effectiveRole]
     );
     if (roleRows.length) permissions = roleRows[0].permissions || {};
     // Per-user overrides (stored in emr_clinic_staff.permissions JSONB)
     if (user.permissions && typeof user.permissions === 'object') {
       permissions = { ...permissions, ...user.permissions };
     }
-  } else if (role === 'doctor') {
+  } else {
     permissions = { 'patients.view': true, 'patients.edit': true, 'appointments.view': true, 'consultations.view': true, 'consultations.create': true, 'consultations.edit': true, 'prescriptions.print': true, 'assessments.view': true, 'assessments.create': true, 'inferpad.view': true, 'inferpad.create': true, 'dashboard.view': true };
   }
 
@@ -104,7 +107,7 @@ const login = async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role,
+      role: effectiveRole,
       clinic_id:      user.clinic_id,
       clinic_name:    user.clinic_name,
       clinic_address: user.clinic_address || '',
