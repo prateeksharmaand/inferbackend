@@ -9,11 +9,24 @@ import s from './BulkUploadModal.module.css';
 const STEP = { UPLOAD: 'upload', PREVIEW: 'preview', DONE: 'done' };
 
 function TemplateCard() {
-  const download = () => {
-    const a = document.createElement('a');
-    a.href = '/api/emr/services/bulk-template';
-    a.download = 'services_template.xlsx';
-    a.click();
+  const [downloading, setDownloading] = useState(false);
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch('/api/emr/services/bulk-template', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('emr_token')}` },
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = 'services_template.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDownloading(false);
+    }
   };
   return (
     <div className={s.templateCard}>
@@ -24,8 +37,8 @@ function TemplateCard() {
           <div className={s.templateSub}>Download our sample template and fill in your service data before uploading.</div>
         </div>
       </div>
-      <button className={s.templateBtn} onClick={download}>
-        <Download size={13} /> Download Template
+      <button className={s.templateBtn} onClick={download} disabled={downloading}>
+        <Download size={13} /> {downloading ? 'Downloading…' : 'Download Template'}
       </button>
     </div>
   );
