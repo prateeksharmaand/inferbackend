@@ -10,17 +10,17 @@
 }
 .miniHeader {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 13px; font-weight: 600;
+  font-size: 10px; font-weight: 600;
 }
 .navBtn {
   background: none; border: none; cursor: pointer;
-  font-size: 16px; color: var(--color-text-2); padding: 2px 6px; border-radius: 4px;
+  font-size: 13px; color: var(--color-text-2); padding: 2px 6px; border-radius: 4px;
 }
 .navBtn:hover { background: var(--color-bg); }
 .miniGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
-.dow { font-size: 10px; font-weight: 600; color: var(--color-text-3); padding: 4px 0; }
+.dow { font-size: 7px; font-weight: 600; color: var(--color-text-3); padding: 4px 0; }
 .dayBtn {
-  font-size: 12px; background: none; border: none; cursor: pointer;
+  font-size: 9px; background: none; border: none; cursor: pointer;
   border-radius: 50%; width: 26px; height: 26px; margin: auto;
   display: flex; align-items: center; justify-content: center;
   color: var(--color-text); transition: background .1s;
@@ -30,7 +30,7 @@
 .daySelected     { background: var(--color-primary) !important; color: #fff !important; font-weight: 600; }
 .freeSlots {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 12px; color: var(--color-text-2);
+  font-size: 9px; color: var(--color-text-2);
   padding: 8px 4px; border-top: 1px solid var(--color-border); cursor: pointer;
 }
 .toggle {
@@ -50,10 +50,10 @@
   display: flex; align-items: center; gap: 6px; flex-shrink: 0;
   padding: 8px 16px; border-bottom: 1px solid var(--color-border); background: #f8fafc;
 }
-.slotLabel { font-size: 12px; color: var(--color-text-2); margin-right: 4px; }
+.slotLabel { font-size: 9px; color: var(--color-text-2); margin-right: 4px; }
 .slotBtn {
   padding: 4px 10px; border-radius: 6px; border: 1px solid var(--color-border);
-  background: none; font-size: 12px; cursor: pointer; color: var(--color-text-2); transition: all .12s;
+  background: none; font-size: 9px; cursor: pointer; color: var(--color-text-2); transition: all .12s;
 }
 .slotBtn:hover  { border-color: var(--color-primary); color: var(--color-primary); }
 .slotBtnActive  { background: var(--color-primary); border-color: var(--color-primary); color: #fff; font-weight: 600; }
@@ -77,7 +77,7 @@
   position: absolute;
   right: 6px;
   top: -7px;
-  font-size: 11px;
+  font-size: 8px;
   color: var(--color-text-3);
   white-space: nowrap;
   user-select: none;
@@ -107,6 +107,6 @@
 .apptBlock:hover { filter: brightness(.93); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 
 .apptDot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.apptName   { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.apptTime   { font-size: 11px; color: #475569; flex-shrink: 0; font-weight: 500; }
-.apptStatus { font-size: 10px; font-weight: 600; flex-shrink: 0; text-transform: capitalize; }
+.apptName   { font-size: 10px; font-weight: 600; color: #1e293b; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.apptTime   { font-size: 8px; color: #475569; flex-shrink: 0; font-weight: 500; }
+.apptStatus { font-size: 7px; font-weight: 600; flex-shrink: 0; text-transform: capitalize; }

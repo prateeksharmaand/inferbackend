@@ -1,4 +1,4 @@
-﻿/* â”€â”€ Fullscreen layout â”€â”€ */
+/* â”€â”€ Fullscreen layout â”€â”€ */
 .fullscreen {
   position: fixed; inset: 0; background: #fff; z-index: 1500;
   display: flex; flex-direction: column; overflow: hidden;
@@ -14,8 +14,8 @@
   display: flex; align-items: center; padding: 4px;
 }
 .backBtn:hover { color: #1e293b; }
-.headerTitle { font-size: 16px; font-weight: 700; color: #1e293b; }
-.patientMeta { font-size: 13px; color: #64748b; }
+.headerTitle { font-size: 13px; font-weight: 700; color: #1e293b; }
+.patientMeta { font-size: 10px; color: #64748b; }
 
 /* â”€â”€ Tabs â”€â”€ */
 .tabs {
@@ -24,7 +24,7 @@
 }
 .tab {
   padding: 10px 20px; border: none; background: none; cursor: pointer;
-  font-size: 13px; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-size: 10px; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
 .tab:hover { color: #1e293b; }
 .tabActive { color: var(--color-primary, #7c3aed); border-bottom-color: var(--color-primary, #7c3aed); font-weight: 600; }
@@ -36,7 +36,7 @@
   flex: 1; padding: 16px 20px; overflow: auto; background: #f8fafc;
   display: flex; flex-direction: column; gap: 8px;
 }
-.chartTitle { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0; }
+.chartTitle { font-size: 11px; font-weight: 700; color: #1e293b; margin: 0; }
 .chartSvg   { width: 100%; height: auto; max-height: calc(100vh - 220px); }
 
 /* â”€â”€ Right panel â”€â”€ */
@@ -64,12 +64,12 @@
   50%      { transform: scale(1.1); opacity: 1; }
 }
 .promoText  { padding-right: 40px; }
-.promoTitle { font-size: 13px; font-weight: 700; color: #065f46; }
-.promoDesc  { font-size: 12px; color: #047857; margin-top: 2px; }
+.promoTitle { font-size: 10px; font-weight: 700; color: #065f46; }
+.promoDesc  { font-size: 9px; color: #047857; margin-top: 2px; }
 .promoBtn   {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 7px; border: none; cursor: pointer;
-  background: #6d28d9; color: #fff; font-size: 12px; font-weight: 600;
+  background: #6d28d9; color: #fff; font-size: 9px; font-weight: 600;
   width: fit-content;
 }
 .promoBtn:hover { background: #6d28d9; }
@@ -78,23 +78,23 @@
 .chartTypeRow { display: flex; align-items: center; justify-content: space-between; }
 .chartTypeSelect {
   padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 7px;
-  background: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
+  background: #fff; font-size: 9px; font-weight: 600; cursor: pointer;
 }
-.correctedAge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; cursor: pointer; }
+.correctedAge { display: flex; align-items: center; gap: 6px; font-size: 9px; color: #64748b; cursor: pointer; }
 
 /* Input fields */
 .inputList { display: flex; flex-direction: column; gap: 10px; }
 .inputRow  { display: flex; align-items: center; gap: 8px; }
-.inputIcon { font-size: 14px; color: #3b82f6; min-width: 18px; }
-.inputLabel { font-size: 13px; font-weight: 500; color: #374151; flex: 1; }
+.inputIcon { font-size: 11px; color: #3b82f6; min-width: 18px; }
+.inputLabel { font-size: 10px; font-weight: 500; color: #374151; flex: 1; }
 .inputBox, .inputBoxFull {
   border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 8px;
-  font-size: 13px; background: #fff; outline: none; text-align: right;
+  font-size: 10px; background: #fff; outline: none; text-align: right;
 }
 .inputBox     { width: 52px; }
 .inputBoxFull { width: 70px; }
 .inputBox:focus, .inputBoxFull:focus { border-color: #3b82f6; }
-.inputUnit    { font-size: 11px; color: #94a3b8; min-width: 30px; }
+.inputUnit    { font-size: 8px; color: #94a3b8; min-width: 30px; }
 
 /* â”€â”€ Footer â”€â”€ */
 .footer {
@@ -103,17 +103,17 @@
 }
 .btnClose {
   padding: 8px 18px; border-radius: 7px; border: 1.5px solid #e2e8f0;
-  background: #fff; color: #374151; font-size: 13px; cursor: pointer;
+  background: #fff; color: #374151; font-size: 10px; cursor: pointer;
 }
 .btnClose:hover { border-color: #94a3b8; }
 .btnPrint {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 16px; border-radius: 7px; border: 1.5px solid #e2e8f0;
-  background: #fff; color: #374151; font-size: 13px; cursor: pointer;
+  background: #fff; color: #374151; font-size: 10px; cursor: pointer;
 }
 .btnDone {
   padding: 8px 20px; border-radius: 7px; border: none;
-  background: var(--color-primary, #7c3aed); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  background: var(--color-primary, #7c3aed); color: #fff; font-size: 10px; font-weight: 600; cursor: pointer;
 }
 
 /* â”€â”€ Tell Me More Dialog â”€â”€ */
@@ -138,8 +138,8 @@
   box-shadow: 0 0 25px rgba(59,130,246,.4);
   animation: orbPulse 2s ease-in-out infinite;
 }
-.tellTitle { font-size: 18px; font-weight: 800; color: #1e293b; }
-.tellSub   { font-size: 13px; color: #64748b; margin-top: 2px; }
+.tellTitle { font-size: 15px; font-weight: 800; color: #1e293b; }
+.tellSub   { font-size: 10px; color: #64748b; margin-top: 2px; }
 .tellFeatures { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
 .tellFeature  {
   display: flex; align-items: flex-start; gap: 14px;
@@ -151,12 +151,12 @@
   from { opacity: 0; transform: translateX(-12px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-.tellFeatureIcon  { font-size: 22px; flex-shrink: 0; }
-.tellFeatureTitle { font-size: 13px; font-weight: 700; color: #1e293b; }
-.tellFeatureDesc  { font-size: 12px; color: #64748b; margin-top: 2px; line-height: 1.5; }
+.tellFeatureIcon  { font-size: 19px; flex-shrink: 0; }
+.tellFeatureTitle { font-size: 10px; font-weight: 700; color: #1e293b; }
+.tellFeatureDesc  { font-size: 9px; color: #64748b; margin-top: 2px; line-height: 1.5; }
 .tellBtn {
   width: 100%; padding: 11px; border-radius: 10px; border: none; cursor: pointer;
-  background: var(--color-primary, #7c3aed); color: #fff; font-size: 14px; font-weight: 700;
+  background: var(--color-primary, #7c3aed); color: #fff; font-size: 11px; font-weight: 700;
 }
 .tellBtn:hover { opacity: .9; }
 
@@ -176,17 +176,17 @@
   background: #22c55e; border-radius: 10px 0 0 10px;
 }
 .stripLabel {
-  font-size: 13px; font-weight: 700; color: var(--color-text, #1e293b);
+  font-size: 10px; font-weight: 700; color: var(--color-text, #1e293b);
   white-space: nowrap; margin-left: 4px;
 }
 .stripWarn {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: #92400e; background: #fffbeb;
+  font-size: 9px; color: #92400e; background: #fffbeb;
   border: 1px solid #fde68a; border-radius: 6px; padding: 4px 10px; flex: 1;
 }
 .stripBtn {
   padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer;
-  background: var(--color-primary, #7c3aed); color: #fff; font-size: 12px;
+  background: var(--color-primary, #7c3aed); color: #fff; font-size: 9px;
   font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 5px;
 }
 .stripBtn:disabled { opacity: .45; cursor: not-allowed; }

@@ -1,4 +1,4 @@
-﻿/* â”€â”€ Backdrop & panel shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* â”€â”€ Backdrop & panel shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .backdrop {
   position: fixed;
   top: var(--topbar-h);
@@ -42,7 +42,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
   letter-spacing: 0.5px;
@@ -54,7 +54,7 @@
 }
 
 .headerName {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
   color: #1e293b;
   text-transform: capitalize;
@@ -64,7 +64,7 @@
 }
 
 .headerMeta {
-  font-size: 12px;
+  font-size: 9px;
   color: #64748b;
   margin-top: 2px;
   white-space: nowrap;
@@ -111,7 +111,7 @@
   padding: 9px 13px;
   border: none;
   background: none;
-  font-size: 12px;
+  font-size: 9px;
   color: #64748b;
   cursor: pointer;
   text-align: left;
@@ -138,7 +138,7 @@
 
 .hint {
   color: #94a3b8;
-  font-size: 13px;
+  font-size: 10px;
   margin: 0;
 }
 
@@ -151,7 +151,7 @@
 
 .emptyText {
   color: #94a3b8;
-  font-size: 13px;
+  font-size: 10px;
 }
 
 .saveBtn {
@@ -161,7 +161,7 @@
   color: #fff;
   border: none;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -202,13 +202,13 @@
 }
 
 .visitDate {
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
   color: #1e293b;
 }
 
 .curBadge {
-  font-size: 9px;
+  font-size: 6px;
   font-weight: 700;
   background: #7c3aed;
   color: #fff;
@@ -218,19 +218,19 @@
 }
 
 .visitStatus {
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 600;
   text-transform: capitalize;
 }
 
 .visitDoc {
-  font-size: 11px;
+  font-size: 8px;
   color: #64748b;
   margin-bottom: 2px;
 }
 
 .visitDiag {
-  font-size: 12px;
+  font-size: 9px;
   color: #334155;
   margin-bottom: 5px;
 }
@@ -243,7 +243,7 @@
 }
 
 .visitPill {
-  font-size: 10px;
+  font-size: 7px;
   font-weight: 500;
   background: #f1f5f9;
   color: #64748b;
@@ -255,7 +255,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 11px;
+  font-size: 8px;
   color: #7c3aed;
   text-decoration: none;
   margin-top: 7px;
@@ -274,7 +274,7 @@
   align-items: center;
   padding: 9px 0;
   border-bottom: 1px solid #f1f5f9;
-  font-size: 13px;
+  font-size: 10px;
   gap: 8px;
 }
 .overviewRow:last-child { border-bottom: none; }
@@ -316,13 +316,13 @@
 }
 
 .treatDate {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 600;
   color: #1e293b;
 }
 
 .treatDoc {
-  font-size: 11px;
+  font-size: 8px;
   color: #64748b;
 }
 
@@ -333,21 +333,21 @@
 .medRow:last-child { border-bottom: none; }
 
 .medName {
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
   color: #1e293b;
   display: block;
 }
 
 .medMeta {
-  font-size: 11px;
+  font-size: 8px;
   color: #64748b;
   display: block;
   margin-top: 1px;
 }
 
 .medInstr {
-  font-size: 11px;
+  font-size: 8px;
   color: #94a3b8;
   font-style: italic;
   display: block;
@@ -376,18 +376,18 @@
 }
 
 .recordDate {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 600;
   color: #1e293b;
 }
 
 .recordDoc {
-  font-size: 11px;
+  font-size: 8px;
   color: #64748b;
 }
 
 .recordLine {
-  font-size: 12px;
+  font-size: 9px;
   color: #1e293b;
   margin-bottom: 4px;
 }
@@ -399,7 +399,7 @@
 }
 
 .recordNote {
-  font-size: 12px;
+  font-size: 9px;
   color: #475569;
   background: #f8fafc;
   padding: 6px 8px;
@@ -422,7 +422,7 @@
 }
 
 .vitalsDate {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 8px;
@@ -442,7 +442,7 @@
 
 .vitalLabel {
   display: block;
-  font-size: 10px;
+  font-size: 7px;
   color: #94a3b8;
   font-weight: 600;
   margin-bottom: 2px;
@@ -451,7 +451,7 @@
 }
 
 .vitalVal {
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 700;
   color: #1e293b;
 }
@@ -468,7 +468,7 @@
   align-items: center;
   padding: 4px 0;
   border-bottom: 1px solid #f8fafc;
-  font-size: 12px;
+  font-size: 9px;
 }
 .labRow:last-child { border-bottom: none; }
 
@@ -494,7 +494,7 @@
 }
 
 .assessDate {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 8px;
@@ -506,7 +506,7 @@
 .assessSection:last-child { margin-bottom: 0; }
 
 .assessLbl {
-  font-size: 10px;
+  font-size: 7px;
   font-weight: 700;
   text-transform: uppercase;
   color: #94a3b8;
@@ -516,7 +516,7 @@
 }
 
 .assessText {
-  font-size: 12px;
+  font-size: 9px;
   color: #475569;
   margin: 0;
   line-height: 1.5;
@@ -529,7 +529,7 @@
 }
 
 .symptomChip {
-  font-size: 11px;
+  font-size: 8px;
   background: #fff7ed;
   color: #c2410c;
   border: 1px solid #fed7aa;
@@ -538,7 +538,7 @@
 }
 
 .diagChip {
-  font-size: 11px;
+  font-size: 8px;
   background: #f0fdf4;
   color: #16a34a;
   border: 1px solid #bbf7d0;
@@ -564,14 +564,14 @@
 }
 
 .newVisitText {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
   color: #1e293b;
   margin: 0 0 6px;
 }
 
 .newVisitSub {
-  font-size: 12px;
+  font-size: 9px;
   color: #94a3b8;
   margin: 0 0 20px;
   max-width: 280px;
@@ -587,7 +587,7 @@
   color: #fff;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -599,7 +599,7 @@
 }
 
 .receiptTotal {
-  font-size: 13px;
+  font-size: 10px;
   color: #64748b;
   margin-bottom: 10px;
   padding: 8px 12px;
@@ -623,12 +623,12 @@
 }
 
 .receiptDate {
-  font-size: 12px;
+  font-size: 9px;
   color: #475569;
 }
 
 .receiptAmt {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
   color: #1e293b;
 }
@@ -641,7 +641,7 @@
 }
 
 .receiptPill {
-  font-size: 10px;
+  font-size: 7px;
   background: #f1f5f9;
   color: #64748b;
   padding: 2px 7px;
@@ -662,7 +662,7 @@
 }
 
 .receiptItem {
-  font-size: 11px;
+  font-size: 8px;
   color: #64748b;
   text-transform: capitalize;
 }
@@ -683,12 +683,12 @@
   border: 1px solid var(--color-border, #e2e8f0);
   text-align: center;
 }
-.vaccKpiVal   { font-size: 24px; font-weight: 700; line-height: 1; }
-.vaccKpiLabel { font-size: 11px; color: #64748b; margin-top: 4px; text-align: center; }
+.vaccKpiVal   { font-size: 21px; font-weight: 700; line-height: 1; }
+.vaccKpiLabel { font-size: 8px; color: #64748b; margin-top: 4px; text-align: center; }
 
 .vaccGroup { margin-bottom: 12px; border-radius: 10px; overflow: hidden; border: 1px solid var(--color-border, #e2e8f0); }
 .vaccGroupHead {
-  padding: 7px 14px; font-size: 11px; font-weight: 700;
+  padding: 7px 14px; font-size: 8px; font-weight: 700;
   letter-spacing: .3px; border-bottom: 1px solid;
 }
 .vaccTable { display: flex; flex-direction: column; }
@@ -700,9 +700,9 @@
 .vaccRow:last-child { border-bottom: none; }
 .vaccRowLeft  { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .vaccRowRight { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
-.vaccRowName  { font-size: 13px; font-weight: 600; color: #1e293b; }
-.vaccRowType  { font-size: 10px; color: #94a3b8; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
-.vaccRowDate  { font-size: 12px; font-weight: 600; color: #7c3aed; }
-.vaccRowMeta  { font-size: 11px; color: #64748b; }
-.vaccRowVisit { font-size: 10px; color: #94a3b8; }
+.vaccRowName  { font-size: 10px; font-weight: 600; color: #1e293b; }
+.vaccRowType  { font-size: 7px; color: #94a3b8; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
+.vaccRowDate  { font-size: 9px; font-weight: 600; color: #7c3aed; }
+.vaccRowMeta  { font-size: 8px; color: #64748b; }
+.vaccRowVisit { font-size: 7px; color: #94a3b8; }
 

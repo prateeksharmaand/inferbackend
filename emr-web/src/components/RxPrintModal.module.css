@@ -11,12 +11,12 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px; border-bottom: 1px solid var(--color-border); flex-shrink: 0;
 }
-.toolbarTitle { font-size: 14px; font-weight: 700; }
+.toolbarTitle { font-size: 11px; font-weight: 700; }
 .printBtn {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 7px 14px; border-radius: 7px; border: none;
   background: var(--color-primary); color: #fff;
-  font-size: 12px; font-weight: 600; cursor: pointer; transition: background .1s;
+  font-size: 9px; font-weight: 600; cursor: pointer; transition: background .1s;
 }
 .printBtn:hover    { background: var(--color-primary-dk); }
 .printBtn:disabled { opacity: .5; cursor: default; }
@@ -28,12 +28,12 @@
 .closeBtn:hover { background: var(--color-bg); }
 
 .body  { overflow-y: auto; padding: 24px; flex: 1; }
-.empty { padding: 40px; text-align: center; color: var(--color-text-3); font-size: 13px; }
+.empty { padding: 40px; text-align: center; color: var(--color-text-3); font-size: 10px; }
 
 /* ── Prescription paper ────────────────────────────────────────────────────── */
 .rxPaper {
   max-width: 640px; margin: 0 auto; min-height: 297mm;
-  font-family: 'Times New Roman', serif; font-size: 13px;
+  font-family: 'Times New Roman', serif; font-size: 10px;
   line-height: 1.5; color: #1e293b;
   display: flex; flex-direction: column;
 }
@@ -44,42 +44,42 @@
   text-align: center; margin-bottom: 16px;
   padding-bottom: 12px; border-bottom: 2px solid #1e293b;
 }
-.clinicName { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
-.clinicAddr { font-size: 12px; color: #64748b; margin-top: 4px; }
+.clinicName { font-size: 17px; font-weight: 700; letter-spacing: .5px; }
+.clinicAddr { font-size: 9px; color: #64748b; margin-top: 4px; }
 
 .patientRow { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-.patientName { font-size: 15px; font-weight: 700; }
-.patientMeta { font-size: 13px; color: #475569; }
-.uhid        { font-size: 12px; color: #7c3aed; margin-top: 2px; }
-.dateTime    { font-size: 11px; color: #64748b; text-align: right; }
+.patientName { font-size: 12px; font-weight: 700; }
+.patientMeta { font-size: 10px; color: #475569; }
+.uhid        { font-size: 9px; color: #7c3aed; margin-top: 2px; }
+.dateTime    { font-size: 8px; color: #64748b; text-align: right; }
 
 .hr { border: none; border-top: 1px solid #cbd5e1; margin: 10px 0; }
 
 .rxBody { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; flex: 1; }
 
-.inlineRow   { display: flex; align-items: flex-start; font-size: 12px; }
+.inlineRow   { display: flex; align-items: flex-start; font-size: 9px; }
 .inlineLabel { font-weight: 700; white-space: nowrap; color: #334155; flex-shrink: 0; }
 .inlineValue { color: #475569; }
 
 .medSection { margin: 8px 0; }
 .prescHeading {
   display: flex; align-items: center; gap: 8px;
-  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
   color: #475569; margin-bottom: 8px;
 }
 .prescLine { flex: 1; height: 1px; background: #cbd5e1; }
 
-.medTable { width: 100%; border-collapse: collapse; font-size: 12px; }
+.medTable { width: 100%; border-collapse: collapse; font-size: 9px; }
 .medTable th {
   text-align: left; padding: 4px 8px; border-bottom: 1px solid #e2e8f0;
-  font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;
+  font-size: 7px; font-weight: 700; color: #64748b; text-transform: uppercase;
 }
 .medTable td  { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 .medNum       { color: #64748b; width: 24px; }
-.medSub       { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+.medSub       { font-size: 7px; color: #94a3b8; margin-top: 1px; }
 
 .paperFooter {
-  text-align: center; font-size: 11px; color: #64748b;
+  text-align: center; font-size: 8px; color: #64748b;
   padding-top: 12px; border-top: 1px solid #e2e8f0; margin-top: 8px;
 }
 
@@ -118,19 +118,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 25px;
   background: #f8f9ff;
   border-radius: 6px;
   flex-shrink: 0;
 }
 .qrLabel strong {
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 700;
   color: #1e293b;
   letter-spacing: 0.2px;
 }
 .qrLabel span {
-  font-size: 10px;
+  font-size: 7px;
   color: #64748b;
 }
 
@@ -144,7 +144,7 @@
   border: 1.5px solid #e2e8f0;
   background: #f8f9ff;
   color: #64748b;
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
@@ -182,7 +182,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 9px;
   color: var(--color-text);
   cursor: pointer;
   font-weight: 500;
@@ -192,7 +192,7 @@
 
 .dietSection { margin-top: 12px; }
 .dietChart { margin-bottom: 8px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 4px; }
-.dietChartTitle { font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
-.dietMealRow { display: flex; gap: 6px; font-size: 11px; padding: 2px 0; }
+.dietChartTitle { font-size: 9px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.dietMealRow { display: flex; gap: 6px; font-size: 8px; padding: 2px 0; }
 .dietMealName { font-weight: 600; white-space: nowrap; min-width: 100px; color: #374151; }
 .dietMealItems { color: #475569; flex: 1; }

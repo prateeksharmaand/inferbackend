@@ -1,9 +1,9 @@
-.count { font-size: 13px; font-weight: 600; color: var(--color-text-2); }
+.count { font-size: 10px; font-weight: 600; color: var(--color-text-2); }
 
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 .hint {
-  font-size: 11px;
+  font-size: 8px;
   color: var(--color-text-3);
   margin-top: 4px;
   display: block;
@@ -15,7 +15,7 @@
   padding: 10px 16px;
   background: #f1f5f9;
   border-bottom: 1px solid var(--color-border);
-  font-size: 11px; font-weight: 700; color: var(--color-text-2);
+  font-size: 8px; font-weight: 700; color: var(--color-text-2);
   text-transform: uppercase; letter-spacing: .5px;
 }
 
@@ -30,17 +30,17 @@
 .tableRow:last-child { border-bottom: none; }
 .tableRow:hover { background: #f8fafc; }
 
-.name     { font-size: 14px; font-weight: 600; color: var(--color-text); }
-.sub      { font-size: 11px; color: var(--color-text-3); margin-top: 2px; }
-.facility { font-size: 13px; color: var(--color-text-2); }
-.email    { font-size: 12px; color: var(--color-text-3); font-family: monospace; }
+.name     { font-size: 11px; font-weight: 600; color: var(--color-text); }
+.sub      { font-size: 8px; color: var(--color-text-3); margin-top: 2px; }
+.facility { font-size: 10px; color: var(--color-text-2); }
+.email    { font-size: 9px; color: var(--color-text-3); font-family: monospace; }
 
 /* Role badge colours */
 .roleBadge {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 20px;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .4px;
@@ -50,7 +50,7 @@
 .role_LAB_DIRECTOR   { background: #ede9fe; color: #6d28d9; }
 
 .emptyHint {
-  font-size: 12px;
+  font-size: 9px;
   color: var(--color-text-3);
   margin-top: 6px;
 }
@@ -65,7 +65,7 @@
   background: #f0f9ff;
   border: 1px solid #bae6fd;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 9px;
   color: #0369a1;
 }
 .loginInfo a { color: #0369a1; font-weight: 600; }

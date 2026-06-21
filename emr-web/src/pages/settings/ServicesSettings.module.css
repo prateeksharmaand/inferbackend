@@ -12,7 +12,7 @@
 }
 .filterBtn {
   padding: 5px 14px; border: none; background: none;
-  border-radius: 6px; font-size: 12px; font-weight: 600;
+  border-radius: 6px; font-size: 9px; font-weight: 600;
   color: var(--color-text-2); cursor: pointer; transition: all .12s;
 }
 .filterBtn:hover { color: var(--color-text); background: var(--color-border); }
@@ -20,7 +20,7 @@
 
 .clinicSelect {
   padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 8px;
-  font-size: 13px; font-weight: 500; color: var(--color-text);
+  font-size: 10px; font-weight: 500; color: var(--color-text);
   background: var(--color-surface); outline: none; cursor: pointer;
   flex-shrink: 0; max-width: 200px;
 }
@@ -35,7 +35,7 @@
 .searchIcon  { color: var(--color-text-3); flex-shrink: 0; }
 .searchInput {
   flex: 1; border: none; outline: none; background: transparent;
-  font-size: 13px; color: var(--color-text); padding: 7px 0;
+  font-size: 10px; color: var(--color-text); padding: 7px 0;
 }
 .searchInput::placeholder { color: var(--color-text-3); }
 .searchClear {
@@ -47,7 +47,7 @@
 .btnCreate {
   display: flex; align-items: center; gap: 6px; flex-shrink: 0;
   background: var(--color-primary); color: #fff; border: none;
-  padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  padding: 9px 18px; border-radius: 8px; font-size: 10px; font-weight: 600;
   cursor: pointer; transition: background .1s;
 }
 .btnCreate:hover { background: var(--color-primary-dk); }
@@ -61,7 +61,7 @@
   display: grid; grid-template-columns: 1fr 140px 110px 80px;
   padding: 10px 16px; background: #f1f5f9;
   border-bottom: 1px solid var(--color-border);
-  font-size: 11px; font-weight: 700; color: var(--color-text-2);
+  font-size: 8px; font-weight: 700; color: var(--color-text-2);
   text-transform: uppercase; letter-spacing: .5px;
 }
 .tableRow {
@@ -73,13 +73,13 @@
 .tableRow:last-child { border-bottom: none; }
 .tableRow:hover { background: #f8fafc; }
 
-.svcName  { font-size: 14px; font-weight: 600; color: var(--color-text); }
-.svcPrice { font-size: 13px; font-weight: 600; color: var(--color-text-2); font-family: monospace; }
+.svcName  { font-size: 11px; font-weight: 600; color: var(--color-text); }
+.svcPrice { font-size: 10px; font-weight: 600; color: var(--color-text-2); font-family: monospace; }
 
 .badge {
   display: inline-flex; align-items: center;
   padding: 3px 10px; border-radius: 20px; border: none;
-  font-size: 11px; font-weight: 700; cursor: pointer;
+  font-size: 8px; font-weight: 700; cursor: pointer;
   transition: all .12s; letter-spacing: .3px;
 }
 .badgeActive   { background: #dcfce7; color: #16a34a; }
@@ -103,8 +103,8 @@
   gap: 10px; padding: 64px 24px; color: var(--color-text-2); text-align: center;
 }
 .emptyIcon { color: var(--color-text-3); opacity: .5; }
-.emptyState p { font-size: 13px; }
-.emptyText { padding: 32px; color: var(--color-text-3); font-size: 13px; }
+.emptyState p { font-size: 10px; }
+.emptyText { padding: 32px; color: var(--color-text-3); font-size: 10px; }
 
 /* ── Modal ───────────────────────────────────── */
 .overlay {
@@ -121,7 +121,7 @@
 .modalHeader {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px; border-bottom: 1px solid var(--color-border);
-  font-size: 15px; font-weight: 700;
+  font-size: 12px; font-weight: 700;
 }
 .modalClose {
   background: none; border: none; cursor: pointer;
@@ -137,12 +137,12 @@
 }
 
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field label { font-size: 12px; font-weight: 700; color: var(--color-text-2); }
+.field label { font-size: 9px; font-weight: 700; color: var(--color-text-2); }
 .req { color: #ef4444; }
 
 .input {
   padding: 9px 11px; border: 1px solid var(--color-border); border-radius: 8px;
-  font-size: 13px; outline: none; transition: border-color .15s;
+  font-size: 10px; outline: none; transition: border-color .15s;
   background: var(--color-bg); font-family: inherit; width: 100%; box-sizing: border-box;
 }
 .input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
@@ -155,17 +155,17 @@
 }
 .priceInput { padding-left: 28px; }
 
-.error { color: #dc2626; font-size: 12px; margin-top: -4px; }
+.error { color: #dc2626; font-size: 9px; margin-top: -4px; }
 
 .btnCancel {
   background: none; border: 1px solid var(--color-border);
   color: var(--color-text-2); padding: 9px 18px; border-radius: 8px;
-  font-size: 13px; font-weight: 500; cursor: pointer;
+  font-size: 10px; font-weight: 500; cursor: pointer;
 }
 .btnSave {
   display: flex; align-items: center; gap: 6px;
   background: var(--color-primary); color: #fff; border: none;
-  padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  padding: 9px 22px; border-radius: 8px; font-size: 10px; font-weight: 600;
   cursor: pointer; transition: background .1s;
 }
 .btnSave:hover    { background: var(--color-primary-dk); }

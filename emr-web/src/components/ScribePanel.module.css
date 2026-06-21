@@ -1,4 +1,4 @@
-﻿.panel {
+.panel {
   position: fixed;
   top: 60px; right: 0;
   width: 40vw; min-width: 360px;
@@ -32,11 +32,11 @@
 }
 .headerLeft {
   display: flex; align-items: center; gap: 8px;
-  font-size: 14px; font-weight: 700; color: var(--color-text);
+  font-size: 11px; font-weight: 700; color: var(--color-text);
 }
 .headerIcon { color: var(--color-primary); }
 .timer {
-  font-size: 12px; font-weight: 600; font-family: monospace;
+  font-size: 9px; font-weight: 600; font-family: monospace;
   background: #fee2e2; color: #dc2626;
   padding: 2px 8px; border-radius: 20px;
 }
@@ -70,11 +70,11 @@
 .minTabLabel {
   writing-mode: vertical-rl; text-orientation: mixed;
   transform: rotate(180deg);
-  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  font-size: 8px; font-weight: 700; letter-spacing: .5px;
   white-space: nowrap; color: #fff;
 }
 .minTabRec {
-  font-size: 10px; color: #fca5a5; animation: pulse 1s infinite;
+  font-size: 7px; color: #fca5a5; animation: pulse 1s infinite;
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
@@ -93,7 +93,7 @@
 .langSelect {
   flex: 1;
   padding: 6px 10px;
-  font-size: 12px; font-weight: 500;
+  font-size: 9px; font-weight: 500;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg);
@@ -111,7 +111,7 @@
 .templateSelect {
   flex: 1;
   padding: 6px 10px;
-  font-size: 12px; font-weight: 500;
+  font-size: 9px; font-weight: 500;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg);
@@ -121,7 +121,7 @@
 }
 .templateSelect:disabled { opacity: .5; cursor: not-allowed; }
 .templateDesc {
-  font-size: 11px; color: var(--color-text-3);
+  font-size: 8px; color: var(--color-text-3);
   line-height: 1.4; margin: 0;
   padding: 2px 2px;
 }
@@ -138,7 +138,7 @@
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--color-primary); color: #fff;
   border: none; border-radius: 8px; padding: 9px 14px;
-  font-size: 13px; font-weight: 600; cursor: pointer; transition: background .1s;
+  font-size: 10px; font-weight: 600; cursor: pointer; transition: background .1s;
 }
 .btnRecord:hover { background: var(--color-primary-dk); }
 .btnRecord:disabled { opacity: .5; cursor: not-allowed; }
@@ -149,7 +149,7 @@
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: #f0fdf4; color: #16a34a;
   border: 1px solid #86efac; border-radius: 8px; padding: 9px 14px;
-  font-size: 13px; font-weight: 600; cursor: pointer; transition: all .1s;
+  font-size: 10px; font-weight: 600; cursor: pointer; transition: all .1s;
 }
 .btnExtract:hover:not(:disabled) { background: #dcfce7; }
 .btnExtract:disabled { opacity: .5; cursor: not-allowed; }
@@ -163,7 +163,7 @@
   flex-shrink: 0;
 }
 .contextChip {
-  font-size: 10px; font-weight: 600;
+  font-size: 7px; font-weight: 600;
   background: #e0e7ff; color: #3730a3;
   padding: 2px 8px; border-radius: 20px;
   white-space: nowrap;
@@ -173,7 +173,7 @@
 .recordingBar {
   display: flex; align-items: center; gap: 8px;
   padding: 7px 16px; background: #fef2f2;
-  font-size: 12px; color: #dc2626; font-weight: 500;
+  font-size: 9px; color: #dc2626; font-weight: 500;
   flex-shrink: 0;
 }
 .recDot {
@@ -192,7 +192,7 @@
   display: flex; align-items: center; gap: 6px;
   margin: 0 16px; padding: 8px 12px;
   background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
-  color: #dc2626; font-size: 12px;
+  color: #dc2626; font-size: 9px;
   flex-shrink: 0;
 }
 
@@ -224,7 +224,7 @@
 .section:last-child { border-bottom: none; }
 
 .sectionLabel {
-  font-size: 10px; font-weight: 800; text-transform: uppercase;
+  font-size: 7px; font-weight: 800; text-transform: uppercase;
   letter-spacing: .6px; color: var(--color-text-3);
 }
 .sectionLabelRow {
@@ -234,7 +234,7 @@
   display: flex; align-items: center; gap: 3px;
   background: none; border: 1px solid var(--color-border);
   border-radius: 6px; padding: 2px 7px;
-  font-size: 10px; font-weight: 600; color: var(--color-text-3);
+  font-size: 7px; font-weight: 600; color: var(--color-text-3);
   cursor: pointer; transition: all .1s;
 }
 .txToggle:hover { background: var(--color-bg); color: var(--color-text); }
@@ -242,7 +242,7 @@
 /* Transcript */
 .transcriptBox {
   overflow-y: auto;
-  font-size: 13px; line-height: 1.6; color: var(--color-text);
+  font-size: 10px; line-height: 1.6; color: var(--color-text);
   background: var(--color-bg); border: 1px solid var(--color-border);
   border-radius: 8px; padding: 10px 12px; min-height: 60px; max-height: 200px;
 }
@@ -273,10 +273,10 @@
 }
 .soapRow { display: flex; flex-direction: column; gap: 1px; }
 .soapLabel {
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  font-size: 7px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .4px; color: var(--color-primary); opacity: .8;
 }
-.soapValue { font-size: 12px; color: var(--color-text); line-height: 1.5; }
+.soapValue { font-size: 9px; color: var(--color-text); line-height: 1.5; }
 
 .soapActions {
   display: flex; gap: 8px; margin-top: 4px;
@@ -286,7 +286,7 @@
   flex: 1;
   background: var(--color-bg); color: var(--color-text-2);
   border: 1px solid var(--color-border); border-radius: 8px; padding: 9px;
-  font-size: 12px; font-weight: 600; cursor: pointer; transition: all .1s;
+  font-size: 9px; font-weight: 600; cursor: pointer; transition: all .1s;
 }
 .btnCopy:hover { background: var(--color-surface); color: var(--color-text); }
 .btnApply {
@@ -294,7 +294,7 @@
   flex: 2;
   background: var(--color-primary); color: #fff;
   border: none; border-radius: 8px; padding: 10px;
-  font-size: 13px; font-weight: 600; cursor: pointer;
+  font-size: 10px; font-weight: 600; cursor: pointer;
   transition: background .1s;
 }
 .btnApply:hover { background: var(--color-primary-dk); }
@@ -305,7 +305,7 @@
   padding: 6px 16px;
   background: linear-gradient(90deg, #eff6ff, #f0fdf4);
   border-bottom: 1px solid #bfdbfe;
-  font-size: 12px; color: #6d28d9; font-weight: 500;
+  font-size: 9px; color: #6d28d9; font-weight: 500;
   flex-shrink: 0;
 }
 .aiBrainSpin {
@@ -331,7 +331,7 @@
 }
 .aiBadge {
   background: #6366f1; color: #fff;
-  font-size: 10px; font-weight: 700;
+  font-size: 7px; font-weight: 700;
   padding: 1px 6px; border-radius: 20px; min-width: 18px;
   text-align: center;
 }

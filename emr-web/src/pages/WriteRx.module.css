@@ -1,4 +1,4 @@
-﻿/* â”€â”€ Page shell â”€â”€ */
+/* â”€â”€ Page shell â”€â”€ */
 .page    { display: flex; flex-direction: column; height: 100%; background: var(--color-bg); }
 .content { flex: 1; overflow-y: auto; min-height: 0; }
 
@@ -11,7 +11,7 @@
 .back {
   display: flex; align-items: center; gap: 4px;
   background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e8f0);
-  font-size: 13px; font-weight: 600;
+  font-size: 10px; font-weight: 600;
   color: var(--color-text-2, #64748b); cursor: pointer;
   padding: 6px 14px; border-radius: 8px; transition: all .12s; flex-shrink: 0;
   box-shadow: 0 1px 3px rgba(0,0,0,.06);
@@ -21,13 +21,13 @@
 .btnConfigurePad {
   display: flex; align-items: center; gap: 6px; flex-shrink: 0;
   background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e8f0);
-  font-size: 12px; font-weight: 600; color: var(--color-text-2, #64748b);
+  font-size: 9px; font-weight: 600; color: var(--color-text-2, #64748b);
   cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all .12s;
   box-shadow: 0 1px 3px rgba(0,0,0,.06);
 }
 .btnConfigurePad:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
-.patientName { font-size: 16px; font-weight: 700; color: var(--color-text); }
-.patientMeta { font-size: 12px; color: var(--color-text-2); }
+.patientName { font-size: 13px; font-weight: 700; color: var(--color-text); }
+.patientMeta { font-size: 9px; color: var(--color-text-2); }
 
 /* â”€â”€ Sub-bar: tabs + links â”€â”€ */
 .subbar {
@@ -37,7 +37,7 @@
 }
 .tabs { display: flex; align-items: flex-end; }
 .tab {
-  padding: 12px 18px; font-size: 13px; font-weight: 500;
+  padding: 12px 18px; font-size: 10px; font-weight: 500;
   background: none; border: none; cursor: pointer;
   color: var(--color-text-2); border-bottom: 2px solid transparent;
   transition: color .15s, border-color .15s; white-space: nowrap;
@@ -48,7 +48,7 @@
 .linkBtns { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .linkBtn {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
+  padding: 5px 12px; border-radius: 6px; font-size: 9px; font-weight: 500;
   background: none; border: 1px solid var(--color-border);
   color: var(--color-text-2); cursor: pointer; transition: all .12s; white-space: nowrap;
 }
@@ -66,9 +66,9 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 80px 20px; gap: 14px; text-align: center;
 }
-.emptyIcon  { font-size: 40px; }
-.emptyTitle { font-size: 16px; font-weight: 700; color: var(--color-text); }
-.emptyText  { font-size: 13px; color: var(--color-text-2); max-width: 360px; line-height: 1.6; }
+.emptyIcon  { font-size: 37px; }
+.emptyTitle { font-size: 13px; font-weight: 700; color: var(--color-text); }
+.emptyText  { font-size: 10px; color: var(--color-text-2); max-width: 360px; line-height: 1.6; }
 
 /* â”€â”€ Prescription document â”€â”€ */
 .rxDoc {
@@ -86,11 +86,11 @@
   background: var(--color-primary); color: #fff;
   padding: 18px 24px 14px; position: relative;
 }
-.rxDocClinic  { font-size: 20px; font-weight: 800; letter-spacing: -.2px; }
-.rxDocAddr    { font-size: 12px; opacity: .85; margin-top: 2px; }
+.rxDocClinic  { font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+.rxDocAddr    { font-size: 9px; opacity: .85; margin-top: 2px; }
 .rxDocTitle   {
   position: absolute; right: 24px; top: 50%; transform: translateY(-50%);
-  font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
   opacity: .7; background: rgba(255,255,255,.15); padding: 3px 10px; border-radius: 12px;
 }
 
@@ -99,10 +99,10 @@
   display: flex; flex-wrap: wrap; gap: 6px 20px;
   padding: 12px 24px; background: #f8fafc;
   border-bottom: 1px solid var(--color-border);
-  font-size: 13px; color: var(--color-text);
+  font-size: 10px; color: var(--color-text);
 }
 .rxDocPatientItem { display: flex; align-items: center; gap: 5px; }
-.rxDocLabel { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--color-text-3); letter-spacing: .5px; }
+.rxDocLabel { font-size: 7px; font-weight: 700; text-transform: uppercase; color: var(--color-text-3); letter-spacing: .5px; }
 
 /* Body sections */
 .rxDocBody { padding: 0; }
@@ -111,7 +111,7 @@
 }
 .rxSection:last-child { border-bottom: none; }
 .rxSectionTitle {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  font-size: 8px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .6px; color: var(--color-primary); margin-bottom: 10px;
 }
 .rxSectionBody { display: flex; flex-direction: column; gap: 8px; }
@@ -119,42 +119,42 @@
 /* Footer */
 .rxDocFooter {
   background: #f8fafc; border-top: 1px solid var(--color-border);
-  padding: 10px 24px; font-size: 11px; color: var(--color-text-3); text-align: center;
+  padding: 10px 24px; font-size: 8px; color: var(--color-text-3); text-align: center;
 }
 
 /* â”€â”€ Shared form elements â”€â”€ */
 .vitalsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
 .vitalCell  { display: flex; flex-direction: column; gap: 4px; }
-.vitalCell label { font-size: 11px; font-weight: 600; color: var(--color-text-2); }
+.vitalCell label { font-size: 8px; font-weight: 600; color: var(--color-text-2); }
 .vitalCell input {
   border: 1px solid var(--color-border); border-radius: 6px;
-  padding: 7px 10px; font-size: 13px; outline: none; text-align: center;
+  padding: 7px 10px; font-size: 10px; outline: none; text-align: center;
 }
 .vitalCell input:focus { border-color: var(--color-primary); }
-.unit { font-weight: 400; color: var(--color-text-3); font-size: 10px; }
+.unit { font-weight: 400; color: var(--color-text-3); font-size: 7px; }
 
 .chipsRow { display: flex; flex-wrap: wrap; gap: 6px; min-height: 4px; }
 .chip {
   background: #eef2ff; color: #4338ca;
-  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  padding: 4px 10px; border-radius: 20px; font-size: 9px; font-weight: 500;
   display: inline-flex; align-items: center; gap: 4px;
 }
-.chip button { background: none; border: none; cursor: pointer; color: inherit; font-size: 11px; padding: 0; }
+.chip button { background: none; border: none; cursor: pointer; color: inherit; font-size: 8px; padding: 0; }
 .chipDiag   { background: #fef3c7; color: #92400e; }
 .chipLab    { background: #ecfdf5; color: #065f46; }
 .chipProc   { background: #fdf4ff; color: #7e22ce; }
 .chipReadOnly { background: #f1f5f9; color: var(--color-text-2); cursor: default; }
-.fieldHint  { font-size: 11px; color: var(--color-text-3); font-style: italic; margin-top: 2px; }
+.fieldHint  { font-size: 8px; color: var(--color-text-3); font-style: italic; margin-top: 2px; }
 
 .addRow { display: flex; gap: 8px; }
 .addRow input {
   flex: 1; border: 1px solid var(--color-border); border-radius: 7px;
-  padding: 7px 12px; font-size: 13px; outline: none; font-family: inherit;
+  padding: 7px 12px; font-size: 10px; outline: none; font-family: inherit;
 }
 .addRow input:focus { border-color: var(--color-primary); }
 .addRow button {
   background: var(--color-primary); color: #fff; border: none;
-  padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+  padding: 7px 16px; border-radius: 7px; font-size: 10px; font-weight: 600; cursor: pointer;
 }
 
 /* Medication / lab result table */
@@ -163,7 +163,7 @@
 .medTableHead {
   display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 28px;
   background: #f8fafc; padding: 7px 10px;
-  font-size: 11px; font-weight: 700; color: var(--color-text-2);
+  font-size: 8px; font-weight: 700; color: var(--color-text-2);
   text-transform: uppercase; letter-spacing: .4px;
 }
 .medTableHead4 { grid-template-columns: 2fr 1fr 1fr 1fr 28px; }
@@ -175,15 +175,15 @@
 .medTableRow4 { grid-template-columns: 2fr 1fr 1fr 1fr 28px; }
 .medTableRow input {
   border: 1px solid var(--color-border); border-radius: 5px;
-  padding: 5px 8px; font-size: 12px; outline: none; width: 100%; font-family: inherit;
+  padding: 5px 8px; font-size: 9px; outline: none; width: 100%; font-family: inherit;
 }
 .medTableRow input:focus { border-color: var(--color-primary); }
-.removeBtn { background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 14px; padding: 0; }
+.removeBtn { background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 11px; padding: 0; }
 .addLineBtn {
   display: inline-flex; align-items: center; gap: 5px;
   background: none; border: 1px dashed var(--color-border);
   color: var(--color-text-2); padding: 6px 14px; border-radius: 6px;
-  font-size: 12px; font-weight: 500; cursor: pointer; transition: all .1s;
+  font-size: 9px; font-weight: 500; cursor: pointer; transition: all .1s;
   width: fit-content;
 }
 .addLineBtn:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
@@ -191,7 +191,7 @@
 .rxSectionBody textarea,
 .rxSectionBody > input {
   border: 1px solid var(--color-border); border-radius: 7px;
-  padding: 8px 12px; font-size: 13px; outline: none;
+  padding: 8px 12px; font-size: 10px; outline: none;
   width: 100%; font-family: inherit; resize: vertical;
   transition: border-color .15s; box-sizing: border-box;
 }
@@ -200,14 +200,14 @@
 
 .twoCol { display: flex; gap: 12px; }
 .fieldGroup { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-.fieldGroup label { font-size: 11px; font-weight: 600; color: var(--color-text-2); }
+.fieldGroup label { font-size: 8px; font-weight: 600; color: var(--color-text-2); }
 .fieldGroup input {
   border: 1px solid var(--color-border); border-radius: 7px;
-  padding: 8px 12px; font-size: 13px; outline: none; font-family: inherit;
+  padding: 8px 12px; font-size: 10px; outline: none; font-family: inherit;
 }
 .fieldGroup input:focus { border-color: var(--color-primary); }
 
-.error { color: var(--color-danger); font-size: 13px; padding: 4px 0; }
+.error { color: var(--color-danger); font-size: 10px; padding: 4px 0; }
 
 /* â”€â”€ Summary cards (Vitals + Lab Results below prescription) â”€â”€ */
 .summaryCard {
@@ -221,7 +221,7 @@
   background: #fafbff;
 }
 .summaryCardTitle {
-  font-size: 13px; font-weight: 700; color: var(--color-text);
+  font-size: 10px; font-weight: 700; color: var(--color-text);
 }
 
 /* Vitals display grid */
@@ -235,16 +235,16 @@
   padding: 10px 8px 6px; display: flex; flex-direction: column;
   align-items: center; gap: 2px; min-height: 58px; justify-content: center;
 }
-.vitalDisplayValue { font-size: 22px; font-weight: 800; line-height: 1; }
-.vitalEmpty        { font-size: 18px; color: #cbd5e1; }
-.vitalDisplayUnit  { font-size: 10px; font-weight: 600; opacity: .7; }
-.vitalDisplayLabel { font-size: 11px; font-weight: 600; color: var(--color-text-2); text-align: center; }
+.vitalDisplayValue { font-size: 19px; font-weight: 800; line-height: 1; }
+.vitalEmpty        { font-size: 15px; color: #cbd5e1; }
+.vitalDisplayUnit  { font-size: 7px; font-weight: 600; opacity: .7; }
+.vitalDisplayLabel { font-size: 8px; font-weight: 600; color: var(--color-text-2); text-align: center; }
 
 /* Lab results table */
 .labResultsTable { padding: 0 20px 12px; display: flex; flex-direction: column; gap: 0; }
 .labResultsHead {
   display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.5fr;
-  padding: 10px 8px 6px; font-size: 10px; font-weight: 700;
+  padding: 10px 8px 6px; font-size: 7px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3);
   border-bottom: 1px solid var(--color-border);
 }
@@ -254,13 +254,13 @@
 }
 .labResultsRow input {
   border: 1px solid var(--color-border); border-radius: 6px;
-  padding: 6px 10px; font-size: 13px; outline: none; font-family: inherit;
+  padding: 6px 10px; font-size: 10px; outline: none; font-family: inherit;
   width: 100%;
 }
 .labResultsRow input:focus { border-color: var(--color-primary); }
 .labResultsRowDisplay {
   display: grid; grid-template-columns: 2fr 1.2fr 1fr 1.5fr;
-  padding: 9px 8px; font-size: 13px; color: var(--color-text);
+  padding: 9px 8px; font-size: 10px; color: var(--color-text);
   border-bottom: 1px solid #f1f5f9;
 }
 .labResultsRowDisplay:last-child { border-bottom: none; }
@@ -269,9 +269,9 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 28px 20px; gap: 8px;
 }
-.summaryEmptyIcon { font-size: 32px; }
+.summaryEmptyIcon { font-size: 29px; }
 .summaryEmptyText {
-  font-size: 14px; font-weight: 600; color: var(--color-text-2);
+  font-size: 11px; font-weight: 600; color: var(--color-text-2);
 }
 
 /* â”€â”€ Bottom action bar â”€â”€ */
@@ -286,7 +286,7 @@
 
 .btnClear, .btnPrintSettings {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 500;
+  padding: 8px 14px; border-radius: 7px; font-size: 10px; font-weight: 500;
   cursor: pointer; transition: all .1s;
 }
 .btnClear {
@@ -307,13 +307,13 @@
   border: 1px solid var(--color-border, #e2e8f0);
   background: var(--color-surface, #fff);
   color: var(--color-text-2, #64748b);
-  font-size: 12px; font-weight: 500;
+  font-size: 9px; font-weight: 500;
   transition: all .15s;
 }
 .langPickerBtn:hover { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
 .langPickerBtnActive { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
 
-.langPickerText { color: var(--color-text-3, #94a3b8); font-size: 11px; }
+.langPickerText { color: var(--color-text-3, #94a3b8); font-size: 8px; }
 .langPickerLabel { font-weight: 600; color: #7c3aed; }
 .langPickerChev { color: var(--color-text-3, #94a3b8); transition: transform .15s; flex-shrink: 0; }
 .langPickerChevOpen { transform: rotate(180deg); }
@@ -333,7 +333,7 @@
 
 .langPickerDropHead {
   padding: 10px 14px 8px;
-  font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+  font-size: 8px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
   color: #7c3aed; border-bottom: 1px solid #f1f5f9;
   background: #faf5ff;
 }
@@ -354,13 +354,13 @@
 .langPickerOpt:hover { background: #f5f3ff; }
 .langPickerOptActive { background: #ede9fe; }
 
-.langPickerNative { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; }
-.langPickerEng    { font-size: 10px; color: #94a3b8; }
-.langPickerCheck  { font-size: 11px; color: #7c3aed; font-weight: 700; margin-left: auto; }
+.langPickerNative { font-size: 10px; font-weight: 600; color: #1e293b; flex: 1; }
+.langPickerEng    { font-size: 7px; color: #94a3b8; }
+.langPickerCheck  { font-size: 8px; color: #7c3aed; font-weight: 700; margin-left: auto; }
 
 .btnPreview, .btnPrint {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 500;
+  padding: 8px 16px; border-radius: 7px; font-size: 10px; font-weight: 500;
   cursor: pointer; transition: all .1s;
 }
 .btnPreview {
@@ -375,7 +375,7 @@
 .btnFinish {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--color-primary); color: #fff; border: none;
-  padding: 9px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  padding: 9px 22px; border-radius: 8px; font-size: 11px; font-weight: 600;
   cursor: pointer; transition: background .1s;
 }
 .btnFinish:hover    { background: var(--color-primary-dk); }
@@ -386,8 +386,8 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   height: 100%; gap: 12px; color: var(--color-text-3); min-height: 300px;
 }
-.placeholderIcon { font-size: 40px; }
-.placeholder p   { font-size: 14px; font-weight: 500; }
+.placeholderIcon { font-size: 37px; }
+.placeholder p   { font-size: 11px; font-weight: 500; }
 
 /* â”€â”€ Preview modal â”€â”€ */
 .previewOverlay {
@@ -404,11 +404,11 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 20px; border-bottom: 1px solid var(--color-border); flex-shrink: 0;
 }
-.previewTitle    { font-size: 15px; font-weight: 700; }
+.previewTitle    { font-size: 12px; font-weight: 700; }
 .previewPrintBtn {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--color-primary); color: #fff; border: none;
-  padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+  padding: 7px 16px; border-radius: 7px; font-size: 10px; font-weight: 600; cursor: pointer;
 }
 .previewCloseBtn { background: none; border: none; cursor: pointer; color: var(--color-text-2); padding: 4px; }
 .previewBody     { flex: 1; overflow-y: auto; padding: 24px; background: #e5e7eb; }
@@ -429,18 +429,18 @@
   background: var(--color-primary); color: #fff;
   padding: 18px 28px 14px;
 }
-.rxPaperClinic { font-size: 20px; font-weight: 800; }
-.rxPaperAddr   { font-size: 12px; opacity: .85; margin-top: 2px; }
+.rxPaperClinic { font-size: 17px; font-weight: 800; }
+.rxPaperAddr   { font-size: 9px; opacity: .85; margin-top: 2px; }
 .rxPaperPatient {
   display: flex; flex-wrap: wrap; gap: 6px 20px;
   padding: 10px 28px; background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0; font-size: 13px;
+  border-bottom: 1px solid #e2e8f0; font-size: 10px;
 }
 .rxPaperRule { border: none; border-top: 1px solid #e2e8f0; margin: 0; }
 .rxPaperBody { padding: 4px 0; flex: 1; }
 .rxPaperFooter {
   background: #f8fafc; padding: 10px 28px;
-  font-size: 11px; color: #94a3b8; text-align: center;
+  font-size: 8px; color: #94a3b8; text-align: center;
   border-top: 1px solid #e2e8f0;
 }
 
@@ -448,27 +448,27 @@
 .printSection      { padding: 10px 28px; border-bottom: 1px solid #f1f5f9; }
 .printSection:last-child { border-bottom: none; }
 .printSectionTitle {
-  font-size: 10px; font-weight: 800; text-transform: uppercase;
+  font-size: 7px; font-weight: 800; text-transform: uppercase;
   letter-spacing: .7px; color: var(--color-primary); margin-bottom: 6px;
 }
-.printSectionBody  { font-size: 13px; color: #1e293b; }
+.printSectionBody  { font-size: 10px; color: #1e293b; }
 .printVitalRow     { display: flex; flex-wrap: wrap; gap: 8px; }
 .printVitalChip    {
   background: #f0f9ff; border: 1px solid #bae6fd;
-  padding: 3px 10px; border-radius: 20px; font-size: 12px; color: #0369a1;
+  padding: 3px 10px; border-radius: 20px; font-size: 9px; color: #0369a1;
 }
 .printChip {
   background: #f1f5f9; border: 1px solid #e2e8f0;
-  padding: 3px 10px; border-radius: 20px; font-size: 12px; color: #475569;
+  padding: 3px 10px; border-radius: 20px; font-size: 9px; color: #475569;
 }
-.printBullet { padding: 2px 0; font-size: 13px; }
-.printText   { margin: 0; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+.printBullet { padding: 2px 0; font-size: 10px; }
+.printText   { margin: 0; font-size: 10px; line-height: 1.6; white-space: pre-wrap; }
 .printMedTable {
-  width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px;
+  width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 4px;
 }
 .printMedTable th {
   background: #f8fafc; text-align: left; padding: 6px 10px;
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
   color: var(--color-text-2); border-bottom: 1px solid #e2e8f0;
 }
 .printMedTable td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; }
@@ -479,10 +479,10 @@
   display: flex; justify-content: space-between; align-items: flex-start;
   padding: 12px 20px 10px;
 }
-.rxPatientName { font-weight: 700; font-size: 15px; color: #111; }
-.rxPatientMeta { font-size: 14px; color: #333; }
+.rxPatientName { font-weight: 700; font-size: 12px; color: #111; }
+.rxPatientMeta { font-size: 11px; color: #333; }
 .rxUhid        { font-size: 12.5px; color: #333; margin-top: 3px; }
-.rxDateTime    { font-size: 13px; color: #333; text-align: right; flex-shrink: 0; }
+.rxDateTime    { font-size: 10px; color: #333; text-align: right; flex-shrink: 0; }
 .rxSignatureBlock {
   display: flex; flex-direction: column; align-items: flex-end;
   padding: 10px 28px 4px; gap: 4px;
@@ -493,9 +493,9 @@
 }
 .rxSignatureName {
   display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
-  font-size: 12px; font-weight: 600; color: #1a202c;
+  font-size: 9px; font-weight: 600; color: #1a202c;
 }
-.rxSignatureSub { font-size: 11px; font-weight: 400; color: #64748b; }
+.rxSignatureSub { font-size: 8px; font-weight: 400; color: #64748b; }
 
 .rxHr          { border: none; border-top: 1px solid #b0c4d8; margin: 0; }
 .rxBody        { padding: 10px 20px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
@@ -503,20 +503,20 @@
 .rxInlineRow   { display: flex; gap: 0; align-items: flex-start; line-height: 1.6; }
 .rxInlineLabel {
   font-weight: 700; color: #1a3c5e; text-transform: uppercase;
-  font-size: 12px; flex-shrink: 0; white-space: nowrap;
+  font-size: 9px; flex-shrink: 0; white-space: nowrap;
 }
-.rxInlineValue { font-size: 12px; color: #111; }
+.rxInlineValue { font-size: 9px; color: #111; }
 
 /* Medications */
 .rxMedSection { margin: 6px 0; }
 .rxPrescriptionHeading {
   display: flex; align-items: center; gap: 10px;
-  font-size: 13px; font-weight: 800; text-decoration: underline;
+  font-size: 10px; font-weight: 800; text-decoration: underline;
   margin: 10px 0 8px; color: #1a3c5e;
   text-transform: uppercase; letter-spacing: 1px;
 }
 .rxPrescriptionLine { flex: 1; height: 1px; background: #b0c4d8; }
-.rxMedTable { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rxMedTable { width: 100%; border-collapse: collapse; font-size: 9px; }
 .rxMedTable th {
   background: #e8eef5; border: 1px solid #b0c4d8; padding: 6px 8px;
   text-align: center; font-weight: 700; color: #1a3c5e;
@@ -524,7 +524,7 @@
 .rxMedTable td { border: 1px solid #b0c4d8; padding: 6px 8px; vertical-align: top; }
 .rxMedNum      { text-align: center; width: 30px; }
 .rxMedDuration { color: #7c3aed; }
-.rxMedSub      { font-size: 11px; color: #64748b; margin-top: 2px; }
+.rxMedSub      { font-size: 8px; color: #64748b; margin-top: 2px; }
 
 /* â”€â”€ Post-visit screen â”€â”€ */
 .postVisitWrap {
@@ -534,7 +534,7 @@
 .postVisitBanner {
   display: flex; align-items: center; gap: 10px;
   background: #f0fdf4; border-bottom: 1px solid #86efac;
-  padding: 12px 24px; font-size: 14px; color: #166534; flex-shrink: 0;
+  padding: 12px 24px; font-size: 11px; color: #166534; flex-shrink: 0;
 }
 .postVisitBannerIcon { color: #16a34a; flex-shrink: 0; }
 
@@ -555,7 +555,7 @@
   gap: 16px; padding: 20px 16px; overflow-y: auto;
 }
 .postVisitPanelTitle {
-  font-size: 13px; font-weight: 700; color: var(--color-text-2);
+  font-size: 10px; font-weight: 700; color: var(--color-text-2);
   text-transform: uppercase; letter-spacing: .5px;
 }
 
@@ -580,12 +580,12 @@
   transition: color .12s;
 }
 .postVisitActionBtn:hover .postVisitActionIcon { color: var(--ac, #6366f1); }
-.postVisitActionLabel { font-size: 13px; font-weight: 500; }
+.postVisitActionLabel { font-size: 10px; font-weight: 500; }
 
 .postVisitEndBtn {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   background: #dc2626; color: #fff; border: none;
-  padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 700;
+  padding: 12px; border-radius: 10px; font-size: 11px; font-weight: 700;
   cursor: pointer; transition: background .1s; width: 100%; margin-top: auto;
 }
 .postVisitEndBtn:hover { background: #b91c1c; }
@@ -630,28 +630,28 @@
   box-shadow: 0 20px 60px rgba(0,0,0,.2);
 }
 .mandatoryHeader { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.mandatoryIcon   { font-size: 22px; }
-.mandatoryTitle  { font-size: 17px; font-weight: 700; color: #1e293b; }
-.mandatoryDesc   { font-size: 13px; color: #64748b; margin-bottom: 16px; line-height: 1.5; }
+.mandatoryIcon   { font-size: 19px; }
+.mandatoryTitle  { font-size: 14px; font-weight: 700; color: #1e293b; }
+.mandatoryDesc   { font-size: 10px; color: #64748b; margin-bottom: 16px; line-height: 1.5; }
 .mandatoryList   {
   background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
   padding: 14px 16px; margin-bottom: 20px;
 }
-.mandatoryCount  { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: .08em; margin-bottom: 10px; }
+.mandatoryCount  { font-size: 8px; font-weight: 700; color: #94a3b8; letter-spacing: .08em; margin-bottom: 10px; }
 .mandatoryChips  { display: flex; flex-wrap: wrap; gap: 8px; }
 .mandatoryChip   {
-  padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 500;
+  padding: 5px 12px; border-radius: 6px; font-size: 10px; font-weight: 500;
   background: #fff; border: 1.5px solid #e2e8f0; color: #374151;
 }
 .mandatoryActions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .btnEndWithoutRx  {
   padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer;
-  background: #ef4444; color: #fff; font-size: 13px; font-weight: 600;
+  background: #ef4444; color: #fff; font-size: 10px; font-weight: 600;
 }
 .btnEndWithoutRx:hover { background: #dc2626; }
 .btnGoBack {
   padding: 9px 18px; border-radius: 8px; border: 1.5px solid #e2e8f0;
-  background: #fff; color: #374151; font-size: 13px; font-weight: 500; cursor: pointer;
+  background: #fff; color: #374151; font-size: 10px; font-weight: 500; cursor: pointer;
 }
 .btnGoBack:hover { border-color: var(--color-primary); color: var(--color-primary); }
 

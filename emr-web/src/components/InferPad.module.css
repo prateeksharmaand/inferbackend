@@ -1,4 +1,4 @@
-﻿.wrap {
+.wrap {
   padding: 16px 20px 90px;
   display: flex; flex-direction: column; gap: 10px;
   width: 100%;
@@ -29,11 +29,11 @@
   border-radius: 10px 0 0 10px;
 }
 
-.cardIcon  { font-size: 17px; flex-shrink: 0; margin-left: 4px; }
-.cardTitle { font-size: 13px; font-weight: 700; color: var(--color-text); flex: 1; }
+.cardIcon  { font-size: 14px; flex-shrink: 0; margin-left: 4px; }
+.cardTitle { font-size: 10px; font-weight: 700; color: var(--color-text); flex: 1; }
 
 .badge {
-  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+  font-size: 7px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
   text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
   background: #fef3c7; color: #92400e; border: 1px solid #fde68a;
 }
@@ -52,22 +52,22 @@
 }
 .vCell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .vCell label {
-  font-size: 11px; font-weight: 600; color: var(--color-text-2);
+  font-size: 8px; font-weight: 600; color: var(--color-text-2);
   display: flex; align-items: baseline; gap: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   flex-wrap: nowrap;
 }
 .vCell label span.unit { flex-shrink: 0; }
-.unit       { font-weight: 400; color: var(--color-text-3); font-size: 10px; flex-shrink: 0; }
+.unit       { font-weight: 400; color: var(--color-text-3); font-size: 7px; flex-shrink: 0; }
 .vLabelText { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
 .autoTag {
-  font-size: 9px; font-weight: 700;
+  font-size: 6px; font-weight: 700;
   background: #ecfdf5; color: #065f46; border: 1px solid #86efac;
   padding: 1px 5px; border-radius: 8px;
 }
 .vCell input {
   border: 1px solid var(--color-border); border-radius: 6px;
-  padding: 7px 10px; font-size: 13px; outline: none;
+  padding: 7px 10px; font-size: 10px; outline: none;
   text-align: center; font-family: inherit; width: 100%; box-sizing: border-box;
 }
 .vCell input:focus { border-color: var(--color-primary); }
@@ -77,10 +77,10 @@
 .chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 4px; }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  padding: 4px 10px; border-radius: 20px; font-size: 9px; font-weight: 500;
   background: #eef2ff; color: #4338ca;
 }
-.chip button { background: none; border: none; cursor: pointer; color: inherit; font-size: 11px; padding: 0; }
+.chip button { background: none; border: none; cursor: pointer; color: inherit; font-size: 8px; padding: 0; }
 .chipRO       { background: #f1f5f9; color: var(--color-text-2); cursor: default; }
 .chipRO button { display: none; }
 .chipSymptom  { background: #fff7ed; color: #c2410c; }
@@ -92,12 +92,12 @@
 .addRow { display: flex; gap: 8px; }
 .addRow input {
   flex: 1; border: 1px solid var(--color-border); border-radius: 7px;
-  padding: 7px 12px; font-size: 13px; outline: none; font-family: inherit;
+  padding: 7px 12px; font-size: 10px; outline: none; font-family: inherit;
 }
 .addRow input:focus { border-color: var(--color-primary); }
 .addRow button {
   background: var(--color-primary); color: #fff; border: none;
-  padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
+  padding: 7px 16px; border-radius: 7px; font-size: 10px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
 }
 
@@ -110,7 +110,7 @@
 .tHead {
   display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 26px;
   background: #f8fafc; padding: 7px 10px;
-  font-size: 10px; font-weight: 700; color: var(--color-text-2);
+  font-size: 7px; font-weight: 700; color: var(--color-text-2);
   text-transform: uppercase; letter-spacing: .4px;
 }
 .tHead4 { grid-template-columns: 2fr 1fr 1fr 1.5fr 26px; }
@@ -128,11 +128,11 @@
 .labInvRemarks {
   display: flex; align-items: center; gap: 10px; padding: 6px 12px;
 }
-.labInvRemarks label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); flex-shrink: 0; }
+.labInvRemarks label { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); flex-shrink: 0; }
 .labInvName  { flex: 2; display: flex; flex-direction: column; gap: 4px; }
 .labInvSmall { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 110px; }
 .labInvName label,
-.labInvSmall label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); }
+.labInvSmall label { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); }
 .tRow {
   display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 26px;
   gap: 6px; padding: 6px 10px; align-items: center;
@@ -141,17 +141,17 @@
 .tRow4 { grid-template-columns: 2fr 1fr 1fr 1.5fr 26px; }
 .tRow input {
   border: 1px solid var(--color-border); border-radius: 5px;
-  padding: 5px 8px; font-size: 12px; outline: none;
+  padding: 5px 8px; font-size: 9px; outline: none;
   font-family: inherit; width: 100%;
 }
 .tRow input:focus { border-color: var(--color-primary); }
-.del { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; padding: 0; }
+.del { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 11px; padding: 0; }
 
 .addLine {
   display: inline-flex; align-items: center; gap: 5px;
   background: none; border: 1px dashed var(--color-border);
   color: var(--color-text-2); padding: 6px 14px; border-radius: 6px;
-  font-size: 12px; font-weight: 500; cursor: pointer; transition: all .1s; width: fit-content;
+  font-size: 9px; font-weight: 500; cursor: pointer; transition: all .1s; width: fit-content;
 }
 .addLine:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
 
@@ -159,7 +159,7 @@
 .cardBody textarea,
 .cardBody > input {
   border: 1px solid var(--color-border); border-radius: 7px;
-  padding: 8px 12px; font-size: 13px; outline: none;
+  padding: 8px 12px; font-size: 10px; outline: none;
   width: 100%; font-family: inherit; resize: vertical;
   transition: border-color .15s; box-sizing: border-box;
 }
@@ -168,7 +168,7 @@
 
 /* â”€â”€ Private note box â”€â”€ */
 .privateBox {
-  font-size: 12px; color: #92400e; background: #fef3c7;
+  font-size: 9px; color: #92400e; background: #fef3c7;
   border: 1px solid #fde68a; border-radius: 6px;
   padding: 8px 12px; line-height: 1.5;
 }
@@ -177,21 +177,21 @@
 .twoCol { display: flex; gap: 12px; }
 .fg     { display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .fg2    { flex: 2; }
-.fg label { font-size: 11px; font-weight: 600; color: var(--color-text-2); }
+.fg label { font-size: 8px; font-weight: 600; color: var(--color-text-2); }
 
 /* â”€â”€ Hint / empty â”€â”€ */
-.hint { font-size: 11px; color: var(--color-text-3); font-style: italic; margin: 0; }
+.hint { font-size: 8px; color: var(--color-text-3); font-style: italic; margin: 0; }
 
 /* â”€â”€ Custom section â”€â”€ */
 .customHead { display: flex; gap: 10px; align-items: center; }
 .customTitle {
   flex: 1; border: 1px solid var(--color-border); border-radius: 7px;
-  padding: 7px 12px; font-size: 13px; font-weight: 600; outline: none; font-family: inherit;
+  padding: 7px 12px; font-size: 10px; font-weight: 600; outline: none; font-family: inherit;
 }
 .customTitle:focus { border-color: var(--color-primary); }
 .customDel {
   background: none; border: 1px solid #fecaca; color: #dc2626;
-  padding: 5px 12px; border-radius: 6px; font-size: 12px;
+  padding: 5px 12px; border-radius: 6px; font-size: 9px;
   font-weight: 500; cursor: pointer; white-space: nowrap;
 }
 .customDel:hover { background: #fef2f2; }
@@ -203,10 +203,10 @@
 .metaField {
   display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 120px;
 }
-.metaField label { font-size: 11px; font-weight: 600; color: var(--color-text-2); }
+.metaField label { font-size: 8px; font-weight: 600; color: var(--color-text-2); }
 .metaField input {
   border: 1px solid var(--color-border); border-radius: 7px;
-  padding: 6px 10px; font-size: 12px; outline: none; font-family: inherit;
+  padding: 6px 10px; font-size: 9px; outline: none; font-family: inherit;
 }
 .metaField input:focus { border-color: var(--color-primary); }
 
@@ -214,15 +214,15 @@
 .severityRow { display: flex; gap: 5px; }
 .sevBtn {
   padding: 5px 11px; border-radius: 20px; border: 1px solid var(--color-border);
-  background: none; font-size: 11px; font-weight: 600; cursor: pointer;
+  background: none; font-size: 8px; font-weight: 600; cursor: pointer;
   color: var(--color-text-2); transition: all .1s;
 }
 .sevBtn:hover         { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
 .sevBtnActive         { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
 
 /* Chip meta (since / severity inline) */
-.chipMeta { font-size: 10px; opacity: .75; font-weight: 400; }
-.chipCode { font-size: 10px; opacity: .65; font-weight: 400; }
+.chipMeta { font-size: 7px; opacity: .75; font-weight: 400; }
+.chipCode { font-size: 7px; opacity: .65; font-weight: 400; }
 
 /* â”€â”€ Medication card layout â”€â”€ */
 .medList { display: flex; flex-direction: column; gap: 10px; }
@@ -238,23 +238,23 @@
 .medNameCell { flex: 2; display: flex; flex-direction: column; gap: 4px; }
 .medSmallCell { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 90px; }
 .medNameCell label,
-.medSmallCell label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); }
-.medCardRow3 label  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); flex-shrink: 0; margin-right: 8px; align-self: center; }
+.medSmallCell label { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); }
+.medCardRow3 label  { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--color-text-3); flex-shrink: 0; margin-right: 8px; align-self: center; }
 .delTop { align-self: flex-end; padding-bottom: 5px; }
 
 /* â”€â”€ Autocomplete suggestion item layout â”€â”€ */
 .acItem { display: flex; align-items: baseline; gap: 8px; }
-.acCode { font-size: 11px; font-weight: 700; color: var(--color-primary); flex-shrink: 0; min-width: 50px; }
-.acName { font-size: 13px; color: var(--color-text); }
-.acSub  { font-size: 11px; color: var(--color-text-3); }
+.acCode { font-size: 8px; font-weight: 700; color: var(--color-primary); flex-shrink: 0; min-width: 50px; }
+.acName { font-size: 10px; color: var(--color-text); }
+.acSub  { font-size: 8px; color: var(--color-text-3); }
 
 /* Code badge on chips */
-.chipCode { font-size: 10px; opacity: .7; }
+.chipCode { font-size: 7px; opacity: .7; }
 
 /* Cell input inside table rows (used for non-autocomplete fields) */
 .cellInput {
   border: 1px solid var(--color-border); border-radius: 5px;
-  padding: 5px 8px; font-size: 12px; outline: none;
+  padding: 5px 8px; font-size: 9px; outline: none;
   font-family: inherit; width: 100%; box-sizing: border-box;
 }
 .cellInput:focus { border-color: var(--color-primary); }
@@ -266,16 +266,16 @@
   display: flex; align-items: center; gap: 10px;
 }
 .notesSectionTitle {
-  font-size: 12px; font-weight: 700; color: var(--color-text); text-transform: uppercase;
+  font-size: 9px; font-weight: 700; color: var(--color-text); text-transform: uppercase;
   letter-spacing: .5px;
 }
 .notesPrintTag {
-  font-size: 10px; font-weight: 700; background: #dcfce7; color: #166534;
+  font-size: 7px; font-weight: 700; background: #dcfce7; color: #166534;
   border: 1px solid #86efac; padding: 1px 7px; border-radius: 10px;
   text-transform: uppercase; letter-spacing: .4px;
 }
 .notesROTag {
-  font-size: 10px; font-weight: 700; background: #f1f5f9; color: var(--color-text-3);
+  font-size: 7px; font-weight: 700; background: #f1f5f9; color: var(--color-text-3);
   border: 1px solid var(--color-border); padding: 1px 7px; border-radius: 10px;
   text-transform: uppercase; letter-spacing: .4px;
 }
@@ -293,9 +293,9 @@
 }
 .pastNoteMeta {
   display: flex; gap: 6px; align-items: center;
-  font-size: 11px; font-weight: 600; color: var(--color-text-3); margin-bottom: 5px;
+  font-size: 8px; font-weight: 600; color: var(--color-text-3); margin-bottom: 5px;
 }
-.pastNoteText { font-size: 13px; color: var(--color-text-2); margin: 0; line-height: 1.6; white-space: pre-wrap; }
+.pastNoteText { font-size: 10px; color: var(--color-text-2); margin: 0; line-height: 1.6; white-space: pre-wrap; }
 
 /* â”€â”€ NumberUnitInput dropdown â”€â”€ */
 .nuDropdown {
@@ -305,14 +305,14 @@
   list-style: none; margin: 0; padding: 3px 0;
 }
 .nuItem {
-  padding: 7px 12px; font-size: 13px; cursor: pointer; color: var(--color-text);
+  padding: 7px 12px; font-size: 10px; cursor: pointer; color: var(--color-text);
 }
 .nuItem:hover { background: #f5f3ff; color: var(--color-primary); }
 
 /* metaField plain input (used alongside NumberUnitInput) */
 .metaInput {
   border: 1px solid var(--color-border); border-radius: 7px;
-  padding: 6px 10px; font-size: 12px; outline: none;
+  padding: 6px 10px; font-size: 9px; outline: none;
   font-family: inherit; width: 100%; box-sizing: border-box;
 }
 .metaInput:focus { border-color: var(--color-primary); }
@@ -322,7 +322,7 @@
   display: flex; align-items: center; justify-content: center; gap: 6px;
   background: none; border: 2px dashed var(--color-border);
   color: var(--color-text-2); padding: 10px 20px; border-radius: 10px;
-  font-size: 13px; font-weight: 600; cursor: pointer; transition: all .12s; width: 100%;
+  font-size: 10px; font-weight: 600; cursor: pointer; transition: all .12s; width: 100%;
 }
 .addSection:hover { border-color: var(--color-primary); color: var(--color-primary); background: #f5f3ff; }
 
@@ -339,16 +339,16 @@
 }
 .langIcon { color: #7c3aed; flex-shrink: 0; }
 .langTitle {
-  font-size: 13px; font-weight: 700; color: var(--color-text, #1e293b);
+  font-size: 10px; font-weight: 700; color: var(--color-text, #1e293b);
 }
 .langHint {
-  font-size: 11px; color: var(--color-text-3, #94a3b8); margin-left: auto;
+  font-size: 8px; color: var(--color-text-3, #94a3b8); margin-left: auto;
 }
 .langPills {
   display: flex; flex-wrap: wrap; gap: 6px;
 }
 .langPill {
-  padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  padding: 5px 12px; border-radius: 20px; font-size: 9px; font-weight: 500;
   border: 1px solid var(--color-border, #e2e8f0);
   background: var(--color-bg, #f8fafc); color: var(--color-text-2, #64748b);
   cursor: pointer; transition: all .15s;
@@ -390,7 +390,7 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
 }
-.vcTitle { font-size: 15px; font-weight: 700; color: #1e293b; }
+.vcTitle { font-size: 12px; font-weight: 700; color: #1e293b; }
 .vcClose {
   background: none; border: none; cursor: pointer; color: #94a3b8;
   display: flex; padding: 4px; border-radius: 6px;
@@ -412,7 +412,7 @@
 }
 .vcSearchIcon { color: #94a3b8; flex-shrink: 0; }
 .vcSearchInput {
-  flex: 1; border: none; outline: none; font-size: 13px; color: #1e293b;
+  flex: 1; border: none; outline: none; font-size: 10px; color: #1e293b;
   background: transparent;
 }
 .vcSearchInput::placeholder { color: #94a3b8; }
@@ -425,15 +425,15 @@
 }
 .vcItem:hover { background: #f8fafc; }
 .vcCheck { width: 15px; height: 15px; accent-color: #3b82f6; cursor: pointer; }
-.vcItemLabel { flex: 1; font-size: 13px; color: #1e293b; font-weight: 500; }
-.vcItemUnit  { font-size: 11px; color: #94a3b8; }
+.vcItemLabel { flex: 1; font-size: 10px; color: #1e293b; font-weight: 500; }
+.vcItemUnit  { font-size: 8px; color: #94a3b8; }
 
 /* Right pane: drag order */
 .vcRight {
   flex: 1; display: flex; flex-direction: column; padding: 12px 16px; gap: 8px; overflow: hidden;
 }
 .vcRightHead {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  font-size: 8px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .4px; color: #64748b;
 }
 .vcOrder {
@@ -450,16 +450,16 @@
 .vcDragging  { opacity: .4; }
 .vcDragOver  { background: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
 .vcGrip { color: #94a3b8; flex-shrink: 0; }
-.vcOrderLabel { flex: 1; font-size: 13px; font-weight: 500; color: #1e293b; }
-.vcOrderUnit  { font-size: 11px; color: #94a3b8; }
+.vcOrderLabel { flex: 1; font-size: 10px; font-weight: 500; color: #1e293b; }
+.vcOrderUnit  { font-size: 8px; color: #94a3b8; }
 .vcOrderRemove {
   background: none; border: none; cursor: pointer; color: #94a3b8;
   display: flex; padding: 2px; border-radius: 4px;
 }
 .vcOrderRemove:hover { color: #dc2626; background: #fef2f2; }
-.vcEmpty { font-size: 12px; color: #94a3b8; text-align: center; padding: 16px; }
+.vcEmpty { font-size: 9px; color: #94a3b8; text-align: center; padding: 16px; }
 .vcBmiNote {
-  font-size: 11px; color: #94a3b8; font-style: italic;
+  font-size: 8px; color: #94a3b8; font-style: italic;
   border-top: 1px solid #f1f5f9; padding-top: 8px;
 }
 
@@ -468,12 +468,12 @@
   padding: 14px 20px; border-top: 1px solid #e2e8f0; flex-shrink: 0;
 }
 .vcBtnCancel {
-  padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  padding: 8px 18px; border-radius: 8px; font-size: 10px; font-weight: 500;
   border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer;
 }
 .vcBtnCancel:hover { background: #f1f5f9; }
 .vcBtnSave {
-  padding: 8px 22px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  padding: 8px 22px; border-radius: 8px; font-size: 10px; font-weight: 600;
   border: none; background: #3b82f6; color: #fff; cursor: pointer;
 }
 .vcBtnSave:hover { background: #7c3aed; }
@@ -485,14 +485,14 @@
 }
 .vcTab {
   flex: 1; padding: 10px 16px; border: none; background: none;
-  font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer;
+  font-size: 10px; font-weight: 500; color: #64748b; cursor: pointer;
   border-bottom: 2px solid transparent; transition: all .15s;
   display: flex; align-items: center; justify-content: center; gap: 6px;
 }
 .vcTab:hover { color: #7c3aed; background: #faf5ff; }
 .vcTabActive { color: #7c3aed; border-bottom-color: #7c3aed; background: #fff; font-weight: 700; }
 .vcTabBadge {
-  font-size: 10px; font-weight: 700; background: #7c3aed; color: #fff;
+  font-size: 7px; font-weight: 700; background: #7c3aed; color: #fff;
   padding: 1px 6px; border-radius: 10px; min-width: 16px; text-align: center;
 }
 
@@ -509,7 +509,7 @@
 }
 .vcCalcItem:hover { background: #f8fafc; }
 .vcCalcInfo { display: flex; flex-direction: column; gap: 2px; }
-.vcCalcDesc { font-size: 11px; color: #94a3b8; }
+.vcCalcDesc { font-size: 8px; color: #94a3b8; }
 
 /* â”€â”€ InferPad Settings card â”€â”€ */
 .settingsBody {
@@ -519,18 +519,18 @@
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
 }
 .settingInfo { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-.settingLabel { font-size: 13px; font-weight: 600; color: var(--color-text, #1e293b); }
-.settingHint  { font-size: 11px; color: var(--color-text-3, #94a3b8); line-height: 1.4; }
+.settingLabel { font-size: 10px; font-weight: 600; color: var(--color-text, #1e293b); }
+.settingHint  { font-size: 8px; color: var(--color-text-3, #94a3b8); line-height: 1.4; }
 .settingInput {
   width: 100%; padding: 8px 12px; border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;
+  border-radius: 8px; font-size: 10px; outline: none; box-sizing: border-box;
   transition: border-color .12s;
 }
 .settingInput:focus { border-color: var(--color-primary); }
 .settingSave {
   align-self: flex-end; padding: 8px 20px; border-radius: 8px;
   background: var(--color-primary, #7c3aed); color: #fff; border: none;
-  font-size: 13px; font-weight: 600; cursor: pointer; transition: background .12s;
+  font-size: 10px; font-weight: 600; cursor: pointer; transition: background .12s;
 }
 .settingSave:hover { background: var(--color-primary-dk, #6d28d9); }
 

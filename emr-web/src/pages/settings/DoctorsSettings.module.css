@@ -1,4 +1,4 @@
-.count { font-size: 13px; font-weight: 600; color: var(--color-text-2); }
+.count { font-size: 10px; font-weight: 600; color: var(--color-text-2); }
 
 /* ── Seat info bar ─────────────────────────────────────────────────── */
 .seatBar {
@@ -16,8 +16,8 @@
   flex-wrap: wrap;
   gap: 6px;
 }
-.seatBarLabel { font-size: 13px; color: var(--color-text); }
-.seatBarRight { font-size: 12px; }
+.seatBarLabel { font-size: 10px; color: var(--color-text); }
+.seatBarRight { font-size: 9px; }
 .available { color: var(--color-success); font-weight: 600; }
 .full       { color: var(--color-danger);  font-weight: 600; }
 
@@ -37,7 +37,7 @@
   display: flex; align-items: center; gap: 5px;
   background: var(--color-primary); color: #fff; border: none;
   border-radius: var(--radius); padding: 7px 14px;
-  font-size: 13px; font-weight: 600; cursor: pointer;
+  font-size: 10px; font-weight: 600; cursor: pointer;
   transition: background .15s;
 }
 .upgradeBtn:hover { background: var(--color-primary-dk); }
@@ -48,7 +48,7 @@
   display: grid; grid-template-columns: 2fr 1.5fr 2fr 100px 72px;
   padding: 10px 16px; background: #f1f5f9;
   border-bottom: 1px solid var(--color-border);
-  font-size: 11px; font-weight: 700; color: var(--color-text-2);
+  font-size: 8px; font-weight: 700; color: var(--color-text-2);
   text-transform: uppercase; letter-spacing: .5px;
 }
 .tableRow {
@@ -60,7 +60,7 @@
 .tableRow:last-child { border-bottom: none; }
 .tableRow:hover { background: #f8fafc; }
 
-.docName  { font-size: 14px; font-weight: 600; color: var(--color-text); }
-.docSub   { font-size: 11px; color: var(--color-text-3); margin-top: 2px; }
-.docSpec  { font-size: 13px; color: var(--color-text-2); }
-.docEmail { font-size: 12px; color: var(--color-text-3); font-family: monospace; }
+.docName  { font-size: 11px; font-weight: 600; color: var(--color-text); }
+.docSub   { font-size: 8px; color: var(--color-text-3); margin-top: 2px; }
+.docSpec  { font-size: 10px; color: var(--color-text-2); }
+.docEmail { font-size: 9px; color: var(--color-text-3); font-family: monospace; }

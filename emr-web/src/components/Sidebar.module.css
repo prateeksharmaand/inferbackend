@@ -10,12 +10,12 @@
 .logoIcon {
   width: 40px; height: 40px; border-radius: 12px;
   background: var(--color-primary); color: #fff;
-  font-size: 20px; font-weight: 800;
+  font-size: 17px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
 }
 .logoTextWrap { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.logoName { font-size: 11px; font-weight: 700; color: #fff; letter-spacing: .3px; }
-.logoSub  { font-size: 9px;  font-weight: 400; color: #94a3b8; letter-spacing: .2px; }
+.logoName { font-size: 8px; font-weight: 700; color: #fff; letter-spacing: .3px; }
+.logoSub  { font-size: 6px;  font-weight: 400; color: #94a3b8; letter-spacing: .2px; }
 .nav { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 0 8px; flex: 1; }
 
 .navItem {
@@ -26,13 +26,13 @@
 .navItem:hover { background: var(--color-sidebar-hover); color: #fff; }
 .active { background: var(--color-sidebar-active) !important; color: #fff !important; }
 
-.navLabel { font-size: 9px; font-weight: 500; letter-spacing: .3px; }
+.navLabel { font-size: 6px; font-weight: 500; letter-spacing: .3px; }
 
 .bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-bottom: 4px; }
 .avatar {
   width: 36px; height: 36px; border-radius: 50%;
   background: #374151; color: #fff; border: none;
-  font-size: 14px; font-weight: 700; cursor: pointer;
+  font-size: 11px; font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background .15s;
 }

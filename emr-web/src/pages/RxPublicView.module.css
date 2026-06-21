@@ -1,4 +1,4 @@
-﻿/* Mobile-first public prescription view */
+/* Mobile-first public prescription view */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 .page {
@@ -22,9 +22,9 @@
   text-align: center;
   gap: 12px;
 }
-.center h2  { font-size: 18px; color: #1a202c; }
-.center p   { font-size: 14px; color: #64748b; }
-.errorIcon  { font-size: 48px; }
+.center h2  { font-size: 15px; color: #1a202c; }
+.center p   { font-size: 11px; color: #64748b; }
+.errorIcon  { font-size: 45px; }
 .spinner {
   width: 36px;
   height: 36px;
@@ -44,10 +44,10 @@
   color: #fff;
   padding: 20px 18px 18px;
 }
-.clinicLogo   { font-size: 32px; flex-shrink: 0; }
-.clinicName   { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; }
-.clinicAddr   { font-size: 12px; opacity: 0.8; margin-top: 2px; }
-.doctorName   { font-size: 13px; margin-top: 6px; font-weight: 600; }
+.clinicLogo   { font-size: 29px; flex-shrink: 0; }
+.clinicName   { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+.clinicAddr   { font-size: 9px; opacity: 0.8; margin-top: 2px; }
+.doctorName   { font-size: 10px; margin-top: 6px; font-weight: 600; }
 .doctorSpec   { font-weight: 400; opacity: 0.85; }
 
 /* â”€â”€ Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -59,7 +59,7 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.07);
 }
 .sectionTitle {
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -75,16 +75,16 @@
   border-radius: 50%;
   background: linear-gradient(135deg, #ede9fe, #ede9fe);
   color: #7c3aed;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.patientName  { font-size: 16px; font-weight: 700; color: #1a202c; }
-.patientMeta  { font-size: 12px; color: #64748b; margin-top: 2px; }
-.patientDate  { font-size: 12px; color: #94a3b8; margin-top: 3px; }
+.patientName  { font-size: 13px; font-weight: 700; color: #1a202c; }
+.patientMeta  { font-size: 9px; color: #64748b; margin-top: 2px; }
+.patientDate  { font-size: 9px; color: #94a3b8; margin-top: 3px; }
 
 /* Vitals */
 .vitalsGrid {
@@ -103,9 +103,9 @@
   align-items: center;
   gap: 1px;
 }
-.vitalValue { font-size: 16px; font-weight: 700; color: #4f46e5; }
-.vitalUnit  { font-size: 10px; color: #94a3b8; }
-.vitalLabel { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; }
+.vitalValue { font-size: 13px; font-weight: 700; color: #4f46e5; }
+.vitalUnit  { font-size: 7px; color: #94a3b8; }
+.vitalLabel { font-size: 7px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; }
 
 /* Diagnosis */
 .diagItem {
@@ -141,7 +141,7 @@
   border-radius: 50%;
   background: #7c3aed;
   color: #fff;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -149,8 +149,8 @@
   flex-shrink: 0;
   margin-top: 1px;
 }
-.medName   { font-size: 14px; font-weight: 700; color: #1a202c; }
-.medDetail { font-size: 12px; color: #64748b; margin-top: 2px; }
+.medName   { font-size: 11px; font-weight: 700; color: #1a202c; }
+.medDetail { font-size: 9px; color: #64748b; margin-top: 2px; }
 .medInstr  { font-size: 11.5px; color: #94a3b8; margin-top: 2px; }
 
 /* Advice */
@@ -169,7 +169,7 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.07);
 }
 .bookPrompt {
-  font-size: 13px;
+  font-size: 10px;
   color: #64748b;
   text-align: center;
   margin-bottom: 12px;
@@ -190,7 +190,7 @@
   color: #fff;
   border: none;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 3px 12px rgba(99, 57, 237, 0.35);
@@ -208,7 +208,7 @@
   color: #166534;
   border: 1px solid #bbf7d0;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
   text-decoration: none;
   text-align: center;
@@ -222,7 +222,7 @@
   color: #15803d;
   border: 1px solid #86efac;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
   text-decoration: none;
   text-align: center;
@@ -230,12 +230,12 @@
 
 /* Booking form */
 .bookForm { display: flex; flex-direction: column; gap: 10px; }
-.bookFormTitle { font-size: 15px; font-weight: 700; color: #1a202c; margin-bottom: 2px; }
+.bookFormTitle { font-size: 12px; font-weight: 700; color: #1a202c; margin-bottom: 2px; }
 .bookInput {
   border: 1.5px solid #e2e8f0;
   border-radius: 10px;
   padding: 11px 14px;
-  font-size: 14px;
+  font-size: 11px;
   font-family: inherit;
   outline: none;
   width: 100%;
@@ -262,7 +262,7 @@
   border: 1px solid #bbf7d0;
   border-radius: 10px;
   padding: 14px;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
   color: #166534;
   text-align: center;
@@ -271,7 +271,7 @@
 /* Footer */
 .footer {
   text-align: center;
-  font-size: 11px;
+  font-size: 8px;
   color: #cbd5e1;
   margin-top: 24px;
   padding: 0 20px;

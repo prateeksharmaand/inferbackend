@@ -21,7 +21,7 @@
   border-bottom: 1px solid var(--color-border);
 }
 .title {
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--color-text);
   letter-spacing: .2px;
@@ -30,7 +30,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 600;
   color: var(--color-primary);
   padding: 2px 6px;
@@ -48,7 +48,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 700;
   color: var(--color-text-2);
   letter-spacing: .5px;
@@ -70,7 +70,7 @@
   border-radius: 7px;
   border: 1px solid var(--color-border);
   background: none;
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 500;
   color: var(--color-text-2);
   cursor: pointer;
@@ -97,7 +97,7 @@
 }
 .tagSearchIcon  { color: var(--color-text-3); flex-shrink: 0; }
 .tagSearchField {
-  flex: 1; border: none; outline: none; font-size: 12px;
+  flex: 1; border: none; outline: none; font-size: 9px;
   background: transparent; color: var(--color-text);
 }
 .tagSearchClear {
@@ -110,12 +110,12 @@
   max-height: 160px; overflow-y: auto;
   margin-top: 4px; display: flex; flex-direction: column; gap: 2px;
 }
-.tagEmpty { padding: 8px 4px; font-size: 11px; color: var(--color-text-3); display: block; }
+.tagEmpty { padding: 8px 4px; font-size: 8px; color: var(--color-text-3); display: block; }
 
 .tagOpt {
   display: flex; align-items: center; gap: 7px;
   padding: 6px 8px; border-radius: 6px; border: 1px solid transparent;
-  background: none; font-size: 12px; font-weight: 500;
+  background: none; font-size: 9px; font-weight: 500;
   color: var(--color-text-2); cursor: pointer; text-align: left; transition: all .1s;
   width: 100%;
 }
