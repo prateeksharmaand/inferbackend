@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { X, GripVertical, Upload, Trash2, Check, PenLine } from 'lucide-react';
+import { X, GripVertical, Upload, Trash2, Check, PenLine, Scissors } from 'lucide-react';
+import LetterheadCropper from './LetterheadCropper';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import SignaturePad from './SignaturePad';
@@ -144,6 +145,7 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   const [googleLink,   setGoogleLink]   = useState(() => localStorage.getItem(key('google_review')) || '');
   const [saved,        setSaved]        = useState(false);
   const [sigMsg,       setSigMsg]       = useState('');
+  const [showCropper,  setShowCropper]  = useState(false);
 
   const handleSaveAppearance = async () => {
     headerImg ? localStorage.setItem(key('header'), headerImg)          : localStorage.removeItem(key('header'));
@@ -273,9 +275,26 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
                 {sigMsg && <span className={styles.savedMsg}><Check size={12} /> {sigMsg}</span>}
               </div>
 
+              {/* Letterhead crop shortcut */}
+              <div className={styles.section} style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 10, padding: '12px 14px', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Scissors size={15} style={{ color: '#7c3aed', flexShrink: 0 }} />
+                  <div>
+                    <div className={styles.sectionTitle} style={{ margin: 0 }}>Crop from Letterhead</div>
+                    <div className={styles.sectionHint} style={{ margin: 0 }}>Upload your full letterhead and drag bands to extract header &amp; footer in one step.</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowCropper(true)}
+                  style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', marginTop: 4 }}
+                >
+                  <Scissors size={12} /> Open Letterhead Cropper
+                </button>
+              </div>
+
               <div className={styles.section}>
                 <div className={styles.sectionTitle}>Prescription Header</div>
-                <div className={styles.sectionHint}>Clinic letterhead — recommended 680 × 150 px</div>
+                <div className={styles.sectionHint}>Clinic letterhead top — recommended 680 × 150 px</div>
                 <ImageUpload title="" hint="" value={headerImg} onChange={setHeaderImg} />
               </div>
 
@@ -307,6 +326,27 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
           <button className={styles.btnCancel} onClick={onClose}>Close</button>
         </div>
       </div>
+
+      {showCropper && (
+        <LetterheadCropper
+          onClose={() => setShowCropper(false)}
+          onApply={({ header, footer }) => {
+            setHeaderImg(header);
+            setFooterImg(footer);
+            setShowCropper(false);
+            // Auto-save
+            localStorage.setItem(key('header'), header);
+            localStorage.setItem(key('footer'), footer);
+            api.patch('/settings/clinic-assets', {
+              rx_header_img: header || null,
+              rx_footer_img: footer || null,
+            }).catch(() => {});
+            window.dispatchEvent(new Event('storage'));
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
+          }}
+        />
+      )}
     </div>
   );
 }
