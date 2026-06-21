@@ -19,6 +19,7 @@ const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, '045_fix_patient_clinic_id.sql'),     // backfill clinic_id on patients with NULL using appointment history
   path.join(__dirname, '046_reset_adinath_care_contexts.sql'), // reset pending for contexts linked under wrong clinic HIP
   path.join(__dirname, '047_patient_clinic_multitenancy.sql'), // clinic_id on care_contexts + patient_clinics many-to-many
+  path.join(__dirname, '048_staff_rbac.sql'),                 // staff_roles, staff_invitations, staff_activity_logs + system role seeds
 ];
 
 async function runMigrations(pool, logger) {
