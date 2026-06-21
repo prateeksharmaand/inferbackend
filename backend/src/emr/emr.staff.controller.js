@@ -312,16 +312,38 @@ const acceptInvitation = async (req, res) => {
   if (!email?.trim()) return res.status(400).json({ error: 'email is required' });
 
   const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  const normalEmail = email.trim().toLowerCase();
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query(
-      `INSERT INTO emr_clinic_staff
-         (clinic_id, name, email, password_hash, role, department, designation, is_active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,true)`,
-      [inv.clinic_id, name.trim(), email.trim().toLowerCase(), hash, inv.role,
-       inv.department || null, inv.designation || null]
+
+    // Check if a staff record already exists for this email in this clinic
+    // (admin may have pre-created the account before sending the invite)
+    const { rows: existing } = await client.query(
+      `SELECT id FROM emr_clinic_staff WHERE clinic_id=$1 AND email=$2`,
+      [inv.clinic_id, normalEmail]
     );
+
+    if (existing.length) {
+      // Staff already exists — just update their password and activate them
+      await client.query(
+        `UPDATE emr_clinic_staff
+         SET password_hash=$1, is_active=true, updated_at=NOW()
+         WHERE id=$2`,
+        [hash, existing[0].id]
+      );
+    } else {
+      // New staff member — insert fresh record
+      await client.query(
+        `INSERT INTO emr_clinic_staff
+           (clinic_id, name, email, password_hash, role, department, designation, is_active)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,true)`,
+        [inv.clinic_id, name.trim(), normalEmail, hash, inv.role,
+         inv.department || null, inv.designation || null]
+      );
+    }
+
     await client.query(
       `UPDATE staff_invitations SET status='accepted', accepted_at=NOW() WHERE id=$1`,
       [inv.id]
@@ -330,7 +352,6 @@ const acceptInvitation = async (req, res) => {
     res.status(201).json({ ok: true, clinic_name: inv.clinic_name });
   } catch (err) {
     await client.query('ROLLBACK');
-    if (err.code === '23505') return res.status(409).json({ error: 'Email already registered in this clinic' });
     throw err;
   } finally {
     client.release();
