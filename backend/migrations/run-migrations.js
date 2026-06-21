@@ -21,6 +21,7 @@ const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, '047_patient_clinic_multitenancy.sql'), // clinic_id on care_contexts + patient_clinics many-to-many
   path.join(__dirname, '048_staff_rbac.sql'),                 // staff_roles, staff_invitations, staff_activity_logs + system role seeds
   path.join(__dirname, '049_doctor_active_template.sql'),    // active_template_id / slug on emr_doctors
+  path.join(__dirname, '050_drop_doctor_fk.sql'),            // drop doctor_id FK so it can store emr_clinic_staff.id
 ];
 
 async function runMigrations(pool, logger) {
