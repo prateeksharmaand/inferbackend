@@ -159,6 +159,7 @@ router.patch ('/auth/doctors/:id',   auth.updateDoctor);
 router.delete('/auth/doctors/:id',   auth.deleteDoctor);
 
 // ── Staff & RBAC management (admin only — enforced inside controller) ─────────
+router.get   ('/staff/doctors',            staff.listStaffDoctors);
 router.get   ('/staff',                   staff.listStaff);
 router.post  ('/staff',                   staff.createStaff);
 router.patch ('/staff/:id',               staff.updateStaff);

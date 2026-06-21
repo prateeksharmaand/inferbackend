@@ -100,7 +100,7 @@ const listAppointments = async (req, res) => {
   const { queue_id, date, status, doctor_id } = req.query;
   const apptDate = date || new Date().toISOString().slice(0, 10);
 
-  let sql = `SELECT a.*, d.name AS doctor_name,
+  let sql = `SELECT a.*, COALESCE(sd.name, d.name) AS doctor_name,
                CASE
                  WHEN a.patient_mobile IS NOT NULL AND a.patient_mobile != ''
                  THEN (SELECT COUNT(*) FROM emr_appointments p
@@ -112,7 +112,8 @@ const listAppointments = async (req, res) => {
                hps.token_expires_at AS share_token_expires_at,
                hps.share_code AS share_token_code
              FROM emr_appointments a
-             LEFT JOIN emr_doctors d ON d.id = a.doctor_id
+             LEFT JOIN emr_doctors d       ON d.id  = a.doctor_id
+             LEFT JOIN emr_clinic_staff sd  ON sd.id = a.doctor_id AND sd.role = 'doctor'
              LEFT JOIN LATERAL (
                SELECT token_expires_at, share_code FROM hip_profile_shares
                WHERE patient_id = a.emr_patient_id AND status = 'linked'
@@ -225,7 +226,13 @@ const createAppointment = async (req, res) => {
   // Send appointment confirmation email if patient has email
   if (patient_email) {
     const { rows: [clinic] } = await pool.query(`SELECT name FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
-    const { rows: [doc] }    = await pool.query(`SELECT name FROM emr_doctors WHERE id=$1`, [doctor_id || null]).catch(() => ({ rows: [] }));
+    const { rows: [doc] }    = await pool.query(
+      `SELECT COALESCE(d.name, sd.name) AS name
+       FROM (SELECT $1::integer AS id) x
+       LEFT JOIN emr_doctors d      ON d.id  = x.id
+       LEFT JOIN emr_clinic_staff sd ON sd.id = x.id AND sd.role = 'doctor'`,
+      [doctor_id || null]
+    ).catch(() => ({ rows: [] }));
     sendAppointmentConfirmation({
       to:          patient_email,
       patientName: patient_name,

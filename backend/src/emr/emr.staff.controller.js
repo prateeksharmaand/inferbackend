@@ -379,8 +379,21 @@ const listActivityLogs = async (req, res) => {
   res.json(rows);
 };
 
+// GET /api/emr/staff/doctors — doctors from staff screen (for appointment booking dropdown)
+const listStaffDoctors = async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, name, designation AS specialization, department, is_active
+     FROM emr_clinic_staff
+     WHERE clinic_id = $1 AND role = 'doctor' AND is_active = true
+     ORDER BY name`,
+    [req.emrUser.clinic_id]
+  );
+  res.json(rows);
+};
+
 module.exports = {
   listStaff, createStaff, updateStaff, deleteStaff,
+  listStaffDoctors,
   listRoles, createRole, updateRole, deleteRole, cloneRole,
   listInvitations, createInvitation, revokeInvitation,
   getInvitation, acceptInvitation,

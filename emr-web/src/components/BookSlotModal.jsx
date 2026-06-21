@@ -90,7 +90,7 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
   const [error,        setError]        = useState('');
 
   useEffect(() => {
-    Promise.all([api.get('/queues'), api.get('/auth/doctors')])
+    Promise.all([api.get('/queues'), api.get('/staff/doctors')])
       .then(([q, d]) => {
         setQueues(q);
         setDoctors(d);

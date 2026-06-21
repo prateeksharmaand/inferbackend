@@ -31,7 +31,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
   });
 
   useEffect(() => {
-    Promise.all([api.get('/queues'), api.get('/auth/doctors')])
+    Promise.all([api.get('/queues'), api.get('/staff/doctors')])
       .then(([q, d]) => { setQueues(q); setDoctors(d); })
       .catch(() => {});
   }, []);
