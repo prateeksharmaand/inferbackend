@@ -6,6 +6,7 @@ import {
   Heart, Syringe, UtensilsCrossed, FileText, AlertCircle,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import styles from './DocAssistAI.module.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -682,6 +683,10 @@ function ChatTab({ appt, onClearPatient }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function InferAssistAI({ appt: propAppt }) {
+  const { user } = useAuth();
+  const isDoctor = user?.role === 'doctor' || user?.role === 'admin'
+    || !!(user?.permissions?.all || user?.permissions?.['consultations.create']);
+
   const [open,        setOpen]        = useState(false);
   const [activeAppt,  setActiveAppt]  = useState(null);
 
@@ -698,6 +703,8 @@ export default function InferAssistAI({ appt: propAppt }) {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  if (!isDoctor) return null;
 
   return (
     <>
