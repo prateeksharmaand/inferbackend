@@ -131,14 +131,13 @@ const getPatient = async (req, res) => {
 };
 
 const updatePatient = async (req, res) => {
-  const { name, mobile, dob, gender, abha_number, abha_address, uhid } = req.body;
+  const { name, mobile, dob, gender, abha_number, abha_address } = req.body;
   const { rows } = await pool.query(
     `UPDATE emr_patients SET name=COALESCE($1,name), mobile=COALESCE($2,mobile),
        dob=COALESCE($3,dob), gender=COALESCE($4,gender),
-       abha_number=COALESCE($5,abha_number), abha_address=COALESCE($6,abha_address),
-       uhid=COALESCE($7,uhid)
-     WHERE id=$8 AND clinic_id=$9 AND deleted_at IS NULL RETURNING *`,
-    [name, mobile, dob, gender, abha_number, abha_address, uhid, req.params.id, req.emrUser.clinic_id]
+       abha_number=COALESCE($5,abha_number), abha_address=COALESCE($6,abha_address)
+     WHERE id=$7 AND deleted_at IS NULL RETURNING *`,
+    [name, mobile, dob, gender, abha_number, abha_address, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Patient not found' });
 
@@ -150,11 +149,55 @@ const updatePatient = async (req, res) => {
       dob: !!dob,
       gender: !!gender,
       abha: !!abha_number,
-      uhid: !!uhid,
     },
   });
 
   res.json(rows[0]);
+};
+
+// Assign or generate UHID for patient in clinic (patient_clinics is single source of truth)
+const assignPatientUhid = async (req, res) => {
+  const { uhid } = req.body;
+  const patientId = req.params.id;
+  const clinicId = req.emrUser.clinic_id;
+
+  if (!uhid) {
+    return res.status(400).json({ error: 'UHID is required' });
+  }
+
+  // Check if patient exists
+  const { rows: patientCheck } = await pool.query(
+    `SELECT id, name FROM emr_patients WHERE id = $1 AND deleted_at IS NULL`,
+    [patientId]
+  );
+  if (!patientCheck.length) {
+    return res.status(404).json({ error: 'Patient not found' });
+  }
+
+  // Upsert patient_clinics with UHID (single source of truth)
+  const { rows } = await pool.query(
+    `INSERT INTO patient_clinics (patient_id, clinic_id, uhid, first_visit_at, last_visit_at)
+     VALUES ($1, $2, $3, NOW(), NOW())
+     ON CONFLICT (patient_id, clinic_id) DO UPDATE
+       SET uhid = COALESCE(EXCLUDED.uhid, patient_clinics.uhid),
+           last_visit_at = NOW()
+     RETURNING *`,
+    [patientId, clinicId, uhid]
+  );
+
+  logger.info('Patient UHID assigned', {
+    patientId,
+    patientName: patientCheck[0].name,
+    clinicId,
+    uhid,
+  });
+
+  res.json({
+    message: 'UHID assigned successfully',
+    patientId,
+    uhid,
+    patient: patientCheck[0],
+  });
 };
 
 const deletePatient = async (req, res) => {
@@ -1604,7 +1647,7 @@ const getLinkedHipsForPatient = async (req, res) => {
 };
 
 module.exports = {
-  listPatients, createPatient, getPatient, updatePatient, deletePatient, registerAbhaPatient,
+  listPatients, createPatient, getPatient, updatePatient, deletePatient, registerAbhaPatient, assignPatientUhid,
   addCareContext, deleteCareContext, retryCareContextLink,
   pendingOtps, healthRequests, activityLog,
   createConsentRequest, listConsentRequests, respondConsent, pullConsentData, getConsentHealthRecords,

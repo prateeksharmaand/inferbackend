@@ -210,38 +210,37 @@ const createAppointment = async (req, res) => {
     }
   }
 
-  // Validate UHID is present (mandatory for ABDM compliance)
+  // Validate UHID is present (fetched from patient_clinics — single source of truth)
   if (resolvedPatientId) {
     const { rows: patientRows } = await pool.query(
-      `SELECT id, name, uhid FROM emr_patients WHERE id = $1 AND clinic_id = $2`,
+      `SELECT ep.name, pc.uhid FROM emr_patients ep
+       LEFT JOIN patient_clinics pc ON ep.id = pc.patient_id AND pc.clinic_id = $2
+       WHERE ep.id = $1 AND ep.deleted_at IS NULL`,
       [resolvedPatientId, req.emrUser.clinic_id]
     );
-    if (!patientRows[0]?.uhid) {
-      logger.warn('Appointment booking rejected: patient missing UHID', {
+
+    if (!patientRows.length) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    const patientName = patientRows[0].name;
+    const uhidFromDb = patientRows[0].uhid;
+
+    if (!uhidFromDb) {
+      logger.warn('Appointment booking rejected: patient missing UHID in clinic', {
         patientId: resolvedPatientId,
-        patientName: patientRows[0]?.name,
+        patientName,
         clinic_id: req.emrUser.clinic_id,
       });
       return res.status(400).json({
         error: 'Patient UHID is mandatory for appointment booking',
         code: 'MISSING_UHID',
         patientId: resolvedPatientId,
-        patientName: patientRows[0]?.name,
-        message: `Patient "${patientRows[0]?.name}" does not have UHID assigned.`,
-        action: 'add_uhid',
+        patientName,
+        message: `Patient "${patientName}" does not have UHID assigned in this clinic.`,
+        action: 'assign_uhid',
         actionLabel: 'Assign UHID',
-        actionEndpoint: `/api/emr/patients/${resolvedPatientId}`,
-        actionMethod: 'PATCH',
-        details: 'Click "Assign UHID" button to add UHID, then retry booking.',
-      });
-    }
-  } else {
-    // Patient not found in system and no UHID provided
-    if (!uhid) {
-      return res.status(400).json({
-        error: 'New patient requires UHID',
-        code: 'UHID_REQUIRED',
-        details: 'Either select an existing patient or provide UHID for new patient',
+        details: 'Click "Assign UHID" to generate clinic-specific UHID for this patient.',
       });
     }
   }
@@ -278,14 +277,23 @@ const createAppointment = async (req, res) => {
     console.error('[FHIR] appointment push failed:', err.message)
   );
 
-  // Maintain patient_clinics many-to-many: upsert visit record
+  // Maintain patient_clinics many-to-many: upsert visit record + auto-generate UHID
   if (resolvedPatientId) {
     pool.query(
-      `INSERT INTO patient_clinics (patient_id, clinic_id, first_visit_at, last_visit_at)
-       VALUES ($1, $2, NOW(), NOW())
+      `INSERT INTO patient_clinics (patient_id, clinic_id, first_visit_at, last_visit_at, uhid)
+       VALUES ($1, $2, NOW(), NOW(),
+         CASE
+           WHEN NOT EXISTS (SELECT 1 FROM patient_clinics WHERE patient_id=$1 AND clinic_id=$2)
+           THEN (SELECT ${req.emrUser.clinic_id}::text || '-' || (COALESCE(MAX(CAST(SUBSTRING(uhid FROM 4) AS INTEGER)), 0) + 1)::text
+                 FROM patient_clinics WHERE clinic_id=$2 AND uhid IS NOT NULL AND uhid ~ '^[0-9]+-[0-9]+$')
+           ELSE NULL
+         END
+       )
        ON CONFLICT (patient_id, clinic_id) DO UPDATE SET last_visit_at = NOW()`,
       [resolvedPatientId, req.emrUser.clinic_id]
-    ).catch(() => {}); // non-critical, fire-and-forget
+    ).catch(err => {
+      logger.warn('Patient-clinic upsert failed (non-critical)', { error: err.message });
+    }); // non-critical, fire-and-forget
   }
 
   // Send appointment confirmation email if patient has email

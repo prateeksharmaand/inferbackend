@@ -25,7 +25,7 @@ const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, '051_staff_active_template.sql'),     // active_template columns on emr_clinic_staff (per-doctor)
   path.join(__dirname, '052_care_context_multi_records.sql'), // multi-HI type support: health_records JSONB for 8 ABDM HI types
   path.join(__dirname, '053_fix_encounters_doctor_fk.sql'),   // fix FK: doctor_id references emr_clinic_staff not emr_doctors
-  path.join(__dirname, '054_add_uhid_to_patients.sql'),       // UHID column for clinic-wise patient identification
+  path.join(__dirname, '054_add_uhid_to_patient_clinics.sql'), // UHID in patient_clinics (single source of truth), remove from emr_appointments/emr_patients
 ];
 
 async function runMigrations(pool, logger) {

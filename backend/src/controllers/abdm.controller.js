@@ -390,11 +390,12 @@ const linkCareContexts = async (req, res) => {
   const { abha_number, abha_address, name } = rows[0];
 
   // Prefer Aadhaar-authoritative values stored in emr_patients over request body
-  // UHID is clinic-wise, so also filter by clinic_id
+  // UHID is clinic-wise, stored in patient_clinics (single source of truth)
   const { rows: ptRows } = await pool.query(
-    `SELECT id, uhid, gender, EXTRACT(YEAR FROM dob)::int AS year_of_birth
-     FROM emr_patients
-     WHERE (abha_number=$1 OR abha_address=$2) AND clinic_id=$3 AND deleted_at IS NULL
+    `SELECT ep.id, ep.gender, EXTRACT(YEAR FROM ep.dob)::int AS year_of_birth, pc.uhid
+     FROM emr_patients ep
+     LEFT JOIN patient_clinics pc ON ep.id = pc.patient_id AND pc.clinic_id = $3
+     WHERE (ep.abha_number=$1 OR ep.abha_address=$2) AND ep.deleted_at IS NULL
      LIMIT 1`,
     [abha_number, abha_address, req.emrUser.clinic_id]
   );

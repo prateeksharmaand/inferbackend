@@ -190,6 +190,7 @@ router.post  ('/patients/register-abha',           emr.registerAbhaPatient);
 router.get   ('/patients/history',                 appt.listPatientHistory);
 router.get   ('/patients/:id',                     emr.getPatient);
 router.patch ('/patients/:id',                     emr.updatePatient);
+router.post  ('/patients/:id/uhid',                emr.assignPatientUhid);
 router.delete('/patients/:id',                     emr.deletePatient);
 router.post  ('/patients/:id/care-contexts',              emr.addCareContext);
 router.delete('/patients/:id/care-contexts/:ctxId',       emr.deleteCareContext);
