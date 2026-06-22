@@ -291,38 +291,6 @@ const updateStatus = async (req, res) => {
   if (status) {
     logActivity({ req, action: `APPOINTMENT_${status.toUpperCase()}`, resource: "appointment", resourceId: req.params.id, details: { patient_name: rows[0].patient_name, status } });
   }
-
-  // Auto-create care context when consultation starts or ends (if patient is ABDM-linked)
-  // Create care context + attempt link only on first transition to 'ongoing'.
-  // saveEncounter handles the FHIR update; it skips the link if already linked/pending.
-  if (status === 'ongoing' && rows[0].emr_patient_id) {
-    const a = rows[0];
-    setImmediate(async () => {
-      try {
-        const apptIso = a.appointment_date instanceof Date
-          ? a.appointment_date.toISOString().slice(0, 10)
-          : String(a.appointment_date).slice(0, 10);
-        const dateStr = apptIso.replace(/-/g, '');
-        const refNum  = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
-        const display = `OPD Consultation - ${apptIso} - ${a.patient_name || 'Patient'}`;
-
-        const { rows: ccRows } = await pool.query(
-          `INSERT INTO emr_care_contexts (patient_id, clinic_id, reference_number, display, hi_type, link_status)
-           VALUES ($1,$2,$3,$4,'OPConsultation','pending')
-           ON CONFLICT (reference_number) DO NOTHING
-           RETURNING *`,
-          [a.emr_patient_id, a.clinic_id, refNum, display]
-        );
-
-        if (!ccRows.length) return; // already existed â€” saveEncounter will update it with FHIR content
-
-        logger.info('Care context created on status change', { refNum, status, patientId: a.emr_patient_id });
-        await attemptAbdmLink(refNum, display, a.emr_patient_id, a.clinic_id);
-      } catch (err) {
-        logger.error('Care context creation on status change failed', { error: err.message });
-      }
-    });
-  }
 };
 
 // GET /api/emr/appointments/:id
