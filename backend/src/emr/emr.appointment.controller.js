@@ -160,15 +160,11 @@ const createAppointment = async (req, res) => {
   // Mandatory validations
   if (!patient_name) return res.status(400).json({ error: 'patient_name required' });
   if (!doctor_id) return res.status(400).json({ error: 'doctor_id required - doctor selection is mandatory' });
-  if (!uhid && !emr_patient_id) {
-    return res.status(400).json({
-      error: 'UHID or existing patient selection required',
-      details: 'Either provide UHID for new patient or select existing patient from list',
-    });
-  }
 
-  // Auto-resolve emr_patient_id from ABHA if not supplied
+  // Auto-resolve emr_patient_id from multiple sources (in priority order)
   let resolvedPatientId = emr_patient_id || null;
+
+  // 1. Try to resolve from ABHA if not supplied
   if (!resolvedPatientId && patient_abha) {
     const { rows: ptRows } = await pool.query(
       `SELECT p.id, p.clinic_id, p.uhid FROM emr_patients p
@@ -178,8 +174,7 @@ const createAppointment = async (req, res) => {
     );
     if (ptRows.length) {
       resolvedPatientId = ptRows[0].id;
-      // If patient has no clinic_id yet, assign them to this clinic so ABDM
-      // links their care contexts under the correct HIP going forward.
+      // If patient has no clinic_id yet, assign them to this clinic
       if (!ptRows[0].clinic_id) {
         await pool.query(
           `UPDATE emr_patients SET clinic_id = $1 WHERE id = $2`,
@@ -189,21 +184,58 @@ const createAppointment = async (req, res) => {
     }
   }
 
-  // Validate UHID for ABDM compliance if patient exists
+  // 2. Try to resolve from patient name + mobile in this clinic
+  if (!resolvedPatientId && patient_name && patient_mobile) {
+    const { rows: ptRows } = await pool.query(
+      `SELECT p.id, p.uhid FROM emr_patients p
+       WHERE p.name = $1 AND p.mobile = $2 AND p.clinic_id = $3 AND p.deleted_at IS NULL
+       LIMIT 1`,
+      [patient_name, patient_mobile, req.emrUser.clinic_id]
+    );
+    if (ptRows.length) {
+      resolvedPatientId = ptRows[0].id;
+    }
+  }
+
+  // 3. Try to resolve from just patient name in this clinic
+  if (!resolvedPatientId && patient_name) {
+    const { rows: ptRows } = await pool.query(
+      `SELECT p.id, p.uhid FROM emr_patients p
+       WHERE p.name = $1 AND p.clinic_id = $2 AND p.deleted_at IS NULL
+       ORDER BY p.created_at DESC LIMIT 1`,
+      [patient_name, req.emrUser.clinic_id]
+    );
+    if (ptRows.length) {
+      resolvedPatientId = ptRows[0].id;
+    }
+  }
+
+  // Validate UHID is present (mandatory for ABDM compliance)
   if (resolvedPatientId) {
     const { rows: patientRows } = await pool.query(
-      `SELECT uhid FROM emr_patients WHERE id = $1 AND clinic_id = $2`,
+      `SELECT id, name, uhid FROM emr_patients WHERE id = $1 AND clinic_id = $2`,
       [resolvedPatientId, req.emrUser.clinic_id]
     );
     if (!patientRows[0]?.uhid) {
-      logger.warn('Appointment booked without UHID', {
+      logger.warn('Appointment booking rejected: patient missing UHID', {
         patientId: resolvedPatientId,
+        patientName: patientRows[0]?.name,
         clinic_id: req.emrUser.clinic_id,
       });
       return res.status(400).json({
         error: 'Patient UHID is mandatory for appointment booking',
         code: 'MISSING_UHID',
-        details: 'Please update patient record with UHID before booking appointment',
+        patientId: resolvedPatientId,
+        details: `Patient "${patientRows[0]?.name}" does not have UHID. Please assign UHID from patient's record before booking appointment.`,
+      });
+    }
+  } else {
+    // Patient not found in system and no UHID provided
+    if (!uhid) {
+      return res.status(400).json({
+        error: 'New patient requires UHID',
+        code: 'UHID_REQUIRED',
+        details: 'Either select an existing patient or provide UHID for new patient',
       });
     }
   }
