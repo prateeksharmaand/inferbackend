@@ -92,14 +92,17 @@ function poolSnapshot() {
   };
 }
 
-async function query(text, params) {
+// Wrap pool.query() globally to add error logging to ALL queries (even direct pool.query() calls)
+const originalPoolQuery = pool.query.bind(pool);
+pool.query = async function(text, params) {
   const start = Date.now();
   try {
-    const result = await pool.query(text, params);
+    const result = await originalPoolQuery(text, params);
     const duration = Date.now() - start;
-    if (duration > 1000) logger.warn(`Slow query (${duration}ms): ${text}`);
+    if (duration > 1000) logger.warn(`Slow query (${duration}ms): ${text.slice(0, 100)}`);
     return result;
   } catch (err) {
+    const duration = Date.now() - start;
     // Log comprehensive error details for debugging
     logger.error('[PG-QUERY-ERROR]', {
       error: err.message,
@@ -113,11 +116,16 @@ async function query(text, params) {
       queryLength: String(text).length,
       paramsCount: params ? params.length : 0,
       params: params ? params.map(p => typeof p === 'string' ? p.slice(0, 50) : p) : undefined,
-      duration: Date.now() - start,
+      duration: duration,
       stack: err.stack ? err.stack.split('\n').slice(0, 5).join('\n') : undefined,
     });
     throw err;
   }
+};
+
+// Wrapper function for explicit use (maintains backward compatibility)
+async function query(text, params) {
+  return pool.query(text, params);
 }
 
 async function initializeDatabase() {
