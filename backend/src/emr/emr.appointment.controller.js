@@ -10,8 +10,8 @@ const { logActivity } = require('./emr.staff.controller');
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
   'rescheduled','follow_up','parked','no_show','aborted'];
 
-// â”€â”€ Shared: attempt HIP-initiated ABDM care context link â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Flow: skip if already linked â†’ reuse cached token â†’ generate new token
+// â"€â"€ Shared: attempt HIP-initiated ABDM care context link â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// Flow: skip if already linked â†' reuse cached token â†' generate new token
 async function attemptAbdmLink(refNum, display, patientId, clinicId) {
   // 1. Skip if already linked
   const { rows: [cc] } = await pool.query(
@@ -19,7 +19,7 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
     [refNum]
   );
   if (cc?.link_status === 'linked') {
-    logger.info('ABDM link skipped â€” already linked', { refNum });
+    logger.info('ABDM link skipped â€" already linked', { refNum });
     return;
   }
 
@@ -31,26 +31,26 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
     [patientId]
   );
   if (!patient?.abha_number || !patient?.abha_address) {
-    logger.info('ABDM link skipped â€” patient missing abha_number or abha_address', { patientId });
+    logger.info('ABDM link skipped â€" patient missing abha_number or abha_address', { patientId });
     return;
   }
 
-  // ABDM requires yearOfBirth and gender that match Aadhaar exactly â€” no guessing defaults
+  // ABDM requires yearOfBirth and gender that match Aadhaar exactly â€" no guessing defaults
   const VALID_GENDERS = ['M', 'F', 'O', 'D', 'T', 'U'];
   const normGender  = patient.gender === 'Male' ? 'M' : patient.gender === 'Female' ? 'F' : patient.gender === 'Other' ? 'O' : patient.gender;
   const yearOfBirth = patient.birth_year;
 
   if (!yearOfBirth || yearOfBirth < 1900) {
-    logger.warn('ABDM link skipped â€” patient DOB not stored. Enrol patient via ABHA flow to capture DOB.', { patientId });
+    logger.warn('ABDM link skipped â€" patient DOB not stored. Enrol patient via ABHA flow to capture DOB.', { patientId });
     return;
   }
   if (!normGender || !VALID_GENDERS.includes(normGender)) {
-    logger.warn('ABDM link skipped â€” patient gender missing or invalid for ABDM. Got: ' + patient.gender, { patientId });
+    logger.warn('ABDM link skipped â€" patient gender missing or invalid for ABDM. Got: ' + patient.gender, { patientId });
     return;
   }
 
   // Resolve HIP ID from the care context's own clinic_id (authoritative ownership).
-  // Falls back to the passed clinicId, then patient's default clinic â€” never env var.
+  // Falls back to the passed clinicId, then patient's default clinic â€" never env var.
   const { rows: [resolvedClinic] } = await pool.query(
     `SELECT ec.hip_id, ec.id AS clinic_id
      FROM emr_clinics ec
@@ -64,7 +64,7 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
     [refNum, clinicId, patientId]
   );
   if (!resolvedClinic?.hip_id) {
-    logger.info('ABDM link skipped â€” clinic has no ABDM HIP configured', { patientId, clinicId, refNum });
+    logger.info('ABDM link skipped â€" clinic has no ABDM HIP configured', { patientId, clinicId, refNum });
     return;
   }
   const hipId = resolvedClinic.hip_id;
@@ -444,7 +444,7 @@ const saveEncounter = async (req, res) => {
   // Auto-mark appointment as completed
   await pool.query(`UPDATE emr_appointments SET status='completed', completed_at=NOW() WHERE id=$1`, [a.id]);
 
-  // â”€â”€ ABDM: auto-create / update care context so this encounter is discoverable â”€â”€
+  // â"€â"€ ABDM: auto-create / update care context so this encounter is discoverable â"€â"€
   // Architecture: ONE Care Context = ONE Visit/Encounter
   //              ONE Care Context can contain MANY Health Records (different HI types)
   //
@@ -454,7 +454,7 @@ const saveEncounter = async (req, res) => {
   //   ├─ DiagnosticReport Bundle (lab results + vitals)
   //   └─ WellnessRecord Bundle (assessment + vitals)
   //
-  // This aligns with ABDM’s intent: one visit, multiple document types, granular consent
+  // This aligns with ABDM's intent: one visit, multiple document types, granular consent
   if (a.emr_patient_id) {
     const apptIso = a.appointment_date instanceof Date
       ? a.appointment_date.toISOString().slice(0, 10)
@@ -480,17 +480,17 @@ const saveEncounter = async (req, res) => {
     // Build ALL health records (multiple HI types) for this single care context
     const healthRecords = hip.buildAllHealthRecords(patient, rows[0]);
 
-    // Upsert care context; reset link_status to ‘pending’ on content update so
+    // Upsert care context; reset link_status to 'pending' on content update so
     // the background linker will re-push the updated bundle to ABDM.
     pool.query(
       `INSERT INTO emr_care_contexts (patient_id, clinic_id, reference_number, display, health_records, link_status, updated_at)
-       VALUES ($1,$2,$3,$4,$5,’pending’,NOW())
+       VALUES ($1,$2,$3,$4,$5,'pending',NOW())
        ON CONFLICT (reference_number) DO UPDATE
          SET display       = EXCLUDED.display,
              health_records = EXCLUDED.health_records,
              clinic_id     = EXCLUDED.clinic_id,
              -- never downgrade a linked context back to pending
-             link_status   = CASE WHEN emr_care_contexts.link_status = ‘linked’ THEN ‘linked’ ELSE ‘pending’ END,
+             link_status   = CASE WHEN emr_care_contexts.link_status = 'linked' THEN 'linked' ELSE 'pending' END,
              updated_at    = NOW()
        RETURNING *, (xmax = 0) AS inserted`,
       [a.emr_patient_id, a.clinic_id, refNum, display, JSON.stringify(healthRecords)]
