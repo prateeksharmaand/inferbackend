@@ -35,10 +35,16 @@ const pool = new Pool({
 // Every physical connection event is logged with pool state so we can see
 // exactly when Neon closes idle sockets and when fresh ones are opened.
 
-pool.on('connect', (client) => {
-  // Fires when a brand-new physical TCP connection is established to PostgreSQL.
-  // idleCount will not yet include this client (it's being handed to caller).
-  // Logging disabled to reduce noise
+pool.on('connect', async (client) => {
+  // Clear prepared statement cache on new connections to prevent stale queries from old code
+  try {
+    await client.query('DEALLOCATE ALL');
+  } catch (err) {
+    // Expected on fresh connections that have no prepared statements
+    if (err.code !== '26P3') {  // 26P3 = undefined_prepared_statement
+      logger.warn('DEALLOCATE ALL during connect', { code: err.code, message: err.message });
+    }
+  }
 });
 
 pool.on('acquire', (client) => {
@@ -54,7 +60,11 @@ pool.on('remove', (client) => {
 
 pool.on('error', (err, client) => {
   // Fires for errors on idle clients — the most common signal of a server-side TCP close.
-  // Logging disabled to reduce noise (errors are still handled by pool auto-recovery)
+  logger.error('[PG-POOL-ERROR] Unexpected error on idle client', {
+    error: err.message,
+    code: err.code,
+    severity: err.severity,
+  });
 });
 
 // Warm up the pool's min:1 connection immediately after module load.
@@ -90,7 +100,22 @@ async function query(text, params) {
     if (duration > 1000) logger.warn(`Slow query (${duration}ms): ${text}`);
     return result;
   } catch (err) {
-    logger.error(`Query error: ${text}`, err);
+    // Log comprehensive error details for debugging
+    logger.error('[PG-QUERY-ERROR]', {
+      error: err.message,
+      code: err.code,
+      severity: err.severity,
+      hint: err.hint,
+      detail: err.detail,
+      column: err.column,
+      position: err.position,
+      query: String(text).slice(0, 500),
+      queryLength: String(text).length,
+      paramsCount: params ? params.length : 0,
+      params: params ? params.map(p => typeof p === 'string' ? p.slice(0, 50) : p) : undefined,
+      duration: Date.now() - start,
+      stack: err.stack ? err.stack.split('\n').slice(0, 5).join('\n') : undefined,
+    });
     throw err;
   }
 }
