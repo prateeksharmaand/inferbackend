@@ -391,16 +391,18 @@ const linkCareContexts = async (req, res) => {
 
   // Prefer Aadhaar-authoritative values stored in emr_patients over request body
   const { rows: ptRows } = await pool.query(
-    `SELECT gender, EXTRACT(YEAR FROM dob)::int AS year_of_birth
+    `SELECT id, gender, EXTRACT(YEAR FROM dob)::int AS year_of_birth
      FROM emr_patients
      WHERE (abha_number=$1 OR abha_address=$2) AND deleted_at IS NULL
      LIMIT 1`,
     [abha_number, abha_address]
   );
+  const patientId           = ptRows[0]?.id;
   const resolvedGender      = ptRows[0]?.gender      ?? patientGender;
   const resolvedYearOfBirth = ptRows[0]?.year_of_birth ?? patientYearOfBirth;
 
   logger.info('ABDM demographic verification (linkCareContexts)', {
+    patientId:        patientId,
     abhaNumber:        abha_number?.slice(-4) + ' (last 4)',
     abhaAddress:       abha_address,
     gender:            resolvedGender,
@@ -413,7 +415,7 @@ const linkCareContexts = async (req, res) => {
     hipId, abha_number, abha_address, name,
     resolvedGender, resolvedYearOfBirth
   );
-  const result = await abdm.linkCareContexts(hipId, tokenRes.linkToken, abha_number, abha_address, name, careContexts);
+  const result = await abdm.linkCareContexts(hipId, tokenRes.linkToken, abha_number, abha_address, name, careContexts, patientId);
 
   for (const ctx of careContexts) {
     await pool.query(
