@@ -24,8 +24,6 @@ async function logActivity({ clinicId, req, action, resource, resourceId, detail
   ).catch(e => console.error('[activity-log]', e.message));
 }
 
-module.exports.logActivity = logActivity;
-
 const BCRYPT_ROUNDS = 12;
 
 function requireAdmin(req, res) {
@@ -398,4 +396,5 @@ module.exports = {
   listInvitations, createInvitation, revokeInvitation,
   getInvitation, acceptInvitation,
   listActivityLogs,
+  logActivity,
 };
