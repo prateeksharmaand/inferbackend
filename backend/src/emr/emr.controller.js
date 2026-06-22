@@ -131,15 +131,29 @@ const getPatient = async (req, res) => {
 };
 
 const updatePatient = async (req, res) => {
-  const { name, mobile, dob, gender, abha_number, abha_address } = req.body;
+  const { name, mobile, dob, gender, abha_number, abha_address, uhid } = req.body;
   const { rows } = await pool.query(
     `UPDATE emr_patients SET name=COALESCE($1,name), mobile=COALESCE($2,mobile),
        dob=COALESCE($3,dob), gender=COALESCE($4,gender),
-       abha_number=COALESCE($5,abha_number), abha_address=COALESCE($6,abha_address)
-     WHERE id=$7 AND deleted_at IS NULL RETURNING *`,
-    [name, mobile, dob, gender, abha_number, abha_address, req.params.id]
+       abha_number=COALESCE($5,abha_number), abha_address=COALESCE($6,abha_address),
+       uhid=COALESCE($7,uhid)
+     WHERE id=$8 AND clinic_id=$9 AND deleted_at IS NULL RETURNING *`,
+    [name, mobile, dob, gender, abha_number, abha_address, uhid, req.params.id, req.emrUser.clinic_id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Patient not found' });
+
+  logger.info('Patient updated', {
+    patientId: req.params.id,
+    updated: {
+      name: !!name,
+      mobile: !!mobile,
+      dob: !!dob,
+      gender: !!gender,
+      abha: !!abha_number,
+      uhid: !!uhid,
+    },
+  });
+
   res.json(rows[0]);
 };
 

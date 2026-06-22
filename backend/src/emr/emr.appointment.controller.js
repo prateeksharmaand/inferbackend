@@ -226,7 +226,13 @@ const createAppointment = async (req, res) => {
         error: 'Patient UHID is mandatory for appointment booking',
         code: 'MISSING_UHID',
         patientId: resolvedPatientId,
-        details: `Patient "${patientRows[0]?.name}" does not have UHID. Please assign UHID from patient's record before booking appointment.`,
+        patientName: patientRows[0]?.name,
+        message: `Patient "${patientRows[0]?.name}" does not have UHID assigned.`,
+        action: 'add_uhid',
+        actionLabel: 'Assign UHID',
+        actionEndpoint: `/api/emr/patients/${resolvedPatientId}`,
+        actionMethod: 'PATCH',
+        details: 'Click "Assign UHID" button to add UHID, then retry booking.',
       });
     }
   } else {
