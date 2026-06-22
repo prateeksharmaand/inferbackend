@@ -38,49 +38,23 @@ const pool = new Pool({
 pool.on('connect', (client) => {
   // Fires when a brand-new physical TCP connection is established to PostgreSQL.
   // idleCount will not yet include this client (it's being handed to caller).
-  logger.info('PG pool: new physical connection opened', {
-    poolTotal:   pool.totalCount,
-    poolIdle:    pool.idleCount,
-    poolWaiting: pool.waitingCount,
-    processId:   client.processID ?? 'unknown', // PostgreSQL backend PID (set after auth)
-  });
+  // Logging disabled to reduce noise
 });
 
 pool.on('acquire', (client) => {
   // Fires every time a client is checked out from the pool (new OR reused).
-  logger.debug('PG pool: client acquired', {
-    poolTotal:   pool.totalCount,
-    poolIdle:    pool.idleCount,
-    poolWaiting: pool.waitingCount,
-    processId:   client.processID ?? 'unknown',
-  });
+  // Logging disabled to reduce noise
 });
 
 pool.on('remove', (client) => {
   // Fires when a client is permanently removed (idle timeout, release(true), error).
-  // Seeing this frequently means connections are being destroyed and recreated —
-  // a sign of stale-socket churn from Neon's aggressive idle timeout.
-  logger.info('PG pool: client removed / destroyed', {
-    poolTotal:   pool.totalCount,
-    poolIdle:    pool.idleCount,
-    poolWaiting: pool.waitingCount,
-    processId:   client.processID ?? 'unknown',
-  });
+  // Seeing this frequently means connections are being destroyed and recreated.
+  // Logging disabled to reduce noise
 });
 
 pool.on('error', (err, client) => {
-  // Fires for errors on idle clients — the most common signal of a server-side
-  // TCP close (Neon, RDS) that the OS didn't immediately surface via ECONNRESET.
-  logger.error('PG pool: idle client error — stale connection removed', {
-    error:       err.message,
-    code:        err.code,
-    severity:    err.severity,
-    poolTotal:   pool.totalCount,
-    poolIdle:    pool.idleCount,
-    poolWaiting: pool.waitingCount,
-    processId:   client?.processID ?? 'unknown',
-    ACTION: 'pg pool auto-removes this client; next pool.connect() will open a fresh socket',
-  });
+  // Fires for errors on idle clients — the most common signal of a server-side TCP close.
+  // Logging disabled to reduce noise (errors are still handled by pool auto-recovery)
 });
 
 // Warm up the pool's min:1 connection immediately after module load.
@@ -91,11 +65,10 @@ pool.on('error', (err, client) => {
 // during the first health-info push.
 setImmediate(async () => {
   try {
-    const t0 = Date.now();
     await pool.query('SELECT 1');
-    logger.info('PG pool: startup warm-up ping ok', { ms: Date.now() - t0, ...poolSnapshot() });
+    // Warm-up ping completed (logging disabled)
   } catch (e) {
-    logger.warn('PG pool: startup warm-up ping failed (non-fatal)', { error: e.message });
+    // Warm-up ping failed but non-fatal (logging disabled)
   }
 });
 

@@ -5,6 +5,7 @@ const abdmSvc     = require('../services/abdm.service');
 const logger      = require('../utils/logger');
 const abdmResolver = require('../services/abdm-clinic-resolver.service');
 const { sendAppointmentConfirmation } = require('./emr.mailer');
+const { logActivity } = require('./emr.staff.controller');
 
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
   'rescheduled','follow_up','parked','no_show','aborted'];
@@ -288,8 +289,7 @@ const updateStatus = async (req, res) => {
 
   // Log appointment status change
   if (status) {
-    const { logActivity } = require('./emr.staff.controller');
-    logActivity({ req, action: `APPOINTMENT_${status.toUpperCase()}`, resource: 'appointment', resourceId: req.params.id, details: { patient_name: rows[0].patient_name, status } });
+    logActivity({ req, action: `APPOINTMENT_${status.toUpperCase()}`, resource: "appointment", resourceId: req.params.id, details: { patient_name: rows[0].patient_name, status } });
   }
 
   // Auto-create care context when consultation starts or ends (if patient is ABDM-linked)
@@ -477,53 +477,69 @@ const saveEncounter = async (req, res) => {
   await pool.query(`UPDATE emr_appointments SET status='completed', completed_at=NOW() WHERE id=$1`, [a.id]);
 
   // â”€â”€ ABDM: auto-create / update care context so this encounter is discoverable â”€â”€
-  // Rule: ONE Care Context per encounter (keyed by appointment ID + date).
-  //       Re-saving the same encounter UPDATES the existing CC (ON CONFLICT).
-  //       Clinical data (Rx, notes, labs) within the same visit reuses this CC.
-  //       A new visit on a different date gets a NEW appointment â†’ new CC ref.
+  // Architecture: ONE Care Context = ONE Visit/Encounter
+  //              ONE Care Context can contain MANY Health Records (different HI types)
+  //
+  // Example: OPD-20260622-0001 (represents the clinical visit)
+  //   ├─ OPConsultation Bundle (vitals + diagnosis + medications)
+  //   ├─ Prescription Bundle (medications only)
+  //   ├─ DiagnosticReport Bundle (lab results + vitals)
+  //   └─ WellnessRecord Bundle (assessment + vitals)
+  //
+  // This aligns with ABDM’s intent: one visit, multiple document types, granular consent
   if (a.emr_patient_id) {
-    const apptIso  = a.appointment_date instanceof Date
+    const apptIso = a.appointment_date instanceof Date
       ? a.appointment_date.toISOString().slice(0, 10)
       : String(a.appointment_date).slice(0, 10);
-    const dateStr  = apptIso.replace(/-/g, '');
-    const refNum   = `OPD-${dateStr}-${String(a.id).padStart(6, '0')}`;
-    const display  = `OPD Consultation - ${apptIso} - ${a.patient_name || 'Patient'}`;
+    const dateStr = apptIso.split("-").join("");
+    const refNum = `OPD-${dateStr}-${String(a.id).padStart(6, "0")}`;
+    const display = `OPD Consultation - ${apptIso} - ${a.patient_name || "Patient"}`;
 
-    // Build rich ABDM-compliant FHIR bundle from real encounter data
-    const abdmFhir = hip.buildFhirBundleFromEncounter(
-      { ...a, doctor_name: a.doctor_name || '' },
-      rows[0],
-      refNum
-    );
+    // Fetch patient data for FHIR bundle building
+    const patientData = (await pool.query(
+      `SELECT abha_number, name, gender, dob FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`,
+      [a.emr_patient_id]
+    )).rows[0];
 
-    // Upsert care context; reset link_status to 'pending' on content update so
+    const patient = {
+      abhaNumber: patientData?.abha_number,
+      name: patientData?.name || a.patient_name || "Patient",
+      gender: patientData?.gender || a.patient_gender || "M",
+      dob: patientData?.dob,
+      mobile: a.patient_mobile,
+    };
+
+    // Build ALL health records (multiple HI types) for this single care context
+    const healthRecords = hip.buildAllHealthRecords(patient, rows[0]);
+
+    // Upsert care context; reset link_status to ‘pending’ on content update so
     // the background linker will re-push the updated bundle to ABDM.
     pool.query(
-      `INSERT INTO emr_care_contexts (patient_id, clinic_id, reference_number, display, hi_type, fhir_content, link_status)
-       VALUES ($1,$2,$3,$4,'OPConsultation',$5,'pending')
+      `INSERT INTO emr_care_contexts (patient_id, clinic_id, reference_number, display, health_records, link_status, updated_at)
+       VALUES ($1,$2,$3,$4,$5,’pending’,NOW())
        ON CONFLICT (reference_number) DO UPDATE
-         SET display      = EXCLUDED.display,
-             fhir_content = EXCLUDED.fhir_content,
-             clinic_id    = EXCLUDED.clinic_id,
+         SET display       = EXCLUDED.display,
+             health_records = EXCLUDED.health_records,
+             clinic_id     = EXCLUDED.clinic_id,
              -- never downgrade a linked context back to pending
-             link_status  = CASE WHEN emr_care_contexts.link_status = 'linked' THEN 'linked' ELSE 'pending' END,
-             updated_at   = NOW()
+             link_status   = CASE WHEN emr_care_contexts.link_status = ‘linked’ THEN ‘linked’ ELSE ‘pending’ END,
+             updated_at    = NOW()
        RETURNING *, (xmax = 0) AS inserted`,
-      [a.emr_patient_id, a.clinic_id, refNum, display, abdmFhir]
+      [a.emr_patient_id, a.clinic_id, refNum, display, JSON.stringify(healthRecords)]
     ).then(async (upsertResult) => {
-      const row      = upsertResult.rows[0];
+      const row = upsertResult.rows[0];
       const isInsert = row?.inserted === true;
-      logger.info(isInsert ? 'ABDM Care Context created' : 'ABDM Care Context FHIR updated', {
+      logger.info(isInsert ? "ABDM Care Context created" : "ABDM Care Context updated", {
         patientId: a.emr_patient_id, referenceNumber: refNum, appointmentId: a.id,
+        healthRecordCount: healthRecords.length,
+        hiTypes: healthRecords.map(r => r.hi_type),
         linkStatus: row?.link_status,
       });
-      // Only link on fresh insert â€” status change to 'ongoing' already triggered the first link.
-      // On update (FHIR refresh), skip if already linked or pending (avoid ABDM-1092).
       if (isInsert) {
         await attemptAbdmLink(refNum, display, a.emr_patient_id, a.clinic_id);
       }
     }).catch(err => {
-      logger.error('[ABDM] care context upsert failed', {
+      logger.error("[ABDM] care context upsert failed", {
         patientId: a.emr_patient_id, referenceNumber: refNum, error: err.message,
       });
     });
@@ -569,7 +585,7 @@ const listPatientHistory = async (req, res) => {
             e.next_visit_date, e.procedures, e.examination_findings, e.refer_to,
             e.vaccinations, e.calc_results
      FROM emr_appointments a
-     LEFT JOIN emr_doctors    d ON d.id = a.doctor_id
+     LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
      WHERE a.clinic_id = $1 AND ${condition}
        AND (
@@ -596,4 +612,5 @@ const listPatientHistory = async (req, res) => {
 };
 
 module.exports = { listAppointments, createAppointment, updateStatus, getAppointment, saveEncounter, sendReminder, listPatientHistory };
+
 

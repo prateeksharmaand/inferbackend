@@ -137,6 +137,143 @@ let _tokenRefreshPromise = null; // R3-016: prevents concurrent token fetches un
 const { randomUUID } = require('crypto');
 function uuid() { return randomUUID(); }
 
+// Auto-detect best hi_type based on encounter content
+function detectHiType(encounter) {
+  if (!encounter) return 'OPConsultation';
+
+  const hasLabResults = encounter.lab_results && Array.isArray(encounter.lab_results) && encounter.lab_results.length > 0;
+  const hasAssessment = encounter.custom_sections?.some(s => s.type === 'assessment') || encounter.assessment;
+  const hasMedicationsOnly = encounter.medications?.length > 0 && !encounter.diagnosis?.length && !hasLabResults;
+  const hasDiagnosis = encounter.diagnosis && Array.isArray(encounter.diagnosis) && encounter.diagnosis.length > 0;
+  const hasVitals = encounter.vitals && Object.keys(encounter.vitals).length > 0;
+
+  if (hasLabResults && (hasVitals || hasAssessment)) return 'HealthDocumentRecord';
+  if (hasMedicationsOnly) return 'Prescription';
+  if (hasLabResults) return 'DiagnosticReport';
+  if (hasAssessment && !hasDiagnosis && !hasMedicationsOnly) return 'WellnessRecord';
+  if (encounter.refer_to) return 'DischargeSummary';
+
+  return 'OPConsultation';
+}
+
+// Generate all applicable health records (HI types) for a single Care Context (visit)
+// One Care Context = One clinical visit; Multiple Health Records = Different HI type bundles within that visit
+function buildAllHealthRecords(patient, encounter) {
+  if (!encounter) return [];
+
+  const healthRecords = [];
+  const now = new Date().toISOString();
+
+  const hasVitals = encounter.vitals && Object.keys(encounter.vitals).length > 0;
+  const hasDiagnosis = encounter.diagnosis && Array.isArray(encounter.diagnosis) && encounter.diagnosis.length > 0;
+  const hasMedications = encounter.medications && Array.isArray(encounter.medications) && encounter.medications.length > 0;
+  const hasLabResults = encounter.lab_results && Array.isArray(encounter.lab_results) && encounter.lab_results.length > 0;
+  const hasAssessment = encounter.custom_sections?.some(s => s.type === 'assessment') || encounter.assessment;
+  const hasReferral = encounter.refer_to;
+
+  // Rule 1: OPConsultation - if has vitals + diagnosis + medications
+  if (hasVitals && hasDiagnosis && hasMedications) {
+    const bundle = buildOPConsultationBundle(patient, { ...encounter, hi_type: 'OPConsultation' });
+    healthRecords.push({
+      hi_type: 'OPConsultation',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  // Rule 2: Prescription - if has medications (even if minimal)
+  if (hasMedications) {
+    const bundle = buildPrescriptionBundle(patient, { ...encounter, hi_type: 'Prescription' });
+    healthRecords.push({
+      hi_type: 'Prescription',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  // Rule 3: DiagnosticReport - if has lab results
+  if (hasLabResults) {
+    const bundle = buildDiagnosticReportBundle(patient, { ...encounter, hi_type: 'DiagnosticReport' });
+    healthRecords.push({
+      hi_type: 'DiagnosticReport',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  // Rule 4: WellnessRecord - if has assessment (with or without vitals)
+  if (hasAssessment) {
+    const bundle = buildWellnessRecordBundle(patient, { ...encounter, hi_type: 'WellnessRecord' });
+    healthRecords.push({
+      hi_type: 'WellnessRecord',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  // Rule 5: HealthDocumentRecord - if has lab results + vitals + assessment
+  if (hasLabResults && (hasVitals || hasAssessment)) {
+    const bundle = buildHealthDocumentRecordBundle(patient, { ...encounter, hi_type: 'HealthDocumentRecord' });
+    healthRecords.push({
+      hi_type: 'HealthDocumentRecord',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  // Rule 6: DischargeSummary - if has referral
+  if (hasReferral) {
+    const bundle = buildDischargeSummaryBundle(patient, { ...encounter, hi_type: 'DischargeSummary' });
+    healthRecords.push({
+      hi_type: 'DischargeSummary',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  // Rule 7: ImmunizationRecord - if has vaccine prescriptions or immunization procedures
+  const hasVaccines = hasMedications && encounter.medications.some(m =>
+    m.name?.toLowerCase().includes('vaccin') ||
+    m.name?.toLowerCase().includes('vaccine') ||
+    m.type === 'immunization'
+  );
+  const hasImmunizations = encounter.procedures && Array.isArray(encounter.procedures) &&
+    encounter.procedures.some(p => p.type === 'immunization' || p.name?.toLowerCase().includes('vaccin'));
+
+  if (hasVaccines || hasImmunizations) {
+    const bundle = buildImmunizationBundle(patient, { ...encounter, hi_type: 'ImmunizationRecord' });
+    healthRecords.push({
+      hi_type: 'ImmunizationRecord',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  // Rule 8: Invoice - if visit occurred (all visits have billing)
+  // In production, check actual billing/charges table; for now, create for all visits
+  const hasVisitOccurred = !!encounter.created_at || hasVitals || hasDiagnosis;
+  if (hasVisitOccurred) {
+    const bundle = buildInvoiceBundle(patient, { ...encounter, hi_type: 'Invoice' });
+    healthRecords.push({
+      hi_type: 'Invoice',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  // Fallback: If no records generated, create OPConsultation
+  if (healthRecords.length === 0) {
+    const bundle = buildOPConsultationBundle(patient, { ...encounter, hi_type: 'OPConsultation' });
+    healthRecords.push({
+      hi_type: 'OPConsultation',
+      fhir_content: bundle,
+      created_at: now,
+    });
+  }
+
+  return healthRecords;
+}
+
 async function getToken() {
   if (_token && Date.now() < _tokenExpiry) return _token;
   if (_tokenRefreshPromise) return _tokenRefreshPromise;
@@ -504,7 +641,11 @@ function buildFhirBundle(patient, careContext) {
     case 'DischargeSummary':
       return buildDischargeSummaryBundle(patient, careContext);
     case 'HealthDocumentRecord':
+      return buildHealthDocumentRecordBundle(patient, careContext);
     case 'WellnessRecord':
+      return buildWellnessRecordBundle(patient, careContext);
+    case 'Invoice':
+      return buildInvoiceBundle(patient, careContext);
     default:
       return buildOPConsultationBundle(patient, careContext); // Fallback
   }
@@ -927,6 +1068,114 @@ function buildImmunizationBundle(patient, careContext) {
   });
 }
 
+// M3-FHIR: Invoice - Billing/charges for the clinical visit
+function buildInvoiceBundle(patient, careContext) {
+  const now = new Date().toISOString();
+  const hipId = HIP_ID || 'infer-hip';
+  const bundleId = uuid().toLowerCase();
+  const compositionId = uuid().toLowerCase();
+  const patientId = uuid().toLowerCase();
+  const practitionerId = uuid().toLowerCase();
+  const orgId = uuid().toLowerCase();
+  const chargeId1 = uuid().toLowerCase();
+  const chargeId2 = uuid().toLowerCase();
+  const periodStart = careContext.created_at ? new Date(careContext.created_at).toISOString() : now;
+
+  // Sample charges (in production, would come from billing system)
+  const chargeItems = [];
+
+  const charges = [
+    { description: 'Consultation Fee', amount: 50000 }, // 500 INR in paise
+    { description: 'Lab Tests', amount: 30000 }, // 300 INR in paise
+  ];
+
+  charges.forEach((charge, idx) => {
+    chargeItems.push({
+      fullUrl: `urn:uuid:${idx === 0 ? chargeId1 : chargeId2}`,
+      resource: {
+        resourceType: 'ChargeItem',
+        id: idx === 0 ? chargeId1 : chargeId2,
+        status: 'billable',
+        code: { text: charge.description },
+        subject: { reference: `urn:uuid:${patientId}` },
+        occurrenceDateTime: periodStart,
+        performer: [{ actor: { reference: `urn:uuid:${practitionerId}` } }],
+        priceComponent: [
+          {
+            type: 'base',
+            amount: {
+              value: charge.amount / 100, // Convert from paise to rupees
+              currency: 'INR',
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  return JSON.stringify({
+    resourceType: 'Bundle',
+    id: bundleId,
+    identifier: { system: `https://${hipId}.hip.abdm.gov.in/bundles`, value: bundleId },
+    type: 'document',
+    timestamp: now,
+    entry: [
+      {
+        fullUrl: `urn:uuid:${compositionId}`,
+        resource: {
+          resourceType: 'Composition',
+          id: compositionId,
+          identifier: { system: 'https://ndhm.in/phr', value: compositionId },
+          status: 'final',
+          type: { coding: [{ system: 'http://snomed.info/sct', code: '721911000', display: 'Invoice' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          author: [{ reference: `urn:uuid:${orgId}` }],
+          date: now,
+          title: careContext.display || 'Invoice',
+          section: [
+            {
+              title: 'Charges',
+              code: { coding: [{ system: 'http://snomed.info/sct', code: '721912009' }] },
+              entry: charges.map((_, idx) => ({ reference: `urn:uuid:${idx === 0 ? chargeId1 : chargeId2}` })),
+            },
+          ],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${patientId}`,
+        resource: {
+          resourceType: 'Patient',
+          id: patientId,
+          identifier: patient.abhaNumber ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] }, system: 'https://abha.abdm.gov.in', value: patient.abhaNumber }] : [],
+          name: [{ text: patient.name }],
+          gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
+          birthDate: patient.dob ? new Date(patient.dob).toISOString().slice(0, 10) : undefined,
+          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${practitionerId}`,
+        resource: {
+          resourceType: 'Practitioner',
+          id: practitionerId,
+          identifier: [{ system: 'https://doctor.ndhm.gov.in', value: hipId }],
+          name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${orgId}`,
+        resource: {
+          resourceType: 'Organization',
+          id: orgId,
+          identifier: [{ system: 'https://facility.ndhm.gov.in', value: hipId }],
+          name: process.env.HIP_ORG_NAME || 'Infer Care Clinic',
+        },
+      },
+      ...chargeItems,
+    ],
+  });
+}
+
 // M3-FHIR: DischargeSummary - Hospital discharge with encounter, conditions, medications
 function buildDischargeSummaryBundle(patient, careContext) {
   const now            = new Date().toISOString();
@@ -1037,6 +1286,259 @@ function buildDischargeSummaryBundle(patient, careContext) {
           content: [{ attachment: { contentType: 'application/pdf', data: 'RGlzY2hhcmdlIFN1bW1hcnk=' } }],
         },
       },
+    ],
+  });
+}
+
+// M3-FHIR: HealthDocumentRecord - Generic health document (lab reports, imaging, test results)
+function buildHealthDocumentRecordBundle(patient, careContext) {
+  const now            = new Date().toISOString();
+  const hipId          = HIP_ID || 'infer-hip';
+  const bundleId       = uuid().toLowerCase();
+  const compositionId  = uuid().toLowerCase();
+  const patientId      = uuid().toLowerCase();
+  const practitionerId = uuid().toLowerCase();
+  const periodStart    = careContext.created_at ? new Date(careContext.created_at).toISOString() : now;
+
+  const labRefs = [];
+  const labEntries = (careContext.lab_results || [])
+    .filter(r => r && (r.test || r.name))
+    .map(r => {
+      const id = uuid().toLowerCase();
+      labRefs.push(`urn:uuid:${id}`);
+      return {
+        fullUrl: `urn:uuid:${id}`,
+        resource: {
+          resourceType: 'Observation',
+          id,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'laboratory' }] }],
+          code: { text: r.test || r.name },
+          subject: { reference: `urn:uuid:${patientId}` },
+          effectiveDateTime: periodStart,
+          valueString: `${r.result || ''}${r.unit ? ' ' + r.unit : ''}`,
+          referenceRange: r.range ? [{ text: r.range }] : undefined,
+        },
+      };
+    });
+
+  const vitalRefs = [];
+  const VITAL_LOINC = {
+    bp_systolic:      { code: '8480-6',  display: 'Systolic blood pressure', unit: 'mm[Hg]' },
+    bp_diastolic:     { code: '8462-4',  display: 'Diastolic blood pressure', unit: 'mm[Hg]' },
+    pulse:            { code: '8867-4',  display: 'Heart rate', unit: '/min' },
+    spo2:             { code: '2708-6',  display: 'Oxygen saturation', unit: '%' },
+    temp:             { code: '8310-5',  display: 'Body temperature', unit: '[degF]' },
+    respiratory_rate: { code: '9279-1',  display: 'Respiratory rate', unit: '/min' },
+    height:           { code: '8302-2',  display: 'Body height', unit: 'cm' },
+    weight:           { code: '29463-7', display: 'Body weight', unit: 'kg' },
+    bmi:              { code: '39156-5', display: 'Body mass index', unit: 'kg/m2' },
+  };
+
+  const vitals = careContext.vitals || {};
+  const vitalEntries = Object.entries(VITAL_LOINC)
+    .filter(([k]) => vitals[k] != null && vitals[k] !== '')
+    .map(([k, meta]) => {
+      const num = parseFloat(vitals[k]);
+      if (isNaN(num)) return null;
+      const id = uuid().toLowerCase();
+      vitalRefs.push(`urn:uuid:${id}`);
+      return {
+        fullUrl: `urn:uuid:${id}`,
+        resource: {
+          resourceType: 'Observation',
+          id,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs' }] }],
+          code: { coding: [{ system: 'http://loinc.org', code: meta.code, display: meta.display }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          effectiveDateTime: periodStart,
+          valueQuantity: { value: num, unit: meta.unit, system: 'http://unitsofmeasure.org', code: meta.unit },
+        },
+      };
+    })
+    .filter(Boolean);
+
+  const sections = [];
+  if (vitalRefs.length) sections.push({ title: 'Vitals', code: { coding: [{ system: 'http://snomed.info/sct', code: '75367002' }] }, entry: vitalRefs.map(r => ({ reference: r })) });
+  if (careContext.examination_findings) sections.push({ title: 'Examination Findings', code: { coding: [{ system: 'http://snomed.info/sct', code: '249037004' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml">${careContext.examination_findings}</div>` } });
+  if (labRefs.length) sections.push({ title: 'Laboratory Results', code: { coding: [{ system: 'http://snomed.info/sct', code: '721963009' }] }, entry: labRefs.map(r => ({ reference: r })) });
+
+  const assessment = careContext.custom_sections?.find(s => s.type === 'assessment') || careContext.assessment;
+  if (assessment) {
+    const assessmentText = `Risk Level: ${assessment.risk_level} (${assessment.risk_score}/100)\n\n${assessment.summary}\n\nFindings: ${(assessment.findings || []).join(', ')}\n\nRecommendations: ${(assessment.recommendations || []).join(', ')}`;
+    sections.push({ title: 'Health Assessment', code: { coding: [{ system: 'http://snomed.info/sct', code: '273365007', display: 'Assessment' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml">${assessmentText.replace(/\n/g, '<br/>')}</div>` } });
+  }
+
+  if (careContext.notes) sections.push({ title: 'Notes', code: { coding: [{ system: 'http://snomed.info/sct', code: '1143599005' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml">${careContext.notes}</div>` } });
+
+  return JSON.stringify({
+    resourceType: 'Bundle',
+    id: bundleId,
+    identifier: { system: `https://${hipId}.hip.abdm.gov.in/bundles`, value: bundleId },
+    type: 'document',
+    timestamp: now,
+    entry: [
+      {
+        fullUrl: `urn:uuid:${compositionId}`,
+        resource: {
+          resourceType: 'Composition',
+          id: compositionId,
+          identifier: { system: 'https://ndhm.in/phr', value: compositionId },
+          status: 'final',
+          type: { coding: [{ system: 'http://snomed.info/sct', code: '722180009', display: 'Health document' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          author: [{ reference: `urn:uuid:${practitionerId}` }],
+          date: now,
+          title: careContext.display || 'Health Document',
+          section: sections,
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${patientId}`,
+        resource: {
+          resourceType: 'Patient',
+          id: patientId,
+          identifier: patient.abhaNumber ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] }, system: 'https://abha.abdm.gov.in', value: patient.abhaNumber }] : [],
+          name: [{ text: patient.name }],
+          gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
+          birthDate: patient.dob ? new Date(patient.dob).toISOString().slice(0, 10) : undefined,
+          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${practitionerId}`,
+        resource: {
+          resourceType: 'Practitioner',
+          id: practitionerId,
+          identifier: [{ system: 'https://doctor.ndhm.gov.in', value: hipId }],
+          name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
+        },
+      },
+      ...vitalEntries,
+      ...labEntries,
+    ],
+  });
+}
+
+// M3-FHIR: WellnessRecord - Preventive care and wellness visit
+function buildWellnessRecordBundle(patient, careContext) {
+  const now            = new Date().toISOString();
+  const hipId          = HIP_ID || 'infer-hip';
+  const bundleId       = uuid().toLowerCase();
+  const compositionId  = uuid().toLowerCase();
+  const patientId      = uuid().toLowerCase();
+  const practitionerId = uuid().toLowerCase();
+  const encounterId    = uuid().toLowerCase();
+  const periodStart    = careContext.created_at ? new Date(careContext.created_at).toISOString() : now;
+
+  const vitalRefs = [];
+  const VITAL_LOINC = {
+    bp_systolic:      { code: '8480-6',  display: 'Systolic blood pressure', unit: 'mm[Hg]' },
+    bp_diastolic:     { code: '8462-4',  display: 'Diastolic blood pressure', unit: 'mm[Hg]' },
+    pulse:            { code: '8867-4',  display: 'Heart rate', unit: '/min' },
+    spo2:             { code: '2708-6',  display: 'Oxygen saturation', unit: '%' },
+    temp:             { code: '8310-5',  display: 'Body temperature', unit: '[degF]' },
+    respiratory_rate: { code: '9279-1',  display: 'Respiratory rate', unit: '/min' },
+    height:           { code: '8302-2',  display: 'Body height', unit: 'cm' },
+    weight:           { code: '29463-7', display: 'Body weight', unit: 'kg' },
+    bmi:              { code: '39156-5', display: 'Body mass index', unit: 'kg/m2' },
+  };
+
+  const vitals = careContext.vitals || {};
+  const vitalEntries = Object.entries(VITAL_LOINC)
+    .filter(([k]) => vitals[k] != null && vitals[k] !== '')
+    .map(([k, meta]) => {
+      const num = parseFloat(vitals[k]);
+      if (isNaN(num)) return null;
+      const id = uuid().toLowerCase();
+      vitalRefs.push(`urn:uuid:${id}`);
+      return {
+        fullUrl: `urn:uuid:${id}`,
+        resource: {
+          resourceType: 'Observation',
+          id,
+          status: 'final',
+          category: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/observation-category', code: 'vital-signs' }] }],
+          code: { coding: [{ system: 'http://loinc.org', code: meta.code, display: meta.display }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          effectiveDateTime: periodStart,
+          valueQuantity: { value: num, unit: meta.unit, system: 'http://unitsofmeasure.org', code: meta.unit },
+        },
+      };
+    })
+    .filter(Boolean);
+
+  const sections = [];
+  if (careContext.symptoms) sections.push({ title: 'Symptoms', code: { coding: [{ system: 'http://snomed.info/sct', code: '422400008' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml">${Array.isArray(careContext.symptoms) ? careContext.symptoms.map(s => s.display || s.code).join(', ') : careContext.symptoms}</div>` } });
+  if (vitalRefs.length) sections.push({ title: 'Vital Signs', code: { coding: [{ system: 'http://snomed.info/sct', code: '75367002' }] }, entry: vitalRefs.map(r => ({ reference: r })) });
+
+  const assessment = careContext.custom_sections?.find(s => s.type === 'assessment') || careContext.assessment;
+  if (assessment) {
+    const riskColor = assessment.risk_level === 'critical' ? 'red' : assessment.risk_level === 'high' ? 'orange' : assessment.risk_level === 'moderate' ? 'yellow' : 'green';
+    const assessmentText = `<strong>Risk Assessment: ${assessment.risk_level.toUpperCase()}</strong> (Score: ${assessment.risk_score}/100)<br/><br/>${assessment.summary}<br/><br/><strong>Findings:</strong> ${(assessment.findings || []).join(', ')}<br/><br/><strong>Recommendations:</strong> ${(assessment.recommendations || []).join(', ')}<br/><br/><strong>When to see doctor:</strong> ${assessment.when_to_see_doctor}`;
+    sections.push({ title: 'Wellness Assessment', code: { coding: [{ system: 'http://snomed.info/sct', code: '273365007', display: 'Assessment' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml" style="color: ${riskColor};">${assessmentText}</div>` } });
+  }
+
+  if (careContext.advices) sections.push({ title: 'Health Advice', code: { coding: [{ system: 'http://snomed.info/sct', code: '419291009' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml">${careContext.advices}</div>` } });
+  if (careContext.next_visit_notes) sections.push({ title: 'Follow-up Plan', code: { coding: [{ system: 'http://snomed.info/sct', code: '734163000' }] }, text: { status: 'generated', div: `<div xmlns="http://www.w3.org/1999/xhtml">${careContext.next_visit_notes}${careContext.next_visit_date ? ` | Next visit: ${careContext.next_visit_date}` : ''}</div>` } });
+
+  return JSON.stringify({
+    resourceType: 'Bundle',
+    id: bundleId,
+    identifier: { system: `https://${hipId}.hip.abdm.gov.in/bundles`, value: bundleId },
+    type: 'document',
+    timestamp: now,
+    entry: [
+      {
+        fullUrl: `urn:uuid:${compositionId}`,
+        resource: {
+          resourceType: 'Composition',
+          id: compositionId,
+          identifier: { system: 'https://ndhm.in/phr', value: compositionId },
+          status: 'final',
+          type: { coding: [{ system: 'http://snomed.info/sct', code: '723560008', display: 'Wellness record' }] },
+          subject: { reference: `urn:uuid:${patientId}` },
+          author: [{ reference: `urn:uuid:${practitionerId}` }],
+          date: now,
+          title: careContext.display || 'Wellness Visit',
+          section: sections,
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${patientId}`,
+        resource: {
+          resourceType: 'Patient',
+          id: patientId,
+          identifier: patient.abhaNumber ? [{ type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'MR' }] }, system: 'https://abha.abdm.gov.in', value: patient.abhaNumber }] : [],
+          name: [{ text: patient.name }],
+          gender: patient.gender === 'M' ? 'male' : patient.gender === 'F' ? 'female' : 'other',
+          birthDate: patient.dob ? new Date(patient.dob).toISOString().slice(0, 10) : undefined,
+          telecom: patient.mobile ? [{ system: 'phone', value: patient.mobile, use: 'mobile' }] : [],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${practitionerId}`,
+        resource: {
+          resourceType: 'Practitioner',
+          id: practitionerId,
+          identifier: [{ system: 'https://doctor.ndhm.gov.in', value: hipId }],
+          name: [{ text: process.env.HIP_PRACTITIONER_NAME || 'Infer EMR' }],
+        },
+      },
+      {
+        fullUrl: `urn:uuid:${encounterId}`,
+        resource: {
+          resourceType: 'Encounter',
+          id: encounterId,
+          status: 'finished',
+          class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB', display: 'ambulatory' },
+          type: [{ coding: [{ system: 'http://snomed.info/sct', code: '410620009', display: 'Preventive consultation' }] }],
+          subject: { reference: `urn:uuid:${patientId}` },
+          period: { start: periodStart, end: periodStart },
+        },
+      },
+      ...vitalEntries,
     ],
   });
 }
@@ -1595,4 +2097,4 @@ async function pushHealthData({ dataPushUrl, transactionId, careContexts, patien
   }
 }
 
-module.exports = { uuid, gwGet, gwPost, gwPostWithRetry, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResultWithRetry, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, buildFhirBundleFromEncounter, sendShareProfileAck };
+module.exports = { uuid, gwGet, gwPost, gwPostWithRetry, hiecmPost, sendDiscoverResult, sendLinkInitResult, sendLinkConfirmResultWithRetry, sendHealthInfoOnRequest, pushHealthData, buildFhirBundle, buildFhirBundleFromEncounter, sendShareProfileAck, detectHiType, buildAllHealthRecords };
