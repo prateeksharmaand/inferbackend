@@ -173,7 +173,8 @@ router.get('/analytics/demographics', verifyLabToken, async (req, res) => {
                 ELSE '60+' END AS age_group,
            COUNT(*) AS cnt
          FROM lab_orders o
-         JOIN emr_appointments a ON a.uhid = o.patient_uhid
+         JOIN patient_clinics pc ON pc.uhid = o.patient_uhid
+         JOIN emr_patients a ON a.id = pc.patient_id
          WHERE o.lab_id = $1 AND o.created_at >= $2 AND a.patient_dob IS NOT NULL
          GROUP BY 1 ORDER BY 1`,
         [lab_id, since.toISOString()]
@@ -181,7 +182,8 @@ router.get('/analytics/demographics', verifyLabToken, async (req, res) => {
       query(
         `SELECT COALESCE(a.patient_gender, 'Unknown') AS gender, COUNT(*) AS cnt
          FROM lab_orders o
-         JOIN emr_appointments a ON a.uhid = o.patient_uhid
+         JOIN patient_clinics pc ON pc.uhid = o.patient_uhid
+         JOIN emr_patients a ON a.id = pc.patient_id
          WHERE o.lab_id = $1 AND o.created_at >= $2
          GROUP BY 1`,
         [lab_id, since.toISOString()]

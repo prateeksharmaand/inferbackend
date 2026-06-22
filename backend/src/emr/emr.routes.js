@@ -459,19 +459,17 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
     let uhid = req.query.uhid || null;
     if (!uhid) {
       const { rows: uhidRows } = await pool.query(
-        `SELECT MAX(uhid) AS uhid FROM emr_appointments WHERE emr_patient_id = $1 AND uhid IS NOT NULL`,
+        `SELECT uhid FROM patient_clinics WHERE patient_id::text = $1 AND uhid IS NOT NULL LIMIT 1`,
         [req.params.id]
       );
       uhid = uhidRows[0]?.uhid || null;
     }
-    // Also try matching by appointment patient_id column (UUID) in case emr_patient_id differs
+    // Also try matching by patient_id via patient_clinics
     if (!uhid && req.params.id && req.params.id !== 'unknown') {
       const { rows: uhidRows2 } = await pool.query(
-        `SELECT MAX(uhid) AS uhid FROM emr_appointments WHERE uhid IS NOT NULL AND (
-          emr_patient_id::text = $1 OR patient_mobile IN (
-            SELECT mobile FROM emr_patients WHERE id::text = $1 AND deleted_at IS NULL
-          )
-        )`,
+        `SELECT pc.uhid FROM patient_clinics pc
+         JOIN emr_patients p ON p.id = pc.patient_id
+         WHERE p.id::text = $1 AND pc.uhid IS NOT NULL AND p.deleted_at IS NULL LIMIT 1`,
         [req.params.id]
       );
       uhid = uhidRows2[0]?.uhid || null;

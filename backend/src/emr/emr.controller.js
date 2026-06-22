@@ -11,12 +11,10 @@ const abdmResolver = require('../services/abdm-clinic-resolver.service');
 const listPatients = async (req, res) => {
   const { q } = req.query;
   const clinicId = req.emrUser?.clinic_id;
-  // SEC-009: no SQL interpolation — uhidSub uses $3 parameter (passed below)
+  // SEC-009: no SQL interpolation — fetch UHID from patient_clinics
   const uhidSub = clinicId
-    ? `(SELECT a.uhid FROM emr_appointments a
-        WHERE a.patient_mobile = p.mobile AND a.uhid IS NOT NULL AND a.uhid != ''
-          AND a.clinic_id = $3
-        ORDER BY a.created_at DESC LIMIT 1) AS uhid`
+    ? `(SELECT pc.uhid FROM patient_clinics pc
+        WHERE pc.patient_id = p.id AND pc.clinic_id = $3 AND pc.uhid IS NOT NULL) AS uhid`
     : `NULL AS uhid`;
 
   if (q && q.trim().length >= 2) {
@@ -24,7 +22,7 @@ const listPatients = async (req, res) => {
     const prefix = `${q.trim()}%`;
     const cid    = parseInt(clinicId, 10);
 
-    // 1. Search the patient registry (name, mobile, ABHA, or UHID from appointments)
+    // 1. Search the patient registry (name, mobile, ABHA, or UHID from patient_clinics)
     // SEC-018: exclude soft-deleted patients
     const { rows: regRows } = await pool.query(
       `SELECT p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
@@ -34,10 +32,10 @@ const listPatients = async (req, res) => {
        WHERE p.deleted_at IS NULL
          AND (LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
           OR EXISTS (
-            SELECT 1 FROM emr_appointments ax
-            WHERE ax.patient_mobile = p.mobile
-              AND LOWER(ax.uhid) LIKE $1
-              AND ax.clinic_id = $3
+            SELECT 1 FROM patient_clinics pcx
+            WHERE pcx.patient_id = p.id
+              AND LOWER(pcx.uhid) LIKE $1
+              AND pcx.clinic_id = $3
           ))
        GROUP BY p.id ORDER BY p.name LIMIT 10`,
       [term, prefix, cid]
@@ -54,12 +52,11 @@ const listPatients = async (req, res) => {
               patient_abha   AS abha_number,
               NULL           AS abha_address,
               0              AS context_count,
-              MAX(uhid)      AS uhid
+              NULL           AS uhid
        FROM emr_appointments
        WHERE clinic_id = $3
          AND (LOWER(patient_name) LIKE $1
               OR patient_mobile   LIKE $2
-              OR LOWER(uhid)      LIKE $1
               OR patient_abha     LIKE $2)
        GROUP BY patient_name, patient_mobile, patient_dob, patient_gender, patient_abha
        ORDER BY patient_name
@@ -72,13 +69,11 @@ const listPatients = async (req, res) => {
     return res.json([...regRows, ...unique].slice(0, 10));
   }
 
-  // Full-list path: uhidSub uses $1 here (not $3 — that's only in the search path)
+  // Full-list path: fetch UHID from patient_clinics
   // SEC-018: exclude soft-deleted patients
   const fullUhid = clinicId
-    ? `(SELECT a.uhid FROM emr_appointments a
-        WHERE a.patient_mobile = p.mobile AND a.uhid IS NOT NULL AND a.uhid != ''
-          AND a.clinic_id = $1
-        ORDER BY a.created_at DESC LIMIT 1) AS uhid`
+    ? `(SELECT pc.uhid FROM patient_clinics pc
+        WHERE pc.patient_id = p.id AND pc.clinic_id = $1 AND pc.uhid IS NOT NULL) AS uhid`
     : `NULL AS uhid`;
 
   const { rows } = await pool.query(
