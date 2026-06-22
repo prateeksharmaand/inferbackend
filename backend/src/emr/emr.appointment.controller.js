@@ -616,7 +616,7 @@ const listPatientHistory = async (req, res) => {
   const { rows } = await pool.query(
     `SELECT a.id, a.appointment_date, a.appointment_time, a.status,
             a.patient_name, a.patient_mobile, a.patient_gender, a.patient_dob,
-            a.patient_abha, a.uhid, a.visit_type, a.channel,
+            a.patient_abha, pc.uhid, a.visit_type, a.channel,
             a.medical_history, a.checked_in_at, a.completed_at,
             d.name AS doctor_name,
             e.id             AS encounter_id,
@@ -626,6 +626,7 @@ const listPatientHistory = async (req, res) => {
             e.next_visit_date, e.procedures, e.examination_findings, e.refer_to,
             e.vaccinations, e.calc_results
      FROM emr_appointments a
+     LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
      LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
      WHERE a.clinic_id = $1 AND ${condition}

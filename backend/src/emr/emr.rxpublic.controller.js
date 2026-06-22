@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Public prescription endpoint.
  * Security: generates a random 32-char token stored in the DB on first request.
- * Token is stable — same appointment always gets the same token.
+ * Token is stable â€” same appointment always gets the same token.
  * Works correctly with sequential integer IDs.
  */
 const crypto   = require('crypto');
@@ -25,7 +25,7 @@ async function getOrCreateToken(apptId) {
   return token;
 }
 
-// GET /api/emr/appointments/:id/rx-token  (protected — doctor fetches QR URL)
+// GET /api/emr/appointments/:id/rx-token  (protected â€” doctor fetches QR URL)
 exports.getRxToken = async (req, res) => {
   const { id } = req.params;
 
@@ -41,7 +41,7 @@ exports.getRxToken = async (req, res) => {
     try {
       token = await getOrCreateToken(id);
     } catch (colErr) {
-      // Column doesn't exist yet — fall back to no-token URL (graceful degradation)
+      // Column doesn't exist yet â€” fall back to no-token URL (graceful degradation)
       token = null;
     }
 
@@ -57,7 +57,7 @@ exports.getRxToken = async (req, res) => {
   }
 };
 
-// GET /api/emr/public/rx/:apptId?t=token  (public — patient opens QR link)
+// GET /api/emr/public/rx/:apptId?t=token  (public â€” patient opens QR link)
 exports.getPublicRx = async (req, res) => {
   const { apptId } = req.params;
   const { t }      = req.query;
@@ -65,7 +65,7 @@ exports.getPublicRx = async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT a.id, a.appointment_date, a.patient_name, a.patient_age,
-              a.patient_gender, a.patient_dob, a.uhid, a.rx_public_token,
+              a.patient_gender, a.patient_dob, pc.uhid, a.rx_public_token,
               c.name           AS clinic_name,
               c.address        AS clinic_address,
               c.phone          AS clinic_phone,
@@ -86,8 +86,9 @@ exports.getPublicRx = async (req, res) => {
               e.refer_to,
               e.procedures
        FROM emr_appointments a
+       LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
        LEFT JOIN emr_clinics   c ON c.id = a.clinic_id
-       LEFT JOIN emr_doctors   d ON d.id = a.doctor_id
+       LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
        LEFT JOIN emr_encounters e ON e.appointment_id = a.id
        WHERE a.id = $1`,
       [apptId],
@@ -139,3 +140,4 @@ exports.getPublicRx = async (req, res) => {
     res.status(500).json({ error: 'Could not load prescription' });
   }
 };
+

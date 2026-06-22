@@ -39,15 +39,16 @@ router.get('/search', verifyLabToken, async (req, res) => {
               a.patient_dob             AS dob,
               a.patient_gender          AS gender,
               a.patient_abha            AS abha_number,
-              a.uhid                    AS uhid
+              pc.uhid                   AS uhid
        FROM emr_appointments a
+       LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
        WHERE (LOWER(a.patient_name) LIKE LOWER($1)
               OR a.patient_mobile LIKE $1
-              OR LOWER(COALESCE(a.uhid, '')) LIKE LOWER($1)
+              OR LOWER(COALESCE(pc.uhid, '')) LIKE LOWER($1)
               OR LOWER(COALESCE(a.patient_abha, '')) LIKE LOWER($1))
          ${clinicFilter}
        ORDER BY LOWER(COALESCE(NULLIF(a.patient_mobile, ''), a.patient_name)),
-                (a.uhid IS NOT NULL) DESC, a.created_at DESC
+                (pc.uhid IS NOT NULL) DESC, a.created_at DESC
        LIMIT 15`,
       apptParams
     );
@@ -60,10 +61,7 @@ router.get('/search', verifyLabToken, async (req, res) => {
               p.dob,
               p.gender,
               p.abha_number,
-              (SELECT MAX(a.uhid)
-               FROM emr_appointments a
-               WHERE a.patient_mobile = p.mobile
-                 AND a.uhid IS NOT NULL AND a.uhid != '') AS uhid
+              (SELECT uhid FROM patient_clinics WHERE patient_id = p.id AND uhid IS NOT NULL LIMIT 1) AS uhid
        FROM emr_patients p
        WHERE LOWER(p.name) LIKE LOWER($1)
           OR p.mobile LIKE $1
@@ -187,10 +185,7 @@ router.get('/:id', verifyLabToken, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT p.*,
-              (SELECT MAX(a.uhid)
-               FROM emr_appointments a
-               WHERE a.patient_mobile = p.mobile
-                 AND a.uhid IS NOT NULL AND a.uhid != '') AS uhid
+              (SELECT uhid FROM patient_clinics WHERE patient_id = p.id AND uhid IS NOT NULL LIMIT 1) AS uhid
        FROM emr_patients p WHERE p.id = $1`,
       [req.params.id]
     );

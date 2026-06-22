@@ -1,10 +1,10 @@
-const axios = require('axios');
+﻿const axios = require('axios');
 const logger = require('../utils/logger');
 
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-// ── Prompts ───────────────────────────────────────────────────────────────────
+// â”€â”€ Prompts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const CHAT_SYSTEM_PROMPT = `You are InferAssist, an intelligent clinical decision-support copilot built for doctors in India. Always respond in English regardless of the language of the question.
 
@@ -19,11 +19,11 @@ You assist with:
 Format rules:
 - Use **bold** for drug names, key warnings, and critical values
 - Use bullet lists or numbered steps for treatment protocols
-- Be concise — doctors need quick answers, not long essays
+- Be concise â€” doctors need quick answers, not long essays
 - Always note important contraindications or safety caveats
 - If a patient context is provided, tailor your answer to that specific patient
 - End medical advice with: *Always verify with current guidelines and your clinical judgment.*
-- Do NOT hallucinate drug doses — if uncertain, say so and recommend consulting a formulary.`;
+- Do NOT hallucinate drug doses â€” if uncertain, say so and recommend consulting a formulary.`;
 
 const DOC_PROMPTS = {
   soap: (context, patient) => `Generate a structured SOAP note for a physician.
@@ -31,16 +31,16 @@ ${patient ? `Patient: ${patient}` : ''}
 ${context ? `Clinical context: ${context}` : 'Use a realistic example if no context provided.'}
 
 Format exactly as:
-**S – Subjective**
+**S â€“ Subjective**
 (Chief complaint, HPI, symptoms, patient-reported history)
 
-**O – Objective**
+**O â€“ Objective**
 (Vitals, examination findings, investigations)
 
-**A – Assessment**
+**A â€“ Assessment**
 (Diagnosis / differential diagnoses with ICD-10 codes if possible)
 
-**P – Plan**
+**P â€“ Plan**
 (Medications with dose/frequency, investigations ordered, referrals, follow-up)
 
 Be clinically specific and use proper medical terminology.`,
@@ -75,7 +75,7 @@ Date: [Today's date]
 
 Dear Dr. [Specialist Name],
 
-[Opening paragraph — reason for referral]
+[Opening paragraph â€” reason for referral]
 
 **Clinical Summary:**
 [Brief history, diagnosis, current management]
@@ -147,7 +147,7 @@ Format:
 *Note: Prescriber must verify doses and review for patient-specific contraindications.*`,
 };
 
-// ── Groq helper ───────────────────────────────────────────────────────────────
+// â”€â”€ Groq helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function callGroq(messages, maxTokens = 1024) {
   if (!process.env.GROQ_API_KEY) return null;
@@ -167,9 +167,9 @@ async function callGroq(messages, maxTokens = 1024) {
   return response.data?.choices?.[0]?.message?.content || null;
 }
 
-// ── Chat endpoint ─────────────────────────────────────────────────────────────
+// â”€â”€ Chat endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Patient context fetch ─────────────────────────────────────────────────────
+// â”€â”€ Patient context fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.getPatientContext = async (req, res) => {
   const { pool } = require('../config/database');
@@ -179,30 +179,31 @@ exports.getPatientContext = async (req, res) => {
   try {
     // Step 1: get mobile/name from the appointment itself to use the proven history query
     const { rows: [apptRow] } = await pool.query(
-      `SELECT patient_name, patient_mobile, patient_dob, patient_gender, uhid, emr_patient_id
-       FROM emr_appointments
-       WHERE (emr_patient_id=$1 OR uhid=(SELECT MAX(uhid) FROM emr_appointments WHERE emr_patient_id=$1 AND clinic_id=$2))
-         AND clinic_id=$2
-       ORDER BY appointment_date DESC LIMIT 1`,
+      `SELECT a.patient_name, a.patient_mobile, a.patient_dob, a.patient_gender, a.emr_patient_id, pc.uhid
+       FROM emr_appointments a
+       LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
+       WHERE a.emr_patient_id=$1 AND a.clinic_id=$2
+       ORDER BY a.appointment_date DESC LIMIT 1`,
       [patientId, clinic_id]
     );
 
     const mobile = apptRow?.patient_mobile;
     const uhid   = apptRow?.uhid;
 
-    // Step 2: use the same query as /patients/history — proven to return full encounter data
+    // Step 2: use the same query as /patients/history â€” proven to return full encounter data
     let rows = [];
     if (mobile) {
       const { rows: byMobile } = await pool.query(
         `SELECT a.id, a.appointment_date, a.appointment_time, a.status,
-                a.patient_name, a.patient_mobile, a.patient_gender, a.patient_dob, a.uhid, a.visit_type,
+                a.patient_name, a.patient_mobile, a.patient_gender, a.patient_dob, pc.uhid, a.visit_type,
                 d.name AS doctor_name,
                 e.chief_complaint, e.symptoms, e.diagnosis, e.medications,
                 e.vitals, e.lab_investigations, e.lab_results,
                 e.advices, e.notes AS encounter_notes,
                 e.next_visit_date, e.examination_findings, e.refer_to, e.vaccinations
          FROM emr_appointments a
-         LEFT JOIN emr_doctors    d ON d.id = a.doctor_id
+         LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
+         LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
          LEFT JOIN emr_encounters e ON e.appointment_id = a.id
          WHERE a.clinic_id=$1 AND a.patient_mobile=$2
            AND (e.id IS NULL OR (
@@ -219,16 +220,17 @@ exports.getPatientContext = async (req, res) => {
     } else if (uhid) {
       const { rows: byUhid } = await pool.query(
         `SELECT a.id, a.appointment_date, a.appointment_time, a.status,
-                a.patient_name, a.patient_mobile, a.patient_gender, a.patient_dob, a.uhid, a.visit_type,
+                a.patient_name, a.patient_mobile, a.patient_gender, a.patient_dob, pc.uhid, a.visit_type,
                 d.name AS doctor_name,
                 e.chief_complaint, e.symptoms, e.diagnosis, e.medications,
                 e.vitals, e.lab_investigations, e.lab_results,
                 e.advices, e.notes AS encounter_notes,
                 e.next_visit_date, e.examination_findings, e.refer_to, e.vaccinations
          FROM emr_appointments a
-         LEFT JOIN emr_doctors    d ON d.id = a.doctor_id
+         LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
+         LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
          LEFT JOIN emr_encounters e ON e.appointment_id = a.id
-         WHERE a.clinic_id=$1 AND a.uhid=$2
+         WHERE a.clinic_id=$1 AND pc.uhid=$2
          ORDER BY a.appointment_date DESC LIMIT 20`,
         [clinic_id, uhid]
       );
@@ -236,7 +238,7 @@ exports.getPatientContext = async (req, res) => {
     }
 
     if (!rows.length) {
-      // Nothing found — return minimal context from appointment row
+      // Nothing found â€” return minimal context from appointment row
       const name = apptRow?.patient_name || 'Unknown';
       const age  = apptRow?.patient_dob ? Math.floor((Date.now() - new Date(apptRow.patient_dob)) / (365.25*24*60*60*1000)) : null;
       return res.json({
@@ -272,8 +274,8 @@ exports.getPatientContext = async (req, res) => {
       const vStr = [
         v.bp_systolic && v.bp_diastolic ? `BP: ${v.bp_systolic}/${v.bp_diastolic} mmHg` : null,
         v.pulse            ? `Pulse: ${v.pulse}/min`                : null,
-        v.temp             ? `Temp: ${v.temp}°C`                    : null,
-        v.temp_f           ? `Temp: ${v.temp_f}°F`                  : null,
+        v.temp             ? `Temp: ${v.temp}Â°C`                    : null,
+        v.temp_f           ? `Temp: ${v.temp_f}Â°F`                  : null,
         v.spo2             ? `SpO2: ${v.spo2}%`                     : null,
         v.respiratory_rate ? `RR: ${v.respiratory_rate}/min`        : null,
         v.weight           ? `Weight: ${v.weight} kg`               : null,
@@ -321,7 +323,7 @@ exports.getPatientContext = async (req, res) => {
         if (r.advices)          parts.push(`Advice: ${r.advices}`);
         if (r.refer_to)         parts.push(`Referred to: ${r.refer_to}`);
         if (r.next_visit_date)  parts.push(`Next visit: ${r.next_visit_date}`);
-        lines.push(`  ${i + 1}. ${dateStr}${parts.length ? ' — ' + parts.join(' | ') : ''}`);
+        lines.push(`  ${i + 1}. ${dateStr}${parts.length ? ' â€” ' + parts.join(' | ') : ''}`);
       });
     }
 
@@ -350,7 +352,7 @@ exports.getPatientContext = async (req, res) => {
   }
 };
 
-// ── Chat endpoint ─────────────────────────────────────────────────────────────
+// â”€â”€ Chat endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.chat = async (req, res) => {
   const { message, history = [], patient_context } = req.body;
@@ -388,7 +390,7 @@ exports.chat = async (req, res) => {
   }
 };
 
-// ── Document generation endpoint ──────────────────────────────────────────────
+// â”€â”€ Document generation endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.generateDocument = async (req, res) => {
   const { doc_type, context, patient_context } = req.body;
@@ -422,23 +424,24 @@ exports.generateDocument = async (req, res) => {
   }
 };
 
-// ── Fallbacks ─────────────────────────────────────────────────────────────────
+// â”€â”€ Fallbacks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _chatFallback(message) {
   const q = message.toLowerCase();
   if (q.includes('asthma') && (q.includes('hypertensive') || q.includes('anti-hyp') || q.includes('bp'))) {
-    return `**Anti-hypertensives safe in asthma:**\n\n- **CCBs** (amlodipine, nifedipine) — first choice; no bronchospasm risk\n- **ACE inhibitors** (ramipril) — safe, but watch for dry cough (~15%); switch to ARB if cough occurs\n- **ARBs** (losartan, telmisartan) — safe, no cough\n- **Thiazides** (hydrochlorothiazide) — generally safe\n- ⚠️ **Avoid:** Non-selective beta-blockers (propranolol, atenolol) — can cause bronchoconstriction\n\n*Always verify with current guidelines and your clinical judgment.*`;
+    return `**Anti-hypertensives safe in asthma:**\n\n- **CCBs** (amlodipine, nifedipine) â€” first choice; no bronchospasm risk\n- **ACE inhibitors** (ramipril) â€” safe, but watch for dry cough (~15%); switch to ARB if cough occurs\n- **ARBs** (losartan, telmisartan) â€” safe, no cough\n- **Thiazides** (hydrochlorothiazide) â€” generally safe\n- âš ï¸ **Avoid:** Non-selective beta-blockers (propranolol, atenolol) â€” can cause bronchoconstriction\n\n*Always verify with current guidelines and your clinical judgment.*`;
   }
   if (q.includes('pregnant') || q.includes('pregnancy')) {
     return `For prescriptions in pregnancy, always check FDA/WHO pregnancy safety categories.\n\n- **Avoid:** NSAIDs after 20 weeks, ACE inhibitors, statins, tetracyclines, warfarin (1st trimester)\n- **Safe:** Paracetamol (short-term), amoxicillin, metformin (discuss risks), insulin\n\n*Always verify with current guidelines and your clinical judgment.*`;
   }
   if (q.includes('drug interaction') || q.includes('interaction')) {
-    return `Common dangerous drug interactions to monitor:\n\n- **Warfarin** + NSAIDs → increased bleeding risk\n- **Metformin** + iodinated contrast → lactic acidosis risk (hold 48h)\n- **SSRIs** + tramadol → serotonin syndrome\n- **Statins** + macrolide antibiotics → myopathy risk\n- **ACE inhibitors** + potassium-sparing diuretics → hyperkalaemia\n\n*Always verify with current guidelines and your clinical judgment.*`;
+    return `Common dangerous drug interactions to monitor:\n\n- **Warfarin** + NSAIDs â†’ increased bleeding risk\n- **Metformin** + iodinated contrast â†’ lactic acidosis risk (hold 48h)\n- **SSRIs** + tramadol â†’ serotonin syndrome\n- **Statins** + macrolide antibiotics â†’ myopathy risk\n- **ACE inhibitors** + potassium-sparing diuretics â†’ hyperkalaemia\n\n*Always verify with current guidelines and your clinical judgment.*`;
   }
   return `I can help with drug choices, treatment protocols, dosages, clinical decision support, and patient-specific questions. Please describe your clinical question in detail.\n\n*Always verify with current guidelines and your clinical judgment.*`;
 }
 
 function _docFallback(doc_type) {
   const labels = { soap: 'SOAP Note', discharge: 'Discharge Summary', referral: 'Referral Letter', followup: 'Follow-up Plan', prescription: 'Prescription Draft' };
-  return `**${labels[doc_type] || 'Document'} — AI Generation Unavailable**\n\nThe AI document generation service is currently unavailable (API key not configured).\n\nPlease configure GROQ_API_KEY to enable document generation.`;
+  return `**${labels[doc_type] || 'Document'} â€” AI Generation Unavailable**\n\nThe AI document generation service is currently unavailable (API key not configured).\n\nPlease configure GROQ_API_KEY to enable document generation.`;
 }
+
