@@ -451,7 +451,7 @@ async function initializeDatabase() {
         id                   SERIAL PRIMARY KEY,
         appointment_id       INTEGER UNIQUE REFERENCES emr_appointments(id) ON DELETE CASCADE,
         clinic_id            INTEGER NOT NULL,
-        doctor_id            INTEGER REFERENCES emr_doctors(id) ON DELETE SET NULL,
+        doctor_id            INTEGER REFERENCES emr_clinic_staff(id) ON DELETE SET NULL,
         emr_patient_id       INTEGER REFERENCES emr_patients(id) ON DELETE SET NULL,
         chief_complaint      TEXT,
         symptoms             JSONB NOT NULL DEFAULT '[]',
