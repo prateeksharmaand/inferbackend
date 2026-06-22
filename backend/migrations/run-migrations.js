@@ -22,6 +22,9 @@ const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, '048_staff_rbac.sql'),                 // staff_roles, staff_invitations, staff_activity_logs + system role seeds
   path.join(__dirname, '049_doctor_active_template.sql'),    // active_template_id / slug on emr_doctors
   path.join(__dirname, '050_drop_doctor_fk.sql'),            // drop doctor_id FK so it can store emr_clinic_staff.id
+  path.join(__dirname, '051_staff_active_template.sql'),     // active_template columns on emr_clinic_staff (per-doctor)
+  path.join(__dirname, '052_care_context_multi_records.sql'), // multi-HI type support: health_records JSONB for 8 ABDM HI types
+  path.join(__dirname, '053_fix_encounters_doctor_fk.sql'),   // fix FK: doctor_id references emr_clinic_staff not emr_doctors
 ];
 
 async function runMigrations(pool, logger) {
