@@ -785,9 +785,17 @@ async function linkCareContexts(hipId, linkToken, abhaNumber, abhaAddress, name,
   const tokenAbhaNumberFormatted = _formatAbhaNumber(tokenAbhaNumberRaw);
 
   // ABDM v3 /hip/v3/link/carecontext: patient.referenceNumber must be the
-  // HIP internal patient ID, NOT the ABHA address (which goes in abhaAddress).
-  // ABDM requires: abhaAddress for identification, patient.referenceNumber for HIP internal tracking
+  // HIP's unique patient identifier (UHID), NOT the ABHA address (which goes in abhaAddress).
+  // ABDM requires: abhaAddress for identification, patient.referenceNumber for HIP internal patient tracking
   const patientRef = String(patientId || tokenAbhaAddress || abhaAddress || cleanAbha);
+
+  if (!patientId) {
+    logger.error('linkCareContexts: patientId (UHID) is required', {
+      abhaAddress,
+      cleanAbha,
+    });
+    throw new Error('Patient reference (UHID) is required for ABDM care context linking');
+  }
 
   // REQUEST-ID in body and header MUST be the same UUID (ABDM validates consistency)
   const linkReqId = uuid();

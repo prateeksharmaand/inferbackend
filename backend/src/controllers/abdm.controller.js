@@ -390,19 +390,33 @@ const linkCareContexts = async (req, res) => {
   const { abha_number, abha_address, name } = rows[0];
 
   // Prefer Aadhaar-authoritative values stored in emr_patients over request body
+  // UHID is clinic-wise, so also filter by clinic_id
   const { rows: ptRows } = await pool.query(
-    `SELECT id, gender, EXTRACT(YEAR FROM dob)::int AS year_of_birth
+    `SELECT id, uhid, gender, EXTRACT(YEAR FROM dob)::int AS year_of_birth
      FROM emr_patients
-     WHERE (abha_number=$1 OR abha_address=$2) AND deleted_at IS NULL
+     WHERE (abha_number=$1 OR abha_address=$2) AND clinic_id=$3 AND deleted_at IS NULL
      LIMIT 1`,
-    [abha_number, abha_address]
+    [abha_number, abha_address, req.emrUser.clinic_id]
   );
   const patientId           = ptRows[0]?.id;
+  const patientUHID         = ptRows[0]?.uhid;
   const resolvedGender      = ptRows[0]?.gender      ?? patientGender;
   const resolvedYearOfBirth = ptRows[0]?.year_of_birth ?? patientYearOfBirth;
 
+  // Validate UHID is present (mandatory for ABDM linking)
+  if (!patientUHID) {
+    logger.error('ABDM linking failed: patient UHID not found', {
+      patientId: patientId,
+      abhaAddress: abha_address,
+    });
+    return res.status(400).json({
+      error: 'Patient UHID is required for ABDM linking. Please update patient record with UHID.',
+      code: 'MISSING_UHID',
+    });
+  }
+
   logger.info('ABDM demographic verification (linkCareContexts)', {
-    patientId:        patientId,
+    patientUHID:       patientUHID,
     abhaNumber:        abha_number?.slice(-4) + ' (last 4)',
     abhaAddress:       abha_address,
     gender:            resolvedGender,
@@ -415,7 +429,7 @@ const linkCareContexts = async (req, res) => {
     hipId, abha_number, abha_address, name,
     resolvedGender, resolvedYearOfBirth
   );
-  const result = await abdm.linkCareContexts(hipId, tokenRes.linkToken, abha_number, abha_address, name, careContexts, patientId);
+  const result = await abdm.linkCareContexts(hipId, tokenRes.linkToken, abha_number, abha_address, name, careContexts, patientUHID);
 
   for (const ctx of careContexts) {
     await pool.query(
