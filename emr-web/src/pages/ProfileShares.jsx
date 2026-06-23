@@ -95,87 +95,127 @@ export default function ProfileShares() {
     let existing = null;
 
     try {
-      // Search by multiple criteria to maximize match chances
-      let searchTerm = share.abha_number || share.mobile || share.name || '';
+      // Try multiple search terms to maximize coverage
+      let patients = [];
+      const searchTerms = [];
 
-      if (searchTerm) {
-        const searchResults = await api.get('/patients', { params: { q: searchTerm } });
-        const patients = searchResults || [];
+      if (share.abha_number) searchTerms.push(share.abha_number);
+      if (share.mobile) searchTerms.push(share.mobile);
+      if (share.name) searchTerms.push(share.name);
 
-        // Priority 1: ABHA Number match (highest confidence)
-        if (share.abha_number) {
-          existing = patients.find(p => p.abha_number === share.abha_number);
-          if (existing) {
-            console.log('[Patient Match] Found by ABHA Number (Priority 1)', {
-              patientId: existing.id,
-              name: existing.name
-            });
-          }
-        }
+      console.log('[Patient Match] Searching with terms:', searchTerms);
 
-        // Priority 2: ABHA Address match
-        if (!existing && share.abha_address) {
-          existing = patients.find(p => p.abha_address === share.abha_address);
-          if (existing) {
-            console.log('[Patient Match] Found by ABHA Address (Priority 2)', {
-              patientId: existing.id,
-              name: existing.name
-            });
-          }
-        }
-
-        // Priority 3: Mobile + DOB match
-        if (!existing && share.mobile && share.dob) {
-          existing = patients.find(p =>
-            p.mobile === share.mobile &&
-            (p.dob === share.dob || !p.dob) // Match even if DOB missing in system
-          );
-          if (existing) {
-            console.log('[Patient Match] Found by Mobile + DOB (Priority 3)', {
-              patientId: existing.id,
-              name: existing.name
-            });
-          }
-        }
-
-        // Priority 4: Mobile + Name match (only if mobile exists)
-        if (!existing && share.mobile && share.name) {
-          existing = patients.find(p =>
-            p.mobile === share.mobile &&
-            p.name?.toLowerCase() === share.name?.toLowerCase()
-          );
-          if (existing) {
-            console.log('[Patient Match] Found by Mobile + Name (Priority 4)', {
-              patientId: existing.id,
-              name: existing.name
-            });
-          }
-        }
-
-        // Priority 5: Name + DOB + Gender match
-        if (!existing && share.name && share.dob && share.gender) {
-          existing = patients.find(p =>
-            p.name?.toLowerCase() === share.name?.toLowerCase() &&
-            (p.dob === share.dob || !p.dob) &&
-            (p.gender === share.gender || !p.gender)
-          );
-          if (existing) {
-            console.log('[Patient Match] Found by Name + DOB + Gender (Priority 5)', {
-              patientId: existing.id,
-              name: existing.name
-            });
+      // Search with each term and collect all results
+      for (const term of searchTerms) {
+        if (term && term.trim().length >= 2) {
+          try {
+            const results = await api.get('/patients', { params: { q: term } });
+            if (results && Array.isArray(results)) {
+              patients = [...patients, ...results];
+              console.log(`[Patient Match] Search for "${term}" returned ${results.length} results`);
+            }
+          } catch (searchErr) {
+            console.warn(`[Patient Match] Search for "${term}" failed:`, searchErr.message);
           }
         }
       }
 
+      // Deduplicate by patient ID
+      const uniquePatients = Array.from(
+        new Map(patients.map(p => [p.id, p])).values()
+      );
+      console.log('[Patient Match] Total unique results:', uniquePatients.length);
+
+      // Priority 1: ABHA Number match (highest confidence)
+      if (share.abha_number && !existing) {
+        existing = uniquePatients.find(p =>
+          p.abha_number === share.abha_number ||
+          p.abha_number?.toLowerCase() === share.abha_number?.toLowerCase()
+        );
+        if (existing) {
+          console.log('[Patient Match] ✓ Found by ABHA Number (Priority 1)', {
+            patientId: existing.id,
+            name: existing.name,
+            storedAbha: existing.abha_number
+          });
+        }
+      }
+
+      // Priority 2: ABHA Address match
+      if (share.abha_address && !existing) {
+        existing = uniquePatients.find(p =>
+          p.abha_address === share.abha_address ||
+          p.abha_address?.toLowerCase() === share.abha_address?.toLowerCase()
+        );
+        if (existing) {
+          console.log('[Patient Match] ✓ Found by ABHA Address (Priority 2)', {
+            patientId: existing.id,
+            name: existing.name
+          });
+        }
+      }
+
+      // Priority 3: Mobile + DOB match
+      if (share.mobile && share.dob && !existing) {
+        // Normalize DOB for comparison (remove time component)
+        const shareDobDate = share.dob ? new Date(share.dob).toISOString().split('T')[0] : null;
+        existing = uniquePatients.find(p => {
+          if (!p.mobile || p.mobile !== share.mobile) return false;
+          if (!p.dob) return true; // Match if DOB missing in system
+          const systemDobDate = new Date(p.dob).toISOString().split('T')[0];
+          return systemDobDate === shareDobDate;
+        });
+        if (existing) {
+          console.log('[Patient Match] ✓ Found by Mobile + DOB (Priority 3)', {
+            patientId: existing.id,
+            name: existing.name,
+            mobile: existing.mobile
+          });
+        }
+      }
+
+      // Priority 4: Mobile + Name match (only if mobile exists)
+      if (share.mobile && share.name && !existing) {
+        existing = uniquePatients.find(p =>
+          p.mobile === share.mobile &&
+          p.name?.toLowerCase() === share.name?.toLowerCase()
+        );
+        if (existing) {
+          console.log('[Patient Match] ✓ Found by Mobile + Name (Priority 4)', {
+            patientId: existing.id,
+            name: existing.name,
+            mobile: existing.mobile
+          });
+        }
+      }
+
+      // Priority 5: Name + DOB + Gender match
+      if (share.name && share.dob && share.gender && !existing) {
+        const shareDobDate = share.dob ? new Date(share.dob).toISOString().split('T')[0] : null;
+        existing = uniquePatients.find(p => {
+          if (!p.name || p.name?.toLowerCase() !== share.name?.toLowerCase()) return false;
+          if (p.dob) {
+            const systemDobDate = new Date(p.dob).toISOString().split('T')[0];
+            if (systemDobDate !== shareDobDate) return false;
+          }
+          if (p.gender && p.gender !== share.gender) return false;
+          return true;
+        });
+        if (existing) {
+          console.log('[Patient Match] ✓ Found by Name + DOB + Gender (Priority 5)', {
+            patientId: existing.id,
+            name: existing.name
+          });
+        }
+      }
+
       // If patient found, show quick book appointment
-      // NOTE: Show for ANY existing patient, not just those with UHID
-      // UHID assignment can happen during appointment booking
       if (existing) {
-        console.log('[Patient Match] Patient recognized - skipping registration', {
+        console.log('[Patient Match] ✓✓✓ Patient RECOGNIZED - skipping registration', {
           patientId: existing.id,
+          name: existing.name,
           hasUhid: !!existing.uhid,
-          action: existing.uhid ? 'book' : 'assign_uhid_then_book'
+          action: 'book'
         });
         setRegistered({
           patient: existing,
@@ -185,9 +225,15 @@ export default function ProfileShares() {
         });
         return;
       }
+
+      console.log('[Patient Match] ✗ No existing patient found', {
+        searchTermsUsed: searchTerms,
+        resultsCount: uniquePatients.length
+      });
     } catch (err) {
-      console.warn('[Patient Match] Lookup failed, proceeding with registration form', {
-        error: err.message
+      console.error('[Patient Match] FATAL ERROR:', {
+        error: err.message,
+        stack: err.stack
       });
     }
 
