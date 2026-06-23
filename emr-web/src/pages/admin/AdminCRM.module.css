@@ -190,6 +190,15 @@
   font-size: 0.85rem;
 }
 
+.table .stepCell {
+  font-weight: 600;
+  background: #fef3c7;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  color: #78350f;
+  font-size: 0.9rem;
+}
+
 .table .actions {
   display: flex;
   gap: 0.5rem;

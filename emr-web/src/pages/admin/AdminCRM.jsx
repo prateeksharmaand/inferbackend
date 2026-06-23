@@ -36,6 +36,7 @@ function LeadModal({ lead, onClose, onUpdate }) {
       if (form.status !== lead.status) updates.status = form.status;
       if (form.notes !== lead.notes) updates.notes = form.notes;
       if (form.phone !== lead.phone) updates.phone = form.phone;
+      if (form.step !== lead.step) updates.step = form.step;
       if (form.next_send_date !== lead.next_send_date) updates.next_send_date = form.next_send_date;
 
       if (Object.keys(updates).length) {
@@ -79,6 +80,17 @@ function LeadModal({ lead, onClose, onUpdate }) {
               <option value="booked">Booked</option>
               <option value="unsubscribed">Unsubscribed</option>
               <option value="failed">Failed</option>
+            </select>
+          </label>
+
+          <label>
+            Last Step Sent
+            <select value={form.step || 0} onChange={e => set('step', parseInt(e.target.value))}>
+              <option value={0}>0 - Not Started</option>
+              <option value={1}>1 - Day 1</option>
+              <option value={4}>4 - Day 4</option>
+              <option value={8}>8 - Day 8</option>
+              <option value={14}>14 - Day 14</option>
             </select>
           </label>
 
@@ -446,6 +458,7 @@ export default function AdminCRM() {
                     <th>Phone</th>
                     <th>Clinic</th>
                     <th>Status</th>
+                    <th>Step</th>
                     <th>Activity</th>
                     <th>Last Activity</th>
                     <th>Actions</th>
@@ -458,6 +471,7 @@ export default function AdminCRM() {
                       <td>{lead.phone || '—'}</td>
                       <td>{lead.clinic || '—'}</td>
                       <td><StatusBadge status={lead.status} /></td>
+                      <td className={styles.stepCell}>{lead.step || 0}</td>
                       <td>{lead.activity_count || 0}</td>
                       <td className={styles.date}>
                         {lead.last_activity_date ? new Date(lead.last_activity_date).toLocaleDateString() : '—'}

@@ -49,11 +49,21 @@ exports.getCrmDashboard = async (req, res) => {
     try {
       const res1 = await pool.query(query, params);
       rows = res1.rows;
+      // Extract phone from notes if phone is empty
+      rows = rows.map(r => {
+        if (!r.phone && r.notes) {
+          const phoneMatch = r.notes.match(/(\+?91[-.\s]?\d{10}|\+\d{1,3}[-.\s]?\d{5,14})/);
+          if (phoneMatch) {
+            r.phone = phoneMatch[0].replace(/[-.\s]/g, '');
+          }
+        }
+        return r;
+      });
     } catch (err) {
       // If new columns don't exist, try basic query
       logger.warn('[AdminSales] Migration may not have run yet, using basic query');
       const basicQuery = `
-        SELECT id, lead_hash, email, clinic, email_opened, email_opened_at, created_at
+        SELECT id, lead_hash, email, clinic, email_opened, email_opened_at, created_at, notes
         FROM sales_leads
         WHERE 1=1
         ${search && search.trim() ? `AND (email ILIKE $1 OR clinic ILIKE $1)` : ''}
@@ -61,19 +71,28 @@ exports.getCrmDashboard = async (req, res) => {
       `;
       const basicParams = search && search.trim() ? [`%${search}%`] : [];
       const res1 = await pool.query(basicQuery, basicParams);
-      rows = res1.rows.map(r => ({
-        ...r,
-        phone: '',
-        notes: '',
-        status: 'new',
-        step: 0,
-        next_send_date: null,
-        last_sent_date: null,
-        activity_count: 0,
-        last_activity_date: null,
-        whatsapp_replies: 0,
-        email_open_count: 0
-      }));
+      rows = res1.rows.map(r => {
+        let phone = '';
+        // Try to extract phone from notes
+        if (r.notes) {
+          const phoneMatch = r.notes.match(/(\+?91[-.\s]?\d{10}|\+\d{1,3}[-.\s]?\d{5,14})/);
+          if (phoneMatch) {
+            phone = phoneMatch[0].replace(/[-.\s]/g, '');
+          }
+        }
+        return {
+          ...r,
+          phone,
+          status: 'new',
+          step: 0,
+          next_send_date: null,
+          last_sent_date: null,
+          activity_count: 0,
+          last_activity_date: null,
+          whatsapp_replies: 0,
+          email_open_count: 0
+        };
+      });
     }
 
     // Get stats
@@ -196,7 +215,7 @@ exports.getLeadDetail = async (req, res) => {
 // PATCH /admin/sales/leads/:id — Update lead
 exports.updateLead = async (req, res) => {
   const { id } = req.params;
-  const { status, notes, phone, next_send_date } = req.body;
+  const { status, notes, phone, step, next_send_date, last_sent_date } = req.body;
 
   try {
     const updates = [];
@@ -218,9 +237,19 @@ exports.updateLead = async (req, res) => {
       params.push(phone);
       paramCount++;
     }
+    if (step !== undefined) {
+      updates.push(`step = $${paramCount}`);
+      params.push(step);
+      paramCount++;
+    }
     if (next_send_date !== undefined) {
       updates.push(`next_send_date = $${paramCount}`);
       params.push(next_send_date);
+      paramCount++;
+    }
+    if (last_sent_date !== undefined) {
+      updates.push(`last_sent_date = $${paramCount}`);
+      params.push(last_sent_date);
       paramCount++;
     }
 
