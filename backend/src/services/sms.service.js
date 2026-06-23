@@ -9,7 +9,8 @@ const logger = require('../utils/logger');
  */
 
 const SMS_API_BASE_URL = process.env.SMS_API_URL || 'https://api.smscountry.com/v0.1/Send';
-const SMS_API_KEY = process.env.SMS_API_KEY;
+const SMS_AUTH_KEY = process.env.SMS_AUTH_KEY;
+const SMS_AUTH_TOKEN = process.env.SMS_AUTH_TOKEN;
 const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'NOUSHL';
 
 // Template IDs from SMSCountry
@@ -29,9 +30,9 @@ const SMS_TEMPLATES = {
  * @returns {Promise<object>} API response
  */
 const sendSMS = async (phoneNumber, message, options = {}) => {
-  if (!SMS_API_KEY) {
-    logger.warn('SMS_API_KEY not configured, skipping SMS');
-    return { skipped: true, reason: 'API key not configured' };
+  if (!SMS_AUTH_KEY || !SMS_AUTH_TOKEN) {
+    logger.warn('SMS_AUTH_KEY or SMS_AUTH_TOKEN not configured, skipping SMS');
+    return { skipped: true, reason: 'SMSCountry credentials not configured' };
   }
 
   if (!phoneNumber) {
@@ -47,23 +48,25 @@ const sendSMS = async (phoneNumber, message, options = {}) => {
 
   try {
     const payload = {
-      key: SMS_API_KEY,
-      phone: formattedPhone,
-      sender: SMS_SENDER_ID,
+      AuthKey: SMS_AUTH_KEY,
+      AuthToken: SMS_AUTH_TOKEN,
+      To: formattedPhone,
+      SenderId: SMS_SENDER_ID,
     };
 
     // Use template if templateId provided, otherwise send raw message
     if (options.templateId) {
-      payload.template_id = options.templateId;
+      payload.TemplateId = options.templateId;
       if (options.vars) {
-        payload.template_data = options.vars;
+        // For template variables, pass as TemplateData or similar (depends on API)
+        payload.TemplateData = options.vars;
       }
       logger.info('Sending template SMS', {
         phone: formattedPhone,
         templateId: options.templateId,
       });
     } else {
-      payload.message = message;
+      payload.Content = message;
       logger.info('Sending raw SMS', {
         phone: formattedPhone,
         messageLength: message.length,
@@ -72,6 +75,9 @@ const sendSMS = async (phoneNumber, message, options = {}) => {
 
     const response = await axios.post(SMS_API_BASE_URL, payload, {
       timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     logger.info('SMS sent successfully', {
