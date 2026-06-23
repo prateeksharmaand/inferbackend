@@ -72,7 +72,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
         });
         patientId = patientRes.patientId || patientRes.patient?.id;
 
-        // 2. Auto-generate UHID if not provided
+        // 2. Use UHID from form, or auto-generate if not provided
         if (!uhidToUse) {
           try {
             const uhidRes = await api.post('/settings/uhid/generate', {});
@@ -82,10 +82,12 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
           }
         }
 
-        // 3. Assign UHID to patient
-        if (uhidToUse && patientId) {
+        // 3. Assign UHID to patient (use form UHID if available, otherwise use generated one)
+        const finalUhid = form.uhid || uhidToUse;
+        if (finalUhid && patientId) {
           try {
-            await api.post(`/patients/${patientId}/uhid`, { uhid: uhidToUse });
+            await api.post(`/patients/${patientId}/uhid`, { uhid: finalUhid });
+            uhidToUse = finalUhid;
           } catch (assignErr) {
             console.warn('Failed to assign UHID:', assignErr.message);
           }
