@@ -238,10 +238,21 @@ export default function ProfileShares() {
     }
 
     // Show registration form for new patient or existing patient without UHID
+    // Normalize DOB to YYYY-MM-DD format (HTML date input expects this)
+    let formDob = '';
+    if (share.dob) {
+      try {
+        const dobDate = new Date(share.dob);
+        formDob = dobDate.toISOString().split('T')[0]; // Converts to YYYY-MM-DD
+      } catch (e) {
+        formDob = share.dob; // Fallback if parsing fails
+      }
+    }
+
     setForm({
       name:        share.name        || '',
       mobile:      share.mobile      || '',
-      dob:         share.dob         || '',
+      dob:         formDob,
       gender:      share.gender      || '',
       abhaNumber:  share.abha_number || '',
       abhaAddress: share.abha_address|| '',
