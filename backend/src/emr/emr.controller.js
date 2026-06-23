@@ -1057,44 +1057,75 @@ const registerAbhaPatient = async (req, res) => {
     // Attach the new ABHA address to the existing patient's mappings
     await AbhaIdentity.attachAbha(pool, found.id, { abhaNumber, abhaAddress, source: 'qr' });
   } else {
-    // Search for existing patient by demographics (name + mobile + DOB) before creating new
+    // Search for existing patient by demographics before creating new
+    // Try multiple search strategies in priority order
     let existingByDemographics = null;
 
+    // Priority 1: Mobile + DOB + Name (strongest match)
     if (phoneNumber && name && normDob) {
-      // Search: Mobile + DOB + Name match
       const { rows: demoRows } = await pool.query(
         `SELECT id FROM emr_patients
          WHERE deleted_at IS NULL
-           AND mobile = $1
+           AND LOWER(name) = LOWER($1)
            AND dob = $2::date
-           AND LOWER(name) = LOWER($3)
+           AND (mobile = $3 OR mobile IS NULL)
+         ORDER BY mobile DESC NULLS LAST
          LIMIT 1`,
-        [phoneNumber, normDob, name]
+        [name, normDob, phoneNumber]
       );
-      if (demoRows.length) existingByDemographics = demoRows[0];
-    } else if (phoneNumber && name) {
-      // Search: Mobile + Name match (if DOB missing)
+      if (demoRows.length) {
+        existingByDemographics = demoRows[0];
+        logger.info('Patient found by Priority 1: Mobile + DOB + Name', { patientId: existingByDemographics.id });
+      }
+    }
+
+    // Priority 2: Mobile + Name (if DOB missing)
+    if (!existingByDemographics && phoneNumber && name) {
       const { rows: demoRows } = await pool.query(
         `SELECT id FROM emr_patients
          WHERE deleted_at IS NULL
-           AND mobile = $1
-           AND LOWER(name) = LOWER($2)
+           AND LOWER(name) = LOWER($1)
+           AND mobile = $2
          LIMIT 1`,
-        [phoneNumber, name]
+        [name, phoneNumber]
       );
-      if (demoRows.length) existingByDemographics = demoRows[0];
-    } else if (name && normDob && gender) {
-      // Search: Name + DOB + Gender match (if mobile missing)
+      if (demoRows.length) {
+        existingByDemographics = demoRows[0];
+        logger.info('Patient found by Priority 2: Mobile + Name', { patientId: existingByDemographics.id });
+      }
+    }
+
+    // Priority 3: Name + DOB + Gender (for QR scans without mobile)
+    if (!existingByDemographics && name && normDob && gender) {
       const { rows: demoRows } = await pool.query(
         `SELECT id FROM emr_patients
          WHERE deleted_at IS NULL
-           AND dob = $1::date
-           AND gender = $2
-           AND LOWER(name) = LOWER($3)
+           AND LOWER(name) = LOWER($1)
+           AND dob = $2::date
+           AND gender = $3
          LIMIT 1`,
-        [normDob, gender, name]
+        [name, normDob, gender]
       );
-      if (demoRows.length) existingByDemographics = demoRows[0];
+      if (demoRows.length) {
+        existingByDemographics = demoRows[0];
+        logger.info('Patient found by Priority 3: Name + DOB + Gender', { patientId: existingByDemographics.id });
+      }
+    }
+
+    // Priority 4: Name + DOB alone (last resort)
+    if (!existingByDemographics && name && normDob) {
+      const { rows: demoRows } = await pool.query(
+        `SELECT id FROM emr_patients
+         WHERE deleted_at IS NULL
+           AND LOWER(name) = LOWER($1)
+           AND dob = $2::date
+         LIMIT 1`,
+        [name, normDob]
+      );
+      if (demoRows.length) {
+        existingByDemographics = demoRows[0];
+        logger.info('Patient found by Priority 4: Name + DOB', { patientId: existingByDemographics.id });
+      }
     }
 
     if (existingByDemographics) {
