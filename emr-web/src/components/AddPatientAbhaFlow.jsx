@@ -995,7 +995,7 @@ export default function AddPatientAbhaFlow({ onClose, onSuccess, fullPage = fals
       </div>
 
       {/* Scrollable content */}
-      <div style={{ padding: '24px', flex: 1, boxSizing: 'border-box', width: '100%' }}>
+      <div style={{ padding: '24px', flex: 1, boxSizing: 'border-box', width: '100%', maxWidth: '600px', margin: '0 auto' }}>
         {/* Step 0: Registered? */}
         {registered === null && (
           <div className="abha-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
