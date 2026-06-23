@@ -49,6 +49,13 @@ function getAge(dob) {
   return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
 }
 
+function normalizeDob(dob) {
+  if (!dob) return '';
+  if (typeof dob !== 'string') return '';
+  if (dob.match(/^\d{4}-\d{2}-\d{2}$/)) return dob;
+  return new Date(dob).toISOString().split('T')[0];
+}
+
 export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
   const today    = new Date();
   today.setHours(0, 0, 0, 0);
@@ -66,7 +73,7 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
   const [patient,    setPatient]    = useState(
     prefill.patient_name ? { id: prefill.patient_id || null, name: prefill.patient_name, mobile: prefill.patient_mobile || '', abha_number: prefill.patient_abha || '', gender: prefill.patient_gender || '', dob: prefill.patient_dob || '' } : null
   );
-  const [patientDob, setPatientDob] = useState(prefill.patient_dob || '');
+  const [patientDob, setPatientDob] = useState(normalizeDob(prefill.patient_dob));
   const [changingPt, setChangingPt] = useState(!prefill.patient_name);
   const [ptQuery,    setPtQuery]    = useState('');
   const [ptResults,  setPtResults]  = useState([]);
@@ -134,7 +141,7 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
 
   const selectPatient = (p) => {
     setPatient(p);
-    setPatientDob(p.dob || '');
+    setPatientDob(normalizeDob(p.dob));
     setChangingPt(false);
     setPtQuery('');
     setPtResults([]);
