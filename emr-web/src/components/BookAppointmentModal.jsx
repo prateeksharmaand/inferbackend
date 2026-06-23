@@ -92,19 +92,6 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
               <input required value={form.patient_name} onChange={e => set('patient_name', e.target.value)} placeholder="Full name" />
             </div>
             <div className={styles.field}>
-              <label>Mobile *</label>
-              <input required value={form.patient_mobile} onChange={e => set('patient_mobile', e.target.value)} placeholder="+91 9999999999" />
-            </div>
-            <div className={styles.field}>
-              <label>Date of Birth *</label>
-              <input
-                type="date"
-                required
-                value={form.patient_dob}
-                onChange={e => set('patient_dob', e.target.value)}
-              />
-            </div>
-            <div className={styles.field}>
               <label>Age</label>
               <select
                 value={(() => {
@@ -132,6 +119,19 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
                   <option key={i} value={i}>{i} years</option>
                 ))}
               </select>
+            </div>
+            <div className={styles.field}>
+              <label>Mobile *</label>
+              <input required value={form.patient_mobile} onChange={e => set('patient_mobile', e.target.value)} placeholder="+91 9999999999" />
+            </div>
+            <div className={styles.field}>
+              <label>Date of Birth *</label>
+              <input
+                type="date"
+                required
+                value={form.patient_dob}
+                onChange={e => set('patient_dob', e.target.value)}
+              />
             </div>
             <div className={styles.field}>
               <label>Gender</label>
@@ -186,13 +186,6 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
               >
                 <option value="">— Select queue —</option>
                 {queues.map(q => <option key={q.id} value={q.id}>{q.name}</option>)}
-              </select>
-            </div>
-            <div className={styles.field}>
-              <label>Doctor</label>
-              <select value={form.doctor_id} onChange={e => set('doctor_id', e.target.value)}>
-                <option value="">— Select doctor —</option>
-                {doctors.map(d => <option key={d.id} value={d.id}>Dr. {d.name}</option>)}
               </select>
             </div>
             <div className={styles.field}>
