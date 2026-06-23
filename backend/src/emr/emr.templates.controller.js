@@ -64,26 +64,25 @@ const deleteTemplate = async (req, res) => {
 };
 
 // GET /api/emr/scribe/active-template — returns doctor's currently active template
+// GET /api/emr/scribe/active-template — per-doctor, saved in emr_clinic_staff
 const getActiveTemplate = async (req, res) => {
   if (req.emrUser.role !== 'doctor') return res.json({ template: null });
-  const { rows: [doc] } = await pool.query(
-    `SELECT active_template_id, active_template_slug FROM emr_doctors WHERE id=$1`,
+  const { rows: [staff] } = await pool.query(
+    `SELECT active_template_id, active_template_slug FROM emr_clinic_staff WHERE id=$1`,
     [req.emrUser.id]
   );
-  if (!doc) return res.json({ template: null });
+  if (!staff) return res.json({ template: null });
 
-  // Predefined template (slug stored, no DB row)
-  if (doc.active_template_slug) {
+  if (staff.active_template_slug) {
     const preds = getPredefinedTemplates();
-    const tpl   = preds.find(t => t.id === doc.active_template_slug);
+    const tpl   = preds.find(t => t.id === staff.active_template_slug);
     return res.json({ template: tpl || null });
   }
-  // Custom template (FK to scribe_templates)
-  if (doc.active_template_id) {
+  if (staff.active_template_id) {
     const { rows: [tpl] } = await pool.query(
       `SELECT id, name, description, specialty, focus_prompt, false AS is_predefined, updated_at
        FROM scribe_templates WHERE id=$1`,
-      [doc.active_template_id]
+      [staff.active_template_id]
     );
     return res.json({ template: tpl || null });
   }
@@ -91,14 +90,14 @@ const getActiveTemplate = async (req, res) => {
 };
 
 // PATCH /api/emr/scribe/active-template  { template_id, is_predefined }
+// Saved per individual doctor in emr_clinic_staff — each doctor has their own
 const setActiveTemplate = async (req, res) => {
   if (req.emrUser.role !== 'doctor') return res.status(403).json({ error: 'Only doctors can set their active template' });
   const { template_id, is_predefined } = req.body;
 
   if (!template_id) {
-    // Clear active template
     await pool.query(
-      `UPDATE emr_doctors SET active_template_id=NULL, active_template_slug=NULL WHERE id=$1`,
+      `UPDATE emr_clinic_staff SET active_template_id=NULL, active_template_slug=NULL WHERE id=$1`,
       [req.emrUser.id]
     );
     return res.json({ ok: true });
@@ -106,12 +105,12 @@ const setActiveTemplate = async (req, res) => {
 
   if (is_predefined) {
     await pool.query(
-      `UPDATE emr_doctors SET active_template_slug=$1, active_template_id=NULL WHERE id=$2`,
+      `UPDATE emr_clinic_staff SET active_template_slug=$1, active_template_id=NULL WHERE id=$2`,
       [String(template_id), req.emrUser.id]
     );
   } else {
     await pool.query(
-      `UPDATE emr_doctors SET active_template_id=$1, active_template_slug=NULL WHERE id=$2`,
+      `UPDATE emr_clinic_staff SET active_template_id=$1, active_template_slug=NULL WHERE id=$2`,
       [parseInt(template_id), req.emrUser.id]
     );
   }

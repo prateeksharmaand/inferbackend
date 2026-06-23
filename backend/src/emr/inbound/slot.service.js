@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Slot availability engine + booking engine
  * Real-time slot computation from doctor availability windows
  * minus already-booked appointments
@@ -10,7 +10,7 @@ const DEFAULT_START    = '09:00';
 const DEFAULT_END      = '17:00';
 const DEFAULT_DURATION = 15; // minutes
 
-// ── Get available slots for doctor on a date ──────────────────────────────
+// â”€â”€ Get available slots for doctor on a date â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function getAvailableSlots(clinicId, doctorId, dateStr, limit = 20) {
   const dayOfWeek = new Date(dateStr + 'T12:00:00Z').getUTCDay(); // 0=Sun
 
@@ -57,14 +57,14 @@ async function getAvailableSlots(clinicId, doctorId, dateStr, limit = 20) {
   return freeSlots.slice(0, limit);
 }
 
-// ── Check a specific slot is free ─────────────────────────────────────────
+// â”€â”€ Check a specific slot is free â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function isSlotAvailable(clinicId, doctorId, dateStr, timeStr) {
   const slots = await getAvailableSlots(clinicId, doctorId, dateStr);
   const norm  = _normaliseTime(timeStr);
   return slots.includes(norm);
 }
 
-// ── Book a slot — creates the EMR appointment ─────────────────────────────
+// â”€â”€ Book a slot â€” creates the EMR appointment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function bookSlot(clinicId, doctorId, dateStr, timeStr, patientData, channel = 'online') {
   // Double-check availability (prevent race condition)
   const free = await isSlotAvailable(clinicId, doctorId, dateStr, timeStr);
@@ -135,7 +135,7 @@ async function bookSlot(clinicId, doctorId, dateStr, timeStr, patientData, chann
   return appt;
 }
 
-// ── Cancel appointment ────────────────────────────────────────────────────
+// â”€â”€ Cancel appointment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function cancelAppointment(clinicId, { appointmentId, patientMobile, date }) {
   let sql, params;
 
@@ -156,7 +156,7 @@ async function cancelAppointment(clinicId, { appointmentId, patientMobile, date 
   return rows[0];
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _generateSlots(startTime, endTime, durationMin) {
   const slots = [];
   let cur = _timeToMinutes(startTime);
@@ -191,17 +191,17 @@ function _nowMinutes() {
   return now.getHours() * 60 + now.getMinutes();
 }
 
-// ── Get doctors list for a clinic ─────────────────────────────────────────
+// â”€â”€ Get doctors list for a clinic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function getDoctors(clinicId) {
   const { rows } = await pool.query(
-    `SELECT id, name, specialization, qualification FROM emr_doctors
+    `SELECT id, name, specialization, qualification FROM emr_clinic_staff
      WHERE clinic_id = $1 AND is_active = TRUE ORDER BY name`,
     [clinicId]
   );
   return rows;
 }
 
-// ── Lookup patient by mobile ──────────────────────────────────────────────
+// â”€â”€ Lookup patient by mobile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function findPatient(mobile) {
   const { rows } = await pool.query(
     `SELECT p.id, p.name, p.mobile, p.gender, p.dob,
@@ -217,3 +217,4 @@ async function findPatient(mobile) {
 }
 
 module.exports = { getAvailableSlots, isSlotAvailable, bookSlot, cancelAppointment, getDoctors, findPatient };
+

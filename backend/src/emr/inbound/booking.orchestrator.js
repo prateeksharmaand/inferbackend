@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Booking Orchestrator
  * - Applies business rules
  * - Drives conversation state
@@ -17,7 +17,7 @@ const HANDOFF_CONFIDENCE_THRESHOLD = 0.45;
 const MAX_TURNS_BEFORE_HANDOFF     = 20;
 const CONVERSATION_TTL_HOURS       = 4; // expire inactive sessions after 4h
 
-// ── Main entry point called by all channel adapters ───────────────────────
+// â”€â”€ Main entry point called by all channel adapters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // extraMeta: optional { phoneNumberId } for WhatsApp Cloud API replies
 async function handleInboundMessage(channel, channelId, messageText, toAddress, extraMeta = {}) {
   const text = (messageText || '').trim();
@@ -35,7 +35,7 @@ async function handleInboundMessage(channel, channelId, messageText, toAddress, 
   // 2. Load or create conversation
   const conv = await _loadOrCreateConversation(channel, channelId, toAddress, clinicId);
 
-  // Already handed off — route to staff, don't process with AI
+  // Already handed off â€” route to staff, don't process with AI
   if (conv.is_handoff) {
     await _audit(conv.id, clinicId, channel, channelId, 'inbound', text, { note: 'post-handoff message' });
     return { replyText: null, booked: false, handoff: true, conversationId: conv.id };
@@ -52,7 +52,7 @@ async function handleInboundMessage(channel, channelId, messageText, toAddress, 
   const messages = Array.isArray(conv.messages) ? conv.messages : JSON.parse(conv.messages || '[]');
   messages.push({ role: 'user', content: text, ts: new Date().toISOString() });
 
-  // 6. Max turns guard → handoff
+  // 6. Max turns guard â†’ handoff
   if (messages.filter(m => m.role === 'user').length > MAX_TURNS_BEFORE_HANDOFF) {
     return _doHandoff(conv, clinicId, channel, channelId, toAddress, messages, 'Exceeded max conversation turns');
   }
@@ -66,7 +66,7 @@ async function handleInboundMessage(channel, channelId, messageText, toAddress, 
     (toolName, args) => _executeTool(toolName, args, clinicId, clinicName, context, channel, channelId, conv)
   );
 
-  // 8. Low confidence → handoff
+  // 8. Low confidence â†’ handoff
   if (confidence < HANDOFF_CONFIDENCE_THRESHOLD) {
     return _doHandoff(conv, clinicId, channel, channelId, toAddress, messages, `Low AI confidence: ${confidence}`);
   }
@@ -93,7 +93,7 @@ async function handleInboundMessage(channel, channelId, messageText, toAddress, 
   return { replyText, booked: context.appointmentBooked || false, handoff: false, conversationId: conv.id };
 }
 
-// ── Tool executor (called by Gemini when it makes function calls) ──────────
+// â”€â”€ Tool executor (called by Gemini when it makes function calls) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _executeTool(toolName, args, clinicId, clinicName, context, channel, channelId, conv) {
   logger.info(`[Orchestrator] executing tool: ${toolName}`, args);
 
@@ -201,7 +201,7 @@ async function _executeTool(toolName, args, clinicId, clinicName, context, chann
   }
 }
 
-// ── Human handoff ─────────────────────────────────────────────────────────
+// â”€â”€ Human handoff â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _doHandoff(conv, clinicId, channel, channelId, toAddress, messages, reason) {
   await pool.query(
     `UPDATE inbound_conversations
@@ -210,7 +210,7 @@ async function _doHandoff(conv, clinicId, channel, channelId, toAddress, message
     [reason, JSON.stringify(messages), conv.id]
   );
 
-  const reply = 'I\'m connecting you to our staff who will assist you shortly. Please hold. 🙏';
+  const reply = 'I\'m connecting you to our staff who will assist you shortly. Please hold. ðŸ™';
   await _audit(conv.id, clinicId, channel, channelId, 'outbound', reply, { handoff: true, reason });
 
   if (channel !== 'chat' && toAddress) {
@@ -221,12 +221,12 @@ async function _doHandoff(conv, clinicId, channel, channelId, toAddress, message
   return { replyText: reply, booked: false, handoff: true, conversationId: conv.id };
 }
 
-// ── Reminder scheduler (fire-and-forget) ─────────────────────────────────
+// â”€â”€ Reminder scheduler (fire-and-forget) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _scheduleReminder(appt, clinicId, channel, conv) {
   if (!appt.patient_mobile) return;
 
   // Get doctor name
-  const { rows: [doc] } = await pool.query(`SELECT name FROM emr_doctors WHERE id=$1`, [appt.doctor_id]);
+  const { rows: [doc] } = await pool.query(`SELECT name FROM emr_clinic_staff WHERE id=$1`, [appt.doctor_id]);
   const doctorName = doc?.name || 'your doctor';
   const dateStr    = new Date(appt.appointment_date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
   const timeStr    = appt.appointment_time?.slice(0, 5) || '';
@@ -241,7 +241,7 @@ async function _scheduleReminder(appt, clinicId, channel, conv) {
   );
   if (!cfg) return;
 
-  // Store for cron to pick up — 24h before appointment
+  // Store for cron to pick up â€” 24h before appointment
   const apptDateTime = new Date(`${appt.appointment_date}T${appt.appointment_time || '09:00'}`);
   const reminderAt   = new Date(apptDateTime.getTime() - 24 * 60 * 60 * 1000);
   if (reminderAt <= new Date()) return; // past already
@@ -254,7 +254,7 @@ async function _scheduleReminder(appt, clinicId, channel, conv) {
   );
 }
 
-// ── Resolve clinic from inbound Telnyx number ─────────────────────────────
+// â”€â”€ Resolve clinic from inbound Telnyx number â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _resolveClinic(channel, toAddress) {
   const { rows } = await pool.query(
     `SELECT ccc.clinic_id, ec.name AS clinic_name
@@ -267,7 +267,7 @@ async function _resolveClinic(channel, toAddress) {
   return rows[0] || null;
 }
 
-// ── Load or create conversation ────────────────────────────────────────────
+// â”€â”€ Load or create conversation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _loadOrCreateConversation(channel, channelId, toAddress, clinicId) {
   // Find active (non-terminal) conversation from past TTL hours
   const cutoff = new Date(Date.now() - CONVERSATION_TTL_HOURS * 60 * 60 * 1000).toISOString();
@@ -290,7 +290,7 @@ async function _loadOrCreateConversation(channel, channelId, toAddress, clinicId
   return created;
 }
 
-// ── Audit helper ──────────────────────────────────────────────────────────
+// â”€â”€ Audit helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function _audit(convId, clinicId, channel, channelId, direction, message, metadata = {}) {
   await pool.query(
     `INSERT INTO inbound_audit_log (conversation_id, clinic_id, channel, channel_id, direction, message, metadata)
@@ -299,7 +299,7 @@ async function _audit(convId, clinicId, channel, channelId, direction, message, 
   ).catch(err => logger.error('[Audit] log failed', err.message));
 }
 
-// ── Cron: send scheduled reminders ───────────────────────────────────────
+// â”€â”€ Cron: send scheduled reminders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function sendPendingReminders() {
   const now = new Date().toISOString();
   const { rows } = await pool.query(
@@ -327,3 +327,4 @@ async function sendPendingReminders() {
 }
 
 module.exports = { handleInboundMessage, sendPendingReminders };
+

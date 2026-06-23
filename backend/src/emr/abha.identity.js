@@ -119,22 +119,36 @@ async function attachAbha(pool, patientId, { abhaNumber, abhaAddress, source = '
 }
 
 /**
- * Full resolution:
- *   1. Search by ABHA number → found → attach new address if different → return patient
- *   2. Search by ABHA address → found → attach number → return patient
- *   3. Not found → create new patient + mapping
+ * Full resolution with 5-tier priority matching:
+ *   1. ABHA Number (highest confidence)
+ *   2. ABHA Address
+ *   3. Mobile + DOB
+ *   4. Mobile + Name
+ *   5. Name + DOB + Gender (lowest confidence)
+ *   6. Not found → create new patient + mapping
  *
- * Returns { patient, created, abhaAttached }
+ * Returns { patient, created, matchedBy, confidence, duplicateCandidates }
  */
 async function resolveOrCreatePatient(pool, {
   abhaNumber, abhaAddress,
   name, mobile, gender, dob, clinicId,
   source = 'abdm',
 }) {
-  const { patient, matchedBy } = await findPatient(pool, { abhaNumber, abhaAddress });
+  // Use comprehensive patient matching service
+  const PatientMatchService = require('../services/patient-match.service');
+  const matchResult = await PatientMatchService.findPatient(pool, {
+    abhaNumber,
+    abhaAddress,
+    mobile,
+    name,
+    dob,
+    gender,
+    clinicId,
+  });
 
-  if (patient) {
-    await attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source });
+  // If found with confidence, use existing patient
+  if (matchResult.patient && matchResult.confidence > 0) {
+    await attachAbha(pool, matchResult.patient.id, { abhaNumber, abhaAddress, source });
     // Overwrite demographic fields with Aadhaar-authoritative values when provided.
     // This ensures generateLinkToken always gets the exact gender/dob ABDM expects.
     await pool.query(
@@ -144,13 +158,36 @@ async function resolveOrCreatePatient(pool, {
            gender = COALESCE($3, gender),
            dob    = COALESCE($4::date, dob)
        WHERE id = $5`,
-      [name ?? null, mobile ?? null, gender ?? null, dob ?? null, patient.id]
+      [name ?? null, mobile ?? null, gender ?? null, dob ?? null, matchResult.patient.id]
     );
-    const { rows } = await pool.query('SELECT * FROM emr_patients WHERE id=$1', [patient.id]);
-    return { patient: rows[0], created: false, matchedBy };
+    const { rows } = await pool.query('SELECT * FROM emr_patients WHERE id=$1', [matchResult.patient.id]);
+    return {
+      patient: rows[0],
+      created: false,
+      matchedBy: matchResult.matchedBy,
+      confidence: matchResult.confidence,
+      duplicateCandidates: [],
+    };
   }
 
-  // Create new patient with deleted_at = NULL (ensure not deleted)
+  // If multiple candidates (ambiguous match), flag for manual review
+  if (matchResult.candidates && matchResult.candidates.length > 1) {
+    logger.warn('Ambiguous patient match - multiple candidates found', {
+      matchedBy: matchResult.matchedBy,
+      candidateCount: matchResult.candidates.length,
+      criteria: { mobile, name, dob, gender },
+    });
+    return {
+      patient: null,
+      created: false,
+      matchedBy: matchResult.matchedBy,
+      confidence: 0,
+      duplicateCandidates: matchResult.candidates,
+      message: `Found ${matchResult.candidates.length} similar patients. Please select or create new.`,
+    };
+  }
+
+  // No match found - create new patient
   const { rows } = await pool.query(
     `INSERT INTO emr_patients (name, mobile, dob, gender, abha_number, abha_address, clinic_id, deleted_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,NULL) RETURNING *`,
@@ -161,7 +198,28 @@ async function resolveOrCreatePatient(pool, {
 
   await attachAbha(pool, newPatient.id, { abhaNumber, abhaAddress, source });
 
-  return { patient: newPatient, created: true, matchedBy: null };
+  // Check for potential duplicates within 2 weeks (catch recent duplicate registration)
+  const duplicates = await PatientMatchService.detectDuplicateCandidates(
+    pool,
+    { mobile, name, dob },
+    newPatient.id
+  );
+
+  if (duplicates.length > 0) {
+    logger.warn('Potential duplicate patients detected after creation', {
+      newPatientId: newPatient.id,
+      duplicateCount: duplicates.length,
+      reasons: duplicates.map(d => d.duplicate_reason),
+    });
+  }
+
+  return {
+    patient: newPatient,
+    created: true,
+    matchedBy: null,
+    confidence: 0,
+    duplicateCandidates: duplicates,
+  };
 }
 
 module.exports = { findPatient, findByAbhaNumber, findByAbhaAddress, attachAbha, resolveOrCreatePatient };

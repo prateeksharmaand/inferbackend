@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+﻿const { pool } = require('../config/database');
 
 const DEFAULT_QUICK_ACTIONS = [
   'visit_type','payment_status','assessment_status','write_rx','notes','print_rx',
@@ -14,7 +14,7 @@ const listQueues = async (req, res) => {
         WHERE a.queue_id = q.id AND a.appointment_date = $2
           AND a.status NOT IN ('completed','cancelled','aborted')) AS today_count
      FROM emr_queues q
-     LEFT JOIN emr_doctors d ON d.id = q.doctor_id
+     LEFT JOIN emr_clinic_staff d ON d.id = q.doctor_id
      WHERE q.clinic_id = $1 AND q.is_active = TRUE
      ORDER BY q.created_at`,
     [req.emrUser.clinic_id, date]
@@ -22,7 +22,7 @@ const listQueues = async (req, res) => {
   res.json(rows);
 };
 
-// POST /api/emr/queues  — save 6-step wizard in one shot
+// POST /api/emr/queues  â€” save 6-step wizard in one shot
 const createQueue = async (req, res) => {
   const { name, mode, filters, quick_actions, sort_order, doctor_id } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
@@ -73,3 +73,4 @@ const deleteQueue = async (req, res) => {
 };
 
 module.exports = { listQueues, createQueue, updateQueue, deleteQueue };
+

@@ -1,4 +1,4 @@
-const bcrypt   = require('bcryptjs');
+﻿const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
 const crypto   = require('crypto');
 const nodemailer = require('nodemailer');
@@ -20,7 +20,7 @@ function sign(payload) {
   return jwt.sign({ ...payload, jti }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
 
-// POST /api/emr/auth/logout — invalidate token server-side
+// POST /api/emr/auth/logout â€” invalidate token server-side
 const logout = async (req, res) => {
   try {
     const header = req.headers.authorization;
@@ -39,7 +39,7 @@ const logout = async (req, res) => {
       eventType: audit.EVENTS.AUTH_LOGOUT,
       req,
       userId: decoded?.id, userEmail: decoded?.email, userRole: decoded?.role, clinicId: decoded?.clinic_id,
-      action: 'Logout — token blacklisted',
+      action: 'Logout â€” token blacklisted',
       status: 'SUCCESS', severity: 'INFO',
     });
     res.json({ ok: true });
@@ -75,7 +75,7 @@ const login = async (req, res) => {
   }
 
   if (user.status === 'suspended') {
-    audit.log({ eventType: audit.EVENTS.AUTH_CLINIC_SUSPENDED, req, userEmail: email, userRole: role, clinicId: user.clinic_id, action: 'Login blocked — clinic suspended', status: 'DENIED', severity: 'WARN' });
+    audit.log({ eventType: audit.EVENTS.AUTH_CLINIC_SUSPENDED, req, userEmail: email, userRole: role, clinicId: user.clinic_id, action: 'Login blocked â€” clinic suspended', status: 'DENIED', severity: 'WARN' });
     return res.status(403).json({ error: 'Your clinic account has been suspended. Please contact support.' });
   }
 
@@ -165,7 +165,7 @@ const addDoctor = async (req, res) => {
   const clinic_id = req.emrUser.clinic_id;
   if (!name || !email || !password) return res.status(400).json({ error: 'name, email, password required' });
 
-  // ── Seat limit check ────────────────────────────────────────────────────────
+  // â”€â”€ Seat limit check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { rows: [sub] } = await pool.query(
     `SELECT cs.status, sp.key AS plan_key, sp.max_users
      FROM clinic_subscriptions cs
@@ -209,8 +209,8 @@ const addDoctor = async (req, res) => {
 
   const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const { rows } = await pool.query(
-    `INSERT INTO emr_doctors (clinic_id, name, email, password_hash, specialization, qualification, registration_no, google_review_link)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, name, email, specialization, google_review_link`,
+    `INSERT INTO emr_clinic_staff (clinic_id, name, email, password_hash, designation, department, employee_id, role, is_active)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, name, email, designation AS specialization, is_active`,
     [clinic_id, name, email, hash, specialization || null, qualification || null, registration_no || null, google_review_link || null]
   );
   res.status(201).json(rows[0]);
@@ -292,9 +292,9 @@ const updateDoctor = async (req, res) => {
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
   params.push(req.params.id, req.emrUser.clinic_id);
   const { rows } = await pool.query(
-    `UPDATE emr_doctors SET ${sets.join(', ')}
+    `UPDATE emr_clinic_staff SET ${sets.join(', ')}
      WHERE id=$${i++} AND clinic_id=$${i++}
-     RETURNING id, name, email, specialization, qualification, registration_no, is_active, google_review_link`,
+     RETURNING id, name, email, designation AS specialization, department AS qualification, employee_id AS registration_no, is_active`,
     params
   );
   if (!rows.length) return res.status(404).json({ error: 'Doctor not found' });
@@ -316,7 +316,7 @@ const forgotPassword = async (req, res) => {
   const { email, role = 'staff' } = req.body;
   if (!email) return res.status(400).json({ error: 'email required' });
 
-  const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
+  const table = 'emr_clinic_staff'; // single source
   const { rows } = await pool.query(`SELECT id, name FROM ${table} WHERE email=$1 AND is_active=true`, [email]);
 
   // Always respond OK to avoid email enumeration
@@ -366,7 +366,7 @@ const resetPassword = async (req, res) => {
   if (!rows.length) return res.status(400).json({ error: 'Invalid or expired reset link.' });
 
   const { email } = rows[0];
-  const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
+  const table = 'emr_clinic_staff'; // single source
   const hash  = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
 
   await pool.query(`UPDATE ${table} SET password_hash=$1 WHERE email=$2`, [hash, email]);
@@ -382,7 +382,7 @@ const changePassword = async (req, res) => {
   if (new_password.length < MIN_PASSWORD_LENGTH) return res.status(400).json({ error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters` });
 
   const { id, role } = req.emrUser;
-  const table = role === 'doctor' ? 'emr_doctors' : 'emr_clinic_staff';
+  const table = 'emr_clinic_staff'; // single source
 
   const { rows } = await pool.query(`SELECT password_hash FROM ${table} WHERE id=$1`, [id]);
   if (!rows.length) return res.status(404).json({ error: 'User not found' });
@@ -397,3 +397,4 @@ const changePassword = async (req, res) => {
 };
 
 module.exports = { login, logout, registerClinic, addDoctor, getSeatInfo, listDoctors, updateDoctor, deleteDoctor, forgotPassword, resetPassword, changePassword };
+

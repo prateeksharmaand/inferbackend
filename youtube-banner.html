@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 2560px;
+    height: 1440px;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f0a1e;
+  }
+
+  .banner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  /* Background gradient */
+  .bg-gradient {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 900px 700px at 20% 50%, rgba(124,58,237,0.35) 0%, transparent 70%),
+      radial-gradient(ellipse 700px 500px at 75% 30%, rgba(139,92,246,0.2) 0%, transparent 60%),
+      radial-gradient(ellipse 500px 400px at 80% 80%, rgba(91,33,182,0.3) 0%, transparent 60%),
+      linear-gradient(135deg, #0f0a1e 0%, #1a0f3a 50%, #0d0920 100%);
+  }
+
+  /* Grid lines */
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,58,237,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.07) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  /* Floating glows */
+  .glow-1 {
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,58,237,0.25) 0%, transparent 70%);
+    top: -100px; left: -100px;
+    filter: blur(40px);
+  }
+  .glow-2 {
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(167,139,250,0.2) 0%, transparent 70%);
+    bottom: 100px; right: 700px;
+    filter: blur(30px);
+  }
+
+  /* Left content */
+  .left {
+    position: relative;
+    z-index: 10;
+    padding-left: 200px;
+    flex: 0 0 1350px;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 60px;
+  }
+
+  .logo-icon {
+    width: 80px; height: 80px;
+    background: #7c3aed;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    font-weight: 800;
+    color: #fff;
+    box-shadow: 0 0 40px rgba(124,58,237,0.6);
+  }
+
+  .logo-text {
+    font-size: 42px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span {
+    color: #a78bfa;
+  }
+
+  .tagline-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(124,58,237,0.2);
+    border: 1px solid rgba(124,58,237,0.5);
+    border-radius: 100px;
+    padding: 10px 28px;
+    margin-bottom: 50px;
+  }
+
+  .badge-dot {
+    width: 10px; height: 10px;
+    background: #a78bfa;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #a78bfa;
+  }
+
+  .badge-text {
+    font-size: 24px;
+    color: #c4b5fd;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: 120px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.05;
+    letter-spacing: -3px;
+    margin-bottom: 40px;
+  }
+
+  h1 .accent {
+    background: linear-gradient(135deg, #a78bfa, #7c3aed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    font-size: 40px;
+    color: #9ca3af;
+    font-weight: 400;
+    line-height: 1.4;
+    max-width: 900px;
+    margin-bottom: 70px;
+  }
+
+  .pills {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 100px;
+    padding: 16px 40px;
+    font-size: 28px;
+    color: #c4b5fd;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .pill-icon {
+    font-size: 26px;
+  }
+
+  /* Right: mock UI card */
+  .right {
+    position: relative;
+    z-index: 10;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-right: 120px;
+  }
+
+  .ui-card {
+    width: 760px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 32px;
+    padding: 48px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 40px 120px rgba(0,0,0,0.5), 0 0 60px rgba(124,58,237,0.15);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 36px;
+  }
+
+  .card-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .card-badge {
+    background: rgba(124,58,237,0.25);
+    border: 1px solid rgba(124,58,237,0.5);
+    border-radius: 100px;
+    padding: 8px 20px;
+    font-size: 18px;
+    color: #a78bfa;
+    font-weight: 600;
+  }
+
+  .patient-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    margin-bottom: 16px;
+    border: 1px solid transparent;
+  }
+
+  .patient-row.active {
+    background: rgba(124,58,237,0.15);
+    border-color: rgba(124,58,237,0.3);
+  }
+
+  .avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .patient-info { flex: 1; }
+  .patient-name { font-size: 22px; color: #f3f4f6; font-weight: 600; }
+  .patient-detail { font-size: 18px; color: #6b7280; margin-top: 4px; }
+
+  .status {
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .status.done { background: rgba(16,185,129,0.15); color: #34d399; }
+  .status.next { background: rgba(124,58,237,0.2); color: #a78bfa; }
+  .status.wait { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
+  .divider {
+    height: 1px;
+    background: rgba(124,58,237,0.15);
+    margin: 28px 0;
+  }
+
+  .ai-box {
+    background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(91,33,182,0.1));
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 20px;
+    padding: 24px 28px;
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .ai-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .ai-text { flex: 1; }
+  .ai-label { font-size: 16px; color: #a78bfa; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .ai-content { font-size: 19px; color: #d1d5db; line-height: 1.5; }
+
+  .stats-row {
+    display: flex;
+    gap: 20px;
+    margin-top: 24px;
+  }
+
+  .stat {
+    flex: 1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .stat-num { font-size: 30px; font-weight: 800; color: #a78bfa; }
+  .stat-label { font-size: 16px; color: #6b7280; margin-top: 4px; }
+
+  /* Safe zone indicator (subtle) */
+  .safe-zone {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 1546px;
+    height: 423px;
+    border: 1px dashed rgba(255,255,255,0.04);
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+<div class="banner">
+  <div class="bg-gradient"></div>
+  <div class="grid"></div>
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+  <div class="safe-zone"></div>
+
+  <!-- Left: branding + copy -->
+  <div class="left">
+    <div class="logo-row">
+      <div class="logo-icon">I</div>
+      <div class="logo-text">infer<span>.care</span></div>
+    </div>
+
+    <div class="tagline-badge">
+      <div class="badge-dot"></div>
+      <div class="badge-text">AI-Powered EMR for Doctors</div>
+    </div>
+
+    <h1>Smarter Clinics.<br><span class="accent">Better Care.</span></h1>
+
+    <p class="subtitle">Voice prescriptions · AI SOAP notes<br>OPD management · Real-time analytics</p>
+
+    <div class="pills">
+      <div class="pill"><span class="pill-icon">🎙️</span> Voice2Rx</div>
+      <div class="pill"><span class="pill-icon">🤖</span> AI DocAssist</div>
+      <div class="pill"><span class="pill-icon">📋</span> Smart OPD</div>
+      <div class="pill"><span class="pill-icon">📊</span> Analytics</div>
+    </div>
+  </div>
+
+  <!-- Right: mock EMR UI -->
+  <div class="right">
+    <div class="ui-card">
+      <div class="card-header">
+        <div class="card-title">Today's OPD Queue</div>
+        <div class="card-badge">● Live</div>
+      </div>
+
+      <div class="patient-row active">
+        <div class="avatar" style="background: linear-gradient(135deg,#7c3aed,#5b21b6)">RS</div>
+        <div class="patient-info">
+          <div class="patient-name">Rahul Sharma</div>
+          <div class="patient-detail">Token 04 · General Physician · 10:15 AM</div>
+        </div>
+        <div class="status next">In Consultation</div>
+      </div>
+
+      <div class="patient-row">
+        <div class="avatar" style="background: linear-gradient(135deg,#059669,#047857)">PK</div>
+        <div class="patient-info">
+          <div class="patient-name">Priya Kapoor</div>
+          <div class="patient-detail">Token 05 · Diabetologist · 10:30 AM</div>
+        </div>
+        <div class="status wait">Waiting</div>
+      </div>
+
+      <div class="patient-row">
+        <div class="avatar" style="background: linear-gradient(135deg,#0891b2,#0e7490)">AM</div>
+        <div class="patient-info">
+          <div class="patient-name">Anil Mehta</div>
+          <div class="patient-detail">Token 03 · Cardiologist · 10:00 AM</div>
+        </div>
+        <div class="status done">Done</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="ai-box">
+        <div class="ai-icon">✦</div>
+        <div class="ai-text">
+          <div class="ai-label">AI Suggestion · Rahul Sharma</div>
+          <div class="ai-content">HbA1c elevated. Consider metformin 500mg BD. Review in 8 weeks. Patient flagged for follow-up.</div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-num">24</div>
+          <div class="stat-label">Patients Today</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">4.2 min</div>
+          <div class="stat-label">Avg. Consult</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">98%</div>
+          <div class="stat-label">Rx Accuracy</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

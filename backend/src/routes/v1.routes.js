@@ -67,7 +67,7 @@ router.get('/autocomplete/lab-tests', require('../middleware/auth').requireAuth,
 });
 
 // GET /doctors - list doctors from EMR (accessible to lab staff)
-// Doctors live in emr_doctors, scoped by clinic. The lab token carries clinic_id.
+// Doctors live in emr_clinic_staff (role='doctor'), scoped by clinic. The lab token carries clinic_id.
 router.get('/doctors', require('../middleware/labAuth').verifyLabToken, async (req, res) => {
   try {
     const { query } = require('../config/database');
@@ -77,9 +77,9 @@ router.get('/doctors', require('../middleware/labAuth').verifyLabToken, async (r
     if (clinicId) { params.push(clinicId); clinicFilter = `AND clinic_id = $${params.length}`; }
 
     const { rows } = await query(
-      `SELECT id, name, email, specialization, qualification
-       FROM emr_doctors
-       WHERE is_active = true ${clinicFilter}
+      `SELECT id, name, email, designation AS specialization, department AS qualification
+       FROM emr_clinic_staff
+       WHERE role='doctor' AND is_active = true ${clinicFilter}
        ORDER BY name`,
       params
     );

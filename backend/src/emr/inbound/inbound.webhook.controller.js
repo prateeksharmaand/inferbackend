@@ -1,11 +1,11 @@
-/**
- * Exotel webhook handlers — India (single provider)
+﻿/**
+ * Exotel webhook handlers â€” India (single provider)
  *
- * ─ POST /webhook/exotel/sms        Inbound SMS (form-encoded)
- * ─ POST /webhook/exotel/whatsapp   Inbound WhatsApp (JSON)
- * ─ POST /webhook/exotel/voice      Inbound IVR call (form-encoded → ExoML)
- * ─ POST /webhook/exotel/gather     DTMF digit collected (form-encoded → ExoML)
- * ─ POST /webhook/exotel/status     Delivery status callbacks
+ * â”€ POST /webhook/exotel/sms        Inbound SMS (form-encoded)
+ * â”€ POST /webhook/exotel/whatsapp   Inbound WhatsApp (JSON)
+ * â”€ POST /webhook/exotel/voice      Inbound IVR call (form-encoded â†’ ExoML)
+ * â”€ POST /webhook/exotel/gather     DTMF digit collected (form-encoded â†’ ExoML)
+ * â”€ POST /webhook/exotel/status     Delivery status callbacks
  *
  * Security: Exotel signs webhooks with HMAC-SHA1 of raw body using EXOTEL_TOKEN.
  * Header: X-Exotel-Signature
@@ -22,7 +22,7 @@ function _verify(req) {
   return exotel.verifyWebhookSignature(rawBody, sig);
 }
 
-// ── POST /webhook/exotel/sms ─────────────────────────────────────────────
+// â”€â”€ POST /webhook/exotel/sms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const handleSmsWebhook = async (req, res) => {
   if (!_verify(req)) {
     logger.warn('[Webhook/SMS] Exotel signature mismatch');
@@ -40,7 +40,7 @@ const handleSmsWebhook = async (req, res) => {
   }
 };
 
-// ── POST /webhook/exotel/whatsapp ────────────────────────────────────────
+// â”€â”€ POST /webhook/exotel/whatsapp â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const handleWhatsAppWebhook = async (req, res) => {
   if (!_verify(req)) {
     logger.warn('[Webhook/WA] Exotel signature mismatch');
@@ -58,7 +58,7 @@ const handleWhatsAppWebhook = async (req, res) => {
   }
 };
 
-// ── POST /webhook/exotel/voice ───────────────────────────────────────────
+// â”€â”€ POST /webhook/exotel/voice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Exotel POSTs form-encoded: CallSid, From, To, Direction, Status
 const handleVoiceWebhook = async (req, res) => {
   const event = exotel.parseInboundCallEvent(req.body);
@@ -93,7 +93,7 @@ const handleVoiceWebhook = async (req, res) => {
   res.type('text/xml').send(exotel.buildGreetingTeXml(clinicName, gatherUrl));
 };
 
-// ── POST /webhook/exotel/gather ──────────────────────────────────────────
+// â”€â”€ POST /webhook/exotel/gather â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Exotel POSTs form-encoded: Digits, From, To (+ our query params)
 const handleVoiceGather = async (req, res) => {
   const { Digits, digits, from, to, clinicId, step = 'main' } =
@@ -144,7 +144,7 @@ const handleVoiceGather = async (req, res) => {
     }
 
     const { rows: [doc] } = await pool.query(
-      `SELECT name FROM emr_doctors WHERE id = $1`, [doctorId]
+      `SELECT name FROM emr_clinic_staff WHERE id = $1`, [doctorId]
     );
     const doctorName = doc?.name || 'the doctor';
 
@@ -170,11 +170,11 @@ const handleVoiceGather = async (req, res) => {
   }
 };
 
-// ── POST /webhook/exotel/status ──────────────────────────────────────────
+// â”€â”€ POST /webhook/exotel/status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const handleStatusWebhook = async (req, res) => {
   res.sendStatus(200);
   const { SmsSid, SmsStatus, To } = req.body || {};
-  if (SmsSid) logger.info(`[Webhook/Status] ${SmsSid} → ${SmsStatus} for ${To}`);
+  if (SmsSid) logger.info(`[Webhook/Status] ${SmsSid} â†’ ${SmsStatus} for ${To}`);
 };
 
 module.exports = {
@@ -184,3 +184,4 @@ module.exports = {
   handleVoiceGather,
   handleStatusWebhook,
 };
+

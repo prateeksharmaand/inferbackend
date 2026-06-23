@@ -1,9 +1,9 @@
-const bcrypt       = require('bcryptjs');
+﻿const bcrypt       = require('bcryptjs');
 const nodemailer   = require('nodemailer');
 const { pool }     = require('../config/database');
 const resolver     = require('../services/abdm-clinic-resolver.service');
 
-// ── Email helper ──────────────────────────────────────────────────────────────
+// â”€â”€ Email helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function buildMailer() {
   if (!process.env.SMTP_HOST) return null;
@@ -17,12 +17,12 @@ function buildMailer() {
 
 async function sendCredentials({ to, clinicName, email, password, loginUrl }) {
   const mailer = buildMailer();
-  if (!mailer) return; // SMTP not configured — credentials shown in API response only
+  if (!mailer) return; // SMTP not configured â€” credentials shown in API response only
 
   await mailer.sendMail({
     from: process.env.SMTP_FROM || 'noreply@infer.health',
     to,
-    subject: `Welcome to Infer EMR — Your clinic credentials`,
+    subject: `Welcome to Infer EMR â€” Your clinic credentials`,
     html: `
       <h2>Welcome to Infer EMR</h2>
       <p>Your clinic <strong>${clinicName}</strong> has been set up. Here are your login credentials:</p>
@@ -36,7 +36,7 @@ async function sendCredentials({ to, clinicName, email, password, loginUrl }) {
   });
 }
 
-// ── GET /api/admin/clinics ────────────────────────────────────────────────────
+// â”€â”€ GET /api/admin/clinics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.listClinics = async (req, res) => {
   const { search, status } = req.query;
@@ -58,7 +58,7 @@ exports.listClinics = async (req, res) => {
             cs.status AS sub_status, cs.expires_at, cs.billing_cycle,
             (SELECT COUNT(*)::int FROM emr_patients   WHERE clinic_id = c.id AND deleted_at IS NULL) AS patient_count,
             (SELECT COUNT(*)::int FROM emr_appointments WHERE clinic_id = c.id) AS appointment_count,
-            (SELECT COUNT(*)::int FROM emr_doctors     WHERE clinic_id = c.id AND is_active = true) AS doctor_count
+            (SELECT COUNT(*)::int FROM emr_clinic_staff     WHERE clinic_id = c.id AND is_active = true) AS doctor_count
      FROM emr_clinics c
      LEFT JOIN clinic_subscriptions cs ON cs.clinic_id = c.id
      LEFT JOIN subscription_plans   sp ON sp.id = cs.plan_id
@@ -69,7 +69,7 @@ exports.listClinics = async (req, res) => {
   res.json(rows);
 };
 
-// ── GET /api/admin/clinics/:id ────────────────────────────────────────────────
+// â”€â”€ GET /api/admin/clinics/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.getClinic = async (req, res) => {
   const { id } = req.params;
@@ -87,7 +87,7 @@ exports.getClinic = async (req, res) => {
   if (!rows.length) return res.status(404).json({ error: 'Clinic not found' });
 
   const [doctors, staff, patients, appts] = await Promise.all([
-    pool.query(`SELECT id, name, email, specialization, is_active FROM emr_doctors WHERE clinic_id = $1 ORDER BY name`, [id]),
+    pool.query(`SELECT id, name, email, specialization, is_active FROM emr_clinic_staff WHERE clinic_id = $1 ORDER BY name`, [id]),
     pool.query(`SELECT id, name, email, role, is_active FROM emr_clinic_staff WHERE clinic_id = $1 ORDER BY name`, [id]),
     pool.query(`SELECT COUNT(*)::int AS n FROM emr_patients WHERE clinic_id = $1 AND deleted_at IS NULL`, [id]),
     pool.query(`SELECT COUNT(*)::int AS n FROM emr_appointments WHERE clinic_id = $1`, [id]),
@@ -102,7 +102,7 @@ exports.getClinic = async (req, res) => {
   });
 };
 
-// ── POST /api/admin/clinics ───────────────────────────────────────────────────
+// â”€â”€ POST /api/admin/clinics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.createClinic = async (req, res) => {
   const {
@@ -182,7 +182,7 @@ exports.createClinic = async (req, res) => {
   }
 };
 
-// ── PATCH /api/admin/clinics/:id ──────────────────────────────────────────────
+// â”€â”€ PATCH /api/admin/clinics/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.updateClinic = async (req, res) => {
   const { id } = req.params;
@@ -210,7 +210,7 @@ exports.updateClinic = async (req, res) => {
   res.json(rows[0]);
 };
 
-// ── PATCH /api/admin/clinics/:id/abdm ────────────────────────────────────────
+// â”€â”€ PATCH /api/admin/clinics/:id/abdm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.updateClinicAbdm = async (req, res) => {
   const { id } = req.params;
@@ -259,7 +259,7 @@ exports.updateClinicAbdm = async (req, res) => {
   res.json(rows[0]);
 };
 
-// ── POST /api/admin/clinics/sync-hips ────────────────────────────────────────
+// â”€â”€ POST /api/admin/clinics/sync-hips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Pull registered services from the ABDM bridge and update abdm_status/abdm_last_synced_at
 
 exports.syncClinicHips = async (req, res) => {
@@ -286,7 +286,7 @@ exports.syncClinicHips = async (req, res) => {
   res.json({ synced: results.length, totalBridgeServices: services.length, details: results });
 };
 
-// ── PATCH /api/admin/clinics/:id/suspend ─────────────────────────────────────
+// â”€â”€ PATCH /api/admin/clinics/:id/suspend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.suspendClinic = async (req, res) => {
   const { id } = req.params;
@@ -299,7 +299,7 @@ exports.suspendClinic = async (req, res) => {
   res.json({ message: 'Clinic suspended' });
 };
 
-// ── PATCH /api/admin/clinics/:id/activate ────────────────────────────────────
+// â”€â”€ PATCH /api/admin/clinics/:id/activate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.activateClinic = async (req, res) => {
   const { id } = req.params;
@@ -312,7 +312,7 @@ exports.activateClinic = async (req, res) => {
   res.json({ message: 'Clinic activated' });
 };
 
-// ── GET /api/admin/stats ──────────────────────────────────────────────────────
+// â”€â”€ GET /api/admin/stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 exports.getStats = async (req, res) => {
   // Ensure status column exists before querying (idempotent)
@@ -341,3 +341,4 @@ exports.getStats = async (req, res) => {
     subscriptions:  subscriptions.rows,
   });
 };
+

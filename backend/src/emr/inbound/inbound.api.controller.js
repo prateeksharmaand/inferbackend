@@ -1,5 +1,5 @@
-/**
- * EMR Staff API — Inbound Appointment Management
+﻿/**
+ * EMR Staff API â€” Inbound Appointment Management
  * All routes protected by emrAuth middleware
  *
  * Covers:
@@ -7,7 +7,7 @@
  *  - Doctor availability CRUD
  *  - Channel config CRUD
  *  - Analytics dashboard
- *  - Patient portal booking (direct REST — no AI)
+ *  - Patient portal booking (direct REST â€” no AI)
  *  - Chat widget session
  */
 const { pool }        = require('../../config/database');
@@ -16,7 +16,7 @@ const slot            = require('./slot.service');
 const telnyx          = require('./telnyx.service');
 const orchestrator    = require('./booking.orchestrator');
 
-// ── Conversations ─────────────────────────────────────────────────────────
+// â”€â”€ Conversations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const listConversations = async (req, res) => {
   const { state, channel, page = 1, limit = 30 } = req.query;
@@ -26,7 +26,7 @@ const listConversations = async (req, res) => {
                d.name AS doctor_name
              FROM inbound_conversations c
              LEFT JOIN emr_appointments a ON a.id = c.appointment_id
-             LEFT JOIN emr_doctors d ON d.id = (c.context->>'doctor_id')::int
+             LEFT JOIN emr_clinic_staff d ON d.id = (c.context->>'doctor_id')::int
              WHERE c.clinic_id = $1`;
   const params = [req.emrUser.clinic_id];
   let idx = 2;
@@ -54,7 +54,7 @@ const getConversation = async (req, res) => {
               a.patient_name, a.patient_mobile, d.name AS doctor_name
      FROM inbound_conversations c
      LEFT JOIN emr_appointments a ON a.id = c.appointment_id
-     LEFT JOIN emr_doctors d ON d.id = a.doctor_id
+     LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
      WHERE c.id=$1 AND c.clinic_id=$2`,
     [req.params.id, req.emrUser.clinic_id]
   );
@@ -117,7 +117,7 @@ const staffReply = async (req, res) => {
   res.json({ ok: true });
 };
 
-// ── Doctor Availability CRUD ──────────────────────────────────────────────
+// â”€â”€ Doctor Availability CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const getAvailability = async (req, res) => {
   const { doctor_id } = req.query;
@@ -143,7 +143,7 @@ const upsertAvailability = async (req, res) => {
 
   // Verify doctor belongs to clinic
   const { rows: [doc] } = await pool.query(
-    `SELECT id FROM emr_doctors WHERE id=$1 AND clinic_id=$2`,
+    `SELECT id FROM emr_clinic_staff WHERE id=$1 AND clinic_id=$2`,
     [doctor_id, req.emrUser.clinic_id]
   );
   if (!doc) return res.status(403).json({ error: 'Doctor not in clinic' });
@@ -178,7 +178,7 @@ const getSlots = async (req, res) => {
   res.json({ date, doctor_id: parseInt(doctor_id, 10), slots });
 };
 
-// ── Channel Config CRUD ───────────────────────────────────────────────────
+// â”€â”€ Channel Config CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const listChannelConfigs = async (req, res) => {
   const { rows } = await pool.query(
@@ -212,7 +212,7 @@ const deleteChannelConfig = async (req, res) => {
   res.json({ ok: true });
 };
 
-// ── Patient portal: direct booking API (no AI, for web/app portals) ───────
+// â”€â”€ Patient portal: direct booking API (no AI, for web/app portals) â”€â”€â”€â”€â”€â”€â”€
 
 const portalBook = async (req, res) => {
   const { patient_name, patient_mobile, patient_dob, patient_gender,
@@ -230,7 +230,7 @@ const portalBook = async (req, res) => {
   res.status(201).json(appt);
 };
 
-// ── Chat widget: handle a chat message (synchronous, returns AI reply) ────
+// â”€â”€ Chat widget: handle a chat message (synchronous, returns AI reply) â”€â”€â”€â”€
 
 const chatMessage = async (req, res) => {
   const { session_id, message } = req.body;
@@ -247,7 +247,7 @@ const chatMessage = async (req, res) => {
   res.json({ reply: result?.replyText || '', booked: result?.booked, handoff: result?.handoff });
 };
 
-// ── Analytics dashboard ───────────────────────────────────────────────────
+// â”€â”€ Analytics dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const getAnalytics = async (req, res) => {
   const { days = 30 } = req.query;
@@ -303,3 +303,4 @@ module.exports = {
   listChannelConfigs, upsertChannelConfig, deleteChannelConfig,
   portalBook, chatMessage, getAnalytics,
 };
+
