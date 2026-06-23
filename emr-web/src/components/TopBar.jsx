@@ -107,11 +107,15 @@ export default function TopBar() {
   const doSearch = useCallback((q) => {
     if (q.trim().length < 2) { setPatients([]); setSearching(false); return; }
     setSearching(true);
-    api.get(`/patients?q=${encodeURIComponent(q.trim())}`)
+    const params = new URLSearchParams({ q: q.trim() });
+    if (searchMode === 'checkin') {
+      params.append('clinic_only', 'true');
+    }
+    api.get(`/patients?${params}`)
       .then(rows => setPatients(rows || []))
       .catch(() => setPatients([]))
       .finally(() => setSearching(false));
-  }, []);
+  }, [searchMode]);
 
   const handleQueryChange = (e) => {
     const val = e.target.value;

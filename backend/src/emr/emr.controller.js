@@ -9,7 +9,7 @@ const abdmResolver = require('../services/abdm-clinic-resolver.service');
 // ── Patients ──────────────────────────────────────────────────────────────────
 
 const listPatients = async (req, res) => {
-  const { q } = req.query;
+  const { q, clinic_only } = req.query;
   const clinicId = req.emrUser?.clinic_id;
   // SEC-009: no SQL interpolation — fetch UHID from patient_clinics
   const uhidSub = clinicId
@@ -21,6 +21,23 @@ const listPatients = async (req, res) => {
     const term   = `%${q.trim().toLowerCase()}%`;
     const prefix = `${q.trim()}%`;
     const cid    = parseInt(clinicId, 10);
+
+    // If clinic_only=true, only return patients already associated with this clinic
+    if (clinic_only === 'true') {
+      const { rows } = await pool.query(
+        `SELECT p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
+                COUNT(DISTINCT c.id)::int AS context_count, ${uhidSub}
+         FROM emr_patients p
+         LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
+         INNER JOIN patient_clinics pc ON p.id = pc.patient_id AND pc.clinic_id = $3
+         WHERE p.deleted_at IS NULL
+           AND (LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
+            OR LOWER(pc.uhid) LIKE $1)
+         GROUP BY p.id ORDER BY p.name LIMIT 10`,
+        [term, prefix, cid]
+      );
+      return res.json(rows);
+    }
 
     // 1. Search the patient registry (name, mobile, ABHA, or UHID from patient_clinics)
     // SEC-018: exclude soft-deleted patients
