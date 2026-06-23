@@ -167,30 +167,23 @@ const createAppointment = async (req, res) => {
   // 1. Try to resolve from ABHA if not supplied
   if (!resolvedPatientId && patient_abha) {
     const { rows: ptRows } = await pool.query(
-      `SELECT p.id, p.clinic_id, p.uhid FROM emr_patients p
+      `SELECT p.id FROM emr_patients p
        WHERE (p.abha_number = $1 OR p.abha_address = $1) AND p.deleted_at IS NULL
        LIMIT 1`,
       [patient_abha]
     );
     if (ptRows.length) {
       resolvedPatientId = ptRows[0].id;
-      // If patient has no clinic_id yet, assign them to this clinic
-      if (!ptRows[0].clinic_id) {
-        await pool.query(
-          `UPDATE emr_patients SET clinic_id = $1 WHERE id = $2`,
-          [req.emrUser.clinic_id, resolvedPatientId]
-        );
-      }
     }
   }
 
   // 2. Try to resolve from patient name + mobile in this clinic
   if (!resolvedPatientId && patient_name && patient_mobile) {
     const { rows: ptRows } = await pool.query(
-      `SELECT p.id, p.uhid FROM emr_patients p
-       WHERE p.name = $1 AND p.mobile = $2 AND p.clinic_id = $3 AND p.deleted_at IS NULL
+      `SELECT p.id FROM emr_patients p
+       WHERE p.name = $1 AND p.mobile = $2 AND p.deleted_at IS NULL
        LIMIT 1`,
-      [patient_name, patient_mobile, req.emrUser.clinic_id]
+      [patient_name, patient_mobile]
     );
     if (ptRows.length) {
       resolvedPatientId = ptRows[0].id;
@@ -200,10 +193,10 @@ const createAppointment = async (req, res) => {
   // 3. Try to resolve from just patient name in this clinic
   if (!resolvedPatientId && patient_name) {
     const { rows: ptRows } = await pool.query(
-      `SELECT p.id, p.uhid FROM emr_patients p
-       WHERE p.name = $1 AND p.clinic_id = $2 AND p.deleted_at IS NULL
+      `SELECT p.id FROM emr_patients p
+       WHERE p.name = $1 AND p.deleted_at IS NULL
        ORDER BY p.created_at DESC LIMIT 1`,
-      [patient_name, req.emrUser.clinic_id]
+      [patient_name]
     );
     if (ptRows.length) {
       resolvedPatientId = ptRows[0].id;
