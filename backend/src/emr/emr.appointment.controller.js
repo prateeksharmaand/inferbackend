@@ -159,7 +159,6 @@ const createAppointment = async (req, res) => {
 
   // Mandatory validations
   if (!patient_name) return res.status(400).json({ error: 'patient_name required' });
-  if (!doctor_id) return res.status(400).json({ error: 'doctor_id required - doctor selection is mandatory' });
 
   // Auto-resolve emr_patient_id from multiple sources (in priority order)
   let resolvedPatientId = emr_patient_id || null;
