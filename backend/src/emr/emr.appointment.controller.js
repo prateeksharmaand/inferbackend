@@ -521,7 +521,7 @@ const saveEncounter = async (req, res) => {
   // Architecture: ONE Care Context = ONE Visit/Encounter
   //              ONE Care Context can contain MANY Health Records (different HI types)
   //
-  // Example: OPD-20260622-0001 (represents the clinical visit)
+  // Example: 2-1-20260622 (represents the clinical visit using UHID-timestamp)
   //   ├─ OPConsultation Bundle (vitals + diagnosis + medications)
   //   ├─ Prescription Bundle (medications only)
   //   ├─ DiagnosticReport Bundle (lab results + vitals)
@@ -533,14 +533,21 @@ const saveEncounter = async (req, res) => {
       ? a.appointment_date.toISOString().slice(0, 10)
       : String(a.appointment_date).slice(0, 10);
     const dateStr = apptIso.split("-").join("");
-    const refNum = `OPD-${dateStr}-${String(a.id).padStart(6, "0")}`;
+
+    // Fetch patient UHID and data for FHIR bundle building
+    const patientUhidResult = (await pool.query(
+      `SELECT pc.uhid, p.abha_number, p.name, p.gender, p.dob
+       FROM emr_patients p
+       LEFT JOIN patient_clinics pc ON p.id = pc.patient_id AND pc.clinic_id = $2
+       WHERE p.id=$1 AND p.deleted_at IS NULL`,
+      [a.emr_patient_id, a.clinic_id]
+    )).rows[0];
+
+    const uhid = patientUhidResult?.uhid || `unknown-${a.emr_patient_id}`;
+    const refNum = `${uhid}-${dateStr}`;
     const display = `OPD Consultation - ${apptIso} - ${a.patient_name || "Patient"}`;
 
-    // Fetch patient data for FHIR bundle building
-    const patientData = (await pool.query(
-      `SELECT abha_number, name, gender, dob FROM emr_patients WHERE id=$1 AND deleted_at IS NULL`,
-      [a.emr_patient_id]
-    )).rows[0];
+    const patientData = patientUhidResult;
 
     const patient = {
       abhaNumber: patientData?.abha_number,

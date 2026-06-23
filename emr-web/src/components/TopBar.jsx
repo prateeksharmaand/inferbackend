@@ -29,7 +29,6 @@ export default function TopBar() {
   const { queueDate, prevDay, nextDay } = useQueueDate();
   const navigate = useNavigate();
   const [showBook,     setShowBook]     = useState(false);
-  const [showAdd,      setShowAdd]      = useState(false);
   const [addMode,      setAddMode]      = useState('');
   const [prefill,      setPrefill]      = useState({});
   const [searchMode,   setSearchMode]   = useState(null); // 'checkin' | 'book' | null
@@ -43,22 +42,12 @@ export default function TopBar() {
   const searchInput  = useRef(null);
   const debounceRef  = useRef(null);
 
-  const ADD_OPTIONS = [
-    { key: 'checkin', label: 'Add Patient & Check-In' },
-    { key: 'book',    label: 'Book Appointment' },
-    { key: 'receipt', label: 'Create Receipt' },
-    { key: 'rx',      label: 'Write Rx' },
-    { key: 'tele',    label: 'Tele Consultation' },
-  ];
 
   const handleOption = (key) => {
-    setShowAdd(false);
-    if (key === 'checkin' || key === 'book') {
-      setSearchMode(key);
+    if (key === 'checkin') {
+      setSearchMode('checkin');
       setSearchOpen(true);
       setTimeout(() => searchInput.current?.focus(), 50);
-    } else if (key === 'rx') {
-      navigate('/rx/new');
     }
   };
 
@@ -132,13 +121,6 @@ export default function TopBar() {
     debounceRef.current = setTimeout(() => doSearch(val), 300);
   };
 
-  // Close Add New on outside click
-  useEffect(() => {
-    if (!showAdd) return;
-    const h = (e) => { if (addRef.current && !addRef.current.contains(e.target)) setShowAdd(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [showAdd]);
 
   // Close search on outside click
   useEffect(() => {
@@ -173,16 +155,9 @@ export default function TopBar() {
 
         <div className={styles.right}>
           <div className={styles.addWrap} ref={addRef}>
-            <button className={styles.addBtn} onClick={() => setShowAdd(v => !v)}>
-              Add New <Plus size={16} strokeWidth={2.5} />
+            <button className={styles.addBtn} onClick={() => handleOption('checkin')}>
+              Add new Patient <Plus size={16} strokeWidth={2.5} />
             </button>
-            {showAdd && (
-              <ul className={styles.dropdown}>
-                {ADD_OPTIONS.map(o => (
-                  <li key={o.key} onClick={() => handleOption(o.key)}>{o.label}</li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Search */}

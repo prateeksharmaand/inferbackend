@@ -215,11 +215,25 @@ const addCareContext = async (req, res) => {
   display = display.trim().substring(0, 255).replace(/[^a-zA-Z0-9\s\-]/g, '');
   if (!display) return res.status(400).json({ error: 'display contains only invalid characters' });
 
-  const refNum = `REF-${hip.uuid().slice(0, 8).toUpperCase()}`;
+  const patientId = req.params.id;
+  const clinicId = req.emrUser.clinic_id;
+
+  // Fetch patient UHID from patient_clinics (single source of truth)
+  const uhidResult = (await pool.query(
+    `SELECT pc.uhid FROM patient_clinics pc WHERE pc.patient_id=$1 AND pc.clinic_id=$2`,
+    [patientId, clinicId]
+  )).rows[0];
+
+  if (!uhidResult?.uhid) {
+    return res.status(400).json({ error: 'Patient UHID not found. Assign UHID first.' });
+  }
+
+  const uhid = uhidResult.uhid;
+  const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const refNum = `${uhid}-${timestamp}`;
 
   // Create sample FHIR Bundle for this care context
   const transactionId = hip.uuid();
-  const patientId = req.params.id;
   const now = new Date().toISOString();
   const docId = hip.uuid().slice(0, 8);
   const patData = (await pool.query('SELECT name, gender, dob FROM emr_patients WHERE id=$1 AND deleted_at IS NULL', [patientId])).rows[0];
