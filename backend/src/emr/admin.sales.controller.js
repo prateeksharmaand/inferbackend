@@ -120,32 +120,24 @@ exports.getCrmDashboard = async (req, res) => {
     }
     const stats = statsRes.rows[0];
 
-    // Get today's activity stats
+    // Get today's WhatsApp activity from actual received messages
     try {
-      const todayStatsQuery = `
+      const todayWaRes = await pool.query(`
         SELECT
-          COALESCE(SUM(CASE WHEN activity_type = 'email_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END), 0) as today_email_sent,
-          COALESCE(SUM(CASE WHEN activity_type = 'whatsapp_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END), 0) as today_whatsapp_sent
-        FROM sales_crm_activity
-      `;
-      const todayStatsRes = await pool.query(todayStatsQuery);
-      const todayStats = todayStatsRes.rows[0];
-
-      stats.today_email_sent = parseInt(todayStats.today_email_sent) || 0;
-      stats.today_whatsapp_sent = parseInt(todayStats.today_whatsapp_sent) || 0;
-    } catch (err) {
-      stats.today_email_sent = 0;
-      stats.today_whatsapp_sent = 0;
-    }
-
-    // Get today's WA received
-    try {
-      const waReceivedRes = await pool.query(`
-        SELECT COUNT(*) as count FROM sales_wa_inbox WHERE DATE(created_at) = CURRENT_DATE
+          COUNT(*) as total_received,
+          SUM(CASE WHEN replied_status_synced = false THEN 1 ELSE 0 END) as unsynced,
+          SUM(CASE WHEN replied_status_synced = true THEN 1 ELSE 0 END) as synced
+        FROM sales_wa_inbox
+        WHERE DATE(created_at) = CURRENT_DATE
       `);
-      stats.today_whatsapp_received = parseInt(waReceivedRes.rows[0].count) || 0;
+      const todayWaStats = todayWaRes.rows[0];
+      stats.today_whatsapp_received = parseInt(todayWaStats.total_received) || 0;
+      stats.today_whatsapp_unsynced = parseInt(todayWaStats.unsynced) || 0;
+      stats.today_whatsapp_synced = parseInt(todayWaStats.synced) || 0;
     } catch (err) {
       stats.today_whatsapp_received = 0;
+      stats.today_whatsapp_unsynced = 0;
+      stats.today_whatsapp_synced = 0;
     }
 
     res.json({

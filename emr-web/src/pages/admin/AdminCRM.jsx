@@ -407,19 +407,19 @@ export default function AdminCRM() {
           </div>
 
           <div className={styles.statsSection}>
-            <h3>Today's Activity</h3>
+            <h3>Today's WhatsApp Activity</h3>
             <div className={styles.statsGrid}>
               <div className={styles.stat}>
-                <div className={styles.statLabel}>📧 Emails Sent</div>
-                <div className={styles.statValue}>{stats.today_email_sent}</div>
-              </div>
-              <div className={styles.stat}>
-                <div className={styles.statLabel}>💬 WhatsApp Sent</div>
-                <div className={styles.statValue}>{stats.today_whatsapp_sent}</div>
-              </div>
-              <div className={styles.stat}>
-                <div className={styles.statLabel}>📨 WhatsApp Received</div>
+                <div className={styles.statLabel}>📨 Total Received</div>
                 <div className={styles.statValue}>{stats.today_whatsapp_received}</div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>🔄 Unsynced</div>
+                <div className={styles.statValue} style={{ color: '#f59e0b' }}>{stats.today_whatsapp_unsynced}</div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>✓ Synced</div>
+                <div className={styles.statValue} style={{ color: '#10b981' }}>{stats.today_whatsapp_synced}</div>
               </div>
             </div>
           </div>
