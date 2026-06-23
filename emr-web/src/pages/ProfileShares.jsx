@@ -86,30 +86,80 @@ export default function ProfileShares() {
     setSelected(share);
     setRegistered(null);
 
-    // Check if patient already exists by ABHA number
-    if (share.abha_number) {
-      try {
-        const patients = await api.get(`/patients?q=${encodeURIComponent(share.abha_number)}`);
-        const existing = patients.find(p =>
-          p.abha_number === share.abha_number ||
-          p.abha_address === share.abha_address
-        );
+    // Patient Matching Priority Engine
+    // Priority 1: ABHA Number
+    // Priority 2: ABHA Address
+    // Priority 3: Mobile + DOB
+    // Priority 4: Mobile + Name
+    // Priority 5: Name + DOB + Gender
+    let existing = null;
 
-        if (existing && existing.uhid) {
-          // Patient already registered with UHID — show quick book appointment
-          setRegistered({
-            patient: existing,
-            message: 'Patient already registered',
-            action: 'book'
-          });
-          return;
+    try {
+      const patients = await api.get('/patients');
+
+      // Priority 1: ABHA Number match (highest confidence)
+      if (share.abha_number) {
+        existing = patients.find(p => p.abha_number === share.abha_number);
+        if (existing) {
+          console.log('[Patient Match] Found by ABHA Number (Priority 1)');
         }
-      } catch (err) {
-        // Continue with registration form if lookup fails
       }
+
+      // Priority 2: ABHA Address match
+      if (!existing && share.abha_address) {
+        existing = patients.find(p => p.abha_address === share.abha_address);
+        if (existing) {
+          console.log('[Patient Match] Found by ABHA Address (Priority 2)');
+        }
+      }
+
+      // Priority 3: Mobile + DOB match
+      if (!existing && share.mobile && share.dob) {
+        existing = patients.find(p =>
+          p.mobile === share.mobile && p.dob === share.dob
+        );
+        if (existing) {
+          console.log('[Patient Match] Found by Mobile + DOB (Priority 3)');
+        }
+      }
+
+      // Priority 4: Mobile + Name match (only if mobile exists)
+      if (!existing && share.mobile && share.name) {
+        existing = patients.find(p =>
+          p.mobile === share.mobile && p.name?.toLowerCase() === share.name?.toLowerCase()
+        );
+        if (existing) {
+          console.log('[Patient Match] Found by Mobile + Name (Priority 4)');
+        }
+      }
+
+      // Priority 5: Name + DOB + Gender match
+      if (!existing && share.name && share.dob && share.gender) {
+        existing = patients.find(p =>
+          p.name?.toLowerCase() === share.name?.toLowerCase() &&
+          p.dob === share.dob &&
+          p.gender === share.gender
+        );
+        if (existing) {
+          console.log('[Patient Match] Found by Name + DOB + Gender (Priority 5)');
+        }
+      }
+
+      // If patient found and has UHID, show quick book appointment
+      if (existing && existing.uhid) {
+        console.log('[Patient Match] Patient recognized - has UHID, skipping registration');
+        setRegistered({
+          patient: existing,
+          message: 'Patient already registered',
+          action: 'book'
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('[Patient Match] Lookup failed, proceeding with registration form', err.message);
     }
 
-    // Show registration form for new patient
+    // Show registration form for new patient or existing patient without UHID
     setForm({
       name:        share.name        || '',
       mobile:      share.mobile      || '',
