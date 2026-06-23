@@ -82,6 +82,40 @@ export default function ProfileShares() {
     api.get('/clinic-settings/abdm').then(setClinicAbdm).catch(() => {});
   }, []);
 
+  // Helper: Calculate string similarity (0-1)
+  const stringSimilarity = (str1, str2) => {
+    if (!str1 || !str2) return 0;
+    const s1 = str1.toLowerCase().trim();
+    const s2 = str2.toLowerCase().trim();
+    if (s1 === s2) return 1;
+    const longer = s1.length > s2.length ? s1 : s2;
+    const shorter = s1.length > s2.length ? s2 : s1;
+    if (longer.length === 0) return 1;
+    const editDistance = getEditDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  };
+
+  const getEditDistance = (s1, s2) => {
+    const costs = [];
+    for (let i = 0; i <= s1.length; i++) {
+      let lastValue = i;
+      for (let j = 0; j <= s2.length; j++) {
+        if (i === 0) {
+          costs[j] = j;
+        } else if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+      if (i > 0) costs[s2.length] = lastValue;
+    }
+    return costs[s2.length];
+  };
+
   const pick = async (share) => {
     setSelected(share);
     setRegistered(null);
@@ -91,7 +125,8 @@ export default function ProfileShares() {
     // Priority 2: ABHA Address
     // Priority 3: Mobile + DOB
     // Priority 4: Mobile + Name
-    // Priority 5: Name + DOB + Gender
+    // Priority 5: Name + DOB + Gender (exact match)
+    // Priority 6: Name (fuzzy) + DOB + Gender (when mobile not available)
     let existing = null;
 
     try {
@@ -189,7 +224,7 @@ export default function ProfileShares() {
         }
       }
 
-      // Priority 5: Name + DOB + Gender match
+      // Priority 5: Name + DOB + Gender match (exact)
       if (share.name && share.dob && share.gender && !existing) {
         const shareDobDate = share.dob ? new Date(share.dob).toISOString().split('T')[0] : null;
         existing = uniquePatients.find(p => {
@@ -202,9 +237,38 @@ export default function ProfileShares() {
           return true;
         });
         if (existing) {
-          console.log('[Patient Match] ✓ Found by Name + DOB + Gender (Priority 5)', {
+          console.log('[Patient Match] ✓ Found by Name + DOB + Gender (Priority 5 - Exact)', {
             patientId: existing.id,
             name: existing.name
+          });
+        }
+      }
+
+      // Priority 6: Name (fuzzy match 80%+) + DOB + Gender (when mobile not available)
+      if (share.name && share.dob && share.gender && !existing && !share.mobile) {
+        const shareDobDate = share.dob ? new Date(share.dob).toISOString().split('T')[0] : null;
+        const matches = uniquePatients
+          .map(p => ({
+            patient: p,
+            similarity: p.name ? stringSimilarity(p.name, share.name) : 0
+          }))
+          .filter(m => m.similarity >= 0.8)
+          .filter(m => {
+            if (m.patient.dob) {
+              const systemDobDate = new Date(m.patient.dob).toISOString().split('T')[0];
+              if (systemDobDate !== shareDobDate) return false;
+            }
+            if (m.patient.gender && m.patient.gender !== share.gender) return false;
+            return true;
+          })
+          .sort((a, b) => b.similarity - a.similarity);
+
+        if (matches.length > 0) {
+          existing = matches[0].patient;
+          console.log('[Patient Match] ✓ Found by Name (fuzzy 80%+) + DOB + Gender (Priority 6)', {
+            patientId: existing.id,
+            name: existing.name,
+            similarity: matches[0].similarity
           });
         }
       }
