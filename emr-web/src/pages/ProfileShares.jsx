@@ -82,9 +82,34 @@ export default function ProfileShares() {
     api.get('/clinic-settings/abdm').then(setClinicAbdm).catch(() => {});
   }, []);
 
-  const pick = (share) => {
+  const pick = async (share) => {
     setSelected(share);
     setRegistered(null);
+
+    // Check if patient already exists by ABHA number
+    if (share.abha_number) {
+      try {
+        const patients = await api.get(`/patients?q=${encodeURIComponent(share.abha_number)}`);
+        const existing = patients.find(p =>
+          p.abha_number === share.abha_number ||
+          p.abha_address === share.abha_address
+        );
+
+        if (existing && existing.uhid) {
+          // Patient already registered with UHID — show quick book appointment
+          setRegistered({
+            patient: existing,
+            message: 'Patient already registered',
+            action: 'book'
+          });
+          return;
+        }
+      } catch (err) {
+        // Continue with registration form if lookup fails
+      }
+    }
+
+    // Show registration form for new patient
     setForm({
       name:        share.name        || '',
       mobile:      share.mobile      || '',
@@ -226,10 +251,15 @@ export default function ProfileShares() {
         {/* Success screen */}
         {registered && (
           <div style={{ maxWidth: 520, margin: '0 auto', textAlign: 'center', paddingTop: 40 }}>
-            <CheckCircle size={56} color="#16a34a" style={{ marginBottom: 16 }} />
-            <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: '#1e293b' }}>Patient Registered!</h2>
+            <CheckCircle size={56} color={registered.action === 'book' ? '#3b82f6' : '#16a34a'} style={{ marginBottom: 16 }} />
+            <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: '#1e293b' }}>
+              {registered.action === 'book' ? 'Patient Recognized!' : 'Patient Registered!'}
+            </h2>
             <p style={{ margin: '0 0 24px', fontSize: 13, color: '#64748b' }}>
-              <strong>{registered.patient?.name || form?.name}</strong> has been successfully registered.
+              <strong>{registered.patient?.name || form?.name}</strong>
+              {registered.action === 'book'
+                ? ' is already registered. Ready to book appointment?'
+                : ' has been successfully registered.'}
             </p>
             {registered.patient?.abha_number && (
               <div style={{ background: '#f5f3ff', borderRadius: 8, padding: '10px 16px', marginBottom: 20, display: 'inline-block' }}>
@@ -240,12 +270,12 @@ export default function ProfileShares() {
               <button
                 onClick={() => navigate(`/queue?newPatient=${registered.patientId || registered.patient?.id}`)}
                 style={{ padding: '10px 20px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <CalendarPlus size={15} /> Book Appointment
+                <CalendarPlus size={15} /> {registered.action === 'book' ? 'Book Appointment Now' : 'Book Appointment'}
               </button>
               <button
                 onClick={() => { setRegistered(null); setSelected(null); setForm(null); }}
                 style={{ padding: '10px 20px', background: '#fff', color: '#475569', border: '1.5px solid #e2e8f0', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                Register Another
+                {registered.action === 'book' ? 'Back' : 'Register Another'}
               </button>
             </div>
           </div>
