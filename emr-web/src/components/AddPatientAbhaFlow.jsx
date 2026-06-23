@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { AlertCircle, Check, ChevronRight, QrCode, Smartphone, CreditCard, Fingerprint, Camera, Upload } from 'lucide-react';
 import jsQR from 'jsqr';
 import BookSlotModal from './BookSlotModal';
+import BookAppointmentModal from './BookAppointmentModal';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
@@ -527,8 +528,11 @@ function PatientCard({ patient, onSuccess, xToken }) {
   const [cardImg, setCardImg] = useState(null);
   const [loadingCard, setLoadingCard] = useState(false);
   const [showBook, setShowBook] = useState(false);
+  const [showAddToClinic, setShowAddToClinic] = useState(false);
 
   const p = patient.patient || patient;
+  // Check if patient is new to this clinic (no UHID assigned means new to clinic)
+  const isNewToClinic = p.id && !p.uhid;
 
   const fetchCard = async () => {
     if (!xToken) return;
@@ -542,6 +546,7 @@ function PatientCard({ patient, onSuccess, xToken }) {
 
   // Auto-fetch card immediately when xToken is available
   useEffect(() => { if (xToken) fetchCard(); }, [xToken]);
+
 
   return (
     <>
@@ -601,13 +606,39 @@ function PatientCard({ patient, onSuccess, xToken }) {
           </div>
         )}
 
-        {/* Book appointment */}
-        <button style={primaryBtn(false)} onClick={() => setShowBook(true)}>
-          📅 Book Appointment →
-        </button>
+        {/* Add to clinic first if new to clinic, then book appointment */}
+        {isNewToClinic ? (
+          <button style={primaryBtn(false)} onClick={() => setShowAddToClinic(true)}>
+            ➕ Add Patient to Clinic →
+          </button>
+        ) : (
+          <button style={primaryBtn(false)} onClick={() => setShowBook(true)}>
+            📅 Book Appointment →
+          </button>
+        )}
       </div>
 
-      {showBook && (
+      {showAddToClinic && (
+        <BookAppointmentModal
+          mode="checkin"
+          prefill={{
+            patient_id:     p.id     || null,
+            patient_name:   p.name   || '',
+            patient_mobile: p.mobile || '',
+            patient_dob:    p.dob    || '',
+            patient_gender: p.gender || '',
+            patient_abha:   p.abha_number || p.abha_address || '',
+          }}
+          onClose={() => setShowAddToClinic(false)}
+          onCreated={(form) => {
+            setShowAddToClinic(false);
+            // After adding to clinic, show book appointment
+            setShowBook(true);
+          }}
+        />
+      )}
+
+      {showBook && !showAddToClinic && (
         <BookSlotModal
           prefill={{
             patient_id:     p.id     || null,

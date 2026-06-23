@@ -59,7 +59,6 @@ export default function TopBar() {
   };
 
   const openWithPatient = (p) => {
-    const mode = searchMode;
     clearSearch();
     const pf = {
       patient_name:   p.name,
@@ -70,7 +69,8 @@ export default function TopBar() {
       uhid:           p.uhid          || '',
       channel: 'walk_in',
     };
-    setAddMode(mode === 'checkin' ? 'checkin' : 'book');
+    // Existing patients always open Book Appointment, not checkin
+    setAddMode('book');
     setPrefill(pf);
     setShowBook(true);
   };

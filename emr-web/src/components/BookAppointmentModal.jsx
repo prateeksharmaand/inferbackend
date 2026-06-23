@@ -54,6 +54,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     e.preventDefault();
     if (!form.patient_name.trim()) return setError('Patient name is required');
     if (!form.patient_mobile.trim()) return setError('Mobile number is required');
+    if (!form.patient_dob.trim()) return setError('Date of birth is required');
     if (mode === 'checkin' && !form.queue_id) return setError('Please select a queue to check in');
     setSaving(true); setError('');
     try {
@@ -95,8 +96,42 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
               <input required value={form.patient_mobile} onChange={e => set('patient_mobile', e.target.value)} placeholder="+91 9999999999" />
             </div>
             <div className={styles.field}>
-              <label>Date of Birth</label>
-              <input type="date" value={form.patient_dob} onChange={e => set('patient_dob', e.target.value)} />
+              <label>Date of Birth *</label>
+              <input
+                type="date"
+                required
+                value={form.patient_dob}
+                onChange={e => set('patient_dob', e.target.value)}
+              />
+            </div>
+            <div className={styles.field}>
+              <label>Age</label>
+              <select
+                value={(() => {
+                  if (!form.patient_dob) return '';
+                  const today = new Date();
+                  const birthDate = new Date(form.patient_dob);
+                  let age = today.getFullYear() - birthDate.getFullYear();
+                  const m = today.getMonth() - birthDate.getMonth();
+                  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                  }
+                  return age;
+                })()}
+                onChange={e => {
+                  if (!e.target.value) return;
+                  const age = parseInt(e.target.value);
+                  const today = new Date();
+                  const birthDate = new Date(today.getFullYear() - age, today.getMonth(), today.getDate());
+                  const dob = `${birthDate.getFullYear()}-${String(birthDate.getMonth()+1).padStart(2,'0')}-${String(birthDate.getDate()).padStart(2,'0')}`;
+                  set('patient_dob', dob);
+                }}
+              >
+                <option value="">Select age...</option>
+                {Array.from({ length: 100 }, (_, i) => (
+                  <option key={i} value={i}>{i} years</option>
+                ))}
+              </select>
             </div>
             <div className={styles.field}>
               <label>Gender</label>
