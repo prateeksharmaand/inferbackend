@@ -1057,17 +1057,82 @@ const registerAbhaPatient = async (req, res) => {
     // Attach the new ABHA address to the existing patient's mappings
     await AbhaIdentity.attachAbha(pool, found.id, { abhaNumber, abhaAddress, source: 'qr' });
   } else {
-    // Truly new patient — create with proper mapping
-    const { rows: created } = await pool.query(
-      `INSERT INTO emr_patients
-         (name, mobile, dob, gender, abha_number, abha_address, address, is_abdm_linked, abdm_linked_at, clinic_id)
-       VALUES ($1,$2,$3::date,$4,$5,$6,$7::jsonb,true,NOW(),$8) RETURNING *`,
-      [name, phoneNumber||null, normDob||null, gender||'M', abhaNumber||null, abhaAddress||null,
-       address ? JSON.stringify(address) : null, req.emrUser?.clinic_id || null]
-    );
-    patient = created[0];
-    isNew = true;
-    await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source: 'qr' });
+    // Search for existing patient by demographics (name + mobile + DOB) before creating new
+    let existingByDemographics = null;
+
+    if (phoneNumber && name && normDob) {
+      // Search: Mobile + DOB + Name match
+      const { rows: demoRows } = await pool.query(
+        `SELECT id FROM emr_patients
+         WHERE deleted_at IS NULL
+           AND mobile = $1
+           AND dob = $2::date
+           AND LOWER(name) = LOWER($3)
+         LIMIT 1`,
+        [phoneNumber, normDob, name]
+      );
+      if (demoRows.length) existingByDemographics = demoRows[0];
+    } else if (phoneNumber && name) {
+      // Search: Mobile + Name match (if DOB missing)
+      const { rows: demoRows } = await pool.query(
+        `SELECT id FROM emr_patients
+         WHERE deleted_at IS NULL
+           AND mobile = $1
+           AND LOWER(name) = LOWER($2)
+         LIMIT 1`,
+        [phoneNumber, name]
+      );
+      if (demoRows.length) existingByDemographics = demoRows[0];
+    } else if (name && normDob && gender) {
+      // Search: Name + DOB + Gender match (if mobile missing)
+      const { rows: demoRows } = await pool.query(
+        `SELECT id FROM emr_patients
+         WHERE deleted_at IS NULL
+           AND dob = $1::date
+           AND gender = $2
+           AND LOWER(name) = LOWER($3)
+         LIMIT 1`,
+        [normDob, gender, name]
+      );
+      if (demoRows.length) existingByDemographics = demoRows[0];
+    }
+
+    if (existingByDemographics) {
+      // Found existing patient by demographics — update with ABHA info
+      const { rows: updated } = await pool.query(
+        `UPDATE emr_patients
+           SET abha_number=COALESCE($1, abha_number),
+               abha_address=COALESCE($2, abha_address),
+               mobile=COALESCE(NULLIF($3,''), mobile),
+               dob=COALESCE($4::date, dob),
+               gender=COALESCE(NULLIF($5,''), gender),
+               address=COALESCE($6::jsonb, address),
+               is_abdm_linked=true, abdm_linked_at=NOW()
+         WHERE id=$7 RETURNING *`,
+        [abhaNumber||null, abhaAddress||null, phoneNumber||null, normDob||null,
+         gender||null, address ? JSON.stringify(address) : null, existingByDemographics.id]
+      );
+      patient = updated[0];
+      isNew = false;
+      if (abhaNumber || abhaAddress) {
+        await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source: 'form' });
+      }
+      logger.info('Patient matched by demographics and updated with ABHA info', {
+        patientId: patient.id, matchedBy: 'mobile+name+dob'
+      });
+    } else {
+      // Truly new patient — create with proper mapping
+      const { rows: created } = await pool.query(
+        `INSERT INTO emr_patients
+           (name, mobile, dob, gender, abha_number, abha_address, address, is_abdm_linked, abdm_linked_at, clinic_id)
+         VALUES ($1,$2,$3::date,$4,$5,$6,$7::jsonb,true,NOW(),$8) RETURNING *`,
+        [name, phoneNumber||null, normDob||null, gender||'M', abhaNumber||null, abhaAddress||null,
+         address ? JSON.stringify(address) : null, req.emrUser?.clinic_id || null]
+      );
+      patient = created[0];
+      isNew = true;
+      await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source: 'qr' });
+    }
   }
 
   // 2. Care Context: do NOT create at registration/walk-in time.
