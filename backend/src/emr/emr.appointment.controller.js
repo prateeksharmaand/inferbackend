@@ -250,8 +250,8 @@ const createAppointment = async (req, res) => {
     `INSERT INTO emr_appointments
        (queue_id, clinic_id, doctor_id, emr_patient_id,
         patient_name, patient_mobile, patient_dob, patient_gender, patient_abha, patient_email,
-        token_number, visit_type, channel, appointment_date, appointment_time, notes, tags, uhid, medical_history)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+        token_number, visit_type, channel, appointment_date, appointment_time, notes, tags, medical_history)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
     [
       queue_id || null, req.emrUser.clinic_id, doctor_id || null, resolvedPatientId,
       patient_name, patient_mobile || null,
@@ -261,7 +261,6 @@ const createAppointment = async (req, res) => {
       appointment_date || new Date().toISOString().slice(0, 10),
       appointment_time || null, notes || null,
       JSON.stringify(tags || []),
-      uhid || null,
       JSON.stringify(medical_history || []),
     ]
   );
