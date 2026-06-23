@@ -367,26 +367,49 @@ export default function AdminCRM() {
       </div>
 
       {stats && (
-        <div className={styles.statsGrid}>
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Total Leads</div>
-            <div className={styles.statValue}>{stats.total}</div>
+        <div className={styles.statsContainer}>
+          <div className={styles.statsSection}>
+            <h3>Lead Status</h3>
+            <div className={styles.statsGrid}>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>Total Leads</div>
+                <div className={styles.statValue}>{stats.total}</div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>New</div>
+                <div className={styles.statValue}>{stats.new_count}</div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>Active</div>
+                <div className={styles.statValue}>{stats.active_count}</div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>Replied</div>
+                <div className={styles.statValue}>{stats.replied_count}</div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>Booked</div>
+                <div className={styles.statValue}>{stats.booked_count}</div>
+              </div>
+            </div>
           </div>
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>New</div>
-            <div className={styles.statValue}>{stats.new_count}</div>
-          </div>
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Active</div>
-            <div className={styles.statValue}>{stats.active_count}</div>
-          </div>
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Replied</div>
-            <div className={styles.statValue}>{stats.replied_count}</div>
-          </div>
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Booked</div>
-            <div className={styles.statValue}>{stats.booked_count}</div>
+
+          <div className={styles.statsSection}>
+            <h3>Today's Activity</h3>
+            <div className={styles.statsGrid}>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>📧 Emails Sent</div>
+                <div className={styles.statValue}>{stats.today_email_sent}</div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>💬 WhatsApp Sent</div>
+                <div className={styles.statValue}>{stats.today_whatsapp_sent}</div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>📨 WhatsApp Received</div>
+                <div className={styles.statValue}>{stats.today_whatsapp_received}</div>
+              </div>
+            </div>
           </div>
         </div>
       )}

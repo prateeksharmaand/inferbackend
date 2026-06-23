@@ -54,6 +54,21 @@ exports.getCrmDashboard = async (req, res) => {
     const statsRes = await pool.query(statsQuery);
     const stats = statsRes.rows[0];
 
+    // Get today's activity stats
+    const todayStatsQuery = `
+      SELECT
+        SUM(CASE WHEN activity_type = 'email_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END) as today_email_sent,
+        SUM(CASE WHEN activity_type = 'whatsapp_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END) as today_whatsapp_sent,
+        (SELECT COUNT(*) FROM sales_wa_inbox WHERE DATE(created_at) = CURRENT_DATE AND direction IS NULL) as today_whatsapp_received
+      FROM sales_crm_activity
+    `;
+    const todayStatsRes = await pool.query(todayStatsQuery);
+    const todayStats = todayStatsRes.rows[0];
+
+    stats.today_email_sent = parseInt(todayStats.today_email_sent) || 0;
+    stats.today_whatsapp_sent = parseInt(todayStats.today_whatsapp_sent) || 0;
+    stats.today_whatsapp_received = parseInt(todayStats.today_whatsapp_received) || 0;
+
     res.json({
       leads: rows,
       stats,
