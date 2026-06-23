@@ -31,7 +31,7 @@ const listPatients = async (req, res) => {
          LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
          INNER JOIN patient_clinics pc ON p.id = pc.patient_id AND pc.clinic_id = $3
          WHERE p.deleted_at IS NULL
-           AND (LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
+           AND (LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR LOWER(p.abha_number) LIKE LOWER($2)
             OR LOWER(pc.uhid) LIKE $1)
          GROUP BY p.id ORDER BY p.name LIMIT 10`,
         [term, prefix, cid]
@@ -47,7 +47,7 @@ const listPatients = async (req, res) => {
        FROM emr_patients p
        LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
        WHERE p.deleted_at IS NULL
-         AND (LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR p.abha_number LIKE $2
+         AND (LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR LOWER(p.abha_number) LIKE LOWER($2)
           OR EXISTS (
             SELECT 1 FROM patient_clinics pcx
             WHERE pcx.patient_id = p.id
@@ -74,7 +74,7 @@ const listPatients = async (req, res) => {
        WHERE clinic_id = $3
          AND (LOWER(patient_name) LIKE $1
               OR patient_mobile   LIKE $2
-              OR patient_abha     LIKE $2)
+              OR LOWER(patient_abha) LIKE LOWER($2))
        GROUP BY patient_name, patient_mobile, patient_dob, patient_gender, patient_abha
        ORDER BY patient_name
        LIMIT 10`,
