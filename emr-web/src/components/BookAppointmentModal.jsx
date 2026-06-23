@@ -59,6 +59,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     setSaving(true); setError('');
     try {
       let patientId = form.patient_id;
+      let uhidToUse = form.uhid;
 
       // 1. Create or register patient first
       if (!patientId) {
@@ -70,13 +71,33 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
           abhaNumber: form.patient_abha || undefined,
         });
         patientId = patientRes.patientId || patientRes.patient?.id;
+
+        // 2. Auto-generate UHID if not provided
+        if (!uhidToUse) {
+          try {
+            const uhidRes = await api.post('/settings/uhid/generate', {});
+            uhidToUse = uhidRes.uhid;
+          } catch (uhidErr) {
+            console.warn('Failed to auto-generate UHID:', uhidErr.message);
+          }
+        }
+
+        // 3. Assign UHID to patient
+        if (uhidToUse && patientId) {
+          try {
+            await api.post(`/patients/${patientId}/uhid`, { uhid: uhidToUse });
+          } catch (assignErr) {
+            console.warn('Failed to assign UHID:', assignErr.message);
+          }
+        }
       }
 
-      // 2. Create appointment with patient_id
+      // 4. Create appointment with patient_id and uhid
       if (!registerOnly) {
         const payload = {
           ...form,
           emr_patient_id: patientId,
+          uhid: uhidToUse,
           queue_id:  form.queue_id  || undefined,
           doctor_id: form.doctor_id || undefined,
           status: mode === 'checkin' ? 'checked_in' : 'booked',
