@@ -59,7 +59,7 @@ exports.getCrmDashboard = async (req, res) => {
       SELECT
         SUM(CASE WHEN activity_type = 'email_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END) as today_email_sent,
         SUM(CASE WHEN activity_type = 'whatsapp_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END) as today_whatsapp_sent,
-        (SELECT COUNT(*) FROM sales_wa_inbox WHERE DATE(created_at) = CURRENT_DATE AND direction IS NULL) as today_whatsapp_received
+        (SELECT COUNT(*) FROM sales_wa_inbox WHERE DATE(created_at) = CURRENT_DATE) as today_whatsapp_received
       FROM sales_crm_activity
     `;
     const todayStatsRes = await pool.query(todayStatsQuery);
