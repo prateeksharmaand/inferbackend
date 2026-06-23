@@ -47,6 +47,7 @@ router.get('/sales/leads/:id', salesCtrl.getLeadDetail);
 router.patch('/sales/leads/:id', salesCtrl.updateLead);
 router.get('/sales/wa-inbox', salesCtrl.getWhatsAppInbox);
 router.post('/sales/wa-inbox/:id/link', salesCtrl.linkWhatsAppToLead);
+router.patch('/sales/wa-inbox/:id/call-attempt', salesCtrl.markCallAttempted);
 router.get('/sales/activity/:lead_id', salesCtrl.getLeadActivity);
 
 module.exports = router;

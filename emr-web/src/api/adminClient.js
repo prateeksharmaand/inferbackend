@@ -69,5 +69,6 @@ export const adminApi = {
     return request('GET', `/sales/wa-inbox${qs ? `?${qs}` : ''}`);
   },
   linkWhatsAppToLead: (waId, body) => request('POST', `/sales/wa-inbox/${waId}/link`, body),
+  markCallAttempted: (waId, body) => request('PATCH', `/sales/wa-inbox/${waId}/call-attempt`, body),
   getLeadActivity: (leadId) => request('GET', `/sales/activity/${leadId}`),
 };

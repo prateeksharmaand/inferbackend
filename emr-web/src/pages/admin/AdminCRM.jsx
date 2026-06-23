@@ -147,6 +147,71 @@ function ActivityModal({ lead, activities, waMessages, onClose }) {
   );
 }
 
+function CallAttemptModal({ message, onClose, onUpdate }) {
+  const [callAttempted, setCallAttempted] = useState(message.call_attempted || false);
+  const [callNotes, setCallNotes] = useState(message.call_notes || '');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit() {
+    setLoading(true);
+    try {
+      await onUpdate(message.id, { call_attempted: callAttempted, call_notes: callNotes });
+      toast.success('Call status updated');
+      onClose();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className={styles.overlay}>
+      <div className={styles.modal}>
+        <div className={styles.modalHeader}>
+          <h2>Call Tracking</h2>
+          <button className={styles.closeBtn} onClick={onClose}>✕</button>
+        </div>
+
+        <div className={styles.form}>
+          <div className={styles.msgBox}>
+            <strong>From:</strong> {message.from_number}<br />
+            <strong>Message:</strong> {message.body}
+          </div>
+
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={callAttempted}
+              onChange={e => setCallAttempted(e.target.checked)}
+            />
+            <span>Call Attempted</span>
+          </label>
+
+          {callAttempted && (
+            <label>
+              Call Notes
+              <textarea
+                value={callNotes}
+                onChange={e => setCallNotes(e.target.value)}
+                placeholder="What was discussed? Any follow-ups needed?"
+                rows={3}
+              />
+            </label>
+          )}
+
+          <div className={styles.modalFooter}>
+            <button type="button" className={styles.btnSecondary} onClick={onClose}>Cancel</button>
+            <button type="button" className={styles.btnPrimary} onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WAInboxModal({ message, onClose, onLink }) {
   const [leadSearch, setLeadSearch] = useState('');
   const [selectedLead, setSelectedLead] = useState(null);
@@ -218,6 +283,7 @@ export default function AdminCRM() {
   const [editLead, setEditLead] = useState(null);
   const [leadActivity, setLeadActivity] = useState(null);
   const [waInboxLink, setWaInboxLink] = useState(null);
+  const [waCallTrack, setWaCallTrack] = useState(null);
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -259,6 +325,17 @@ export default function AdminCRM() {
       toast.success('Message linked to lead');
       loadWaInbox();
       setWaInboxLink(null);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleCallAttemptUpdate = async (waId, data) => {
+    try {
+      await adminApi.markCallAttempted(waId, data);
+      toast.success('Call status updated');
+      loadWaInbox();
+      setWaCallTrack(null);
     } catch (err) {
       toast.error(err.message);
     }
@@ -400,12 +477,28 @@ export default function AdminCRM() {
                     <span className={styles.waTime}>{new Date(msg.created_at).toLocaleString()}</span>
                   </div>
                   <p className={styles.waText}>{msg.body}</p>
-                  <button
-                    className={styles.btnSmall}
-                    onClick={() => setWaInboxLink(msg)}
-                  >
-                    Link to Lead
-                  </button>
+                  {msg.call_attempted && (
+                    <div className={styles.callBadge}>
+                      ✓ Call Attempted {msg.call_attempted_at ? `on ${new Date(msg.call_attempted_at).toLocaleDateString()}` : ''}
+                    </div>
+                  )}
+                  {msg.call_notes && (
+                    <div className={styles.callNotes}>{msg.call_notes}</div>
+                  )}
+                  <div className={styles.waActions}>
+                    <button
+                      className={styles.btnSmall}
+                      onClick={() => setWaInboxLink(msg)}
+                    >
+                      Link to Lead
+                    </button>
+                    <button
+                      className={`${styles.btnSmall} ${msg.call_attempted ? styles.btnActive : ''}`}
+                      onClick={() => setWaCallTrack(msg)}
+                    >
+                      {msg.call_attempted ? '✓ Called' : 'Mark Call'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -437,6 +530,14 @@ export default function AdminCRM() {
           message={waInboxLink}
           onClose={() => setWaInboxLink(null)}
           onLink={handleLinkWA}
+        />
+      )}
+
+      {waCallTrack && (
+        <CallAttemptModal
+          message={waCallTrack}
+          onClose={() => setWaCallTrack(null)}
+          onUpdate={handleCallAttemptUpdate}
         />
       )}
     </div>

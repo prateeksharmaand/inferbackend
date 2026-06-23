@@ -27,6 +27,7 @@ const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, '053_fix_encounters_doctor_fk.sql'),   // fix FK: doctor_id references emr_clinic_staff not emr_doctors
   path.join(__dirname, '054_add_uhid_to_patient_clinics.sql'), // UHID in patient_clinics (single source of truth), remove from emr_appointments/emr_patients
   path.join(__dirname, '038_sales_crm_phone_separation.sql'),   // sales CRM: separate phone from notes, add activity tracking
+  path.join(__dirname, '055_whatsapp_call_tracking.sql'),       // WhatsApp call attempt tracking with notes
 ];
 
 async function runMigrations(pool, logger) {

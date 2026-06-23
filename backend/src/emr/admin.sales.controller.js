@@ -21,20 +21,22 @@ exports.getCrmDashboard = async (req, res) => {
     const params = [];
     let paramCount = 1;
 
-    if (status && status !== 'all') {
+    // Only filter by status if it's a valid value (not 'all', 'undefined', or empty)
+    if (status && status !== 'all' && status !== 'undefined') {
       query += ` AND status = $${paramCount}`;
       params.push(status);
       paramCount++;
     }
 
-    if (search) {
+    // Only search if search term is provided and not empty
+    if (search && search.trim()) {
       query += ` AND (email ILIKE $${paramCount} OR phone ILIKE $${paramCount} OR clinic ILIKE $${paramCount} OR notes ILIKE $${paramCount})`;
       params.push(`%${search}%`);
       paramCount++;
     }
 
     query += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-    params.push(limit, offset);
+    params.push(parseInt(limit), parseInt(offset));
 
     const { rows } = await pool.query(query, params);
 
@@ -280,6 +282,32 @@ exports.getLeadActivity = async (req, res) => {
     res.json({ activities: rows });
   } catch (err) {
     logger.error('[AdminSales] getLeadActivity error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /admin/sales/wa-inbox/:id/call-attempt — Mark WhatsApp message as call attempted
+exports.markCallAttempted = async (req, res) => {
+  const { id } = req.params;
+  const { call_attempted, call_notes } = req.body;
+
+  try {
+    const { rows } = await pool.query(`
+      UPDATE sales_wa_inbox
+      SET call_attempted = $2,
+          call_attempted_at = CASE WHEN $2 = true THEN NOW() ELSE NULL END,
+          call_notes = $3
+      WHERE id = $1
+      RETURNING *
+    `, [id, call_attempted !== undefined ? call_attempted : false, call_notes || null]);
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    logger.error('[AdminSales] markCallAttempted error:', err.message);
     res.status(500).json({ error: err.message });
   }
 };
