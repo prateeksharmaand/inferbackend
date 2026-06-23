@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Building2, CreditCard, ScrollText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Building2, CreditCard, ScrollText, Users, LogOut } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import styles from './AdminLayout.module.css';
 
@@ -7,6 +7,7 @@ const NAV = [
   { to: '/admin/dashboard',     Icon: LayoutDashboard, label: 'Dashboard'   },
   { to: '/admin/clinics',       Icon: Building2,        label: 'Clinics'     },
   { to: '/admin/subscriptions', Icon: CreditCard,       label: 'Subscriptions' },
+  { to: '/admin/crm',           Icon: Users,            label: 'CRM Sales'   },
   { to: '/admin/audit',         Icon: ScrollText,       label: 'Audit Log'   },
 ];
 

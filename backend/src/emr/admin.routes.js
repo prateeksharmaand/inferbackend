@@ -5,6 +5,7 @@ const { adminAuth }  = require('./admin.middleware');
 const authCtrl       = require('./admin.auth.controller');
 const clinicsCtrl    = require('./admin.clinics.controller');
 const subsCtrl       = require('./admin.subscriptions.controller');
+const salesCtrl      = require('./admin.sales.controller');
 
 // ── Public ────────────────────────────────────────────────────────────────────
 router.post('/auth/login', authCtrl.login);
@@ -39,5 +40,13 @@ router.get('/subscriptions/:clinic_id/items',      subsCtrl.getSubscriptionItems
 
 // Audit logs
 router.get('/audit-logs', subsCtrl.getAuditLogs);
+
+// Sales CRM
+router.get('/sales/crm', salesCtrl.getCrmDashboard);
+router.get('/sales/leads/:id', salesCtrl.getLeadDetail);
+router.patch('/sales/leads/:id', salesCtrl.updateLead);
+router.get('/sales/wa-inbox', salesCtrl.getWhatsAppInbox);
+router.post('/sales/wa-inbox/:id/link', salesCtrl.linkWhatsAppToLead);
+router.get('/sales/activity/:lead_id', salesCtrl.getLeadActivity);
 
 module.exports = router;

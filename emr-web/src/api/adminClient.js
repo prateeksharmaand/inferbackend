@@ -56,4 +56,18 @@ export const adminApi = {
   getRevenue: () => request('GET', '/subscriptions/revenue'),
 
   getAuditLogs: () => request('GET', '/audit-logs'),
+
+  // Sales CRM
+  getCrmDashboard: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request('GET', `/sales/crm${qs ? `?${qs}` : ''}`);
+  },
+  getLeadDetail: (id) => request('GET', `/sales/leads/${id}`),
+  updateLead: (id, body) => request('PATCH', `/sales/leads/${id}`, body),
+  getWhatsAppInbox: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request('GET', `/sales/wa-inbox${qs ? `?${qs}` : ''}`);
+  },
+  linkWhatsAppToLead: (waId, body) => request('POST', `/sales/wa-inbox/${waId}/link`, body),
+  getLeadActivity: (leadId) => request('GET', `/sales/activity/${leadId}`),
 };

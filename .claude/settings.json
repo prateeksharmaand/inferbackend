@@ -1,34 +1,13 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude mcp add-json hostinger-mcp '{\"type\":\"stdio\",\"command\":\"npx\",\"args\":[\"hostinger-api-mcp@latest\"],\"env\":{\"API_TOKEN\":\"s3aJQNO5JismzFWgp6otsD0mEF0VPzsZ5lgoZeNa3e9e09e8\"}}')",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude mcp add-json hostinger-mcp \"{`\"type`\":`\"stdio`\",`\"command`\":`\"npx`\",`\"args`\":[`\"hostinger-api-mcp@latest`\"],`\"env`\":{`\"API_TOKEN`\":`\"s3aJQNO5JismzFWgp6otsD0mEF0VPzsZ5lgoZeNa3e9e09e8`\"}}\")",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude mcp add --help)",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude mcp add -e API_TOKEN=s3aJQNO5JismzFWgp6otsD0mEF0VPzsZ5lgoZeNa3e9e09e8 hostinger-mcp -- npx hostinger-api-mcp@latest)",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude mcp add hostinger-mcp -e API_TOKEN=s3aJQNO5JismzFWgp6otsD0mEF0VPzsZ5lgoZeNa3e9e09e8 -- npx hostinger-api-mcp@latest)",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude mcp add hostinger-mcp npx -e API_TOKEN=s3aJQNO5JismzFWgp6otsD0mEF0VPzsZ5lgoZeNa3e9e09e8 -- hostinger-api-mcp@latest)",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); claude mcp add hostinger-mcp npx hostinger-api-mcp@latest -e API_TOKEN=s3aJQNO5JismzFWgp6otsD0mEF0VPzsZ5lgoZeNa3e9e09e8)",
-      "Bash(git add *)",
-      "Bash(git commit -m ' *)",
-      "Bash(git push *)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('name:', d.get\\('name'\\)\\); print\\('scripts:', d.get\\('scripts'\\)\\)\")",
-      "PowerShell(Get-Command docker -ErrorAction SilentlyContinue)",
-      "PowerShell(Get-ChildItem -Path \"d:\\\\Infer\\\\emr-web\" -Recurse -Directory | Select-Object -First 50 | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"d:\\\\Infer\\\\emr-web\"\\), \".\" })",
-      "Bash(Find \"d:\\\\Infer\\\\emr-web\\\\src\" -name \"*.jsx\" -type f)",
-      "Bash(git commit -m 'fix\\(scribe\\): switch default Ollama model to qwen2:1.5b for low-RAM VPS *)",
-      "Bash(git commit -m 'fix\\(scribe\\): update Gemini model to gemini-2.5-flash *)",
-      "Bash(git commit -m 'fix\\(scribe\\): increase Gemini max output tokens \\(1024→8192 JSON, 512→2048 text\\) *)",
-      "Bash(git commit -m 'fix\\(scribe\\): fix Whisper hallucination of initial_prompt *)",
-      "Bash(git commit -m 'fix\\(scribe\\): upgrade Whisper to small model, remove aggressive noise filter *)",
-      "Bash(git commit -m 'fix\\(scribe\\): improve Whisper accuracy for short medical phrases *)",
-      "Bash(git commit -m 'chore\\(whisper\\): upgrade ASR model small → medium for better medical accuracy *)",
-      "Bash(git commit -m 'feat\\(scribe\\): parallel transcription, AI animation, expanded vocabulary *)",
-      "Bash(git commit -m 'feat\\(scribe\\): add all SOAP types — past history, lab results, procedures, follow-up notes *)",
-      "Bash(git commit -m 'feat\\(web\\): add InferPad clinic section to landing page *)",
-      "Bash(git commit -m 'perf\\(scribe\\): reduce audio chunk size 15s → 8s for faster Whisper feedback *)",
-      "Bash(git commit -m 'fix\\(scribe\\): return predefined templates even if DB migration not yet run *)",
-      "Bash(git commit -m 'fix\\(migration\\): use INTEGER for clinic_id in scribe_templates \\(emr_clinics.id is integer not uuid\\) *)",
-      "Bash(git commit *)"
-    ]
-  }
+﻿{
+    "permissions":  {
+                        "allow":  [
+                                      "Read",
+                                      "Bash",
+                                      "Edit",
+                                      "Write",
+                                      "Glob",
+                                      "Grep",
+                                      "PowerShell"
+                                  ]
+                    }
 }

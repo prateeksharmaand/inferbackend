@@ -8,12 +8,13 @@ B: email
 C: specialty
 D: clinic
 E: city
-F: status             (new | active | replied | booked | unsubscribed | failed)
-G: step               (0 = not started, 1/4/8/14 = last step sent)
-H: next_send_date     (YYYY-MM-DD)
-I: last_sent_date     (YYYY-MM-DD)
-J: notes
-K: whatsapp_log       (e.g. "Day 4: sent 2024-06-08 | Day 14: sent 2024-06-22")
+F: phone              (Phone number with country code, e.g. +919876543210)
+G: status             (new | active | replied | booked | unsubscribed | failed)
+H: step               (0 = not started, 1/4/8/14 = last step sent)
+I: next_send_date     (YYYY-MM-DD)
+J: last_sent_date     (YYYY-MM-DD)
+K: notes              (Additional details/notes, separate from phone)
+L: whatsapp_log       (e.g. "Day 4: sent 2024-06-08 | Day 14: sent 2024-06-22")
 """
 
 import os
@@ -32,7 +33,7 @@ CREDS_FILE = os.environ.get("GOOGLE_CREDS_FILE", "google_creds.json")
 _client = None
 _sheet  = None
 
-HEADERS = ["name", "email", "specialty", "clinic", "city",
+HEADERS = ["name", "email", "specialty", "clinic", "city", "phone",
            "status", "step", "next_send_date", "last_sent_date", "notes", "whatsapp_log", "email_opened", "whatsapp_message"]
 
 
@@ -51,12 +52,15 @@ def ensure_headers():
     if not first_row:
         sheet.append_row(HEADERS)
     else:
-        if len(first_row) < 11:
-            sheet.update_cell(1, 11, "whatsapp_log")
+        # Ensure all columns exist
+        if len(first_row) < 6:
+            sheet.update_cell(1, 6, "phone")
         if len(first_row) < 12:
-            sheet.update_cell(1, 12, "email_opened")
+            sheet.update_cell(1, 12, "whatsapp_log")
         if len(first_row) < 13:
-            sheet.update_cell(1, 13, "whatsapp_message")
+            sheet.update_cell(1, 13, "email_opened")
+        if len(first_row) < 14:
+            sheet.update_cell(1, 14, "whatsapp_message")
 
 
 def get_existing_emails() -> set:
@@ -85,11 +89,12 @@ def import_leads(leads: list[dict]) -> int:
             lead.get("specialty", ""),
             lead.get("clinic", ""),
             lead.get("city", ""),
+            lead.get("phone", ""),  # phone column (now separate from notes)
             lead.get("status", "new"),
             lead.get("step", 0),
             lead.get("next_send_date", ""),
             lead.get("last_sent_date", ""),
-            lead.get("notes", ""),
+            lead.get("notes", ""),  # notes column (separate from phone)
             "",  # whatsapp_log — empty initially
         ])
         existing.add(email)
@@ -126,25 +131,25 @@ def get_leads_due_today() -> list[dict]:
 def update_lead(row_index: int, step: int, next_send_date: str, status: str = "active"):
     sheet = _get_sheet()
     today = date.today().isoformat()
-    sheet.update_cell(row_index, 6, status)
-    sheet.update_cell(row_index, 7, step)
-    sheet.update_cell(row_index, 8, next_send_date)
-    sheet.update_cell(row_index, 9, today)
+    sheet.update_cell(row_index, 7, status)      # Column G (status)
+    sheet.update_cell(row_index, 8, step)        # Column H (step)
+    sheet.update_cell(row_index, 9, next_send_date)  # Column I (next_send_date)
+    sheet.update_cell(row_index, 10, today)      # Column J (last_sent_date)
 
 
 def log_whatsapp(row_index: int, step: int, message: str = ""):
-    """Appends a WhatsApp sent log entry to column K and writes message body to column M."""
+    """Appends a WhatsApp sent log entry to column L and writes message body to column N."""
     sheet   = _get_sheet()
     today   = date.today().isoformat()
-    current = sheet.cell(row_index, 11).value or ""
+    current = sheet.cell(row_index, 12).value or ""  # Column L (whatsapp_log)
     entry   = f"Day {step}: sent {today}"
     updated = f"{current} | {entry}" if current else entry
-    sheet.update_cell(row_index, 11, updated)
+    sheet.update_cell(row_index, 12, updated)
     if message:
-        existing_msg = sheet.cell(row_index, 13).value or ""
+        existing_msg = sheet.cell(row_index, 14).value or ""  # Column N (whatsapp_message)
         new_entry    = f"[Day {step} | {today}] {message}"
         combined     = f"{existing_msg}\n{new_entry}" if existing_msg else new_entry
-        sheet.update_cell(row_index, 13, combined)
+        sheet.update_cell(row_index, 14, combined)
 
 
 def has_opened_email(lead: dict) -> bool:
@@ -153,37 +158,37 @@ def has_opened_email(lead: dict) -> bool:
 
 
 def mark_email_opened(row_index: int):
-    """Marks email as opened in column L."""
-    _get_sheet().update_cell(row_index, 12, "true")
+    """Marks email as opened in column M."""
+    _get_sheet().update_cell(row_index, 13, "true")
 
 
 def mark_unsubscribed(row_index: int):
-    _get_sheet().update_cell(row_index, 6, "unsubscribed")
+    _get_sheet().update_cell(row_index, 7, "unsubscribed")  # Column G (status)
 
 
 def mark_failed(row_index: int):
-    _get_sheet().update_cell(row_index, 6, "failed")
+    _get_sheet().update_cell(row_index, 7, "failed")  # Column G (status)
 
 
 def mark_replied(row_index: int, note: str = ""):
     sheet = _get_sheet()
-    sheet.update_cell(row_index, 6, "replied")
+    sheet.update_cell(row_index, 7, "replied")  # Column G (status)
     if note:
-        sheet.update_cell(row_index, 10, note)
+        sheet.update_cell(row_index, 11, note)  # Column K (notes)
 
 
 def get_all_leads_with_phones() -> list[dict]:
-    """Returns all leads that have a phone number in their notes field."""
+    """Returns all leads that have a phone number in their phone field."""
     import re
     sheet = _get_sheet()
     records = sheet.get_all_records()
     leads = []
     for i, row in enumerate(records, start=2):
-        notes = str(row.get("notes", ""))
-        match = re.search(r"Phone:\s*([\d\s\-\+\(\)]+)", notes)
-        if not match:
+        phone = str(row.get("phone", "")).strip()
+        if not phone:
             continue
-        raw = re.sub(r"[\s\-\(\)]", "", match.group(1))
+        # Normalize phone number
+        raw = re.sub(r"[\s\-\(\)]", "", phone)
         if raw.startswith("+"):
             raw = raw[1:]
         if raw.startswith("0"):

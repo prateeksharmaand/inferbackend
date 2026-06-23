@@ -36,6 +36,7 @@ import AdminClinics      from './pages/admin/AdminClinics';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import AdminAudit        from './pages/admin/AdminAudit';
 import AdminClinicDetail from './pages/admin/AdminClinicDetail';
+import AdminCRM          from './pages/admin/AdminCRM';
 
 function Protected({ children }) {
   const { user, ready } = useAuth();
@@ -117,6 +118,7 @@ export default function App() {
             <Route path="clinics"         element={<AdminClinics />} />
             <Route path="clinics/:id"     element={<AdminClinicDetail />} />
             <Route path="subscriptions"   element={<AdminSubscriptions />} />
+            <Route path="crm"             element={<AdminCRM />} />
             <Route path="audit"           element={<AdminAudit />} />
           </Route>
         </Routes>
