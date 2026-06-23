@@ -6,14 +6,21 @@ exports.getCrmDashboard = async (req, res) => {
   try {
     const { status, search, limit = 50, offset = 0 } = req.query;
 
+    // Try full query first, fallback to basic query if columns don't exist
     let query = `
       SELECT
-        id, lead_hash, email, clinic, phone, notes, status, step,
-        next_send_date, last_sent_date, email_opened, email_opened_at, created_at,
-        (SELECT COUNT(*) FROM sales_crm_activity WHERE lead_id = sales_leads.id) as activity_count,
+        id, lead_hash, email, clinic,
+        COALESCE(phone, '') as phone,
+        COALESCE(notes, '') as notes,
+        COALESCE(status, 'new') as status,
+        COALESCE(step, 0) as step,
+        next_send_date, last_sent_date,
+        COALESCE(email_opened, false) as email_opened,
+        email_opened_at, created_at,
+        COALESCE((SELECT COUNT(*) FROM sales_crm_activity WHERE lead_id = sales_leads.id), 0) as activity_count,
         (SELECT MAX(activity_date) FROM sales_crm_activity WHERE lead_id = sales_leads.id) as last_activity_date,
-        (SELECT COUNT(*) FROM sales_crm_activity WHERE lead_id = sales_leads.id AND activity_type = 'whatsapp_reply') as whatsapp_replies,
-        (SELECT COUNT(*) FROM sales_crm_activity WHERE lead_id = sales_leads.id AND activity_type = 'email_opened') as email_open_count
+        COALESCE((SELECT COUNT(*) FROM sales_crm_activity WHERE lead_id = sales_leads.id AND activity_type = 'whatsapp_reply'), 0) as whatsapp_replies,
+        COALESCE((SELECT COUNT(*) FROM sales_crm_activity WHERE lead_id = sales_leads.id AND activity_type = 'email_opened'), 0) as email_open_count
       FROM sales_leads
       WHERE 1=1
     `;
@@ -30,7 +37,7 @@ exports.getCrmDashboard = async (req, res) => {
 
     // Only search if search term is provided and not empty
     if (search && search.trim()) {
-      query += ` AND (email ILIKE $${paramCount} OR phone ILIKE $${paramCount} OR clinic ILIKE $${paramCount} OR notes ILIKE $${paramCount})`;
+      query += ` AND (email ILIKE $${paramCount} OR COALESCE(phone, '') ILIKE $${paramCount} OR COALESCE(clinic, '') ILIKE $${paramCount} OR COALESCE(notes, '') ILIKE $${paramCount})`;
       params.push(`%${search}%`);
       paramCount++;
     }
@@ -38,36 +45,89 @@ exports.getCrmDashboard = async (req, res) => {
     query += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), parseInt(offset));
 
-    const { rows } = await pool.query(query, params);
+    let rows = [];
+    try {
+      const res1 = await pool.query(query, params);
+      rows = res1.rows;
+    } catch (err) {
+      // If new columns don't exist, try basic query
+      logger.warn('[AdminSales] Migration may not have run yet, using basic query');
+      const basicQuery = `
+        SELECT id, lead_hash, email, clinic, email_opened, email_opened_at, created_at
+        FROM sales_leads
+        WHERE 1=1
+        ${search && search.trim() ? `AND (email ILIKE $1 OR clinic ILIKE $1)` : ''}
+        ORDER BY created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
+      `;
+      const basicParams = search && search.trim() ? [`%${search}%`] : [];
+      const res1 = await pool.query(basicQuery, basicParams);
+      rows = res1.rows.map(r => ({
+        ...r,
+        phone: '',
+        notes: '',
+        status: 'new',
+        step: 0,
+        next_send_date: null,
+        last_sent_date: null,
+        activity_count: 0,
+        last_activity_date: null,
+        whatsapp_replies: 0,
+        email_open_count: 0
+      }));
+    }
 
     // Get stats
-    const statsQuery = `
+    let statsQuery = `
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_count,
-        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
-        SUM(CASE WHEN status = 'replied' THEN 1 ELSE 0 END) as replied_count,
-        SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END) as booked_count,
-        SUM(CASE WHEN email_opened = true THEN 1 ELSE 0 END) as email_opened_count
+        COALESCE(SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END), 0) as new_count,
+        COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) as active_count,
+        COALESCE(SUM(CASE WHEN status = 'replied' THEN 1 ELSE 0 END), 0) as replied_count,
+        COALESCE(SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END), 0) as booked_count,
+        COALESCE(SUM(CASE WHEN email_opened = true THEN 1 ELSE 0 END), 0) as email_opened_count
       FROM sales_leads
     `;
-    const statsRes = await pool.query(statsQuery);
+    let statsRes;
+    try {
+      statsRes = await pool.query(statsQuery);
+    } catch (err) {
+      // Fallback for basic stats
+      statsRes = await pool.query(`SELECT COUNT(*) as total FROM sales_leads`);
+      statsRes.rows[0].new_count = statsRes.rows[0].total;
+      statsRes.rows[0].active_count = 0;
+      statsRes.rows[0].replied_count = 0;
+      statsRes.rows[0].booked_count = 0;
+      statsRes.rows[0].email_opened_count = 0;
+    }
     const stats = statsRes.rows[0];
 
     // Get today's activity stats
-    const todayStatsQuery = `
-      SELECT
-        SUM(CASE WHEN activity_type = 'email_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END) as today_email_sent,
-        SUM(CASE WHEN activity_type = 'whatsapp_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END) as today_whatsapp_sent,
-        (SELECT COUNT(*) FROM sales_wa_inbox WHERE DATE(created_at) = CURRENT_DATE) as today_whatsapp_received
-      FROM sales_crm_activity
-    `;
-    const todayStatsRes = await pool.query(todayStatsQuery);
-    const todayStats = todayStatsRes.rows[0];
+    try {
+      const todayStatsQuery = `
+        SELECT
+          COALESCE(SUM(CASE WHEN activity_type = 'email_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END), 0) as today_email_sent,
+          COALESCE(SUM(CASE WHEN activity_type = 'whatsapp_sent' AND DATE(activity_date) = CURRENT_DATE THEN 1 ELSE 0 END), 0) as today_whatsapp_sent
+        FROM sales_crm_activity
+      `;
+      const todayStatsRes = await pool.query(todayStatsQuery);
+      const todayStats = todayStatsRes.rows[0];
 
-    stats.today_email_sent = parseInt(todayStats.today_email_sent) || 0;
-    stats.today_whatsapp_sent = parseInt(todayStats.today_whatsapp_sent) || 0;
-    stats.today_whatsapp_received = parseInt(todayStats.today_whatsapp_received) || 0;
+      stats.today_email_sent = parseInt(todayStats.today_email_sent) || 0;
+      stats.today_whatsapp_sent = parseInt(todayStats.today_whatsapp_sent) || 0;
+    } catch (err) {
+      stats.today_email_sent = 0;
+      stats.today_whatsapp_sent = 0;
+    }
+
+    // Get today's WA received
+    try {
+      const waReceivedRes = await pool.query(`
+        SELECT COUNT(*) as count FROM sales_wa_inbox WHERE DATE(created_at) = CURRENT_DATE
+      `);
+      stats.today_whatsapp_received = parseInt(waReceivedRes.rows[0].count) || 0;
+    } catch (err) {
+      stats.today_whatsapp_received = 0;
+    }
 
     res.json({
       leads: rows,
