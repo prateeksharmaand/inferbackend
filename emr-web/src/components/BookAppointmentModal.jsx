@@ -58,14 +58,30 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     if (mode === 'checkin' && !form.queue_id) return setError('Please select a queue to check in');
     setSaving(true); setError('');
     try {
-      const payload = {
-        ...form,
-        queue_id:  form.queue_id  || undefined,
-        doctor_id: form.doctor_id || undefined,
-        status: mode === 'checkin' ? 'checked_in' : 'booked',
-        medical_history: medicalHistory,
-      };
+      let patientId = form.patient_id;
+
+      // 1. Create or register patient first
+      if (!patientId) {
+        const patientRes = await api.post('/patients/register-abha', {
+          name: form.patient_name,
+          phoneNumber: form.patient_mobile,
+          dob: form.patient_dob,
+          gender: form.patient_gender,
+          abhaNumber: form.patient_abha || undefined,
+        });
+        patientId = patientRes.patientId || patientRes.patient?.id;
+      }
+
+      // 2. Create appointment with patient_id
       if (!registerOnly) {
+        const payload = {
+          ...form,
+          emr_patient_id: patientId,
+          queue_id:  form.queue_id  || undefined,
+          doctor_id: form.doctor_id || undefined,
+          status: mode === 'checkin' ? 'checked_in' : 'booked',
+          medical_history: medicalHistory,
+        };
         await api.post('/appointments', payload);
         window.dispatchEvent(new CustomEvent('appointment:created', { detail: { queue_id: form.queue_id } }));
       }
