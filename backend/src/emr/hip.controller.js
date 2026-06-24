@@ -219,11 +219,12 @@ const handleLinkInit = async (req, res) => {
     // Send OTP via 2Factor.in SMS service
     if (pt?.mobile) {
       try {
-        await smsService.sendOTP(pt.mobile, otp, 'OTP1');
+        await smsService.sendOTP(pt.mobile, otp, 'ContextInferOTP');
         logger.info('ABDM linking OTP sent via SMS', {
           linkRefNumber,
           phone: pt.mobile.replace(/\d(?=\d{2})/g, '*'), // Masked phone
           otpLength: otp.length,
+          template: 'ContextInferOTP',
         });
       } catch (smsError) {
         logger.warn('Failed to send ABDM linking OTP via SMS', {

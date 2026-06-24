@@ -13,11 +13,11 @@ const SMS_API_KEY = process.env.SMS_API_KEY || '5089586f-6fc4-11f1-8174-0200cd93
 
 // Template names for 2Factor.in OTP templates
 const SMS_TEMPLATES = {
-  OTP: process.env.SMS_TEMPLATE_OTP || 'OTP1',
-  CARE_CONTEXT: process.env.SMS_TEMPLATE_CARE_CONTEXT || 'OTP1',
-  ABHA_LINKING: process.env.SMS_TEMPLATE_ABHA_LINKING || 'OTP1',
-  APPOINTMENT: process.env.SMS_TEMPLATE_APPOINTMENT || 'OTP1',
-  CHECK_IN: process.env.SMS_TEMPLATE_CHECK_IN || 'OTP1',
+  OTP: process.env.SMS_TEMPLATE_OTP || 'ContextInferOTP',
+  CARE_CONTEXT: process.env.SMS_TEMPLATE_CARE_CONTEXT || 'ContextInferOTP',
+  ABHA_LINKING: process.env.SMS_TEMPLATE_ABHA_LINKING || 'ContextInferOTP',
+  APPOINTMENT: process.env.SMS_TEMPLATE_APPOINTMENT || 'ContextInferOTP',
+  CHECK_IN: process.env.SMS_TEMPLATE_CHECK_IN || 'ContextInferOTP',
 };
 
 /**
