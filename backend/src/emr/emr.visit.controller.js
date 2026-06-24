@@ -113,11 +113,33 @@ const assignDoctor = async (req, res) => {
   }
 };
 
+const updateVisit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { appointment_id } = req.body;
+    const clinicId = req.emrUser.clinic_id;
+
+    // Update visit with appointment link
+    const { rows } = await require('../config/database').pool.query(
+      `UPDATE emr_visits SET appointment_id = $1, updated_at = NOW() WHERE id = $2 AND clinic_id = $3 RETURNING *`,
+      [appointment_id || null, id, clinicId]
+    );
+
+    if (!rows.length) return res.status(404).json({ error: 'Visit not found' });
+    logger.info('[VISIT] Updated', { visitId: id, appointmentId: appointment_id });
+    res.json(rows[0]);
+  } catch (err) {
+    logger.error('Update visit failed', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   createVisit,
   listVisits,
   updateStatus,
   checkIn,
   checkOut,
-  assignDoctor
+  assignDoctor,
+  updateVisit
 };

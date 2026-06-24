@@ -5,7 +5,7 @@ import MedicalHistorySection from './MedicalHistorySection';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
-export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCreated, registerOnly = false }) {
+export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCreated, registerOnly = false, visitId = null, visitType = null }) {
   const [queues,       setQueues]       = useState([]);
   const [doctors,      setDoctors]      = useState([]);
   const [saving,         setSaving]         = useState(false);
@@ -104,8 +104,22 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
           doctor_id: form.doctor_id || undefined,
           status: mode === 'checkin' ? 'checked_in' : 'booked',
           medical_history: medicalHistory,
+          visit_type: visitType || 'OPConsultation', // Include visit type
         };
-        await api.post('/appointments', payload);
+        const appointmentRes = await api.post('/appointments', payload);
+
+        // Link appointment to visit if visit exists
+        if (visitId && appointmentRes?.id) {
+          try {
+            await api.patch(`/visits/${visitId}`, {
+              appointment_id: appointmentRes.id
+            });
+          } catch (linkErr) {
+            console.warn('Failed to link appointment to visit:', linkErr.message);
+            // Continue anyway - linkage is optional
+          }
+        }
+
         window.dispatchEvent(new CustomEvent('appointment:created', { detail: { queue_id: form.queue_id } }));
       }
       if (onCreated) onCreated(form);

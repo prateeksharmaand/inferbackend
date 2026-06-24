@@ -229,6 +229,7 @@ router.post ('/appointments/:id/reminder',       appt.sendReminder);
 // Visits (Phase 2 - Patient arrival tracking)
 router.post  ('/visits',                         visit.createVisit);
 router.get   ('/visits',                         visit.listVisits);
+router.patch ('/visits/:id',                     visit.updateVisit);
 router.patch ('/visits/:id/status',              visit.updateStatus);
 router.patch ('/visits/:id/check-in',            visit.checkIn);
 router.patch ('/visits/:id/check-out',           visit.checkOut);

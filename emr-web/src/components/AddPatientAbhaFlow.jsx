@@ -3,6 +3,7 @@ import { AlertCircle, Check, ChevronRight, QrCode, Smartphone, CreditCard, Finge
 import jsQR from 'jsqr';
 import BookSlotModal from './BookSlotModal';
 import BookAppointmentModal from './BookAppointmentModal';
+import ServiceTypeSelector from './ServiceTypeSelector';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
@@ -529,6 +530,9 @@ function PatientCard({ patient, onSuccess, xToken }) {
   const [loadingCard, setLoadingCard] = useState(false);
   const [showBook, setShowBook] = useState(false);
   const [showAddToClinic, setShowAddToClinic] = useState(false);
+  const [showServiceType, setShowServiceType] = useState(false);
+  const [selectedServiceType, setSelectedServiceType] = useState(null);
+  const [currentVisit, setCurrentVisit] = useState(null);
 
   const p = patient.patient || patient;
   // Check if patient is new to this clinic (no UHID assigned means new to clinic)
@@ -606,21 +610,57 @@ function PatientCard({ patient, onSuccess, xToken }) {
           </div>
         )}
 
-        {/* Add to clinic first if new to clinic, then book appointment */}
-        {isNewToClinic ? (
-          <button style={primaryBtn(false)} onClick={() => setShowAddToClinic(true)}>
-            ➕ Add Patient to Clinic →
-          </button>
-        ) : (
-          <button style={primaryBtn(false)} onClick={() => setShowBook(true)}>
-            📅 Book Appointment →
-          </button>
-        )}
+        {/* Show service type selector */}
+        <button style={primaryBtn(false)} onClick={() => setShowServiceType(true)}>
+          Continue to Clinic Visit →
+        </button>
       </div>
+
+      {/* Service Type Selector */}
+      {showServiceType && (
+        <ServiceTypeSelector
+          selectedPatientName={p.name}
+          onSelect={async (serviceType) => {
+            setSelectedServiceType(serviceType);
+            setShowServiceType(false);
+
+            // Create visit with service type
+            try {
+              const visit = await api.post('/visits', {
+                patient_id: p.id,
+                visit_type: serviceType,
+                status: 'waiting'
+              });
+
+              setCurrentVisit(visit);
+
+              // Route based on service type
+              if (serviceType === 'consultation') {
+                // For consultation, proceed to appointment booking
+                if (isNewToClinic) {
+                  setShowAddToClinic(true);
+                } else {
+                  setShowBook(true);
+                }
+              } else {
+                // For non-consultation services, queue directly
+                toast.success(`${serviceType} visit created. Patient in queue.`);
+                onSuccess?.(p);
+              }
+            } catch (err) {
+              console.error('Failed to create visit:', err);
+              toast.error('Failed to create visit. Please try again.');
+            }
+          }}
+          onCancel={() => setShowServiceType(false)}
+        />
+      )}
 
       {showAddToClinic && (
         <BookAppointmentModal
           mode="checkin"
+          visitType={selectedServiceType}
+          visitId={currentVisit?.id}
           prefill={{
             patient_id:     p.id     || null,
             patient_name:   p.name   || '',
@@ -640,6 +680,8 @@ function PatientCard({ patient, onSuccess, xToken }) {
 
       {showBook && !showAddToClinic && (
         <BookSlotModal
+          visitType={selectedServiceType}
+          visitId={currentVisit?.id}
           prefill={{
             patient_id:     p.id     || null,
             patient_name:   p.name   || '',

@@ -29,6 +29,20 @@ const VISIT_STATUSES = {
   NO_SHOW: 'no_show'
 };
 
+// Visit type rules: doctor requirement and appointment requirement
+const VISIT_TYPE_RULES = {
+  consultation: { requiresDoctor: true, requiresAppointment: true, abdmEligible: true },
+  lab: { requiresDoctor: false, requiresAppointment: false, abdmEligible: true },
+  vaccination: { requiresDoctor: false, requiresAppointment: false, abdmEligible: true },
+  report_collection: { requiresDoctor: false, requiresAppointment: false, abdmEligible: false },
+  pharmacy: { requiresDoctor: false, requiresAppointment: false, abdmEligible: false },
+  registration: { requiresDoctor: false, requiresAppointment: false, abdmEligible: false },
+  insurance: { requiresDoctor: false, requiresAppointment: false, abdmEligible: false },
+  procedure: { requiresDoctor: true, requiresAppointment: true, abdmEligible: true },
+  followup: { requiresDoctor: true, requiresAppointment: true, abdmEligible: true },
+  other: { requiresDoctor: false, requiresAppointment: false, abdmEligible: false }
+};
+
 class VisitService {
   async createVisit(clinicId, patientId, {
     appointmentId = null,
@@ -146,4 +160,10 @@ class VisitService {
   }
 }
 
-module.exports = new VisitService();
+const visitService = new VisitService();
+
+// Export service as default + attach constants
+module.exports = visitService;
+module.exports.VISIT_TYPES = VISIT_TYPES;
+module.exports.VISIT_STATUSES = VISIT_STATUSES;
+module.exports.VISIT_TYPE_RULES = VISIT_TYPE_RULES;

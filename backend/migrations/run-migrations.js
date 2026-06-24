@@ -29,6 +29,7 @@ const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, '038_sales_crm_phone_separation.sql'),   // sales CRM: separate phone from notes, add activity tracking
   path.join(__dirname, '055_whatsapp_call_tracking.sql'),       // WhatsApp call attempt tracking with notes
   path.join(__dirname, '057_add_visits_layer.sql'),             // Visit layer: clinic arrivals decoupled from appointments
+  path.join(__dirname, '058_add_visit_type_constraint.sql'),    // Add visit_type constraint and index
 ];
 
 async function runMigrations(pool, logger) {
