@@ -9,8 +9,8 @@ const logger = require('../utils/logger');
  */
 
 const SMS_API_BASE_URL = process.env.SMS_API_URL || 'https://api.smscountry.com/v0.1/Send';
-const SMS_AUTH_KEY = process.env.SMS_AUTH_KEY;
-const SMS_AUTH_TOKEN = process.env.SMS_AUTH_TOKEN;
+const SMS_AUTH_KEY = process.env.SMS_AUTH_KEY || 'VTP86O3CGw1rJNVi2sQn';
+const SMS_AUTH_TOKEN = process.env.SMS_AUTH_TOKEN || 'WSPI3z2F2o5CMI6oN2yBZlwzAxZp2WExeV6ZSSBj';
 const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'NOUSHL';
 
 // Template IDs from SMSCountry
