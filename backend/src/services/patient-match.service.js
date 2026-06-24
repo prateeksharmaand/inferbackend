@@ -140,17 +140,29 @@ async function findPatient(pool, {
       result.confidence = 88;
       result.candidates = rows;
       return result;
-    } else if (rows.length > 1) {
-      // Multiple matches - flag for manual review
-      logger.warn('[Patient Match] Multiple candidates found: Mobile + DOB (Priority 3)', {
+    } else if (rows.length > 1 && name) {
+      // Multiple matches by Mobile+DOB - use Name as tiebreaker if provided
+      const nameLower = name.toLowerCase();
+      const nameMatches = rows.filter(r => r.name && r.name.toLowerCase() === nameLower);
+      if (nameMatches.length === 1) {
+        logger.info('[Patient Match] Found by Mobile + DOB + Name tiebreaker (Priority 3+4)', {
+          mobile,
+          dob,
+          name,
+          patientId: nameMatches[0].id,
+        });
+        result.patient = nameMatches[0];
+        result.matchedBy = 'mobile_dob_name_tiebreaker';
+        result.confidence = 87;
+        result.candidates = rows;
+        return result;
+      }
+      // If tiebreaker didn't help, continue to Priority 4
+      logger.debug('[Patient Match] Mobile+DOB found multiple, name tiebreaker inconclusive, continue to Priority 4', {
         mobile,
         dob,
         count: rows.length,
       });
-      result.candidates = rows;
-      result.matchedBy = 'mobile_dob_multiple';
-      result.confidence = 0; // Ambiguous - needs manual review
-      return result;
     }
   }
 

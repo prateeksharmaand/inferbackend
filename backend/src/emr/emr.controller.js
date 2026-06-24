@@ -59,7 +59,6 @@ const listPatients = async (req, res) => {
     );
 
     // 2. Search appointments for patients not yet in the registry
-    const knownMobiles = new Set(regRows.map(r => r.mobile).filter(Boolean));
     const { rows: apptRows } = await pool.query(
       `SELECT NULL           AS id,
               patient_name   AS name,
@@ -75,15 +74,19 @@ const listPatients = async (req, res) => {
          AND (LOWER(patient_name) LIKE $1
               OR patient_mobile   LIKE $2
               OR LOWER(patient_abha) LIKE LOWER($2))
+         AND NOT EXISTS (
+           SELECT 1 FROM emr_patients p
+           WHERE (patient_mobile IS NOT NULL AND p.mobile = patient_mobile)
+              OR (patient_abha IS NOT NULL AND p.abha_number = patient_abha)
+              OR (LOWER(patient_name) = LOWER(p.name) AND patient_dob = p.dob)
+         )
        GROUP BY patient_name, patient_mobile, patient_dob, patient_gender, patient_abha
        ORDER BY patient_name
        LIMIT 10`,
       [term, prefix, cid]
     );
 
-    // Deduplicate in JS — avoids NULL-mobile issues with SQL ANY()
-    const unique = apptRows.filter(r => !r.mobile || !knownMobiles.has(r.mobile));
-    return res.json([...regRows, ...unique].slice(0, 10));
+    return res.json([...regRows, ...apptRows].slice(0, 10));
   }
 
   // Full-list path: fetch UHID from patient_clinics
