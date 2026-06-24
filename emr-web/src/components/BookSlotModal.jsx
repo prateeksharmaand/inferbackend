@@ -7,6 +7,19 @@ const DURATIONS = [5, 7, 10, 15, 20, 25, 30, 45, 60];
 const WORK_START = 9 * 60;   // 9:00 AM
 const WORK_END   = 20 * 60;  // 8:00 PM
 
+const VISIT_TYPE_RULES = {
+  consultation: { requiresDoctor: true, label: 'Consultation' },
+  lab: { requiresDoctor: false, label: 'Lab Test' },
+  vaccination: { requiresDoctor: false, label: 'Vaccination' },
+  report_collection: { requiresDoctor: false, label: 'Report Collection' },
+  pharmacy: { requiresDoctor: false, label: 'Pharmacy' },
+  registration: { requiresDoctor: false, label: 'Registration' },
+  insurance: { requiresDoctor: false, label: 'Insurance' },
+  procedure: { requiresDoctor: true, label: 'Procedure' },
+  followup: { requiresDoctor: true, label: 'Follow-up' },
+  other: { requiresDoctor: false, label: 'Other' }
+};
+
 function pad(n) { return String(n).padStart(2, '0'); }
 
 function minsToLabel(t) {
@@ -82,6 +95,7 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
 
   // Form
   const [mode,         setMode]         = useState('in_clinic');
+  const [serviceType,  setServiceType]  = useState('consultation');
   const [selectedDate, setSelectedDate] = useState(today);
   const [customDate,   setCustomDate]   = useState('');
   const [showCustom,   setShowCustom]   = useState(false);
@@ -172,6 +186,13 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
     if (!patient?.name) return setError('Please select a patient');
     if (!queueId)       return setError('Please select a queue');
     if (!selectedSlot)  return setError('Please select a time slot');
+
+    // Check doctor requirement based on service type
+    const rules = VISIT_TYPE_RULES[serviceType];
+    if (rules && rules.requiresDoctor && !doctorId) {
+      return setError(`Doctor is required for ${rules.label}`);
+    }
+
     setSaving(true); setError('');
     try {
       const effectiveDob = patientDob || patient.dob || '';
@@ -184,6 +205,7 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
         emr_patient_id:  patient.id || undefined,
         queue_id:        queueId,
         doctor_id:       doctorId || undefined,
+        service_type:    serviceType,
         appointment_date: localDate(selectedDate),
         appointment_time: selectedSlot,
         visit_type:      mode === 'tele' ? 'TeleConsultation' : 'OPConsultation',
@@ -353,6 +375,28 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
             )}
           </div>
 
+          {/* ── Service Type ── */}
+          <div>
+            <span className={styles.sectionLabel}>Service Type</span>
+            <select className={styles.selectInline} value={serviceType} onChange={e => setServiceType(e.target.value)} style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
+              <option value="consultation">👨‍⚕️ Consultation</option>
+              <option value="lab">🧪 Lab Test</option>
+              <option value="vaccination">💉 Vaccination</option>
+              <option value="report_collection">📋 Report Collection</option>
+              <option value="pharmacy">💊 Pharmacy</option>
+              <option value="registration">📝 Registration</option>
+              <option value="insurance">🛡️ Insurance</option>
+              <option value="procedure">🏥 Procedure</option>
+              <option value="followup">↩️ Follow-up</option>
+              <option value="other">❓ Other</option>
+            </select>
+            {(() => {
+              const rules = VISIT_TYPE_RULES[serviceType];
+              if (!rules || !rules.requiresDoctor) return null;
+              return <span style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, display: 'block' }}>Doctor required for {rules.label}</span>;
+            })()}
+          </div>
+
           {/* ── Queue + Doctor row ── */}
           <div className={styles.queueRow}>
             <div className={styles.fieldInline}>
@@ -364,9 +408,9 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
               </select>
             </div>
             <div className={styles.fieldInline}>
-              <label>Doctor</label>
-              <select className={styles.selectInline} value={doctorId} onChange={e => setDoctorId(e.target.value)}>
-                <option value="">Any doctor</option>
+              <label>Doctor {VISIT_TYPE_RULES[serviceType]?.requiresDoctor && <span className={styles.req}>*</span>}</label>
+              <select className={styles.selectInline} value={doctorId} onChange={e => setDoctorId(e.target.value)} required={VISIT_TYPE_RULES[serviceType]?.requiresDoctor}>
+                <option value="">{VISIT_TYPE_RULES[serviceType]?.requiresDoctor ? 'Select doctor (required)' : 'Any doctor (optional)'}</option>
                 {doctors.map(d => <option key={d.id} value={d.id}>Dr. {d.name}</option>)}
               </select>
             </div>
