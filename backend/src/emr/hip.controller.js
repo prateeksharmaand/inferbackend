@@ -5,6 +5,7 @@ const crypto      = require('crypto');
 const bcrypt      = require('bcryptjs');
 const audit       = require('../services/auditLogger');
 const AbhaIdentity = require('./abha.identity');
+const smsService  = require('../services/sms.service');
 
 // BLOCKER-4 fix: UUID format validation for request-ID and transaction-ID
 const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -214,7 +215,28 @@ const handleLinkInit = async (req, res) => {
       console.log(`\n========== SANDBOX OTP ==========\nRef : ${linkRefNumber}\nOTP : ${otp}\n=================================\n`);
     }
     logger.info('HIP OTP generated', { linkRefNumber, careContextCount: careContexts.length });
-    // TODO: wire up SMS: await sendSms(pt?.mobile, `Your ABDM linking OTP: ${otp}. Valid 10 min.`);
+
+    // Send OTP via 2Factor.in SMS service
+    if (pt?.mobile) {
+      try {
+        await smsService.sendOTP(pt.mobile, otp, 'OTP1');
+        logger.info('ABDM linking OTP sent via SMS', {
+          linkRefNumber,
+          phone: pt.mobile.replace(/\d(?=\d{2})/g, '*'), // Masked phone
+          otpLength: otp.length,
+        });
+      } catch (smsError) {
+        logger.warn('Failed to send ABDM linking OTP via SMS', {
+          linkRefNumber,
+          error: smsError.message,
+          note: 'Patient can still use OTP shown in app or console (sandbox)',
+        });
+        // Non-blocking — continue even if SMS fails, OTP is still usable via app
+      }
+    } else {
+      logger.warn('Cannot send ABDM linking OTP — patient has no mobile number', { linkRefNumber });
+    }
+
     audit.abdmLinkInit(req, linkRefNumber);
 
     // Resolve hipId: prefer X-HIP-ID header (ABDM tells us which service was queried),
