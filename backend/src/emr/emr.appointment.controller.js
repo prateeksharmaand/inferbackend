@@ -154,7 +154,7 @@ const createAppointment = async (req, res) => {
   const {
     queue_id, doctor_id, emr_patient_id,
     patient_name, patient_mobile, patient_dob, patient_gender, patient_abha, patient_email,
-    visit_type, channel, appointment_date, appointment_time, notes, tags, uhid, medical_history,
+    visit_type, service_type, channel, appointment_date, appointment_time, notes, tags, uhid, medical_history,
   } = req.body;
 
   // Mandatory validations
@@ -250,13 +250,13 @@ const createAppointment = async (req, res) => {
     `INSERT INTO emr_appointments
        (queue_id, clinic_id, doctor_id, emr_patient_id,
         patient_name, patient_mobile, patient_dob, patient_gender, patient_abha, patient_email,
-        token_number, visit_type, channel, appointment_date, appointment_time, notes, tags, medical_history)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+        token_number, visit_type, service_type, channel, appointment_date, appointment_time, notes, tags, medical_history)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
     [
       queue_id || null, req.emrUser.clinic_id, doctor_id || null, resolvedPatientId,
       patient_name, patient_mobile || null,
       patient_dob || null, patient_gender || null, patient_abha || null, patient_email || null,
-      tok.next_token, visit_type || 'OPConsultation',
+      tok.next_token, visit_type || 'OPConsultation', service_type || 'consultation',
       channel || 'walk_in',
       appointment_date || new Date().toISOString().slice(0, 10),
       appointment_time || null, notes || null,
