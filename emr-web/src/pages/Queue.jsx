@@ -276,13 +276,14 @@ export default function Queue() {
   const rawLeft  = leftTab === 'Booked' ? board.booked : [];
   const rawRight = rightTab === 'MY OPD' ? board.my_opd : board.completed;
   const leftList  = sortAppts(filterAppts(rawLeft,  leftSearch,  leftFilters, serviceTypeFilter),  leftSort);
-  const rightList = sortAppts(filterAppts(rawRight, rightSearch, rightFilters, serviceTypeFilter), rightSort);
+  // For MY OPD tab, skip service type filter (show all of your patients regardless of service type)
+  const rightList = sortAppts(filterAppts(rawRight, rightSearch, rightFilters, rightTab === 'MY OPD' ? null : serviceTypeFilter), rightSort);
 
   // Calculate statistics by service type
   const allAppts = [...(board.booked || []), ...(board.my_opd || []), ...(board.completed || [])];
   const serviceTypeStats = SERVICE_TYPE_OPTIONS.reduce((acc, opt) => {
     if (opt.id === 'all') return acc;
-    const count = allAppts.filter(a => (a.visit_type || 'consultation') === opt.id).length;
+    const count = allAppts.filter(a => (a.service_type || 'consultation') === opt.id).length;
     if (count > 0) acc[opt.id] = count;
     return acc;
   }, {});
