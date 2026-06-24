@@ -165,7 +165,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
         </div>
 
         <form className={styles.body} onSubmit={handleSubmit}>
-          <div className={styles.grid2}>
+          <div className={styles.grid3}>
             <div className={styles.field}>
               <label>Patient Name *</label>
               <input required value={form.patient_name} onChange={e => set('patient_name', e.target.value)} placeholder="Full name" />

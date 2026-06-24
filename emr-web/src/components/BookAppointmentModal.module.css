@@ -4,7 +4,7 @@
 }
 .modal {
   background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg);
-  width: 100%; max-width: 580px; max-height: 90vh; display: flex; flex-direction: column;
+  width: 100%; max-width: 920px; max-height: 90vh; display: flex; flex-direction: column;
 }
 .header {
   display: flex; align-items: center; justify-content: space-between;
@@ -15,6 +15,7 @@
 .body  { padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 11px; font-weight: 600; color: var(--color-text-2); }
 .field input, .field select, .field textarea {
