@@ -5,6 +5,7 @@ import { useQueueDate } from '../context/QueueDateContext';
 import { Search, SlidersHorizontal, ArrowUpDown, Plus, LayoutList, CalendarDays, X, Check, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AppointmentCard from '../components/AppointmentCard';
+import VisitCard from '../components/VisitCard';
 import QuickVitalsModal from '../components/QuickVitalsModal';
 import RxPrintModal from '../components/RxPrintModal';
 import PatientProfilePanel from '../components/PatientProfilePanel';
@@ -143,8 +144,28 @@ export default function Queue() {
     setLoading(true);
     const q = queueDate;
     const d = `${q.getFullYear()}-${String(q.getMonth()+1).padStart(2,'0')}-${String(q.getDate()).padStart(2,'0')}`;
-    api.get(`/appointments?queue_id=${activeQueue.id}&date=${d}`)
-      .then(data => { setBoard(data); setLoading(false); })
+    // Fetch both appointments and visits
+    Promise.all([
+      api.get(`/appointments?queue_id=${activeQueue.id}&date=${d}`),
+      api.get(`/visits?date=${d}`)
+    ])
+      .then(([apptData, visitData]) => {
+        // Merge visits into appointment data structure
+        const visits = visitData.visits || [];
+        const booked = apptData.booked || [];
+        const my_opd = apptData.my_opd || [];
+        const completed = apptData.completed || [];
+
+        // Add visits to appropriate sections based on their status
+        visits.forEach(v => {
+          if (v.status === 'in_progress') my_opd.push(v);
+          else if (v.status === 'completed') completed.push(v);
+          else booked.push(v);
+        });
+
+        setBoard({ booked, my_opd, completed });
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [activeQueue, queueDate]);
 
@@ -376,15 +397,29 @@ export default function Queue() {
                   {!leftSearch && <small>Future appointments you schedule will appear here</small>}
                 </div>
               )}
-              {leftList.map(a => (
-                <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
-                  onStatusChange={handleStatusChange}
-                  onTagUpdate={handleTagUpdate}
-                  onDelete={handleDeleteAppointment}
-                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
-                  onInferAssist={(appt) => setDocAssistAppt(appt)}
-                />
-              ))}
+              {leftList.map(a => {
+                const isVisit = a.visit_type !== undefined;
+                return isVisit ? (
+                  <VisitCard key={`visit-${a.id}`} visit={a}
+                    onCheckIn={async (visitId) => {
+                      await api.patch(`/visits/${visitId}/check-in`, {});
+                      fetchBoard();
+                    }}
+                    onCheckOut={async (visitId) => {
+                      await api.patch(`/visits/${visitId}/check-out`, { status: 'completed' });
+                      fetchBoard();
+                    }}
+                  />
+                ) : (
+                  <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
+                    onStatusChange={handleStatusChange}
+                    onTagUpdate={handleTagUpdate}
+                    onDelete={handleDeleteAppointment}
+                    onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
+                    onInferAssist={(appt) => setDocAssistAppt(appt)}
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -485,15 +520,29 @@ export default function Queue() {
                   {!rightSearch && <small>{rightTab === 'MY OPD' ? 'Click "Add New" to start adding appointments' : 'Completed consultations will appear here'}</small>}
                 </div>
               )}
-              {rightList.map(a => (
-                <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
-                  onStatusChange={handleStatusChange}
-                  onTagUpdate={handleTagUpdate}
-                  onDelete={handleDeleteAppointment}
-                  onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
-                  onInferAssist={(appt) => setDocAssistAppt(appt)}
-                />
-              ))}
+              {rightList.map(a => {
+                const isVisit = a.visit_type !== undefined;
+                return isVisit ? (
+                  <VisitCard key={`visit-${a.id}`} visit={a}
+                    onCheckIn={async (visitId) => {
+                      await api.patch(`/visits/${visitId}/check-in`, {});
+                      fetchBoard();
+                    }}
+                    onCheckOut={async (visitId) => {
+                      await api.patch(`/visits/${visitId}/check-out`, { status: 'completed' });
+                      fetchBoard();
+                    }}
+                  />
+                ) : (
+                  <AppointmentCard key={a.id} appt={a} clinicTags={clinicTags}
+                    onStatusChange={handleStatusChange}
+                    onTagUpdate={handleTagUpdate}
+                    onDelete={handleDeleteAppointment}
+                    onOpen={(action) => { if (action === 'vitals') setVitalsAppt(a); else if (action === 'print') setPrintAppt(a); else if (action === 'profile') setProfileAppt(a); else navigate(`/rx/${a.id}`); }}
+                    onInferAssist={(appt) => setDocAssistAppt(appt)}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>

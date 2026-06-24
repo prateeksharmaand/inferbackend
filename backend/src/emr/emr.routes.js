@@ -46,7 +46,7 @@ const analytics   = require('./emr.analytics.controller');
 const docassist   = require('./emr.docassist.controller');
 const rxpublic    = require('./emr.rxpublic.controller');
 const subscription = require('./emr.subscription.controller');
-const visit       = require('./visit.controller');
+const visit       = require('./emr.visit.controller');
 
 // â”€â”€ Public â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Staff invitation acceptance (public â€” no JWT)
@@ -228,12 +228,11 @@ router.post ('/appointments/:id/reminder',       appt.sendReminder);
 
 // Visits (Phase 2 - Patient arrival tracking)
 router.post  ('/visits',                         visit.createVisit);
-router.get   ('/visits/:id',                     visit.getVisit);
-router.patch ('/visits/:id/check-in',            visit.checkInVisit);
-router.patch ('/visits/:id/complete',            visit.completeVisit);
-router.get   ('/visits',                         visit.listVisitsForDate);
-router.get   ('/patients/:patientId/visits',     visit.getPatientVisitHistory);
-router.get   ('/clinics/:clinicId/visits/stats', visit.getVisitStats);
+router.get   ('/visits',                         visit.listVisits);
+router.patch ('/visits/:id/status',              visit.updateStatus);
+router.patch ('/visits/:id/check-in',            visit.checkIn);
+router.patch ('/visits/:id/check-out',           visit.checkOut);
+router.patch ('/visits/:id/assign-doctor',       visit.assignDoctor);
 
 // Tags (Custom Attribute Values)
 router.get   ('/tags',     tags.listTags);
