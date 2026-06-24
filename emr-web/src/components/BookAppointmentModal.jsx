@@ -72,10 +72,14 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     if (!form.queue_id) return setError('Queue is required');
 
     // Check doctor requirement based on service type
-    const selectedServiceType = form.service_type || 'consultation';
-    const rules = VISIT_TYPE_RULES[selectedServiceType];
-    if (rules && rules.requiresDoctor && !form.doctor_id) {
-      return setError(`Doctor is required for ${rules.label}`);
+    // Note: For checkin (first-time patients), doctor is always optional
+    // For booking appointments (existing patients), doctor is required for certain types
+    if (mode !== 'checkin') {
+      const selectedServiceType = form.service_type || 'consultation';
+      const rules = VISIT_TYPE_RULES[selectedServiceType];
+      if (rules && rules.requiresDoctor && !form.doctor_id) {
+        return setError(`Doctor is required for ${rules.label}`);
+      }
     }
 
     setSaving(true); setError('');
@@ -286,22 +290,25 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
               const rules = VISIT_TYPE_RULES[selectedType];
               if (!rules) return null;
 
+              // For check-in (first-time patients), doctor is always optional
+              const isRequired = mode !== 'checkin' && rules.requiresDoctor;
+
               return (
                 <div className={styles.field}>
                   <label>
-                    Doctor {rules.requiresDoctor && <span className={styles.req}>*</span>}
+                    Doctor {isRequired && <span className={styles.req}>*</span>}
                   </label>
                   <select
                     value={form.doctor_id}
                     onChange={e => set('doctor_id', e.target.value)}
-                    required={rules.requiresDoctor}
+                    required={isRequired}
                   >
-                    <option value="">— Select doctor {rules.requiresDoctor ? '(required)' : '(optional)'} —</option>
+                    <option value="">— Select doctor {isRequired ? '(required)' : '(optional)'} —</option>
                     {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
-                  {!rules.requiresDoctor && (
+                  {!isRequired && (
                     <small style={{ color: '#6b7280', marginTop: '4px', display: 'block' }}>
-                      Doctor assignment is optional for {rules.label}
+                      {mode === 'checkin' ? 'Doctor can be assigned during consultation' : `Doctor assignment is optional for ${rules.label}`}
                     </small>
                   )}
                 </div>
