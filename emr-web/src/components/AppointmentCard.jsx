@@ -17,6 +17,19 @@ const STATUS_COLOR = {
   no_show: '#ef4444', follow_up: '#06b6d4',
 };
 
+const SERVICE_TYPE_COLORS = {
+  consultation: { bg: '#dbeafe', text: '#1e40af', emoji: '👨‍⚕️' },
+  lab: { bg: '#e9d5ff', text: '#6b21a8', emoji: '🧪' },
+  vaccination: { bg: '#dcfce7', text: '#166534', emoji: '💉' },
+  report_collection: { bg: '#fef3c7', text: '#92400e', emoji: '📋' },
+  pharmacy: { bg: '#fee2e2', text: '#991b1b', emoji: '💊' },
+  registration: { bg: '#f3f4f6', text: '#374151', emoji: '📝' },
+  insurance: { bg: '#f0fdf4', text: '#15803d', emoji: '🛡️' },
+  procedure: { bg: '#cffafe', text: '#0e7490', emoji: '🏥' },
+  followup: { bg: '#fce7f3', text: '#831843', emoji: '↩️' },
+  other: { bg: '#f1f5f9', text: '#334155', emoji: '❓' },
+};
+
 const ACTIONS = {
   checked_in: ['Start', 'Write Rx', 'Park'],
   ongoing:    ['Resume', 'Complete'],
@@ -272,7 +285,24 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {appt.uhid && <span className={styles.uhid}>{appt.uhid}</span>}
               {appt.patient_mobile && <span className={styles.infoText}>{appt.patient_mobile}</span>}
               {gender && <span className={styles.infoText}>{gender}</span>}
-              {appt.visit_type && <span className={styles.infoText}>{appt.visit_type}</span>}
+              {appt.visit_type && (() => {
+                const color = SERVICE_TYPE_COLORS[appt.visit_type] || SERVICE_TYPE_COLORS.other;
+                return (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    background: color.bg,
+                    color: color.text,
+                    fontSize: '12px',
+                    fontWeight: '600'
+                  }}>
+                    {color.emoji} {appt.visit_type.replace(/_/g, ' ')}
+                  </span>
+                );
+              })()}
             </div>
             {/* Right col: time / channel / reminder / completed duration */}
             <div className={styles.infoCol}>
