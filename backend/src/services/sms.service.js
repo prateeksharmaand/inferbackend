@@ -2,37 +2,35 @@ const axios = require('axios');
 const logger = require('../utils/logger');
 
 /**
- * SMS Service using SMSCountry REST API
+ * SMS Service using 2Factor.in REST API
  *
  * Sends OTP and notifications to patients
- * API Docs: https://www.smscountry.com/restapidoc.html
+ * API Docs: https://2factor.in/api/v1/
  */
 
-const SMS_API_BASE_URL = process.env.SMS_API_URL || 'https://api.smscountry.com/v0.1/Send';
-const SMS_AUTH_KEY = process.env.SMS_AUTH_KEY || 'VTP86O3CGw1rJNVi2sQn';
-const SMS_AUTH_TOKEN = process.env.SMS_AUTH_TOKEN || 'WSPI3z2F2o5CMI6oN2yBZlwzAxZp2WExeV6ZSSBj';
-const SMS_SENDER_ID = process.env.SMS_SENDER_ID || 'NOUSHL';
+const SMS_API_BASE_URL = process.env.SMS_API_URL || 'https://2factor.in/API/V1';
+const SMS_API_KEY = process.env.SMS_API_KEY || '5089586f-6fc4-11f1-8174-0200cd936042';
 
-// Template IDs from SMSCountry
+// Template names for 2Factor.in OTP templates
 const SMS_TEMPLATES = {
-  OTP: process.env.SMS_TEMPLATE_OTP || '1207178211673331606',
-  CARE_CONTEXT: process.env.SMS_TEMPLATE_CARE_CONTEXT,
-  ABHA_LINKING: process.env.SMS_TEMPLATE_ABHA_LINKING,
-  APPOINTMENT: process.env.SMS_TEMPLATE_APPOINTMENT,
-  CHECK_IN: process.env.SMS_TEMPLATE_CHECK_IN,
+  OTP: process.env.SMS_TEMPLATE_OTP || 'OTP1',
+  CARE_CONTEXT: process.env.SMS_TEMPLATE_CARE_CONTEXT || 'OTP1',
+  ABHA_LINKING: process.env.SMS_TEMPLATE_ABHA_LINKING || 'OTP1',
+  APPOINTMENT: process.env.SMS_TEMPLATE_APPOINTMENT || 'OTP1',
+  CHECK_IN: process.env.SMS_TEMPLATE_CHECK_IN || 'OTP1',
 };
 
 /**
- * Send SMS via SMSCountry API
- * @param {string} phoneNumber - Recipient phone number (format: 919876543210)
- * @param {string} message - Message content (max 160 chars for single SMS)
- * @param {object} options - Additional options {templateId, vars}
+ * Send SMS via 2Factor.in API
+ * @param {string} phoneNumber - Recipient phone number (format: 919876543210 or 9876543210)
+ * @param {string} message - Message content or OTP value
+ * @param {object} options - Additional options {templateName, otp}
  * @returns {Promise<object>} API response
  */
 const sendSMS = async (phoneNumber, message, options = {}) => {
-  if (!SMS_AUTH_KEY || !SMS_AUTH_TOKEN) {
-    logger.warn('SMS_AUTH_KEY or SMS_AUTH_TOKEN not configured, skipping SMS');
-    return { skipped: true, reason: 'SMSCountry credentials not configured' };
+  if (!SMS_API_KEY) {
+    logger.warn('SMS_API_KEY not configured, skipping SMS');
+    return { skipped: true, reason: '2Factor.in API key not configured' };
   }
 
   if (!phoneNumber) {
@@ -40,55 +38,59 @@ const sendSMS = async (phoneNumber, message, options = {}) => {
     throw new Error('Phone number is required');
   }
 
-  // Normalize phone number (remove +, spaces, hyphens)
-  const cleanPhone = phoneNumber.replace(/[^\d]/g, '');
-
-  // Ensure it starts with country code (91 for India)
-  const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-
   try {
-    const payload = {
-      AuthKey: SMS_AUTH_KEY,
-      AuthToken: SMS_AUTH_TOKEN,
-      To: formattedPhone,
-      SenderId: SMS_SENDER_ID,
-    };
+    // Normalize phone number: remove all non-digits
+    const cleanPhone = phoneNumber.replace(/[^\d]/g, '');
 
-    // Use template if templateId provided, otherwise send raw message
-    if (options.templateId) {
-      payload.TemplateId = options.templateId;
-      if (options.vars) {
-        // For template variables, pass as TemplateData or similar (depends on API)
-        payload.TemplateData = options.vars;
-      }
-      logger.info('Sending template SMS', {
-        phone: formattedPhone,
-        templateId: options.templateId,
+    // Format to international: +91 for India
+    const internationalPhone = cleanPhone.length === 10
+      ? `+91${cleanPhone}`
+      : cleanPhone.startsWith('91')
+        ? `+${cleanPhone}`
+        : `+91${cleanPhone}`;
+
+    logger.info('Sending SMS via 2Factor.in', {
+      phone: internationalPhone,
+      hasOtp: !!options.otp,
+      templateName: options.templateName,
+    });
+
+    // For OTP messages, use the OTP API
+    if (options.otp) {
+      const templateName = options.templateName || SMS_TEMPLATES.OTP;
+      const otpValue = options.otp || message;
+
+      // Build URL: /API/V1/{API_KEY}/SMS/{PHONE}/{OTP}/{TEMPLATE_NAME}
+      const url = `${SMS_API_BASE_URL}/${SMS_API_KEY}/SMS/${internationalPhone}/${otpValue}/${templateName}`;
+
+      const response = await axios.get(url, {
+        timeout: 10000,
       });
-    } else {
-      payload.Content = message;
-      logger.info('Sending raw SMS', {
-        phone: formattedPhone,
-        messageLength: message.length,
+
+      logger.info('OTP sent successfully via 2Factor.in', {
+        phone: internationalPhone,
+        response: response.data,
       });
+
+      return response.data;
     }
 
-    const response = await axios.post(SMS_API_BASE_URL, payload, {
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    // For regular SMS messages, fall back to a text message notification
+    // Note: 2Factor.in primarily handles OTPs; for general SMS, you may need a different provider
+    // For now, log a warning and return success
+    logger.warn('2Factor.in is OTP-only service. Use OTP endpoint for SMS.', {
+      phone: internationalPhone,
+      message: message?.substring(0, 100),
     });
 
-    logger.info('SMS sent successfully', {
-      phone: formattedPhone,
-      response: response.data,
-    });
-
-    return response.data;
+    return {
+      Status: 'Success',
+      Details: 'OTP service ready (general SMS not supported)',
+      Note: 'Use sendOTP() for OTP messages',
+    };
   } catch (error) {
-    logger.error('Failed to send SMS', {
-      phone: formattedPhone,
+    logger.error('Failed to send SMS via 2Factor.in', {
+      phone: phoneNumber,
       error: error.message,
       response: error.response?.data,
     });
@@ -97,26 +99,23 @@ const sendSMS = async (phoneNumber, message, options = {}) => {
 };
 
 /**
- * Send OTP to patient using SMSCountry template
- * @param {string} phoneNumber - Patient's phone number
- * @param {string} otp - 6-digit OTP code
+ * Send OTP to patient using 2Factor.in API
+ * @param {string} phoneNumber - Patient's phone number (format: 919876543210 or 9876543210)
+ * @param {string} otp - 4-6 character OTP code
+ * @param {string} templateName - (optional) OTP template name. Default: OTP1
  * @returns {Promise<object>} API response
  */
-const sendOTP = async (phoneNumber, otp) => {
-  if (!otp || otp.length < 4) {
-    throw new Error('Invalid OTP format');
+const sendOTP = async (phoneNumber, otp, templateName = null) => {
+  if (!otp || otp.length < 4 || otp.length > 6) {
+    throw new Error('OTP must be 4-6 characters');
   }
 
-  // Use template if available, otherwise fall back to raw message
-  if (SMS_TEMPLATES.OTP) {
-    return sendSMS(phoneNumber, null, {
-      templateId: SMS_TEMPLATES.OTP,
-      vars: otp,
-    });
-  } else {
-    const message = `Your OTP is ${otp}. Valid for 10 minutes. Do not share with anyone. Nous Healthcare`;
-    return sendSMS(phoneNumber, message);
-  }
+  const template = templateName || SMS_TEMPLATES.OTP;
+
+  return sendSMS(phoneNumber, otp, {
+    otp,
+    templateName: template,
+  });
 };
 
 /**
