@@ -6,7 +6,7 @@ const logger      = require('../utils/logger');
 const abdmResolver = require('../services/abdm-clinic-resolver.service');
 const { sendAppointmentConfirmation } = require('./emr.mailer');
 const { logActivity } = require('./emr.staff.controller');
-const abdmIntegration = require('./abdm-registration-integration');
+const abdmIntegration = require('../controllers/abdm-registration-integration');
 
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
   'rescheduled','follow_up','parked','no_show','aborted'];
