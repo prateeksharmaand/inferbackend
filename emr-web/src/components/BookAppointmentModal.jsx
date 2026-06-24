@@ -55,7 +55,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     if (!form.patient_name.trim()) return setError('Patient name is required');
     if (!form.patient_mobile.trim()) return setError('Mobile number is required');
     if (!form.patient_dob.trim()) return setError('Date of birth is required');
-    if (mode === 'checkin' && !form.queue_id) return setError('Please select a queue to check in');
+    if (!form.queue_id) return setError('Queue is required');
     setSaving(true); setError('');
     try {
       let patientId = form.patient_id;
@@ -216,7 +216,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
             </div>
             <div className={styles.field}>
               <label>
-                Queue {mode === 'checkin' && <span className={styles.req}>*</span>}
+                Queue <span className={styles.req}>*</span>
               </label>
               <select
                 value={form.queue_id}

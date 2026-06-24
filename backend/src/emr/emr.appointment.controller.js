@@ -159,6 +159,7 @@ const createAppointment = async (req, res) => {
 
   // Mandatory validations
   if (!patient_name) return res.status(400).json({ error: 'patient_name required' });
+  if (!queue_id) return res.status(400).json({ error: 'queue_id required - must assign patient to a queue' });
 
   // Auto-resolve emr_patient_id from multiple sources (in priority order)
   let resolvedPatientId = emr_patient_id || null;
