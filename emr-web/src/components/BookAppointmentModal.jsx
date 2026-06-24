@@ -36,6 +36,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     uhid:            prefill.uhid           || '',
     queue_id:        '',
     doctor_id:       '',
+    service_type:    visitType || 'consultation', // Service type selector
     channel:         prefill.channel        || 'walk_in',
     visit_type:      'OPConsultation',
     appointment_date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(),
@@ -71,8 +72,8 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     if (!form.queue_id) return setError('Queue is required');
 
     // Check doctor requirement based on service type
-    const visitType = visitType || 'consultation';
-    const rules = VISIT_TYPE_RULES[visitType];
+    const selectedServiceType = form.service_type || 'consultation';
+    const rules = VISIT_TYPE_RULES[selectedServiceType];
     if (rules && rules.requiresDoctor && !form.doctor_id) {
       return setError(`Doctor is required for ${rules.label}`);
     }
@@ -244,6 +245,24 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
               </div>
             </div>
             <div className={styles.field}>
+              <label>Service Type <span className={styles.req}>*</span></label>
+              <select value={form.service_type} onChange={e => set('service_type', e.target.value)}>
+                <option value="consultation">👨‍⚕️ Consultation</option>
+                <option value="lab">🧪 Lab Test</option>
+                <option value="vaccination">💉 Vaccination</option>
+                <option value="report_collection">📋 Report Collection</option>
+                <option value="pharmacy">💊 Pharmacy</option>
+                <option value="registration">📝 Registration</option>
+                <option value="insurance">🛡️ Insurance</option>
+                <option value="procedure">🏥 Procedure</option>
+                <option value="followup">↩️ Follow-up</option>
+                <option value="other">❓ Other</option>
+              </select>
+              <small style={{ color: '#6b7280', marginTop: '4px', display: 'block' }}>
+                What is the patient here for?
+              </small>
+            </div>
+            <div className={styles.field}>
               <label>Channel</label>
               <select value={form.channel} onChange={e => set('channel', e.target.value)}>
                 {CHANNELS.map(c => <option key={c} value={c.toLowerCase().replace(/ /g,'_')}>{c}</option>)}
@@ -263,8 +282,8 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
               </select>
             </div>
             {(() => {
-              const vType = visitType || 'consultation';
-              const rules = VISIT_TYPE_RULES[vType];
+              const selectedType = form.service_type || 'consultation';
+              const rules = VISIT_TYPE_RULES[selectedType];
               if (!rules) return null;
 
               return (
