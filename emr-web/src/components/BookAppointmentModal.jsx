@@ -5,6 +5,19 @@ import MedicalHistorySection from './MedicalHistorySection';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
+const VISIT_TYPE_RULES = {
+  consultation: { requiresDoctor: true, label: 'Consultation' },
+  lab: { requiresDoctor: false, label: 'Lab Test' },
+  vaccination: { requiresDoctor: false, label: 'Vaccination' },
+  report_collection: { requiresDoctor: false, label: 'Report Collection' },
+  pharmacy: { requiresDoctor: false, label: 'Pharmacy' },
+  registration: { requiresDoctor: false, label: 'Registration' },
+  insurance: { requiresDoctor: false, label: 'Insurance' },
+  procedure: { requiresDoctor: true, label: 'Procedure' },
+  followup: { requiresDoctor: true, label: 'Follow-up' },
+  other: { requiresDoctor: false, label: 'Other' }
+};
+
 export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCreated, registerOnly = false, visitId = null, visitType = null }) {
   const [queues,       setQueues]       = useState([]);
   const [doctors,      setDoctors]      = useState([]);
@@ -56,6 +69,14 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
     if (!form.patient_mobile.trim()) return setError('Mobile number is required');
     if (!form.patient_dob.trim()) return setError('Date of birth is required');
     if (!form.queue_id) return setError('Queue is required');
+
+    // Check doctor requirement based on service type
+    const visitType = visitType || 'consultation';
+    const rules = VISIT_TYPE_RULES[visitType];
+    if (rules && rules.requiresDoctor && !form.doctor_id) {
+      return setError(`Doctor is required for ${rules.label}`);
+    }
+
     setSaving(true); setError('');
     try {
       let patientId = form.patient_id;
@@ -241,13 +262,32 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
                 {queues.map(q => <option key={q.id} value={q.id}>{q.name}</option>)}
               </select>
             </div>
-            <div className={styles.field}>
-              <label>Doctor</label>
-              <select value={form.doctor_id} onChange={e => set('doctor_id', e.target.value)}>
-                <option value="">— Select doctor —</option>
-                {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </div>
+            {(() => {
+              const vType = visitType || 'consultation';
+              const rules = VISIT_TYPE_RULES[vType];
+              if (!rules) return null;
+
+              return (
+                <div className={styles.field}>
+                  <label>
+                    Doctor {rules.requiresDoctor && <span className={styles.req}>*</span>}
+                  </label>
+                  <select
+                    value={form.doctor_id}
+                    onChange={e => set('doctor_id', e.target.value)}
+                    required={rules.requiresDoctor}
+                  >
+                    <option value="">— Select doctor {rules.requiresDoctor ? '(required)' : '(optional)'} —</option>
+                    {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                  {!rules.requiresDoctor && (
+                    <small style={{ color: '#6b7280', marginTop: '4px', display: 'block' }}>
+                      Doctor assignment is optional for {rules.label}
+                    </small>
+                  )}
+                </div>
+              );
+            })()}
             <div className={styles.field}>
               <label>Date</label>
               <input type="date" value={form.appointment_date} onChange={e => set('appointment_date', e.target.value)} />

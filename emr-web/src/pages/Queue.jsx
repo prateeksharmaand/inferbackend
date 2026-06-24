@@ -15,7 +15,33 @@ import styles from './Queue.module.css';
 
 const STATUS_TABS = ['Booked', 'Follow Ups', 'Others'];
 
-function filterAppts(list, q, filters) {
+const SERVICE_TYPE_OPTIONS = [
+  { id: 'all', label: 'All Services' },
+  { id: 'consultation', label: 'Consultation', emoji: '👨‍⚕️' },
+  { id: 'lab', label: 'Lab', emoji: '🧪' },
+  { id: 'vaccination', label: 'Vaccination', emoji: '💉' },
+  { id: 'report_collection', label: 'Report Collection', emoji: '📋' },
+  { id: 'pharmacy', label: 'Pharmacy', emoji: '💊' },
+  { id: 'registration', label: 'Registration', emoji: '📝' },
+  { id: 'procedure', label: 'Procedure', emoji: '🏥' },
+  { id: 'followup', label: 'Follow-up', emoji: '↩️' },
+  { id: 'other', label: 'Other', emoji: '❓' },
+];
+
+const SERVICE_TYPE_COLORS = {
+  consultation: { bg: '#dbeafe', text: '#1e40af', emoji: '👨‍⚕️' },
+  lab: { bg: '#e9d5ff', text: '#6b21a8', emoji: '🧪' },
+  vaccination: { bg: '#dcfce7', text: '#166534', emoji: '💉' },
+  report_collection: { bg: '#fef3c7', text: '#92400e', emoji: '📋' },
+  pharmacy: { bg: '#fee2e2', text: '#991b1b', emoji: '💊' },
+  registration: { bg: '#f3f4f6', text: '#374151', emoji: '📝' },
+  insurance: { bg: '#f0fdf4', text: '#15803d', emoji: '🛡️' },
+  procedure: { bg: '#cffafe', text: '#0e7490', emoji: '🏥' },
+  followup: { bg: '#fce7f3', text: '#831843', emoji: '↩️' },
+  other: { bg: '#f1f5f9', text: '#334155', emoji: '❓' },
+};
+
+function filterAppts(list, q, filters, serviceTypeFilter) {
   let out = list;
 
   // Text search
@@ -26,6 +52,11 @@ function filterAppts(list, q, filters) {
       a.patient_mobile?.includes(t) ||
       String(a.token_number).includes(t)
     );
+  }
+
+  // Service type filter
+  if (serviceTypeFilter && serviceTypeFilter !== 'all') {
+    out = out.filter(a => (a.visit_type || 'consultation') === serviceTypeFilter);
   }
 
   // Tags filter
@@ -111,6 +142,11 @@ export default function Queue() {
   const [rightSortOpen, setRightSortOpen] = useState(false);
   const leftSortRef  = useRef(null);
   const rightSortRef = useRef(null);
+
+  // Service type filtering
+  const [serviceTypeFilter, setServiceTypeFilter] = useState('all');
+  const [showServiceTypeMenu, setShowServiceTypeMenu] = useState(false);
+  const serviceTypeRef = useRef(null);
 
   const [vitalsAppt,     setVitalsAppt]     = useState(null);
   const [printAppt,      setPrintAppt]      = useState(null);
@@ -239,44 +275,104 @@ export default function Queue() {
 
   const rawLeft  = leftTab === 'Booked' ? board.booked : [];
   const rawRight = rightTab === 'MY OPD' ? board.my_opd : board.completed;
-  const leftList  = sortAppts(filterAppts(rawLeft,  leftSearch,  leftFilters),  leftSort);
-  const rightList = sortAppts(filterAppts(rawRight, rightSearch, rightFilters), rightSort);
+  const leftList  = sortAppts(filterAppts(rawLeft,  leftSearch,  leftFilters, serviceTypeFilter),  leftSort);
+  const rightList = sortAppts(filterAppts(rawRight, rightSearch, rightFilters, serviceTypeFilter), rightSort);
+
+  // Calculate statistics by service type
+  const allAppts = [...(board.booked || []), ...(board.my_opd || []), ...(board.completed || [])];
+  const serviceTypeStats = SERVICE_TYPE_OPTIONS.reduce((acc, opt) => {
+    if (opt.id === 'all') return acc;
+    const count = allAppts.filter(a => (a.visit_type || 'consultation') === opt.id).length;
+    if (count > 0) acc[opt.id] = count;
+    return acc;
+  }, {});
   const leftFilterCount  = activeFilterCount(leftFilters);
   const rightFilterCount = activeFilterCount(rightFilters);
 
   return (
     <div className={styles.page}>
-      {/* Queue selector + view toggle strip */}
+      {/* Queue selector + view toggle + service type filter strip */}
       {queues.length > 0 && (
-        <div className={styles.queueStrip}>
-          {queues.map(q => (
-            <button
-              key={q.id}
-              className={`${styles.queueTab} ${activeQueue?.id === q.id ? styles.queueTabActive : ''}`}
-              onClick={() => setActiveQueue(q)}
-            >
-              {q.name}
-              <span className={styles.queueCount}>{q.today_count}</span>
-            </button>
-          ))}
+        <>
+          <div className={styles.queueStrip}>
+            {queues.map(q => (
+              <button
+                key={q.id}
+                className={`${styles.queueTab} ${activeQueue?.id === q.id ? styles.queueTabActive : ''}`}
+                onClick={() => setActiveQueue(q)}
+              >
+                {q.name}
+                <span className={styles.queueCount}>{q.today_count}</span>
+              </button>
+            ))}
 
-          <div className={styles.viewToggle}>
-            <button className={`${styles.viewBtn} ${viewMode === 'list'     ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('list')} title="List view">
-              <LayoutList size={14} /> List
-            </button>
-            <button className={`${styles.viewBtn} ${viewMode === 'calendar' ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('calendar')} title="Schedule view">
-              <CalendarDays size={14} /> Schedule
+            <div className={styles.viewToggle}>
+              <button className={`${styles.viewBtn} ${viewMode === 'list'     ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('list')} title="List view">
+                <LayoutList size={14} /> List
+              </button>
+              <button className={`${styles.viewBtn} ${viewMode === 'calendar' ? styles.viewBtnActive : ''}`} onClick={() => setViewMode('calendar')} title="Schedule view">
+                <CalendarDays size={14} /> Schedule
+              </button>
+            </div>
+
+            <button
+              onClick={() => navigate('/add-patient-abha')}
+              style={{ padding: '6px 14px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+            >
+              <Plus size={13} /> Add Patient via ABHA
             </button>
           </div>
 
-          <button
-            onClick={() => navigate('/add-patient-abha')}
-            style={{ padding: '6px 14px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-          >
-            <Plus size={13} /> Add Patient via ABHA
-          </button>
-
-        </div>
+          {/* Service Type Filter Strip */}
+          {viewMode === 'list' && (
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              padding: '12px 16px',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap',
+              position: 'relative'
+            }}>
+              {SERVICE_TYPE_OPTIONS.map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setServiceTypeFilter(opt.id)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    border: serviceTypeFilter === opt.id ? '2px solid #7c3aed' : '1px solid #cbd5e1',
+                    background: serviceTypeFilter === opt.id ? '#f5f3ff' : 'white',
+                    color: serviceTypeFilter === opt.id ? '#7c3aed' : '#64748b',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  {opt.emoji && <span>{opt.emoji}</span>}
+                  {opt.label}
+                  {opt.id !== 'all' && serviceTypeStats[opt.id] && (
+                    <span style={{
+                      background: serviceTypeFilter === opt.id ? '#7c3aed' : '#e2e8f0',
+                      color: serviceTypeFilter === opt.id ? 'white' : '#64748b',
+                      borderRadius: '10px',
+                      padding: '0 5px',
+                      fontSize: '11px',
+                      fontWeight: '700'
+                    }}>
+                      {serviceTypeStats[opt.id]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {viewMode === 'calendar' && (
@@ -293,6 +389,18 @@ export default function Queue() {
                 <button key={t}
                   className={`${styles.colTab} ${leftTab === t ? styles.colTabActive : ''}`}
                   onClick={() => setLeftTab(t)}
+                  title={`Service type breakdown: ${
+                    t === 'Booked' ?
+                    Object.entries(serviceTypeStats)
+                      .map(([type, count]) => {
+                        const appts = board.booked.filter(a => (a.visit_type || 'consultation') === type);
+                        return appts.length > 0 ? `${type}: ${appts.length}` : '';
+                      })
+                      .filter(Boolean)
+                      .join(', ') ||
+                    'None'
+                    : '0'
+                  }`}
                 >
                   {t} ({t === 'Booked' ? board.booked.length : 0})
                 </button>
