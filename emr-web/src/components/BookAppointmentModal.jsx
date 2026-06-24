@@ -228,6 +228,13 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
               </select>
             </div>
             <div className={styles.field}>
+              <label>Doctor</label>
+              <select value={form.doctor_id} onChange={e => set('doctor_id', e.target.value)}>
+                <option value="">— Select doctor —</option>
+                {doctors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div className={styles.field}>
               <label>Date</label>
               <input type="date" value={form.appointment_date} onChange={e => set('appointment_date', e.target.value)} />
             </div>
