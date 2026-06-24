@@ -285,8 +285,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               {appt.uhid && <span className={styles.uhid}>{appt.uhid}</span>}
               {appt.patient_mobile && <span className={styles.infoText}>{appt.patient_mobile}</span>}
               {gender && <span className={styles.infoText}>{gender}</span>}
-              {appt.visit_type && (() => {
-                const color = SERVICE_TYPE_COLORS[appt.visit_type] || SERVICE_TYPE_COLORS.other;
+              {(appt.service_type || appt.visit_type) && (() => {
+                const type = appt.service_type || appt.visit_type || 'consultation';
+                const color = SERVICE_TYPE_COLORS[type] || SERVICE_TYPE_COLORS.other;
                 return (
                   <span style={{
                     display: 'inline-flex',
@@ -299,7 +300,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                     fontSize: '12px',
                     fontWeight: '600'
                   }}>
-                    {color.emoji} {appt.visit_type.replace(/_/g, ' ')}
+                    {color.emoji} {type.replace(/_/g, ' ')}
                   </span>
                 );
               })()}

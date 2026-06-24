@@ -130,7 +130,8 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
           doctor_id: form.doctor_id || undefined,
           status: mode === 'checkin' ? 'checked_in' : 'booked',
           medical_history: medicalHistory,
-          visit_type: visitType || 'OPConsultation', // Include visit type
+          service_type: form.service_type || 'consultation',
+          visit_type: 'OPConsultation',
         };
         const appointmentRes = await api.post('/appointments', payload);
 

@@ -205,7 +205,7 @@ export default function BookSlotModal({ prefill = {}, onClose, onBooked }) {
         emr_patient_id:  patient.id || undefined,
         queue_id:        queueId,
         doctor_id:       doctorId || undefined,
-        service_type:    serviceType,
+        service_type:    serviceType || 'consultation',
         appointment_date: localDate(selectedDate),
         appointment_time: selectedSlot,
         visit_type:      mode === 'tele' ? 'TeleConsultation' : 'OPConsultation',

@@ -56,7 +56,7 @@ function filterAppts(list, q, filters, serviceTypeFilter) {
 
   // Service type filter
   if (serviceTypeFilter && serviceTypeFilter !== 'all') {
-    out = out.filter(a => (a.visit_type || 'consultation') === serviceTypeFilter);
+    out = out.filter(a => (a.service_type || 'consultation') === serviceTypeFilter);
   }
 
   // Tags filter
