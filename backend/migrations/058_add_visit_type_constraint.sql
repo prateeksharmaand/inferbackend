@@ -14,8 +14,11 @@ CHECK (visit_type IN ('consultation', 'lab', 'vaccination', 'report_collection',
 -- CREATE INDEX FOR VISIT TYPE QUERIES
 -- ====================================================================
 
+-- Note: Using created_at directly instead of DATE(created_at) to avoid
+-- immutability issues with function-based indexes. Filtering by date
+-- is done in application queries, not at index level.
 CREATE INDEX IF NOT EXISTS idx_emr_visits_clinic_type_date
-  ON emr_visits(clinic_id, visit_type, DATE(created_at) DESC);
+  ON emr_visits(clinic_id, visit_type, created_at DESC);
 
 -- ====================================================================
 -- VERIFY MIGRATION
