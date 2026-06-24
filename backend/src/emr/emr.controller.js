@@ -1029,9 +1029,19 @@ const normaliseDate = (raw) => {
   return null;
 };
 
+// Normalize phone number: remove non-digits, ensure 10 or 12 digits
+const normalisePhone = (raw) => {
+  if (!raw) return null;
+  const cleaned = String(raw).replace(/\D/g, '');
+  if (cleaned.length === 10) return cleaned; // 10-digit local
+  if (cleaned.length === 12) return cleaned; // 12-digit with country code
+  return null;
+};
+
 const registerAbhaPatient = async (req, res) => {
   const { abhaNumber, abhaAddress, name, gender, dob, phoneNumber, address, department, doctor, visitType } = req.body;
   const normDob = normaliseDate(dob);
+  const normPhone = normalisePhone(phoneNumber);
 
   if (!name) return res.status(400).json({ error: 'name is required' });
 
@@ -1065,36 +1075,36 @@ const registerAbhaPatient = async (req, res) => {
     let existingByDemographics = null;
 
     // Priority 1: Mobile + DOB + Name (strongest match)
-    if (phoneNumber && name && normDob) {
+    if (normPhone && name && normDob) {
       const { rows: demoRows } = await pool.query(
         `SELECT id FROM emr_patients
          WHERE deleted_at IS NULL
            AND LOWER(name) = LOWER($1)
            AND dob = $2::date
-           AND (mobile = $3 OR mobile IS NULL)
+           AND (REGEXP_REPLACE(mobile, '\\D', '') = $3 OR mobile IS NULL)
          ORDER BY mobile DESC NULLS LAST
          LIMIT 1`,
-        [name, normDob, phoneNumber]
+        [name, normDob, normPhone]
       );
       if (demoRows.length) {
         existingByDemographics = demoRows[0];
-        logger.info('Patient found by Priority 1: Mobile + DOB + Name', { patientId: existingByDemographics.id });
+        logger.info('Patient found by Priority 1: Mobile + DOB + Name', { patientId: existingByDemographics.id, phone: normPhone });
       }
     }
 
     // Priority 2: Mobile + Name (if DOB missing)
-    if (!existingByDemographics && phoneNumber && name) {
+    if (!existingByDemographics && normPhone && name) {
       const { rows: demoRows } = await pool.query(
         `SELECT id FROM emr_patients
          WHERE deleted_at IS NULL
            AND LOWER(name) = LOWER($1)
-           AND mobile = $2
+           AND REGEXP_REPLACE(mobile, '\\D', '') = $2
          LIMIT 1`,
-        [name, phoneNumber]
+        [name, normPhone]
       );
       if (demoRows.length) {
         existingByDemographics = demoRows[0];
-        logger.info('Patient found by Priority 2: Mobile + Name', { patientId: existingByDemographics.id });
+        logger.info('Patient found by Priority 2: Mobile + Name', { patientId: existingByDemographics.id, phone: normPhone });
       }
     }
 
@@ -1143,7 +1153,7 @@ const registerAbhaPatient = async (req, res) => {
                address=COALESCE($6::jsonb, address),
                is_abdm_linked=true, abdm_linked_at=NOW()
          WHERE id=$7 RETURNING *`,
-        [abhaNumber||null, abhaAddress||null, phoneNumber||null, normDob||null,
+        [abhaNumber||null, abhaAddress||null, normPhone||null, normDob||null,
          gender||null, address ? JSON.stringify(address) : null, existingByDemographics.id]
       );
       patient = updated[0];
@@ -1152,7 +1162,7 @@ const registerAbhaPatient = async (req, res) => {
         await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source: 'form' });
       }
       logger.info('Patient matched by demographics and updated with ABHA info', {
-        patientId: patient.id, matchedBy: 'mobile+name+dob'
+        patientId: patient.id, matchedBy: 'mobile+name+dob', phone: normPhone
       });
     } else {
       // Truly new patient — create with proper mapping
@@ -1160,7 +1170,7 @@ const registerAbhaPatient = async (req, res) => {
         `INSERT INTO emr_patients
            (name, mobile, dob, gender, abha_number, abha_address, address, is_abdm_linked, abdm_linked_at, clinic_id)
          VALUES ($1,$2,$3::date,$4,$5,$6,$7::jsonb,true,NOW(),$8) RETURNING *`,
-        [name, phoneNumber||null, normDob||null, gender||'M', abhaNumber||null, abhaAddress||null,
+        [name, normPhone||null, normDob||null, gender||'M', abhaNumber||null, abhaAddress||null,
          address ? JSON.stringify(address) : null, req.emrUser?.clinic_id || null]
       );
       patient = created[0];
