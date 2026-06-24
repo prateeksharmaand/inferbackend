@@ -6,6 +6,7 @@ const logger      = require('../utils/logger');
 const abdmResolver = require('../services/abdm-clinic-resolver.service');
 const { sendAppointmentConfirmation } = require('./emr.mailer');
 const { logActivity } = require('./emr.staff.controller');
+const abdmIntegration = require('./abdm-registration-integration');
 
 const VALID_STATUSES = ['booked','checked_in','ongoing','completed','cancelled',
   'rescheduled','follow_up','parked','no_show','aborted'];
@@ -161,46 +162,73 @@ const createAppointment = async (req, res) => {
   if (!patient_name) return res.status(400).json({ error: 'patient_name required' });
   if (!queue_id) return res.status(400).json({ error: 'queue_id required - must assign patient to a queue' });
 
-  // Auto-resolve emr_patient_id from multiple sources (in priority order)
+  // ====================================================================
+  // PATIENT RESOLUTION WITH ABDM SAFETY VALIDATION
+  // ====================================================================
+  // Uses 4-level matching:
+  // Level 1 (100%): ABHA Number/Address → Auto-link
+  // Level 2 (99%):  Mobile + DOB + Name → Auto-link
+  // Level 3 (95%):  Name + DOB + Gender → Manual review (show dialog)
+  // Level 4 (0%):   No match → Create new
+  // ====================================================================
+
   let resolvedPatientId = emr_patient_id || null;
 
-  // 1. Try to resolve from ABHA if not supplied
-  if (!resolvedPatientId && patient_abha) {
-    const { rows: ptRows } = await pool.query(
-      `SELECT p.id FROM emr_patients p
-       WHERE (p.abha_number = $1 OR p.abha_address = $1) AND p.deleted_at IS NULL
-       LIMIT 1`,
-      [patient_abha]
-    );
-    if (ptRows.length) {
-      resolvedPatientId = ptRows[0].id;
-    }
-  }
+  // Check if this is an ABDM registration
+  const isAbdmSource = patient_abha || (patient_name && patient_dob && patient_gender);
 
-  // 2. Try to resolve from patient name + mobile in this clinic
-  if (!resolvedPatientId && patient_name && patient_mobile) {
-    const { rows: ptRows } = await pool.query(
-      `SELECT p.id FROM emr_patients p
-       WHERE p.name = $1 AND p.mobile = $2 AND p.deleted_at IS NULL
-       LIMIT 1`,
-      [patient_name, patient_mobile]
-    );
-    if (ptRows.length) {
-      resolvedPatientId = ptRows[0].id;
+  try {
+    if (!resolvedPatientId) {
+      resolvedPatientId = await abdmIntegration.resolvePatientId(
+        {
+          emr_patient_id,
+          patient_name,
+          patient_mobile,
+          patient_dob,
+          patient_gender,
+          patient_abha,
+          patient_email,
+          is_abdm_source: isAbdmSource
+        },
+        req.emrUser.clinic_id,
+        req.emrUser.id
+      );
     }
-  }
+  } catch (validationError) {
+    // Manual review required (Level 3 match found)
+    if (validationError.message === 'MANUAL_REVIEW_REQUIRED') {
+      logger.info('ABDM Manual Review Required', {
+        clinic_id: req.emrUser.clinic_id,
+        user_id: req.emrUser.id,
+        patient_name,
+        candidate_count: validationError.candidates?.length,
+        confidence: validationError.validation?.confidence
+      });
 
-  // 3. Try to resolve from just patient name in this clinic
-  if (!resolvedPatientId && patient_name) {
-    const { rows: ptRows } = await pool.query(
-      `SELECT p.id FROM emr_patients p
-       WHERE p.name = $1 AND p.deleted_at IS NULL
-       ORDER BY p.created_at DESC LIMIT 1`,
-      [patient_name]
-    );
-    if (ptRows.length) {
-      resolvedPatientId = ptRows[0].id;
+      return res.status(202).json({
+        status: 'requires_manual_review',
+        action: 'show_dialog',
+        candidates: validationError.candidates,
+        validation: validationError.validation,
+        abdm_data: {
+          patient_name,
+          patient_dob,
+          patient_gender,
+          patient_abha,
+          patient_mobile,
+          patient_email
+        },
+        message: 'Patient demographic match found - manual confirmation required'
+      });
     }
+
+    // Other validation errors
+    logger.error('Patient Resolution Error', {
+      clinic_id: req.emrUser.clinic_id,
+      user_id: req.emrUser.id,
+      error: validationError.message
+    });
+    return res.status(400).json({ error: validationError.message });
   }
 
   // Validate UHID is present (fetched from patient_clinics — single source of truth)
