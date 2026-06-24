@@ -460,6 +460,7 @@ async function initializeDatabase() {
         patient_abha      VARCHAR(100),
         token_number      INTEGER,
         visit_type        VARCHAR(50) NOT NULL DEFAULT 'OPConsultation',
+        service_type      VARCHAR(50) DEFAULT 'consultation',
         channel           VARCHAR(50) NOT NULL DEFAULT 'walk_in',
         appointment_date  DATE NOT NULL,
         appointment_time  TIME,
@@ -479,6 +480,9 @@ async function initializeDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appt_clinic_date ON emr_appointments(clinic_id, appointment_date)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appt_queue       ON emr_appointments(queue_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appt_mobile      ON emr_appointments(patient_mobile)`);
+    await client.query(`ALTER TABLE emr_appointments ADD COLUMN IF NOT EXISTS service_type VARCHAR(50) DEFAULT 'consultation'`);
+    await client.query(`ALTER TABLE emr_appointments ADD CONSTRAINT IF NOT EXISTS service_type_check CHECK (service_type IN ('consultation', 'lab', 'vaccination', 'report_collection', 'pharmacy', 'registration', 'insurance', 'procedure', 'followup', 'other'))`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appointments_service_type ON emr_appointments(clinic_id, service_type, appointment_date DESC)`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS emr_encounters (
         id                   SERIAL PRIMARY KEY,
