@@ -1055,7 +1055,7 @@ const registerAbhaPatient = async (req, res) => {
     // Update demographics if richer data came in via QR
     const { rows: updated } = await pool.query(
       `UPDATE emr_patients
-         SET abha_number=$1, abha_address=$2,
+         SET abha_number=$1, abha_address=COALESCE(NULLIF($2,''), abha_address),
              name=COALESCE(NULLIF($3,''), name),
              gender=COALESCE(NULLIF($4,''), gender),
              dob=COALESCE($5::date, dob),
@@ -1179,7 +1179,32 @@ const registerAbhaPatient = async (req, res) => {
     }
   }
 
-  // 2. Care Context: do NOT create at registration/walk-in time.
+  // 2. Sync abha_address from profile share if not provided in request
+  if (!abhaAddress && abhaNumber) {
+    try {
+      const { rows: shareRows } = await pool.query(
+        `SELECT abha_address FROM hip_profile_shares
+         WHERE abha_number=$1 AND abha_address IS NOT NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [abhaNumber]
+      );
+      if (shareRows.length && shareRows[0].abha_address) {
+        const profileAddress = shareRows[0].abha_address;
+        await pool.query(
+          `UPDATE emr_patients SET abha_address=$1 WHERE id=$2`,
+          [profileAddress, patient.id]
+        );
+        patient.abha_address = profileAddress;
+        logger.info('Synced abha_address from profile share', {
+          patientId: patient.id, abhaAddress: profileAddress,
+        });
+      }
+    } catch (err) {
+      logger.warn('Failed to sync abha_address from profile share', { error: err.message });
+    }
+  }
+
+  // 3. Care Context: do NOT create at registration/walk-in time.
   //    ABDM rule: Care Contexts are created when an encounter/consultation is completed,
   //    not at appointment booking or patient registration.
   //    If QR walk-in caller supplies encounter details (department/doctor/visitType) it means
@@ -1193,9 +1218,9 @@ const registerAbhaPatient = async (req, res) => {
     });
   }
 
-  // 3. Audit log
+  // 4. Audit log
   logger.info('ABHA QR patient registered', {
-    patientId: patient.id, abhaNumber, abhaAddress, isNew,
+    patientId: patient.id, abhaNumber, abhaAddress: patient.abha_address, isNew,
     careContextId: careContext?.id,
   });
 

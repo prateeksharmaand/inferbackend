@@ -216,24 +216,25 @@ const handleLinkInit = async (req, res) => {
     }
     logger.info('HIP OTP generated', { linkRefNumber, careContextCount: careContexts.length });
 
-    // Send OTP via 2Factor.in SMS service
+    // Send OTP via 2Factor.in SMS service (fire-and-forget to prevent blocking)
     if (pt?.mobile) {
-      try {
-        await smsService.sendOTP(pt.mobile, otp, 'ContextInferOTP');
-        logger.info('ABDM linking OTP sent via SMS', {
-          linkRefNumber,
-          phone: pt.mobile.replace(/\d(?=\d{2})/g, '*'), // Masked phone
-          otpLength: otp.length,
-          template: 'ContextInferOTP',
+      // Non-blocking SMS send — log result but don't await
+      smsService.sendOTP(pt.mobile, otp, 'ContextInferOTP')
+        .then(() => {
+          logger.info('ABDM linking OTP sent via SMS', {
+            linkRefNumber,
+            phone: pt.mobile.replace(/\d(?=\d{2})/g, '*'), // Masked phone
+            otpLength: otp.length,
+            template: 'ContextInferOTP',
+          });
+        })
+        .catch(smsError => {
+          logger.warn('Failed to send ABDM linking OTP via SMS', {
+            linkRefNumber,
+            error: smsError.message,
+            note: 'Patient can still use OTP shown in app or console (sandbox)',
+          });
         });
-      } catch (smsError) {
-        logger.warn('Failed to send ABDM linking OTP via SMS', {
-          linkRefNumber,
-          error: smsError.message,
-          note: 'Patient can still use OTP shown in app or console (sandbox)',
-        });
-        // Non-blocking — continue even if SMS fails, OTP is still usable via app
-      }
     } else {
       logger.warn('Cannot send ABDM linking OTP — patient has no mobile number', { linkRefNumber });
     }

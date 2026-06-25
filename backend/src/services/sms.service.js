@@ -67,7 +67,7 @@ const sendSMS = async (phoneNumber, message, options = {}) => {
       const url = `${SMS_API_BASE_URL}/${SMS_API_KEY}/SMS/${phoneForUrl}/${otpValue}/${templateName}`;
 
       const response = await axios.get(url, {
-        timeout: 10000,
+        timeout: 30000, // Increased from 10s to 30s for slower connections
       });
 
       logger.info('OTP sent successfully via 2Factor.in', {
