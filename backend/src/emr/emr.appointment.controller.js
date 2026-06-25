@@ -71,6 +71,13 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
   const hipId = resolvedClinic.hip_id;
   const gender = normGender;
 
+  // ABDM v3 requires UHID as patient.referenceNumber, not emr_patient_id
+  const { rows: [ptClinic] } = await pool.query(
+    `SELECT uhid FROM patient_clinics WHERE patient_id=$1 AND clinic_id=$2 LIMIT 1`,
+    [patientId, resolvedClinic.clinic_id]
+  );
+  const patientUhid = ptClinic?.uhid || String(patientId); // fallback to ID if no UHID
+
   try {
     // 3. generateLinkToken reuses in-memory cache if token still valid
     const tokenRes = await abdmSvc.generateLinkToken(
@@ -81,7 +88,7 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
       hipId, tokenRes.linkToken,
       patient.abha_number, patient.abha_address,
       patient.name || '', [{ referenceNumber: refNum, display }],
-      patientId
+      patientUhid
     );
     await pool.query(
       `UPDATE emr_care_contexts SET link_status='linked', linked_at=NOW(), link_error=NULL WHERE reference_number=$1`,
