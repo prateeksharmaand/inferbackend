@@ -96,13 +96,18 @@ const listPatients = async (req, res) => {
         WHERE pc.patient_id = p.id AND pc.clinic_id = $1 AND pc.uhid IS NOT NULL) AS uhid`
     : `NULL AS uhid`;
 
+  const cid = clinicId ? parseInt(clinicId, 10) : null;
+  const whereClause = cid
+    ? `WHERE p.deleted_at IS NULL AND EXISTS (SELECT 1 FROM patient_clinics pc WHERE pc.patient_id = p.id AND pc.clinic_id = $1)`
+    : `WHERE p.deleted_at IS NULL`;
+
   const { rows } = await pool.query(
     `SELECT p.*, COUNT(c.id)::int AS context_count, ${fullUhid}
      FROM emr_patients p
      LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
-     WHERE p.deleted_at IS NULL
+     ${whereClause}
      GROUP BY p.id ORDER BY p.created_at DESC`,
-    clinicId ? [parseInt(clinicId, 10)] : []
+    cid ? [cid] : []
   );
   res.json(rows);
 };
