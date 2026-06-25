@@ -61,7 +61,10 @@ const sendSMS = async (phoneNumber, message, options = {}) => {
       const otpValue = options.otp || message;
 
       // Build URL: /API/V1/{API_KEY}/SMS/{PHONE}/{OTP}/{TEMPLATE_NAME}
-      const url = `${SMS_API_BASE_URL}/${SMS_API_KEY}/SMS/${internationalPhone}/${otpValue}/${templateName}`;
+      // CRITICAL: Remove + prefix from phone for 2Factor.in SMS endpoint
+      // +919876543210 → 919876543210 (otherwise defaults to voice OTP)
+      const phoneForUrl = internationalPhone.replace(/^\+/, '');
+      const url = `${SMS_API_BASE_URL}/${SMS_API_KEY}/SMS/${phoneForUrl}/${otpValue}/${templateName}`;
 
       const response = await axios.get(url, {
         timeout: 10000,
