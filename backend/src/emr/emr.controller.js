@@ -1038,15 +1038,24 @@ const normalisePhone = (raw) => {
   return null;
 };
 
+const normaliseAbhaNumber = (raw) => {
+  if (!raw) return null;
+  const cleaned = String(raw).replace(/\D/g, ''); // Remove non-digits
+  // Valid ABHA: 12 digits (91-XXXX-XXXX-XXXX) or at least 4 digits for short form
+  if (cleaned.length === 12 || (cleaned.length >= 4 && cleaned.length <= 20)) return cleaned;
+  return null; // Ignore invalid ABHAs like single "q"
+};
+
 const registerAbhaPatient = async (req, res) => {
   const { abhaNumber, abhaAddress, name, gender, dob, phoneNumber, address, department, doctor, visitType } = req.body;
   const normDob = normaliseDate(dob);
   const normPhone = normalisePhone(phoneNumber);
+  const normAbha = normaliseAbhaNumber(abhaNumber); // Validate ABHA number
 
   if (!name) return res.status(400).json({ error: 'name is required' });
 
   // 1. Resolve patient via abha_mappings — ABHA Number is the primary identity key
-  const { patient: found, matchedBy } = await AbhaIdentity.findPatient(pool, { abhaNumber, abhaAddress });
+  const { patient: found, matchedBy } = await AbhaIdentity.findPatient(pool, { abhaNumber: normAbha, abhaAddress });
 
   let patient;
   let isNew = false;
@@ -1063,12 +1072,14 @@ const registerAbhaPatient = async (req, res) => {
              address=COALESCE($7::jsonb, address),
              is_abdm_linked=true, abdm_linked_at=NOW()
        WHERE id=$8 RETURNING *`,
-      [abhaNumber||null, abhaAddress||null, name, gender||null,
+      [normAbha||null, abhaAddress||null, name, gender||null,
        normDob||null, phoneNumber||null, address ? JSON.stringify(address) : null, found.id]
     );
     patient = updated[0];
     // Attach the new ABHA address to the existing patient's mappings
-    await AbhaIdentity.attachAbha(pool, found.id, { abhaNumber, abhaAddress, source: 'qr' });
+    if (normAbha || abhaAddress) {
+      await AbhaIdentity.attachAbha(pool, found.id, { abhaNumber: normAbha, abhaAddress, source: 'qr' });
+    }
   } else {
     // Search for existing patient by demographics before creating new
     // Try multiple search strategies in priority order
@@ -1153,13 +1164,13 @@ const registerAbhaPatient = async (req, res) => {
                address=COALESCE($6::jsonb, address),
                is_abdm_linked=true, abdm_linked_at=NOW()
          WHERE id=$7 RETURNING *`,
-        [abhaNumber||null, abhaAddress||null, normPhone||null, normDob||null,
+        [normAbha||null, abhaAddress||null, normPhone||null, normDob||null,
          gender||null, address ? JSON.stringify(address) : null, existingByDemographics.id]
       );
       patient = updated[0];
       isNew = false;
-      if (abhaNumber || abhaAddress) {
-        await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source: 'form' });
+      if (normAbha || abhaAddress) {
+        await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber: normAbha, abhaAddress, source: 'form' });
       }
       logger.info('Patient matched by demographics and updated with ABHA info', {
         patientId: patient.id, matchedBy: 'mobile+name+dob', phone: normPhone
@@ -1170,12 +1181,14 @@ const registerAbhaPatient = async (req, res) => {
         `INSERT INTO emr_patients
            (name, mobile, dob, gender, abha_number, abha_address, address, is_abdm_linked, abdm_linked_at, clinic_id)
          VALUES ($1,$2,$3::date,$4,$5,$6,$7::jsonb,true,NOW(),$8) RETURNING *`,
-        [name, normPhone||null, normDob||null, gender||'M', abhaNumber||null, abhaAddress||null,
+        [name, normPhone||null, normDob||null, gender||'M', normAbha||null, abhaAddress||null,
          address ? JSON.stringify(address) : null, req.emrUser?.clinic_id || null]
       );
       patient = created[0];
       isNew = true;
-      await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber, abhaAddress, source: 'qr' });
+      if (normAbha || abhaAddress) {
+        await AbhaIdentity.attachAbha(pool, patient.id, { abhaNumber: normAbha, abhaAddress, source: 'qr' });
+      }
     }
   }
 
