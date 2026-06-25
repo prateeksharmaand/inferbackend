@@ -268,44 +268,60 @@ exports.updateLead = async (req, res) => {
   }
 };
 
-// GET /admin/sales/wa-inbox — WhatsApp received messages
+// GET /admin/sales/wa-inbox — WhatsApp received messages (show all types of leads)
 exports.getWhatsAppInbox = async (req, res) => {
   try {
-    const { synced = false, limit = 50, offset = 0 } = req.query;
+    const { synced = 'all', limit = 50, offset = 0 } = req.query;
 
     let query = `
       SELECT
-        id, from_number, sender_name, body, message_type, lead_email, lead_clinic,
-        replied_status_synced, synced_at, wa_timestamp, created_at
+        id,
+        from_number,
+        sender_name,
+        body,
+        message_type,
+        lead_email,
+        lead_clinic,
+        replied_status_synced,
+        synced_at,
+        wa_timestamp,
+        created_at,
+        wamid
       FROM sales_wa_inbox
       WHERE 1=1
     `;
     const params = [];
     let paramCount = 1;
 
-    if (synced !== 'all') {
+    // Filter by synced status only if explicitly requested (not 'all')
+    // synced = 'all' (default) → show all messages
+    // synced = 'true' → show only synced messages
+    // synced = 'false' → show only unsynced messages
+    if (synced && synced !== 'all') {
       query += ` AND replied_status_synced = $${paramCount}`;
       params.push(synced === 'true');
       paramCount++;
     }
 
     query += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-    params.push(limit, offset);
+    params.push(parseInt(limit), parseInt(offset));
 
     const { rows } = await pool.query(query, params);
 
-    // Get stats
+    // Get stats - show breakdown of all messages
     const statsRes = await pool.query(`
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN replied_status_synced = false THEN 1 ELSE 0 END) as unsynced_count
+        SUM(CASE WHEN replied_status_synced = false THEN 1 ELSE 0 END) as unsynced_count,
+        SUM(CASE WHEN replied_status_synced = true THEN 1 ELSE 0 END) as synced_count,
+        COUNT(DISTINCT from_number) as unique_leads
       FROM sales_wa_inbox
     `);
 
     res.json({
       messages: rows,
       stats: statsRes.rows[0],
-      pagination: { limit: parseInt(limit), offset: parseInt(offset) }
+      pagination: { limit: parseInt(limit), offset: parseInt(offset), total: statsRes.rows[0].total }
     });
   } catch (err) {
     logger.error('[AdminSales] getWhatsAppInbox error:', err.message);

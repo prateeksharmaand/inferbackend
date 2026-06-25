@@ -313,7 +313,7 @@ export default function AdminCRM() {
   const loadWaInbox = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await adminApi.getWhatsAppInbox({ synced: 'false' });
+      const data = await adminApi.getWhatsAppInbox({ synced: 'all' });
       setWaMessages(data.messages);
     } catch (err) {
       toast.error(err.message);
@@ -506,22 +506,31 @@ export default function AdminCRM() {
           {loading ? (
             <div className={styles.loading}>Loading...</div>
           ) : waMessages.length ? (
-            <div className={styles.waGrid}>
+            <div className={styles.waList}>
               {waMessages.map(msg => (
-                <div key={msg.id} className={styles.waCard}>
-                  <div className={styles.waHeader}>
-                    <strong>{msg.from_number}</strong>
-                    <span className={styles.waTime}>{new Date(msg.created_at).toLocaleString()}</span>
-                  </div>
-                  <p className={styles.waText}>{msg.body}</p>
-                  {msg.call_attempted && (
-                    <div className={styles.callBadge}>
-                      ✓ Call Attempted {msg.call_attempted_at ? `on ${new Date(msg.call_attempted_at).toLocaleDateString()}` : ''}
+                <div key={msg.id} className={styles.waRow}>
+                  <div className={styles.waRowContent}>
+                    <div className={styles.waRowHeader}>
+                      <strong className={styles.waNumber}>{msg.from_number}</strong>
+                      <span className={styles.waStatus}>
+                        {msg.replied_status_synced ? (
+                          <span style={{ color: '#10b981' }}>✓ Synced</span>
+                        ) : (
+                          <span style={{ color: '#f59e0b' }}>🔄 Unsynced</span>
+                        )}
+                      </span>
+                      <span className={styles.waTime}>{new Date(msg.created_at).toLocaleString()}</span>
                     </div>
-                  )}
-                  {msg.call_notes && (
-                    <div className={styles.callNotes}>{msg.call_notes}</div>
-                  )}
+                    <p className={styles.waRowText}>{msg.body}</p>
+                    {msg.call_attempted && (
+                      <div className={styles.callBadge}>
+                        ✓ Call Attempted {msg.call_attempted_at ? `on ${new Date(msg.call_attempted_at).toLocaleDateString()}` : ''}
+                      </div>
+                    )}
+                    {msg.call_notes && (
+                      <div className={styles.callNotes}>{msg.call_notes}</div>
+                    )}
+                  </div>
                   <div className={styles.waActions}>
                     <button
                       className={styles.btnSmall}
@@ -540,7 +549,7 @@ export default function AdminCRM() {
               ))}
             </div>
           ) : (
-            <div className={styles.noData}>No unsynced WhatsApp messages</div>
+            <div className={styles.noData}>No WhatsApp messages</div>
           )}
         </div>
       )}
