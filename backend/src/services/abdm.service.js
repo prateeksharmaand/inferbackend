@@ -575,42 +575,66 @@ async function linkConfirm(linkRefNumber, token) {
 const _inFlight = new Map(); // cacheKey → Promise<{linkToken}>
 
 // Called by hip.controller's handleOnGenerateToken to store async token in both cache + DB
-async function _storeLinkToken(cacheKey, linkToken) {
+async function _storeLinkToken(cacheKey, linkToken, abhaAddress) {
   const expiresAt = new Date(Date.now() + 9 * 60 * 1000);
   _linkTokenCache.set(cacheKey, { token: linkToken, expiry: expiresAt.getTime() });
+
   // Persist to DB — token survives server restarts
-  const [patientRef, hipId] = cacheKey.split(':');
+  // Decode cacheKey which can be in format: patientRef:abhaAddress:hipId OR patientRef:hipId (legacy)
+  const parts = cacheKey.split(':');
+  const hipId = parts[parts.length - 1];
+  const patientRef = parts[0];
+  // Use provided abhaAddress or try to extract from cacheKey (if 3 parts)
+  const addr = abhaAddress || (parts.length === 3 ? parts[1] : null);
+
   await pool.query(
-    `INSERT INTO link_tokens (patient_ref, hip_id, token, status, expires_at)
-     VALUES ($1, $2, $3, 'active', $4)
-     ON CONFLICT (patient_ref, hip_id) DO UPDATE
-       SET token=$3, status='active', expires_at=$4, updated_at=NOW()`,
-    [patientRef, hipId, linkToken, expiresAt]
+    `INSERT INTO link_tokens (patient_ref, hip_id, abha_address, token, status, expires_at)
+     VALUES ($1, $2, $3, $4, 'active', $5)
+     ON CONFLICT (patient_ref, hip_id, abha_address) DO UPDATE
+       SET token=$4, status='active', expires_at=$5, updated_at=NOW()`,
+    [patientRef, hipId, addr, linkToken, expiresAt]
   ).catch(err => logger.warn('_storeLinkToken DB persist failed', { error: err.message }));
-  logger.info('generateLinkToken: token stored (cache+DB)', { hipId: cacheKey.split(':')[1], patientSuffix: cacheKey.split(':')[0].slice(-4) });
+  logger.info('generateLinkToken: token stored (cache+DB)', {
+    hipId,
+    patientSuffix: patientRef.slice(-4),
+    abhaAddress: addr,
+    note: 'token now scoped to specific ABHA address'
+  });
 }
 
-async function _getStoredLinkToken(patientRef, hipId) {
+async function _getStoredLinkToken(patientRef, abhaAddress, hipId) {
   // 1. Check in-memory cache first (fastest)
-  const cacheKey = `${patientRef}:${hipId}`;
+  const cacheKey = `${patientRef}:${abhaAddress}:${hipId}`;
   const cached = _linkTokenCache.get(cacheKey);
   if (cached && Date.now() < cached.expiry) {
-    logger.info('generateLinkToken: reusing in-memory token', { hipId: cacheKey.split(':')[1], patientSuffix: cacheKey.split(':')[0].slice(-4) });
+    logger.info('generateLinkToken: reusing in-memory token', {
+      hipId,
+      patientSuffix: patientRef.slice(-4),
+      abhaAddress,
+      note: 'same ABHA address as original token generation'
+    });
     return cached.token;
   }
   // 2. Check DB (handles restarts)
+  // Query must include abha_address to ensure we don't reuse tokens across different addresses
   const { rows } = await pool.query(
     `SELECT token, expires_at, status FROM link_tokens
-     WHERE patient_ref=$1 AND hip_id=$2
+     WHERE patient_ref=$1 AND abha_address=$2 AND hip_id=$3
        AND status IN ('pending','active')
        AND expires_at > NOW()
      LIMIT 1`,
-    [patientRef, hipId]
+    [patientRef, abhaAddress, hipId]
   ).catch(() => ({ rows: [] }));
   if (rows[0]?.token) {
     // Warm the in-memory cache from DB
     _linkTokenCache.set(cacheKey, { token: rows[0].token, expiry: new Date(rows[0].expires_at).getTime() });
-    logger.info('generateLinkToken: reusing DB-persisted token', { hipId: cacheKey.split(':')[1], patientSuffix: cacheKey.split(':')[0].slice(-4), status: rows[0].status });
+    logger.info('generateLinkToken: reusing DB-persisted token', {
+      hipId,
+      patientSuffix: patientRef.slice(-4),
+      abhaAddress,
+      status: rows[0].status,
+      note: 'database record matched on patient_ref + abha_address + hip_id'
+    });
     return rows[0].token;
   }
   return null;
@@ -624,10 +648,13 @@ async function generateLinkToken(hipId, abhaNumber, abhaAddress, name, gender, y
     throw Object.assign(new Error('generateLinkToken: abhaAddress must be a valid ABHA address (e.g. name@sbx)'), { status: 400 });
   }
   const cleanAbha = String(abhaNumber).replace(/-/g, '');
-  const cacheKey  = `${cleanAbha}:${hipId}`;
+  // CRITICAL: include abhaAddress in cache key to prevent token reuse across different addresses
+  // Same ABHA number can have multiple addresses; each address needs its own token
+  const cacheKey  = `${cleanAbha}:${abhaAddress}:${hipId}`;
 
   // 1. Reuse active token — prevents ABDM-1092
-  const existing = await _getStoredLinkToken(cleanAbha, hipId);
+  // Must match on both ABHA number AND address
+  const existing = await _getStoredLinkToken(cleanAbha, abhaAddress, hipId);
   if (existing) return { linkToken: existing };
 
   // 2. Coalesce concurrent requests for the same patient.
@@ -695,7 +722,7 @@ async function _runGenerateLinkToken(hipId, cleanAbha, cacheKey, abhaAddress, na
     );
 
     if (res.data?.linkToken) {
-      await _storeLinkToken(cacheKey, res.data.linkToken);
+      await _storeLinkToken(cacheKey, res.data.linkToken, abhaAddress);
       return { linkToken: res.data.linkToken };
     }
 
@@ -717,7 +744,7 @@ async function _runGenerateLinkToken(hipId, cleanAbha, cacheKey, abhaAddress, na
           pool.query(`UPDATE link_tokens SET status='failed', updated_at=NOW() WHERE patient_ref=$1 AND hip_id=$2`, [cleanAbha, hipId]).catch(() => {});
           return reject(Object.assign(err || new Error('ABDM token generation failed'), { status: 400 }));
         }
-        await _storeLinkToken(cacheKey, linkToken);
+        await _storeLinkToken(cacheKey, linkToken, abhaAddress);
         resolve({ linkToken });
       };
 

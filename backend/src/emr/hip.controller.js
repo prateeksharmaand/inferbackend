@@ -1083,7 +1083,7 @@ _linkTokenEmitter.setMaxListeners(100);
 const handleOnGenerateToken = async (req, res) => {
   res.status(202).json({ status: 'accepted' });
   try {
-    const { linkToken, abhaNumber } = req.body;
+    const { linkToken, abhaNumber, abhaAddress } = req.body;
     // ABDM echoes the REQUEST-ID header (not body requestId) in response.requestId
     const requestId = req.body?.response?.requestId ?? req.body?.requestId ?? null;
     const cleanAbha = abhaNumber ? String(abhaNumber).replace(/-/g, '') : null;
@@ -1138,20 +1138,32 @@ const handleOnGenerateToken = async (req, res) => {
     // Secondary: emit by abhaNumber if present (may or may not be in payload)
     if (cleanAbha) {
       _linkTokenEmitter.emit(`token:${cleanAbha}`, linkToken);
-      await abdmSvc._storeLinkToken(`${cleanAbha}:${hipId}`, linkToken);
-      logger.info('HIP on-generate-token: emitted by abhaNumber + stored', { cleanAbha: cleanAbha.slice(-4) });
+      // Store with abhaAddress for proper token scoping
+      const cacheKey = abhaAddress ? `${cleanAbha}:${abhaAddress}:${hipId}` : `${cleanAbha}:${hipId}`;
+      await abdmSvc._storeLinkToken(cacheKey, linkToken, abhaAddress);
+      logger.info('HIP on-generate-token: emitted by abhaNumber + stored', {
+        cleanAbha: cleanAbha.slice(-4),
+        abhaAddress,
+        note: 'token stored with address scoping'
+      });
     }
 
     // If no abhaNumber — store via requestId lookup from pending link_tokens row
     if (!cleanAbha && requestId) {
       const { pool } = require('../config/database');
       const { rows } = await pool.query(
-        `SELECT patient_ref FROM link_tokens WHERE abdm_request_id=$1 LIMIT 1`,
+        `SELECT patient_ref, abha_address FROM link_tokens WHERE abdm_request_id=$1 LIMIT 1`,
         [requestId]
       ).catch(() => ({ rows: [] }));
       if (rows[0]?.patient_ref) {
-        await abdmSvc._storeLinkToken(`${rows[0].patient_ref}:${hipId}`, linkToken);
-        logger.info('HIP on-generate-token: stored via requestId→patient_ref lookup', { patientRef: rows[0].patient_ref.slice(-4) });
+        const patientRef = rows[0].patient_ref;
+        const storedAbhaAddress = rows[0].abha_address || abhaAddress;
+        const cacheKey = storedAbhaAddress ? `${patientRef}:${storedAbhaAddress}:${hipId}` : `${patientRef}:${hipId}`;
+        await abdmSvc._storeLinkToken(cacheKey, linkToken, storedAbhaAddress);
+        logger.info('HIP on-generate-token: stored via requestId→patient_ref lookup', {
+          patientRef: patientRef.slice(-4),
+          abhaAddress: storedAbhaAddress
+        });
       } else {
         // Store with requestId as key so generateLinkToken can find it
         abdmSvc._storeLinkTokenByRequestId(requestId, linkToken);
