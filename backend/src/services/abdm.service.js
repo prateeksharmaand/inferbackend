@@ -698,11 +698,11 @@ async function _runGenerateLinkToken(hipId, cleanAbha, cacheKey, abhaAddress, na
   logger.info('generateLinkToken request', { hipId, cleanAbha: cleanAbha.slice(-4), abhaAddress, name, gender: normGender, yearOfBirth, requestId });
 
   await pool.query(
-    `INSERT INTO link_tokens (patient_ref, hip_id, abdm_request_id, status, expires_at)
-     VALUES ($1, $2, $3, 'pending', $4)
-     ON CONFLICT (patient_ref, hip_id) DO UPDATE
-       SET status='pending', abdm_request_id=$3, expires_at=$4, token=NULL, updated_at=NOW()`,
-    [cleanAbha, hipId, requestId, new Date(Date.now() + 20_000)]
+    `INSERT INTO link_tokens (patient_ref, hip_id, abha_address, abdm_request_id, status, expires_at)
+     VALUES ($1, $2, $3, $4, 'pending', $5)
+     ON CONFLICT (patient_ref, hip_id, abha_address) DO UPDATE
+       SET status='pending', abdm_request_id=$4, expires_at=$5, token=NULL, updated_at=NOW()`,
+    [cleanAbha, hipId, abhaAddress, requestId, new Date(Date.now() + 20_000)]
   ).catch(() => {});
 
   try {
