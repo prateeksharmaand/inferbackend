@@ -653,7 +653,7 @@ const listPatientHistory = async (req, res) => {
             e.next_visit_date, e.procedures, e.examination_findings, e.refer_to,
             e.vaccinations, e.calc_results
      FROM emr_appointments a
-     LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
+     LEFT JOIN patient_clinics pc ON a.emr_patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
      LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
      WHERE a.clinic_id = $1 AND ${condition}
