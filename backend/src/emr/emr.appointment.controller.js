@@ -71,12 +71,20 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
   const hipId = resolvedClinic.hip_id;
   const gender = normGender;
 
-  // ABDM v3 requires UHID as patient.referenceNumber, not emr_patient_id
+  // ABDM v3 requires UHID as patient.referenceNumber — patient must have a UHID assigned
   const { rows: [ptClinic] } = await pool.query(
     `SELECT uhid FROM patient_clinics WHERE patient_id=$1 AND clinic_id=$2 LIMIT 1`,
     [patientId, resolvedClinic.clinic_id]
   );
-  const patientUhid = ptClinic?.uhid || String(patientId); // fallback to ID if no UHID
+  if (!ptClinic?.uhid) {
+    logger.info('ABDM link skipped — patient has no UHID assigned. Generate UHID before linking.', {
+      patientId,
+      clinicId: resolvedClinic.clinic_id,
+      refNum,
+    });
+    return; // Skip linking until patient has proper UHID
+  }
+  const patientUhid = ptClinic.uhid;
 
   try {
     // 3. generateLinkToken reuses in-memory cache if token still valid
