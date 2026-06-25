@@ -783,6 +783,9 @@ async function initializeDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_status     ON link_tokens(status, expires_at)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_request_id ON link_tokens(abdm_request_id) WHERE abdm_request_id IS NOT NULL`);
 
+    // Data fix: correct invalid ABHA number 'q' to valid value
+    await client.query(`UPDATE emr_patients SET abha_number = '91100040087627' WHERE id = 40 AND abha_number = 'q'`);
+
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');
   } catch (err) {
