@@ -50,10 +50,11 @@ const generateCareContexts = async (patientId, pool) => {
 
     // Transform encounters to ABDM care contexts
     const careContexts = encounters.map((encounter) => {
-      const visitDate = new Date(encounter.appointment_date).toISOString().split('T')[0];
+      const apptIso = new Date(encounter.appointment_date).toISOString().split('T')[0];
+      const dateStr = apptIso.split("-").join(""); // "2026-06-25" → "20260625"
       return {
-        referenceNumber: `${patientId}-${visitDate}`,
-        display: `OPD Consultation - ${visitDate}`,
+        referenceNumber: `${patientId}-${dateStr}`,
+        display: `OPD Consultation - ${apptIso}`,
         careContextType: 'OP' // ✅ REQUIRED field
       };
     });
