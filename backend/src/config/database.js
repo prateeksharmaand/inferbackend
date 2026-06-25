@@ -776,6 +776,7 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE link_tokens ADD COLUMN IF NOT EXISTS abha_address TEXT`);
     // Update unique constraint to include abha_address for proper token scoping
     await client.query(`ALTER TABLE link_tokens DROP CONSTRAINT IF EXISTS link_tokens_patient_ref_hip_id_key`);
+    await client.query(`ALTER TABLE link_tokens DROP CONSTRAINT IF EXISTS uq_link_tokens_patient_abha_hip`);
     await client.query(`ALTER TABLE link_tokens ADD CONSTRAINT uq_link_tokens_patient_abha_hip UNIQUE (patient_ref, abha_address, hip_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_patient    ON link_tokens(patient_ref, hip_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_link_tokens_abha      ON link_tokens(patient_ref, abha_address, hip_id)`);
