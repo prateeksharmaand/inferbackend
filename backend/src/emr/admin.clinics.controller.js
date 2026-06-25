@@ -87,7 +87,7 @@ exports.getClinic = async (req, res) => {
   if (!rows.length) return res.status(404).json({ error: 'Clinic not found' });
 
   const [doctors, staff, patients, appts] = await Promise.all([
-    pool.query(`SELECT id, name, email, specialization, is_active FROM emr_clinic_staff WHERE clinic_id = $1 ORDER BY name`, [id]),
+    pool.query(`SELECT id, name, email, specialization, is_active FROM emr_doctors WHERE clinic_id = $1 ORDER BY name`, [id]),
     pool.query(`SELECT id, name, email, role, is_active FROM emr_clinic_staff WHERE clinic_id = $1 ORDER BY name`, [id]),
     pool.query(`SELECT COUNT(*)::int AS n FROM emr_patients WHERE clinic_id = $1 AND deleted_at IS NULL`, [id]),
     pool.query(`SELECT COUNT(*)::int AS n FROM emr_appointments WHERE clinic_id = $1`, [id]),
