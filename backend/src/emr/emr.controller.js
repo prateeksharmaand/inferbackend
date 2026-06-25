@@ -41,12 +41,17 @@ const listPatients = async (req, res) => {
 
     // 1. Search the patient registry (name, mobile, ABHA, or UHID from patient_clinics)
     // SEC-018: exclude soft-deleted patients
+    // CRITICAL: All searches must filter by clinic_id to prevent cross-clinic data leakage
     const { rows: regRows } = await pool.query(
       `SELECT p.id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
               COUNT(DISTINCT c.id)::int AS context_count, ${uhidSub}
        FROM emr_patients p
        LEFT JOIN emr_care_contexts c ON c.patient_id = p.id
        WHERE p.deleted_at IS NULL
+         AND EXISTS (
+           SELECT 1 FROM patient_clinics pc
+           WHERE pc.patient_id = p.id AND pc.clinic_id = $3
+         )
          AND (LOWER(p.name) LIKE $1 OR p.mobile LIKE $2 OR LOWER(p.abha_number) LIKE LOWER($2)
           OR EXISTS (
             SELECT 1 FROM patient_clinics pcx
