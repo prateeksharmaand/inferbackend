@@ -84,9 +84,22 @@ async function attemptAbdmLink(refNum, display, patientId, clinicId) {
       hipId, patient.abha_number, patient.abha_address,
       patient.name || '', gender, yearOfBirth
     );
+
+    // CRITICAL: linkCareContexts must use the EXACT ABHA address from the link token
+    // ABDM validates addressMatch — mismatch causes 400 error
+    // Decode token to get the authoritative address ABDM issued
+    const tokenPayload = tokenRes.linkToken?.split('.')?.[1];
+    let tokenAbhaAddress = patient.abha_address; // fallback
+    if (tokenPayload) {
+      try {
+        const decoded = JSON.parse(Buffer.from(tokenPayload, 'base64url').toString('utf8'));
+        tokenAbhaAddress = decoded.abhaAddress || patient.abha_address;
+      } catch { /* use fallback */ }
+    }
+
     await abdmSvc.linkCareContexts(
       hipId, tokenRes.linkToken,
-      patient.abha_number, patient.abha_address,
+      patient.abha_number, tokenAbhaAddress,
       patient.name || '', [{ referenceNumber: refNum, display }],
       patientUhid
     );
