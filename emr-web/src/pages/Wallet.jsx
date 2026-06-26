@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useWallet } from '../hooks/useWallet';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, TrendingUp, Download, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { CreditCard, TrendingUp, Download, ArrowUpRight, ArrowDownLeft, ChevronDown, HelpCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Wallet() {
@@ -237,6 +237,75 @@ export default function Wallet() {
           )}
         </div>
       </div>
+
+      {/* FAQ & Help Section */}
+      <div className="bg-white rounded-lg shadow-lg p-6 mt-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <HelpCircle className="w-6 h-6" />
+          Frequently Asked Questions
+        </h2>
+
+        <div className="space-y-4">
+          {/* FAQ 1 */}
+          <FAQItem
+            question="What are Infer Credits?"
+            answer="Infer Credits are a virtual currency used for premium services like WhatsApp messaging (₹0.66), SMS (₹0.14), and prescription creation (₹1.00). Your subscription covers core services like patient records and appointments, while credits are pay-as-you-go for these additional services."
+          />
+
+          {/* FAQ 2 */}
+          <FAQItem
+            question="Why am I charged for messaging when I already have a subscription?"
+            answer="Your subscription covers core EMR features (patient records, appointments, encounters). Messaging and prescriptions are premium services with separate pay-as-you-go pricing. This allows us to maintain high quality while keeping costs transparent and fair. We also subsidize part of your messaging costs—₹0.66 vs industry standard ₹0.84!"
+          />
+
+          {/* FAQ 3 */}
+          <FAQItem
+            question="Do credits expire?"
+            answer="No! Credits never expire as long as your subscription is active. If your subscription lapses, your credits will also expire. This gives you flexibility to use them at your own pace."
+          />
+
+          {/* FAQ 4 */}
+          <FAQItem
+            question="How long will my credits last?"
+            answer="It depends on your usage. For a clinic with 10 patients/day:\n• 200 credits (Starter) ≈ 12 days\n• 500 credits (Professional) ≈ 30 days\n• 1000 credits (Enterprise) ≈ 60 days"
+          />
+
+          {/* FAQ 5 */}
+          <FAQItem
+            question="What happens when I run out of credits?"
+            answer="You'll get a low balance alert at 50 credits. When credits run out, you won't be able to send messages or create prescriptions. Simply recharge to continue using these services."
+          />
+
+          {/* FAQ 6 */}
+          <FAQItem
+            question="How do I purchase credits?"
+            answer="Click 'Recharge Now' above, select a pack (Starter/Professional/Enterprise), and make payment via card, UPI, or net banking. Credits are added instantly after successful payment, and you can download an invoice for your records."
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FAQItem({ question, answer }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-6 py-4 text-left font-semibold text-gray-900 hover:bg-gray-50 transition-colors flex items-center justify-between"
+      >
+        <span>{question}</span>
+        <ChevronDown
+          className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {isOpen && (
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <p className="text-gray-700 whitespace-pre-line">{answer}</p>
+        </div>
+      )}
     </div>
   );
 }
