@@ -64,8 +64,7 @@ export default function Wallet() {
               <div className={styles.cardSubtext}>{Math.floor(currentBalance)} credits available</div>
               <button
                 onClick={() => navigate('/wallet')}
-                className={styles.button}
-                className={styles.buttonPrimary}
+                className={`${styles.button} ${styles.buttonPrimary}`}
                 style={{ marginTop: '16px' }}
               >
                 Recharge Now
@@ -228,10 +227,10 @@ export default function Wallet() {
           {/* FAQ Section */}
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>❓ Frequently Asked Questions</h2>
-            <FAQItem question="What are Infer Credits?" answer="Infer Credits are a virtual currency for premium services: WhatsApp (₹0.66), SMS (₹0.14), and prescriptions (₹1.00). Your subscription covers core features; credits are pay-as-you-go." />
-            <FAQItem question="Do credits expire?" answer="No! Credits never expire as long as your subscription is active. If your subscription lapses, credits will also expire." />
-            <FAQItem question="How long will credits last?" answer="For 10 patients/day: Starter (200) ≈ 12 days, Professional (500) ≈ 30 days, Enterprise (1000) ≈ 60 days." />
-            <FAQItem question="What happens when credits run out?" answer="You'll get a low balance alert at 50 credits. When empty, you won't be able to send messages or create prescriptions." />
+            <FAQItem styles={styles} question="What are Infer Credits?" answer="Infer Credits are a virtual currency for premium services: WhatsApp (₹0.66), SMS (₹0.14), and prescriptions (₹1.00). Your subscription covers core features; credits are pay-as-you-go." />
+            <FAQItem styles={styles} question="Do credits expire?" answer="No! Credits never expire as long as your subscription is active. If your subscription lapses, credits will also expire." />
+            <FAQItem styles={styles} question="How long will credits last?" answer="For 10 patients/day: Starter (200) ≈ 12 days, Professional (500) ≈ 30 days, Enterprise (1000) ≈ 60 days." />
+            <FAQItem styles={styles} question="What happens when credits run out?" answer="You'll get a low balance alert at 50 credits. When empty, you won't be able to send messages or create prescriptions." />
           </div>
         </div>
       </div>
@@ -239,21 +238,20 @@ export default function Wallet() {
   );
 }
 
-function FAQItem({ question, answer }) {
+function FAQItem({ styles, question, answer }) {
   const [isOpen, setIsOpen] = React.useState(false);
-  const styles_local = require('./Wallet.module.css').default;
 
   return (
-    <div className={styles_local.faqItem}>
+    <div className={styles.faqItem}>
       <button
-        className={styles_local.faqButton}
+        className={styles.faqButton}
         onClick={() => setIsOpen(!isOpen)}
       >
         <span>{question}</span>
-        <span className={`${styles_local.chevron} ${isOpen ? styles_local.chevronOpen : ''}`}>▼</span>
+        <span className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}>▼</span>
       </button>
       {isOpen && (
-        <div className={styles_local.faqContent}>
+        <div className={styles.faqContent}>
           {answer}
         </div>
       )}
