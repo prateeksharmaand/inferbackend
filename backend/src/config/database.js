@@ -786,6 +786,64 @@ async function initializeDatabase() {
     // Data fix: correct invalid ABHA number 'q' to valid value
     await client.query(`UPDATE emr_patients SET abha_number = '91100040087627' WHERE id = 40 AND abha_number = 'q'`);
 
+    // ── Wallet / Credits System ───────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        clinic_id INTEGER NOT NULL REFERENCES emr_clinics(id) ON DELETE CASCADE,
+        doctor_id INTEGER NOT NULL REFERENCES emr_clinic_staff(id) ON DELETE CASCADE,
+        current_balance DECIMAL(12, 2) DEFAULT 0 NOT NULL CHECK (current_balance >= 0),
+        lifetime_purchased DECIMAL(12, 2) DEFAULT 0 NOT NULL,
+        lifetime_used DECIMAL(12, 2) DEFAULT 0 NOT NULL,
+        subscription_active BOOLEAN DEFAULT TRUE,
+        subscription_expires_at TIMESTAMP,
+        is_locked BOOLEAN DEFAULT FALSE,
+        locked_reason VARCHAR(255),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        version INT DEFAULT 1
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_clinic_id ON wallet(clinic_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_doctor_id ON wallet(doctor_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_subscription ON wallet(subscription_active)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        wallet_id UUID NOT NULL REFERENCES wallet(id) ON DELETE CASCADE,
+        transaction_type VARCHAR(50) NOT NULL,
+        service_type VARCHAR(50),
+        amount DECIMAL(12, 2) NOT NULL,
+        balance_before DECIMAL(12, 2) NOT NULL,
+        balance_after DECIMAL(12, 2) NOT NULL,
+        reference_id VARCHAR(255),
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_tx_wallet_id ON wallet_transactions(wallet_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_tx_reference_id ON wallet_transactions(reference_id)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_pricing (
+        id SERIAL PRIMARY KEY,
+        service_type VARCHAR(50) NOT NULL UNIQUE,
+        credits_per_unit DECIMAL(12, 2) NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      INSERT INTO wallet_pricing (service_type, credits_per_unit, is_active)
+      VALUES
+        ('sms', 0.14, TRUE),
+        ('whatsapp', 0.66, TRUE),
+        ('prescription', 1.00, TRUE)
+      ON CONFLICT (service_type) DO NOTHING
+    `);
+
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');
   } catch (err) {
