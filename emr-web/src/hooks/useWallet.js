@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE = '/api/emr';
+const API_BASE = '/api';
 
 export const useWallet = () => {
   const [wallet, setWallet] = useState(null);
