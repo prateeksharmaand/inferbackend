@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { Search, X, ChevronLeft, ChevronRight, Building2, Plus } from 'lucide-react';
 import BookAppointmentModal from './BookAppointmentModal';
 import BookSlotModal from './BookSlotModal';
+import { CreditsBadge } from './CreditsBadge';
 import styles from './TopBar.module.css';
 
 function formatDateLabel(d) {
@@ -158,6 +159,9 @@ export default function TopBar() {
         </div>
 
         <div className={styles.right}>
+          {/* Credits Badge */}
+          <CreditsBadge />
+
           <div className={styles.addWrap} ref={addRef}>
             <button className={styles.addBtn} onClick={() => handleOption('checkin')}>
               Add new Patient <Plus size={16} strokeWidth={2.5} />
