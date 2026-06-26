@@ -1,7 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut } from 'lucide-react';
-import { CreditsWidget } from './CreditsWidget';
 import styles from './Sidebar.module.css';
 
 const ALL_NAV = [
@@ -51,11 +50,6 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      {/* Credits Widget */}
-      <div style={{ borderTop: '1px solid #333', marginTop: '16px', paddingTop: '16px' }}>
-        <CreditsWidget />
-      </div>
 
       <div className={styles.bottom}>
         <button className={styles.avatar} title={`${user?.name} — Logout`} onClick={handleLogout}>

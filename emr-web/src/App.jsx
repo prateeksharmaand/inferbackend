@@ -20,6 +20,7 @@ import Assessment from './pages/Assessment';
 import Inbound    from './pages/Inbound';
 import Analytics  from './pages/Analytics';
 import Payments          from './pages/Payments';
+import Wallet            from './pages/Wallet';
 import AddPatientAbhaPage from './pages/AddPatientAbhaPage';
 import LabLogin from './components/laboratory/LabLogin';
 import LabPortal from './components/laboratory/LabPortal';
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="inbound"            element={<Inbound />} />
             <Route path="analytics"          element={<Analytics />} />
             <Route path="payments"           element={<Payments />} />
+            <Route path="wallet"             element={<Wallet />} />
             <Route path="add-patient-abha"   element={<AddPatientAbhaPage />} />
 
             {/* Doctor: View patient lab results (inside clinic layout) */}
