@@ -829,20 +829,135 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS wallet_pricing (
         id SERIAL PRIMARY KEY,
         service_type VARCHAR(50) NOT NULL UNIQUE,
-        credits_per_unit DECIMAL(12, 2) NOT NULL,
-        is_active BOOLEAN DEFAULT TRUE,
+        base_price DECIMAL(12, 2) NOT NULL,
+        enabled BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
 
     await client.query(`
-      INSERT INTO wallet_pricing (service_type, credits_per_unit, is_active)
+      INSERT INTO wallet_pricing (service_type, base_price, enabled)
       VALUES
         ('sms', 0.14, TRUE),
         ('whatsapp', 0.66, TRUE),
         ('prescription', 1.00, TRUE)
       ON CONFLICT (service_type) DO NOTHING
     `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_service_usage (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        wallet_id UUID NOT NULL REFERENCES wallet(id) ON DELETE CASCADE,
+        service_type VARCHAR(50) NOT NULL,
+        usage_date DATE DEFAULT CURRENT_DATE,
+        count INT DEFAULT 0,
+        credits_used DECIMAL(12, 2) DEFAULT 0,
+        amount_paid DECIMAL(10, 2) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(wallet_id, service_type, usage_date)
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_usage_wallet ON wallet_service_usage(wallet_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_usage_service ON wallet_service_usage(service_type)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_usage_date ON wallet_service_usage(usage_date)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_settings (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        wallet_id UUID NOT NULL REFERENCES wallet(id) ON DELETE CASCADE UNIQUE,
+        auto_recharge_enabled BOOLEAN DEFAULT FALSE,
+        auto_recharge_threshold DECIMAL(12, 2),
+        low_balance_alert_threshold DECIMAL(12, 2) DEFAULT 100,
+        email_receipts BOOLEAN DEFAULT TRUE,
+        sms_notifications BOOLEAN DEFAULT TRUE,
+        push_notifications BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_packs (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        pack_name VARCHAR(100) NOT NULL,
+        description TEXT,
+        credit_quantity DECIMAL(12, 2) NOT NULL,
+        price_inr DECIMAL(10, 2) NOT NULL,
+        gst_amount DECIMAL(10, 2) NOT NULL,
+        total_amount DECIMAL(10, 2) NOT NULL,
+        discount_percentage DECIMAL(5, 2) DEFAULT 0,
+        popularity_rank INT,
+        is_best_value BOOLEAN DEFAULT FALSE,
+        enabled BOOLEAN DEFAULT TRUE,
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_packs_enabled ON wallet_packs(enabled)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_packs_sort ON wallet_packs(sort_order)`);
+
+    await client.query(`
+      INSERT INTO wallet_packs (pack_name, credit_quantity, price_inr, gst_amount, total_amount, popularity_rank, is_best_value, enabled)
+      VALUES
+        ('Starter Pack', 200, 200.00, 36.00, 236.00, 3, FALSE, TRUE),
+        ('Professional Pack', 500, 500.00, 90.00, 590.00, 2, TRUE, TRUE),
+        ('Enterprise Pack', 1000, 1000.00, 180.00, 1180.00, 1, FALSE, TRUE)
+      ON CONFLICT DO NOTHING
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_refunds (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        wallet_id UUID NOT NULL REFERENCES wallet(id) ON DELETE CASCADE,
+        refund_amount DECIMAL(10, 2) NOT NULL,
+        refund_reason VARCHAR(255) NOT NULL,
+        refund_status VARCHAR(50) DEFAULT 'initiated',
+        gateway_refund_id VARCHAR(255),
+        requested_by VARCHAR(100),
+        requested_at TIMESTAMP DEFAULT NOW(),
+        completed_at TIMESTAMP,
+        notes TEXT
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_refunds_wallet_id ON wallet_refunds(wallet_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_refunds_status ON wallet_refunds(refund_status)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_invoices (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        wallet_id UUID NOT NULL REFERENCES wallet(id) ON DELETE CASCADE,
+        invoice_number VARCHAR(50) UNIQUE NOT NULL,
+        invoice_date DATE DEFAULT CURRENT_DATE,
+        items JSONB NOT NULL,
+        subtotal DECIMAL(10, 2) NOT NULL,
+        tax_amount DECIMAL(10, 2) NOT NULL,
+        total_amount DECIMAL(10, 2) NOT NULL,
+        notes TEXT,
+        document_url TEXT,
+        download_count INT DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'generated',
+        sent_at TIMESTAMP,
+        downloaded_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_invoices_wallet_id ON wallet_invoices(wallet_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_invoices_number ON wallet_invoices(invoice_number)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_invoices_date ON wallet_invoices(invoice_date)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wallet_audit_log (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        wallet_id UUID NOT NULL REFERENCES wallet(id) ON DELETE CASCADE,
+        action VARCHAR(100) NOT NULL,
+        new_values JSONB,
+        ip_address VARCHAR(45),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_audit_wallet_id ON wallet_audit_log(wallet_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_audit_created_at ON wallet_audit_log(created_at)`);
 
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');
