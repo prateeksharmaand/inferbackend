@@ -7,7 +7,7 @@ async function authMiddleware(req, res, next) {
   const token = authHeader.substring(7);
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const result = await query('SELECT id, email, first_name, last_name, is_active, role FROM users WHERE id = $1', [decoded.userId]);
+    const result = await query('SELECT id, email, first_name, last_name, is_active FROM users WHERE id = $1', [decoded.userId]);
     if (result.rows.length === 0 || !result.rows[0].is_active) return res.status(401).json({ error: 'User not found or inactive' });
     req.user = result.rows[0];
     next();
