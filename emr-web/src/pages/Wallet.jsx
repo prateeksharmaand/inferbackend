@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useWallet } from '../hooks/useWallet';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Download } from 'lucide-react';
 import styles from './Wallet.module.css';
 
 export default function Wallet() {
   const { wallet, summary, loading } = useWallet();
   const navigate = useNavigate();
   const [selectedPack, setSelectedPack] = useState(null);
+  const [transactionFilter, setTransactionFilter] = useState('all');
   const [packs] = useState([
     { id: 1, name: 'Starter Pack', credits: 200, priceInr: 200.00, gstAmount: 36.00, totalAmount: 236.00, isPopular: false, isBestValue: false },
     { id: 2, name: 'Professional Pack', credits: 500, priceInr: 500.00, gstAmount: 90.00, totalAmount: 590.00, isPopular: true, isBestValue: true },
@@ -55,7 +57,48 @@ export default function Wallet() {
       {/* Scrollable Content */}
       <div className={styles.content}>
         <div className={styles.contentInner}>
-          {/* Balance Cards */}
+          {/* Top Credit Display */}
+          <div style={{ background: '#fff', border: '1.5px solid var(--color-border)', borderRadius: '10px', padding: '24px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ fontSize: '32px' }}>💳</div>
+              <div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-2)', marginBottom: '4px' }}>You have</div>
+                <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--color-text)' }}>
+                  {Math.floor(currentBalance)} <span style={{ fontSize: '20px', fontWeight: '600' }}>Credits</span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => toast.success('Report downloaded')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                border: '1.5px solid var(--color-primary)',
+                borderRadius: '8px',
+                background: '#fff',
+                color: 'var(--color-primary)',
+                fontWeight: '600',
+                fontSize: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.15s'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.background = 'var(--color-primary)';
+                e.target.style.color = '#fff';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.background = '#fff';
+                e.target.style.color = 'var(--color-primary)';
+              }}
+            >
+              <Download size={16} />
+              Download report
+            </button>
+          </div>
+
+          {/* Stats Cards */}
           <div className={styles.cards}>
             {/* Current Balance */}
             <div className={styles.card} style={{ borderLeftWidth: '4px', borderLeftColor: '#3b82f6' }}>
@@ -185,7 +228,40 @@ export default function Wallet() {
 
           {/* Transaction History */}
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Recent Transactions</h2>
+            <div style={{ marginBottom: '20px' }}>
+              <h2 className={styles.sectionTitle}>Recent Transactions</h2>
+
+              {/* Filter Tabs */}
+              <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--color-border)', marginTop: '16px' }}>
+                {[
+                  { key: 'all', label: 'All transactions' },
+                  { key: 'credited', label: 'Total credited' },
+                  { key: 'debited', label: 'Total debited' },
+                  { key: 'messages', label: 'Used for messages' }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setTransactionFilter(tab.key)}
+                    style={{
+                      padding: '12px 0',
+                      marginBottom: '-1px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: transactionFilter === tab.key ? '3px solid var(--color-primary)' : 'none',
+                      color: transactionFilter === tab.key ? 'var(--color-primary)' : 'var(--color-text-2)',
+                      fontWeight: transactionFilter === tab.key ? '600' : '500',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {summary?.recentTransactions && summary.recentTransactions.length > 0 ? (
               <div style={{ overflowX: 'auto' }}>
                 <table className={styles.table}>
