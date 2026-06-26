@@ -42,8 +42,10 @@ const getWallet = async (req, res, next) => {
     const user = req.emrUser || req.user;
     if (!user) return res.status(401).json({ error: 'User not authenticated' });
 
+    // EMR auth: id is the staff/doctor ID, clinic_id is clinic
+    // Generic auth: clinicId and doctorId are in user object
     const clinicId = user.clinic_id || user.clinicId;
-    const doctorId = user.doctor_id || user.doctorId;
+    const doctorId = user.id || user.doctor_id || user.doctorId;
 
     if (!clinicId || !doctorId) {
       return res.status(400).json({ error: 'clinic_id and doctor_id required in token' });
