@@ -46,6 +46,43 @@ def _get_sheet():
     return _sheet
 
 
+def diagnose_headers():
+    """Check headers and report any issues."""
+    sheet = _get_sheet()
+    first_row = sheet.row_values(1)
+
+    if not first_row:
+        print("  ❌ No headers found — sheet is empty")
+        return False
+
+    from collections import Counter
+    counts = Counter(first_row)
+    duplicates = [col for col, count in counts.items() if count > 1]
+
+    if duplicates:
+        print(f"  ❌ Found duplicate headers: {duplicates}")
+        for dup in duplicates:
+            positions = [i+1 for i, col in enumerate(first_row) if col == dup]
+            print(f"     '{dup}' appears in columns: {positions}")
+        return False
+
+    if len(first_row) != len(HEADERS):
+        print(f"  ⚠ Column count mismatch:")
+        print(f"    Expected: {len(HEADERS)} columns")
+        print(f"    Found: {len(first_row)} columns")
+        return False
+
+    if first_row != HEADERS:
+        print(f"  ⚠ Header mismatch:")
+        for i, (expected, found) in enumerate(zip(HEADERS, first_row)):
+            if expected != found:
+                print(f"    Column {chr(64+i+1)}: expected '{expected}', found '{found}'")
+        return False
+
+    print(f"  ✓ Headers are correct ({len(HEADERS)} columns)")
+    return True
+
+
 def ensure_headers():
     sheet = _get_sheet()
     first_row = sheet.row_values(1)
@@ -65,8 +102,22 @@ def ensure_headers():
 
 def get_existing_emails() -> set:
     sheet = _get_sheet()
-    records = sheet.get_all_records()
-    return {str(r.get("email", "")).strip().lower() for r in records if r.get("email")}
+    try:
+        records = sheet.get_all_records()
+        return {str(r.get("email", "")).strip().lower() for r in records if r.get("email")}
+    except Exception as e:
+        if "duplicates" in str(e).lower():
+            # Detect which columns are duplicated
+            first_row = sheet.row_values(1)
+            from collections import Counter
+            counts = Counter(first_row)
+            duplicates = [col for col, count in counts.items() if count > 1]
+            print(f"\n  ❌ HEADER ERROR: Google Sheet has duplicate columns: {duplicates}")
+            print(f"  Current headers (A-{chr(64 + len(first_row))}): {first_row}")
+            print(f"  Expected headers: {HEADERS}")
+            print(f"\n  FIX: Remove the duplicate '{duplicates[0]}' column from your Google Sheet")
+            raise
+        raise
 
 
 def import_leads(leads: list[dict]) -> int:
