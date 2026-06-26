@@ -19,11 +19,14 @@
 
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireRole } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
+const { requireRole } = require('../middleware/auth');
 const walletService = require('../services/walletService');
 const paymentGatewayService = require('../services/paymentGatewayService');
 const db = require('../config/database');
 const logger = require('../utils/logger');
+
+const requireAuth = authMiddleware;
 
 // ============================================================================
 // MIDDLEWARE

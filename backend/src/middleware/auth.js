@@ -7,7 +7,7 @@ async function authMiddleware(req, res, next) {
   const token = authHeader.substring(7);
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const result = await query('SELECT id, email, first_name, last_name, is_active FROM users WHERE id = $1', [decoded.userId]);
+    const result = await query('SELECT id, email, first_name, last_name, is_active, role FROM users WHERE id = $1', [decoded.userId]);
     if (result.rows.length === 0 || !result.rows[0].is_active) return res.status(401).json({ error: 'User not found or inactive' });
     req.user = result.rows[0];
     next();
@@ -17,5 +17,29 @@ async function authMiddleware(req, res, next) {
   }
 }
 
+/**
+ * Role-based access control middleware
+ * @param {string} requiredRole - The role required to access this endpoint (e.g., 'admin')
+ * @returns {Function} Express middleware function
+ */
+function requireRole(requiredRole) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userRole = req.user.role || 'user';
+
+    if (userRole !== requiredRole) {
+      return res.status(403).json({
+        error: `Access denied. Required role: ${requiredRole}, Your role: ${userRole}`
+      });
+    }
+
+    next();
+  };
+}
+
 module.exports = authMiddleware;
 module.exports.requireAuth = authMiddleware;
+module.exports.requireRole = requireRole;
