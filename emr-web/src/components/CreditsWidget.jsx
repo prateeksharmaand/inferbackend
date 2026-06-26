@@ -43,7 +43,7 @@ export const CreditsWidget = () => {
         <div className={`text-3xl font-bold ${
           isCritical ? 'text-red-700' : isLowBalance ? 'text-yellow-700' : 'text-gray-900'
         }`}>
-          {balance.toFixed(2)}
+          ₹{balance.toFixed(2)}
         </div>
         <div className="text-xs text-gray-600">
           {Math.floor(balance)} credits available
