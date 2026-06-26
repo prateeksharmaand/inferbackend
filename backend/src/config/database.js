@@ -130,6 +130,20 @@ async function query(text, params) {
 
 async function initializeDatabase() {
   const client = await pool.connect();
+
+  // Migrate old wallet_pricing column names (outside transaction)
+  try {
+    await client.query(`ALTER TABLE wallet_pricing RENAME COLUMN credits_per_unit TO base_price`);
+  } catch (e) {
+    // Column already renamed or doesn't exist - ignore
+  }
+
+  try {
+    await client.query(`ALTER TABLE wallet_pricing RENAME COLUMN is_active TO enabled`);
+  } catch (e) {
+    // Column already renamed or doesn't exist - ignore
+  }
+
   try {
     await client.query('BEGIN');
     await client.query(`
@@ -834,19 +848,6 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
-
-    // Migrate old column names if they exist (ignore errors if they don't)
-    try {
-      await client.query(`ALTER TABLE wallet_pricing RENAME COLUMN credits_per_unit TO base_price`);
-    } catch (e) {
-      // Column already renamed or doesn't exist
-    }
-
-    try {
-      await client.query(`ALTER TABLE wallet_pricing RENAME COLUMN is_active TO enabled`);
-    } catch (e) {
-      // Column already renamed or doesn't exist
-    }
 
     await client.query(`
       INSERT INTO wallet_pricing (service_type, base_price, enabled)
