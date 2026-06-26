@@ -73,7 +73,7 @@ const getWallet = async (req, res, next) => {
  * POST /wallet/init
  * Initialize wallet for a clinic (called once on signup)
  */
-router.post('/init', requireAuth, async (req, res) => {
+router.post('/init', async (req, res) => {
   try {
     const { clinicId, doctorId } = req.user;
 
@@ -97,7 +97,7 @@ router.post('/init', requireAuth, async (req, res) => {
  * GET /wallet
  * Get wallet details
  */
-router.get('/', requireAuth, getWallet, async (req, res) => {
+router.get('/', getWallet, async (req, res) => {
   try {
     const wallet = await walletService.getWalletById(req.wallet.id);
 
@@ -124,7 +124,7 @@ router.get('/', requireAuth, getWallet, async (req, res) => {
  * GET /wallet/summary
  * Get wallet summary with analytics
  */
-router.get('/summary', requireAuth, getWallet, async (req, res) => {
+router.get('/summary', getWallet, async (req, res) => {
   try {
     const summary = await walletService.getWalletSummary(req.wallet.id);
 
@@ -161,7 +161,7 @@ router.get('/summary', requireAuth, getWallet, async (req, res) => {
  * Get transaction history with filters
  * Query params: fromDate, toDate, serviceType, transactionType, limit, offset
  */
-router.get('/history', requireAuth, getWallet, async (req, res) => {
+router.get('/history', getWallet, async (req, res) => {
   try {
     const filters = {
       fromDate: req.query.fromDate,
@@ -227,7 +227,7 @@ router.get('/packs', async (req, res) => {
  * Check if wallet has sufficient balance
  * Body: { serviceType, quantity }
  */
-router.post('/check-balance', requireAuth, getWallet, async (req, res) => {
+router.post('/check-balance', getWallet, async (req, res) => {
   try {
     const { serviceType, quantity = 1 } = req.body;
 
@@ -262,7 +262,7 @@ router.post('/check-balance', requireAuth, getWallet, async (req, res) => {
  * Create payment order
  * Body: { packId } OR { customAmount }
  */
-router.post('/recharge/order', requireAuth, getWallet, async (req, res) => {
+router.post('/recharge/order', getWallet, async (req, res) => {
   try {
     const { packId, customAmount } = req.body;
 
@@ -293,7 +293,7 @@ router.post('/recharge/order', requireAuth, getWallet, async (req, res) => {
  * Verify payment and add credits
  * Body: { orderId, razorpayPaymentId, razorpaySignature }
  */
-router.post('/recharge/verify', requireAuth, getWallet, async (req, res) => {
+router.post('/recharge/verify', getWallet, async (req, res) => {
   try {
     const { orderId, razorpayPaymentId, razorpaySignature } = req.body;
 
@@ -326,7 +326,7 @@ router.post('/recharge/verify', requireAuth, getWallet, async (req, res) => {
  * Deduct credits for a service (called by SMS, WhatsApp, Prescription services)
  * Body: { serviceType, quantity, referenceId?, metadata? }
  */
-router.post('/deduct', requireAuth, getWallet, async (req, res) => {
+router.post('/deduct', getWallet, async (req, res) => {
   try {
     const { serviceType, quantity = 1, referenceId, metadata } = req.body;
 
@@ -390,7 +390,7 @@ router.post('/webhook/razorpay', express.json(), async (req, res) => {
  * POST /wallet/admin/pricing
  * Create or update service pricing (admin only)
  */
-router.post('/admin/pricing', requireAuth, requireRole('admin'), async (req, res) => {
+router.post('/admin/pricing', requireRole('admin'), async (req, res) => {
   try {
     const { serviceType, serviceName, description, basePrice, taxPercentage, enabled } = req.body;
 
@@ -421,7 +421,7 @@ router.post('/admin/pricing', requireAuth, requireRole('admin'), async (req, res
  * GET /wallet/admin/pricing
  * Get all pricing (admin only)
  */
-router.get('/admin/pricing', requireAuth, requireRole('admin'), async (req, res) => {
+router.get('/admin/pricing', requireRole('admin'), async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM wallet_pricing ORDER BY service_type');
 
@@ -439,7 +439,7 @@ router.get('/admin/pricing', requireAuth, requireRole('admin'), async (req, res)
  * POST /wallet/admin/refund
  * Issue refund (admin only)
  */
-router.post('/admin/refund', requireAuth, requireRole('admin'), async (req, res) => {
+router.post('/admin/refund', requireRole('admin'), async (req, res) => {
   try {
     const { orderId, refundAmount, reason } = req.body;
 
@@ -463,7 +463,7 @@ router.post('/admin/refund', requireAuth, requireRole('admin'), async (req, res)
  * POST /wallet/admin/adjust
  * Adjust wallet balance (admin only)
  */
-router.post('/admin/adjust', requireAuth, requireRole('admin'), async (req, res) => {
+router.post('/admin/adjust', requireRole('admin'), async (req, res) => {
   try {
     const { walletId, adjustmentAmount, reason } = req.body;
 
