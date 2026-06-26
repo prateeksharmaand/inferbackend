@@ -5,14 +5,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'https://api.inferapp.online/api';
+const API_BASE = '/api/emr';
 
 export const useWallet = () => {
   const [wallet, setWallet] = useState(null);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('emr_token');
 
   // Fetch wallet details
   const fetchWallet = useCallback(async () => {

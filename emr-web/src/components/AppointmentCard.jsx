@@ -372,7 +372,7 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
           {/* ── Patient Actions (SMS, WhatsApp, Prescription) ── */}
           <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }} onClick={e => e.stopPropagation()}>
             <PatientActions
-              patientId={appt.patient_id}
+              patientId={appt.id}
               onAction={(result) => {
                 if (result.success) {
                   toast.success(`${result.service} sent successfully!`);
