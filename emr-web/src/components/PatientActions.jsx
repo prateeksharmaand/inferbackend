@@ -93,9 +93,7 @@ export const PatientActions = ({ patientId, onAction = () => {} }) => {
 
   const closeDialog = () => setDialog(null);
 
-  if (!wallet) return null;
-
-  const balance = parseFloat(wallet.currentBalance || 0);
+  const balance = parseFloat(wallet?.currentBalance || 0);
 
   return (
     <>

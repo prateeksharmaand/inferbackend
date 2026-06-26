@@ -16,15 +16,7 @@ export const CreditsBadge = () => {
     navigate('/wallet');
   };
 
-  if (loading || !wallet) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
-        <span className="text-sm">...</span>
-      </div>
-    );
-  }
-
-  const balance = parseFloat(wallet.currentBalance || 0);
+  const balance = parseFloat(wallet?.currentBalance || 0);
   const isLowBalance = balance < 50;
 
   return (

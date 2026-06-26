@@ -11,17 +11,9 @@ export const CreditsWidget = () => {
   const { summary, loading } = useWallet();
   const navigate = useNavigate();
 
-  if (loading || !summary) {
-    return (
-      <div className="m-3 p-4 rounded-lg bg-gray-50 border border-gray-200">
-        <div className="text-center text-gray-400 text-sm">Loading...</div>
-      </div>
-    );
-  }
-
-  const balance = parseFloat(summary.currentBalance || 0);
-  const monthUsed = parseFloat(summary.monthCreditsUsed || 0);
-  const daysRemaining = summary.daysRemaining > 0 ? summary.daysRemaining : null;
+  const balance = parseFloat(summary?.currentBalance || 0);
+  const monthUsed = parseFloat(summary?.monthCreditsUsed || 0);
+  const daysRemaining = summary?.daysRemaining > 0 ? summary?.daysRemaining : null;
   const isLowBalance = balance < 100;
   const isCritical = balance < 50;
 
