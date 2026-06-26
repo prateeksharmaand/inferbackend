@@ -16,14 +16,16 @@ export const useWallet = () => {
   const fetchWallet = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await api.get('/wallet');
+      const data = await api.get('/wallet').catch(() => null);
       if (data && data.wallet) {
         setWallet(data.wallet);
         setError(null);
+      } else {
+        setWallet({ currentBalance: 0 });
       }
     } catch (err) {
       console.error('Error fetching wallet:', err);
-      setError(err.message);
+      setWallet({ currentBalance: 0 });
     } finally {
       setLoading(false);
     }
@@ -37,7 +39,8 @@ export const useWallet = () => {
         setSummary(data.summary);
       }
     } catch (err) {
-      console.error('Error fetching summary:', err);
+      console.error('Error fetching summary (optional):', err);
+      setSummary({ currentBalance: 0, monthCreditsUsed: 0 });
     }
   }, []);
 
