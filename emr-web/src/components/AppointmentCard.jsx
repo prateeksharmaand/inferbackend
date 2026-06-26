@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip, FlaskConical, Bot } from 'lucide-react';
+import toast from 'react-hot-toast';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
@@ -9,6 +10,7 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import AppointmentSlipModal from './AppointmentSlipModal';
 import MedicalDocModal from './MedicalDocModal';
+import { PatientActions } from './PatientActions';
 import styles from './AppointmentCard.module.css';
 
 const STATUS_COLOR = {
@@ -365,6 +367,18 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
               <Tag size={10} strokeWidth={2} />
               {resolvedTags.length === 0 ? 'Tag' : '+'}
             </button>
+          </div>
+
+          {/* ── Patient Actions (SMS, WhatsApp, Prescription) ── */}
+          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }} onClick={e => e.stopPropagation()}>
+            <PatientActions
+              patientId={appt.patient_id}
+              onAction={(result) => {
+                if (result.success) {
+                  toast.success(`${result.service} sent successfully!`);
+                }
+              }}
+            />
           </div>
 
           {/* ── Profile share token timer — only for scan-and-share appointments ── */}
