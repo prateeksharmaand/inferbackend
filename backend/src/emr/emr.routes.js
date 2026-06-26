@@ -47,6 +47,7 @@ const docassist   = require('./emr.docassist.controller');
 const rxpublic    = require('./emr.rxpublic.controller');
 const subscription = require('./emr.subscription.controller');
 const visit       = require('./emr.visit.controller');
+const walletRoutes = require('../routes/wallet.routes');
 
 // â”€â”€ Public â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Staff invitation acceptance (public â€” no JWT)
@@ -97,6 +98,9 @@ router.get   ('/subscription',                   subscription.getSubscription);
 router.get   ('/subscription/plans',             subscription.getPlans);
 router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
+
+// Wallet & Credits
+router.use('/wallet', walletRoutes);
 
 // â”€â”€ Clinic ABDM settings (self-service for clinic admins) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/clinic-settings/abdm', async (req, res) => {

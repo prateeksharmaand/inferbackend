@@ -34,10 +34,20 @@ const requireAuth = authMiddleware;
 
 /**
  * Get wallet from request (clinic_id and doctor_id from auth token)
+ * Supports both generic auth (req.user) and EMR auth (req.emrUser)
  */
 const getWallet = async (req, res, next) => {
   try {
-    const { clinicId, doctorId } = req.user;
+    // Support both generic auth and EMR auth
+    const user = req.emrUser || req.user;
+    if (!user) return res.status(401).json({ error: 'User not authenticated' });
+
+    const clinicId = user.clinic_id || user.clinicId;
+    const doctorId = user.doctor_id || user.doctorId;
+
+    if (!clinicId || !doctorId) {
+      return res.status(400).json({ error: 'clinic_id and doctor_id required in token' });
+    }
 
     let wallet = await walletService.getWalletByClinicDoctor(clinicId, doctorId);
 
