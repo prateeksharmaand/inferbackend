@@ -89,19 +89,17 @@ export const useWallet = () => {
 
   // Initialize wallet on mount and set up auto-refresh
   useEffect(() => {
-    if (token) {
+    fetchWallet();
+    fetchSummary();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
       fetchWallet();
       fetchSummary();
+    }, 30000);
 
-      // Auto-refresh every 30 seconds
-      const interval = setInterval(() => {
-        fetchWallet();
-        fetchSummary();
-      }, 30000);
-
-      return () => clearInterval(interval);
-    }
-  }, [token, fetchWallet, fetchSummary]);
+    return () => clearInterval(interval);
+  }, [fetchWallet, fetchSummary]);
 
   return {
     wallet,
