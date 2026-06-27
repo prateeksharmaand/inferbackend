@@ -471,7 +471,11 @@ async function sendDiscoverResult({ requestId, transactionId, patientId, patient
 }
 
 async function sendLinkInitResult({ requestId, transactionId, linkRefNumber, hipId }) {
-  await gwPost('/v0.5/links/link/on-init', {
+  // Non-blocking ABDM gateway callback with timeout — don't block frontend response
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 8000);
+
+  gwPost('/v0.5/links/link/on-init', {
     requestId: uuid(),
     timestamp: new Date().toISOString(),
     transactionId,
@@ -486,7 +490,17 @@ async function sendLinkInitResult({ requestId, transactionId, linkRefNumber, hip
       hip: { id: hipId || HIP_ID },
     },
     resp: { requestId },
-  });
+  }, { signal: ctrl.signal })
+    .then(() => clearTimeout(timeout))
+    .catch(err => {
+      clearTimeout(timeout);
+      logger.warn('HIP link/on-init callback failed (non-blocking)', {
+        transactionId,
+        linkRefNumber,
+        error: err.message,
+        note: 'Patient can still proceed with OTP verification',
+      });
+    });
 }
 
 
