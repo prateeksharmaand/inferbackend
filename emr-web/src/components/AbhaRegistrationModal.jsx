@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { X, AlertCircle, Check } from 'lucide-react';
 import { api } from '../api/client';
 import toast from 'react-hot-toast';
+import abdmLogo from '../assets/abdmlogo.svg';
+import nhaLogo from '../assets/nha.png';
 
 export default function AbhaRegistrationModal({ onClose, onSuccess }) {
   const [searchType, setSearchType] = useState('abha_number');
@@ -190,9 +192,19 @@ export default function AbhaRegistrationModal({ onClose, onSuccess }) {
           ×
         </button>
 
-        <h2 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 700, color: '#1e293b' }}>
-          New Patient Registration Using ABHA
-        </h2>
+        {/* Header with logos */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
+          <div>
+            <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#1e293b' }}>
+              ABHA Registration
+            </h2>
+            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Ayushman Bharat Health Account</p>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <img src={abdmLogo} alt="ABDM" style={{ height: 40 }} />
+            <img src={nhaLogo} alt="NHA" style={{ height: 40 }} />
+          </div>
+        </div>
 
         {/* Search type selector */}
         {(step === 'search' || step === 'abha-verify') && (
