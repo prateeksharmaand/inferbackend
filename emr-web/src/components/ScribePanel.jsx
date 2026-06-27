@@ -7,20 +7,6 @@ import styles from './ScribePanel.module.css';
 
 const SEGMENT_MS = 5000; // 5s chunks — fewer requests, still feels real-time
 
-const LANGUAGES = [
-  { code: 'en', label: 'English' },
-  { code: 'auto', label: 'Auto-detect' },
-  { code: 'hi', label: 'Hindi' },
-  { code: 'ta', label: 'Tamil' },
-  { code: 'te', label: 'Telugu' },
-  { code: 'kn', label: 'Kannada' },
-  { code: 'ml', label: 'Malayalam' },
-  { code: 'bn', label: 'Bengali' },
-  { code: 'mr', label: 'Marathi' },
-  { code: 'gu', label: 'Gujarati' },
-  { code: 'pa', label: 'Punjabi' },
-];
-
 async function recordSegment(stream, ms) {
   return new Promise(resolve => {
     const chunks = [];
@@ -87,7 +73,6 @@ export default function ScribePanel({
   const [errMsg,         setErrMsg]         = useState('');
   const [elapsed,        setElapsed]        = useState(0);
   const [pending,        setPending]        = useState(0);
-  const [language,       setLanguage]       = useState('en');
   const [templates,      setTemplates]      = useState({ predefined: [], custom: [] });
   const [templateId,     setTemplateId]     = useState(DEFAULT_TEMPLATE_ID);
   const [showManage,     setShowManage]     = useState(false);
@@ -167,7 +152,7 @@ export default function ScribePanel({
           if (blob.size < 500) continue;
           setPending(n => n + 1);
           try {
-            const text = await sendChunk(blob, 'auto', spec, drugs);
+            const text = await sendChunk(blob, 'en', spec, drugs);
             if (text) setTranscript(t => t ? t + ' ' + text : text);
           } catch (err) {
             console.warn('[scribe] chunk failed:', err.message);
@@ -180,7 +165,7 @@ export default function ScribePanel({
       setErrMsg('Microphone access denied. Please allow microphone and retry.');
       setStatus('error');
     }
-  }, [language, user]);
+  }, [user]);
 
   const stopRecording = useCallback(() => {
     recordingRef.current = false;
