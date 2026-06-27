@@ -177,20 +177,46 @@ const handleLinkInit = async (req, res) => {
     const patientId    = patient?.id ?? req.body.abhaAddress ?? req.body.patientId ?? '';
     logger.info('HIP link/init', { requestId, transactionId, careContextCount: careContexts.length });
 
-    // Check abha_mappings first (supports multiple ABHA addresses per patient)
-    const { patient: foundPt } = await AbhaIdentity.findPatient(pool, {
-      abhaNumber: patientId, abhaAddress: patientId,
-    });
+    // Smart patient lookup: try ABHA number first, then ABHA address
+    // ABHA numbers are 12 digits, addresses contain @
+    const isLikelyAbhaNumber = /^\d{12}$/.test(patientId);
+    const isLikelyAbhaAddress = /@/.test(patientId);
+
+    let foundPt = null;
+    let matchedBy = null;
+
+    // Try ABHA number first if format matches
+    if (isLikelyAbhaNumber) {
+      const result = await AbhaIdentity.findPatient(pool, { abhaNumber: patientId });
+      foundPt = result.patient;
+      matchedBy = result.matchedBy;
+    }
+
+    // Try ABHA address if not found and format matches
+    if (!foundPt && isLikelyAbhaAddress) {
+      const result = await AbhaIdentity.findPatient(pool, { abhaAddress: patientId });
+      foundPt = result.patient;
+      matchedBy = result.matchedBy;
+    }
+
+    // Last resort: try both as fallback
+    if (!foundPt) {
+      const result = await AbhaIdentity.findPatient(pool, { abhaNumber: patientId, abhaAddress: patientId });
+      foundPt = result.patient;
+      matchedBy = result.matchedBy;
+    }
+
     const pt = foundPt ?? null;
 
     // Debug: log patient lookup result
     logger.info('HIP link/init patient lookup', {
       searchId: patientId,
+      format: isLikelyAbhaNumber ? 'number' : isLikelyAbhaAddress ? 'address' : 'unknown',
+      matchedBy: matchedBy,
       patientFound: !!pt?.id,
       patientId: pt?.id || null,
       name: pt?.name || null,
       mobile: pt?.mobile || null,
-      allFields: pt ? Object.keys(pt) : []
     });
 
     // R2-011: supersede ALL pending sessions for this patient (expired or not)
