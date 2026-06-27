@@ -8,7 +8,7 @@ const groqModel = () => process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
 const GROQ_LLM_MODEL = process.env.GROQ_LLM_MODEL || 'llama-3.3-70b-versatile';
 
 // Short clinical hint for Whisper — keeps initial_prompt small for speed
-const WHISPER_PROMPT_BASE = 'Medical consultation. Doctor speaking with patient. Clinical terms, drug names, dosages. बुखार, खांसी, दर्द, दवाई, नब्ज, बीपी, शुगर, पेट, सिरदर्द.';
+const WHISPER_PROMPT_BASE = 'Medical consultation. Doctor speaking with patient. Clinical terms, drug names, dosages, medications, patient history, vital signs, examination findings.';
 
 const SPECIALIZATION_VOCAB = {
   cardiology:       'troponin, stent, angiography, pacemaker, atrial fibrillation, coronary artery disease, ejection fraction, echocardiogram, stress test, beta blocker, ACE inhibitor, warfarin, catheterization, cardiac enzymes',
