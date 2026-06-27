@@ -458,7 +458,7 @@ const getPrescriptionAnalytics = async (req, res) => {
       WHERE a.clinic_id=$1 AND a.appointment_date BETWEEN $2 AND $3
         AND vacc_entry.value->>'status' IS NOT NULL
         AND vacc_entry.value->>'status' != ''
-      GROUP BY vacc_key, status
+      GROUP BY vacc_entry.key, vacc_entry.value
       ORDER BY cnt DESC`, p);
 
     // Aggregate top 15 given vaccines
@@ -520,11 +520,11 @@ const getForm25 = async (req, res) => {
   if (search)    { params.push(`%${search}%`); extras.push(`(LOWER(COALESCE(r.patient_name,a.patient_name)) LIKE LOWER($${params.length}) OR LOWER(CONCAT(COALESCE(c.uhid_prefix,'RX'),'-',r.id)) LIKE LOWER($${params.length}))`); }
   const extra = extras.length ? `AND ${extras.join(' AND ')}` : '';
 
-  const baseSql = `FROM emr_receipts r JOIN emr_appointments a ON a.id=r.appointment_id LEFT JOIN emr_doctors d ON d.id=a.doctor_id LEFT JOIN patient_clinics pc ON a.patient_id=pc.patient_id AND a.clinic_id=pc.clinic_id JOIN emr_clinics c ON c.id=r.clinic_id WHERE r.clinic_id=$1 AND r.created_at::date>=$2 AND r.created_at::date<=$3 ${extra}`;
+  const baseSql = `FROM emr_receipts r JOIN emr_appointments a ON a.id=r.appointment_id LEFT JOIN emr_doctors d ON d.id=a.doctor_id JOIN emr_clinics c ON c.id=r.clinic_id WHERE r.clinic_id=$1 AND r.created_at::date>=$2 AND r.created_at::date<=$3 ${extra}`;
 
   const [totals, records] = await Promise.all([
     pool.query(`SELECT COUNT(*) AS total, COALESCE(SUM(r.grand_total),0) AS total_collected ${baseSql}`, params),
-    pool.query(`SELECT a.appointment_date, r.created_at::date AS receipt_date, d.name AS doctor_name, c.name AS clinic_name, CONCAT(COALESCE(NULLIF(c.uhid_prefix,''),'RX'),'-',r.id) AS receipt_number, COALESCE(r.patient_name,a.patient_name,'Unknown') AS patient_name, pc.uhid, (SELECT COALESCE(STRING_AGG(item->>'name',', '),'Consultation') FROM jsonb_array_elements(r.items) AS item WHERE (item->>'name') IS NOT NULL AND (item->>'name')<>'') AS service_name, r.grand_total AS amount_collected, r.paymode, r.remarks, r.id AS receipt_id ${baseSql} ORDER BY a.appointment_date DESC, r.created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`, [...params, parseInt(limit,10), offset]),
+    pool.query(`SELECT a.appointment_date, r.created_at::date AS receipt_date, d.name AS doctor_name, c.name AS clinic_name, CONCAT(COALESCE(NULLIF(c.uhid_prefix,''),'RX'),'-',r.id) AS receipt_number, COALESCE(r.patient_name,a.patient_name,'Unknown') AS patient_name, NULL AS uhid, (SELECT COALESCE(STRING_AGG(item->>'name',', '),'Consultation') FROM jsonb_array_elements(r.items) AS item WHERE (item->>'name') IS NOT NULL AND (item->>'name')<>'') AS service_name, r.grand_total AS amount_collected, r.paymode, r.remarks, r.id AS receipt_id ${baseSql} ORDER BY a.appointment_date DESC, r.created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`, [...params, parseInt(limit,10), offset]),
   ]);
 
   res.json({ records: records.rows, total: parseInt(totals.rows[0].total,10), total_collected: parseFloat(totals.rows[0].total_collected), page: parseInt(page,10), limit: parseInt(limit,10), from: dateFrom, to: dateTo });
