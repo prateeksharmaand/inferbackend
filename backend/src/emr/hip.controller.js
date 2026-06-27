@@ -174,60 +174,120 @@ const handleLinkInit = async (req, res) => {
     const { transactionId, patient } = req.body;
     _validateIds(requestId, transactionId);
     const careContexts = patient?.careContexts ?? req.body.careContexts ?? [];
-    const patientId    = patient?.id ?? req.body.abhaAddress ?? req.body.patientId ?? '';
-    logger.info('HIP link/init', { requestId, transactionId, careContextCount: careContexts.length });
 
-    // Smart patient lookup: try ABHA number first, then ABHA address
-    // ABHA numbers are 12 digits, addresses contain @
-    const isLikelyAbhaNumber = /^\d{12}$/.test(patientId);
-    const isLikelyAbhaAddress = /@/.test(patientId);
+    // ✅ FIX: Use referenceNumber from Discover (internal patient UUID)
+    // Falls back to patient.id (ABHA address) for backward compatibility
+    const patientRefNum = patient?.referenceNumber;  // ← Internal UUID from Discover
+    const abhaId = patient?.id;                       // ← ABHA address for fallback
+
+    logger.info('HIP link/init', {
+      requestId,
+      transactionId,
+      careContextCount: careContexts.length,
+      patientRefNum,  // Log the reference from Discover
+      abhaId          // Log the ABHA for audit trail
+    });
 
     let foundPt = null;
     let matchedBy = null;
+    let searchMethod = null;
 
-    // Try ABHA number first if format matches
-    if (isLikelyAbhaNumber) {
-      const result = await AbhaIdentity.findPatient(pool, { abhaNumber: patientId });
-      foundPt = result.patient;
-      matchedBy = result.matchedBy;
+    // ✅ PRIMARY: Lookup by internal referenceNumber (from Discover response)
+    if (patientRefNum) {
+      try {
+        const { rows } = await pool.query(
+          `SELECT id, name, mobile, abha_address, abha_number, clinic_id
+           FROM emr_patients
+           WHERE id = $1 AND deleted_at IS NULL
+           LIMIT 1`,
+          [patientRefNum]
+        );
+        if (rows.length) {
+          foundPt = rows[0];
+          matchedBy = 'REFERENCE_NUMBER';
+          searchMethod = 'by referenceNumber (internal UUID)';
+        }
+      } catch (err) {
+        logger.error('HIP link/init: patient lookup by referenceNumber failed', {
+          patientRefNum,
+          error: err.message
+        });
+      }
     }
 
-    // Try ABHA address if not found and format matches
-    if (!foundPt && isLikelyAbhaAddress) {
-      const result = await AbhaIdentity.findPatient(pool, { abhaAddress: patientId });
-      foundPt = result.patient;
-      matchedBy = result.matchedBy;
-    }
+    // ✅ FALLBACK: Try ABHA ID if referenceNumber lookup fails
+    // (for backward compatibility with older Discover responses)
+    if (!foundPt && abhaId) {
+      try {
+        const result = await AbhaIdentity.findPatient(pool, {
+          abhaAddress: abhaId,
+          abhaNumber: abhaId
+        });
+        foundPt = result.patient;
+        matchedBy = result.matchedBy || 'ABHA_ID';
+        searchMethod = 'by ABHA address/number (fallback)';
 
-    // Last resort: try both as fallback
-    if (!foundPt) {
-      const result = await AbhaIdentity.findPatient(pool, { abhaNumber: patientId, abhaAddress: patientId });
-      foundPt = result.patient;
-      matchedBy = result.matchedBy;
+        if (foundPt) {
+          logger.warn('HIP link/init: patient found by ABHA fallback (not referenceNumber)', {
+            patientRefNum,
+            abhaId,
+            patientId: foundPt.id
+          });
+        }
+      } catch (err) {
+        logger.error('HIP link/init: patient lookup by ABHA fallback failed', {
+          abhaId,
+          error: err.message
+        });
+      }
     }
 
     const pt = foundPt ?? null;
 
     // Debug: log patient lookup result
     logger.info('HIP link/init patient lookup', {
-      searchId: patientId,
-      format: isLikelyAbhaNumber ? 'number' : isLikelyAbhaAddress ? 'address' : 'unknown',
-      matchedBy: matchedBy,
+      searchMethod,                          // ← How we found (or didn't find) the patient
+      patientRefNum,                         // ← Reference from Discover
+      abhaId,                                // ← ABHA fallback
+      matchedBy,
       patientFound: !!pt?.id,
       patientId: pt?.id || null,
       name: pt?.name || null,
       mobile: pt?.mobile || null,
     });
 
+    // ✅ ERROR: If patient not found after all lookup attempts, send error to ABDM
+    if (!pt?.id) {
+      logger.error('HIP link/init: patient not found after all lookup attempts', {
+        patientRefNum,
+        abhaId,
+        requestId,
+        searchMethod
+      });
+
+      // Send error response to ABDM Gateway
+      await hip.gwPost('/v0.5/links/link/on-init', {
+        requestId: hip.uuid(),
+        timestamp: new Date().toISOString(),
+        transactionId,
+        error: {
+          code: 'PATIENT_NOT_FOUND',
+          message: 'Unable to locate patient for linking. Patient does not exist in HIP system.'
+        },
+        resp: { requestId }
+      }).catch(e => logger.warn('HIP link/on-init error callback failed', { error: e.message }));
+
+      audit.abdmLinkInit(req, null);  // Audit failure
+      return;
+    }
+
     // R2-011: supersede ALL pending sessions for this patient (expired or not)
     // so the unique index never blocks the new INSERT
-    if (pt?.id) {
-      await pool.query(
-        `UPDATE hip_link_sessions SET status='superseded'
-         WHERE patient_id=$1 AND status IN ('pending_otp','pending')`,
-        [pt.id]
-      );
-    }
+    await pool.query(
+      `UPDATE hip_link_sessions SET status='superseded'
+       WHERE patient_id=$1 AND status IN ('pending_otp','pending')`,
+      [pt.id]
+    );
 
     // SEC-004: cryptographically secure OTP
     const otp           = String(crypto.randomInt(100000, 1000000));

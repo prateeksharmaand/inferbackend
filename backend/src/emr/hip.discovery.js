@@ -9,6 +9,11 @@
  * 2. Added careContextType to all care contexts
  * 3. Creates default care context if none exist
  * 4. Validates response before sending to ABDM
+ *
+ * ABDM SPEC FIX (Link Init Patient Resolution):
+ * - referenceNumber must be INTERNAL patient ID (UUID), not ABHA address
+ * - This ensures Link Init can lookup patient by same reference from Discover
+ * - ABHA address goes in 'id' field for ABDM Gateway routing
  */
 
 const logger = require('../utils/logger');
@@ -201,14 +206,16 @@ const buildDiscoveryResponse = (requestId, transactionId, patient, careContexts)
   }
 
   // Build response
+  // ✅ FIX: referenceNumber = internal patient ID (for Link Init lookup)
+  //        id = ABHA address (for ABDM Gateway routing)
   const response = {
     requestId: requestId,
     timestamp: new Date().toISOString(),
     transactionId: transactionId,
     count: String(contexts.length).padStart(2, '0'), // ✅ Format: 01-20
     patient: {
-      id: patient.abha_address || patient.abha_number,
-      referenceNumber: patient.abha_address || patient.abha_number,
+      id: patient.abha_address || patient.abha_number,           // ABHA for ABDM routing
+      referenceNumber: String(patient.id),                        // ✅ INTERNAL UUID (FIXED)
       display: patient.name,
       careContexts: contexts.slice(0, 20), // Max 20
       matchedBy: ['ABHA_ID']
@@ -217,6 +224,13 @@ const buildDiscoveryResponse = (requestId, transactionId, patient, careContexts)
       requestId: requestId
     }
   };
+
+  logger.info('Built discovery response', {
+    patientId: patient.id,
+    referenceNumber: patient.id,
+    abhaAddress: patient.abha_address || patient.abha_number,
+    careContextCount: contexts.length
+  });
 
   return response;
 };
