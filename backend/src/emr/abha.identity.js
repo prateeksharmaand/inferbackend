@@ -20,7 +20,9 @@ const logger = require('../utils/logger');
 async function findByAbhaNumber(pool, abhaNumber) {
   if (!abhaNumber) return null;
   const { rows } = await pool.query(
-    `SELECT p.* FROM emr_patients p
+    `SELECT p.id, p.clinic_id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
+            p.created_at, p.updated_at, p.deleted_at, p.uhid
+     FROM emr_patients p
      JOIN abha_mappings m ON m.patient_id = p.id
      WHERE m.abha_number = $1 AND m.status = 'active' AND p.deleted_at IS NULL
      ORDER BY m.linked_at ASC LIMIT 1`,
@@ -30,7 +32,8 @@ async function findByAbhaNumber(pool, abhaNumber) {
 
   // Backward compat — old records stored directly on emr_patients
   const { rows: legacy } = await pool.query(
-    `SELECT * FROM emr_patients WHERE abha_number = $1 AND deleted_at IS NULL LIMIT 1`,
+    `SELECT id, clinic_id, name, mobile, dob, gender, abha_number, abha_address, created_at, updated_at, deleted_at, uhid
+     FROM emr_patients WHERE abha_number = $1 AND deleted_at IS NULL LIMIT 1`,
     [abhaNumber]
   );
   return legacy[0] ?? null;
@@ -43,7 +46,9 @@ async function findByAbhaNumber(pool, abhaNumber) {
 async function findByAbhaAddress(pool, abhaAddress) {
   if (!abhaAddress) return null;
   const { rows } = await pool.query(
-    `SELECT p.* FROM emr_patients p
+    `SELECT p.id, p.clinic_id, p.name, p.mobile, p.dob, p.gender, p.abha_number, p.abha_address,
+            p.created_at, p.updated_at, p.deleted_at, p.uhid
+     FROM emr_patients p
      JOIN abha_mappings m ON m.patient_id = p.id
      WHERE m.abha_address = $1 AND m.status = 'active' AND p.deleted_at IS NULL
      ORDER BY m.linked_at ASC LIMIT 1`,
@@ -53,7 +58,8 @@ async function findByAbhaAddress(pool, abhaAddress) {
 
   // Backward compat
   const { rows: legacy } = await pool.query(
-    `SELECT * FROM emr_patients WHERE abha_address = $1 AND deleted_at IS NULL LIMIT 1`,
+    `SELECT id, clinic_id, name, mobile, dob, gender, abha_number, abha_address, created_at, updated_at, deleted_at, uhid
+     FROM emr_patients WHERE abha_address = $1 AND deleted_at IS NULL LIMIT 1`,
     [abhaAddress]
   );
   return legacy[0] ?? null;
