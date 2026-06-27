@@ -1,16 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, IndianRupee, Activity, Printer, Paperclip, FlaskConical, Bot } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Tag, Clock, Pencil, Bell, MoreVertical, CalendarClock, Activity, Printer, Paperclip, FlaskConical, Bot } from 'lucide-react';
 import TagDialog from './TagDialog';
 import EditPatientModal from './EditPatientModal';
 import BookSlotModal from './BookSlotModal';
-import ViewReceiptsModal from './ViewReceiptsModal';
 import MedicalDocumentsModal from './MedicalDocumentsModal';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import AppointmentSlipModal from './AppointmentSlipModal';
 import MedicalDocModal from './MedicalDocModal';
-import { PatientActions } from './PatientActions';
 import styles from './AppointmentCard.module.css';
 
 const STATUS_COLOR = {
@@ -165,8 +162,6 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const [showReschedule, setShowReschedule] = useState(false);
   const [showMore,       setShowMore]       = useState(false);
   const [reminding,      setReminding]      = useState(false);
-  const [receipts,       setReceipts]       = useState(null);
-  const [showReceipts,   setShowReceipts]   = useState(false);
   const [showDocs,       setShowDocs]       = useState(false);
   const [showLabUpload,  setShowLabUpload]  = useState(false);
   const [showSlip,       setShowSlip]       = useState(false);
@@ -187,18 +182,6 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showMore]);
-
-  useEffect(() => {
-    if (!['completed', 'ongoing', 'parked'].includes(appt.status)) return;
-    api.get(`/receipts?appointment_id=${appt.id}`)
-      .then(rows => setReceipts(rows))
-      .catch(() => setReceipts([]));
-  }, [appt.id, appt.status]);
-
-  const receiptTotal    = receipts?.reduce((s, r) => s + parseFloat(r.grand_total || 0), 0) || 0;
-  const receiptPaymodes = receipts?.length
-    ? [...new Set(receipts.map(r => r.paymode).filter(Boolean))].join(' / ')
-    : '';
 
   const handleAction = (action) => {
     setShowMore(false);
@@ -307,19 +290,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 );
               })()}
             </div>
-            {/* Right col: time / channel / reminder / completed duration */}
+            {/* Right col: time / reminder / completed duration */}
             <div className={styles.infoCol}>
               {appt.appointment_time && (
                 <span className={styles.infoText}>⏰ {appt.appointment_time}</span>
               )}
-              {appt.channel && (['sms','whatsapp','ivr','chat'].includes(appt.channel) ? (
-                <span className={styles.inboundBadge}>
-                  {appt.channel === 'sms' ? '💬' : appt.channel === 'whatsapp' ? '📲' : appt.channel === 'ivr' ? '📞' : '💻'}
-                  {' '}{appt.channel.toUpperCase()}
-                </span>
-              ) : (
-                <span className={styles.infoText}>{appt.channel.replace('_', ' ')}</span>
-              ))}
               {reminder && (
                 <span className={styles.reminderBadge}>
                   <Bell size={10} strokeWidth={2.5} /> {reminder}
@@ -337,25 +312,9 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </div>
           </div>
 
-          {/* ── Badges row: payment pill · new patient · receipt ── */}
+          {/* ── Badges row: new patient · tags ── */}
           <div className={styles.badgeRow}>
-            <span className={`${styles.pill} ${appt.payment_status === 'billed' ? styles.billed : styles.unbilled}`}>
-              {appt.payment_status}
-            </span>
             {appt.is_new_patient && <span className={styles.newBadge}>New</span>}
-            {receipts !== null && (
-              <button
-                className={`${styles.receiptBadge} ${receipts.length === 0 ? styles.receiptBadgeEmpty : ''}`}
-                onClick={e => { e.stopPropagation(); setShowReceipts(true); }}
-              >
-                <IndianRupee size={10} strokeWidth={2.5} />
-                {receiptTotal.toFixed(0)}
-                <span className={styles.receiptPaymode}>· {receiptPaymodes || 'Cash'}</span>
-                {receipts.length > 0 && (
-                  <span className={styles.receiptCount}>{receipts.length}</span>
-                )}
-              </button>
-            )}
             {/* Tags inline */}
             {resolvedTags.map(t => (
               <span key={t.id} className={styles.tagChip}
@@ -369,22 +328,13 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
             </button>
           </div>
 
-          {/* ── Patient Actions (SMS, WhatsApp, Prescription) ── */}
-          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }} onClick={e => e.stopPropagation()}>
-            <PatientActions
-              patientId={appt.id}
-              onAction={(result) => {
-                if (result.success) {
-                  toast.success(`${result.service} sent successfully!`);
-                }
-              }}
-            />
-          </div>
-
           {/* ── Profile share token timer — only for scan-and-share appointments ── */}
-          {appt.status === 'booked' && appt.share_token_code && (
-            <TokenExpiryTimer expiresAt={appt.share_token_expires_at} createdAt={appt.created_at} tokenCode={appt.share_token_code} />
-          )}
+          {appt.status === 'booked' && appt.share_token_code && (() => {
+            const TOKEN_WINDOW_MS = 60 * 60 * 1000;
+            const expiry = appt.share_token_expires_at ? new Date(appt.share_token_expires_at).getTime() : new Date(appt.created_at).getTime() + TOKEN_WINDOW_MS;
+            const isExpired = expiry - Date.now() <= 0;
+            return !isExpired && <TokenExpiryTimer expiresAt={appt.share_token_expires_at} createdAt={appt.created_at} tokenCode={appt.share_token_code} />;
+          })()}
 
           {/* ── Booked actions ── */}
           {appt.status === 'booked' && (
@@ -532,14 +482,6 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
       )}
       {showMedDoc && (
         <MedicalDocModal appt={appt} user={user} onClose={() => setShowMedDoc(false)} />
-      )}
-      {showReceipts && (
-        <ViewReceiptsModal
-          appt={appt}
-          receipts={receipts || []}
-          onClose={() => setShowReceipts(false)}
-          onReceiptsChange={(updated) => setReceipts(updated)}
-        />
       )}
       {showTagDialog && (
         <TagDialog appt={appt} clinicTags={clinicTags}
