@@ -183,15 +183,15 @@ const handleLinkInit = async (req, res) => {
     });
     const pt = foundPt ?? null;
 
-    // Debug: log patient object to diagnose mobile field issue
-    if (pt?.id) {
-      logger.debug('HIP link/init patient found', {
-        patientId: pt.id,
-        name: pt.name,
-        mobile: pt.mobile,
-        hasMobile: !!pt.mobile
-      });
-    }
+    // Debug: log patient lookup result
+    logger.info('HIP link/init patient lookup', {
+      searchId: patientId,
+      patientFound: !!pt?.id,
+      patientId: pt?.id || null,
+      name: pt?.name || null,
+      mobile: pt?.mobile || null,
+      allFields: pt ? Object.keys(pt) : []
+    });
 
     // R2-011: supersede ALL pending sessions for this patient (expired or not)
     // so the unique index never blocks the new INSERT
