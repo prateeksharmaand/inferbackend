@@ -25,10 +25,8 @@ export const CreditsBadge = () => {
       className={styles.badge}
       title="Click to manage credits"
     >
-      <div className={styles.badgeContent}>
-        <span className={styles.amount}>₹{balance.toFixed(2)}</span>
-        <span className={styles.credits}>{Math.floor(balance)} credits</span>
-      </div>
+      <span className={styles.icon}>💰</span>
+      <span>{Math.floor(balance)}</span>
     </button>
   );
 };
