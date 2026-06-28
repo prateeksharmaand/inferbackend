@@ -1,0 +1,35 @@
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  background: #14b8a6;
+  color: white;
+  transition: background 0.2s;
+  border: none;
+  font-family: inherit;
+}
+
+.badge:hover {
+  background: #0d9488;
+}
+
+.badgeContent {
+  text-align: right;
+}
+
+.amount {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  display: block;
+}
+
+.credits {
+  font-size: 11px;
+  opacity: 0.9;
+  line-height: 1.2;
+  display: block;
+}

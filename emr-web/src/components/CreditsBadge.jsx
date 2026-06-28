@@ -7,6 +7,7 @@
 import React from 'react';
 import { useWallet } from '../hooks/useWallet';
 import { useNavigate } from 'react-router-dom';
+import styles from './CreditsBadge.module.css';
 
 export const CreditsBadge = () => {
   const { wallet, loading } = useWallet();
@@ -19,23 +20,15 @@ export const CreditsBadge = () => {
   const balance = parseFloat(wallet?.currentBalance || 0);
 
   return (
-    <div
+    <button
       onClick={handleClick}
-      className="
-        flex items-center gap-2 px-3 py-2 rounded-full cursor-pointer
-        transition-all duration-200 bg-teal-500 hover:bg-teal-600
-        text-white shadow-sm
-      "
+      className={styles.badge}
       title="Click to manage credits"
     >
-      <div className="text-right">
-        <div className="text-sm font-bold leading-tight">
-          ₹{balance.toFixed(2)}
-        </div>
-        <div className="text-xs opacity-90 leading-tight">
-          {Math.floor(balance)} credits
-        </div>
+      <div className={styles.badgeContent}>
+        <span className={styles.amount}>₹{balance.toFixed(2)}</span>
+        <span className={styles.credits}>{Math.floor(balance)} credits</span>
       </div>
-    </div>
+    </button>
   );
 };
