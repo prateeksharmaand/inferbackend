@@ -159,9 +159,6 @@ export default function TopBar() {
         </div>
 
         <div className={styles.right}>
-          {/* Credits Badge */}
-          <CreditsBadge />
-
           <div className={styles.addWrap} ref={addRef}>
             <button className={styles.addBtn} onClick={() => handleOption('checkin')}>
               Add new Patient <Plus size={16} strokeWidth={2.5} />
@@ -256,6 +253,9 @@ export default function TopBar() {
               </ul>
             )}
           </div>
+
+          {/* Credits Badge */}
+          <CreditsBadge />
 
           <div className={styles.userChip}>
             <span className={styles.userAvatar}>{user?.name?.[0] ?? 'D'}</span>
