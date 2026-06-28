@@ -17,31 +17,25 @@ export const CreditsBadge = () => {
   };
 
   const balance = parseFloat(wallet?.currentBalance || 0);
-  const isLowBalance = balance < 50;
 
   return (
     <div
       onClick={handleClick}
-      className={`
-        flex items-center gap-3 px-4 py-2 rounded-lg cursor-pointer
-        transition-colors duration-200
-        ${
-          isLowBalance
-            ? 'bg-red-50 hover:bg-red-100 border border-red-200'
-            : 'bg-gray-50 hover:bg-blue-50 border border-gray-200'
-        }
-      `}
+      className="
+        flex items-center gap-2 px-3 py-2 rounded-full cursor-pointer
+        transition-all duration-200 bg-teal-500 hover:bg-teal-600
+        text-white shadow-sm
+      "
       title="Click to manage credits"
     >
       <div className="text-right">
-        <div className={`text-sm font-bold ${isLowBalance ? 'text-red-700' : 'text-gray-900'}`}>
+        <div className="text-sm font-bold leading-tight">
           ₹{balance.toFixed(2)}
         </div>
-        <div className={`text-xs ${isLowBalance ? 'text-red-600' : 'text-gray-500'}`}>
+        <div className="text-xs opacity-90 leading-tight">
           {Math.floor(balance)} credits
         </div>
       </div>
-      <div className="text-2xl">💳</div>
     </div>
   );
 };
