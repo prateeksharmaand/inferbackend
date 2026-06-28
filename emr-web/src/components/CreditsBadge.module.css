@@ -10,7 +10,7 @@
   padding: 1px 4px;
   border-radius: 4px;
   cursor: pointer;
-  background: #14b8a6;
+  background: var(--color-success, #10b981);
   color: white;
   transition: background 0.2s;
   border: none;
@@ -21,7 +21,8 @@
 }
 
 .badge:hover {
-  background: #0d9488;
+  background: color-mix(in srgb, var(--color-success, #10b981) 80%, black);
+  opacity: 0.9;
 }
 
 .icon {
@@ -42,7 +43,7 @@
 }
 
 .tooltipContent {
-  background: #1f2937;
+  background: var(--color-sidebar, #1f2937);
   color: white;
   padding: 4px 8px;
   border-radius: 4px;
@@ -57,7 +58,7 @@
   left: 50%;
   transform: translateX(-50%);
   border: 4px solid transparent;
-  border-top-color: #1f2937;
+  border-top-color: var(--color-sidebar, #1f2937);
 }
 
 @keyframes tooltipFadeIn {
