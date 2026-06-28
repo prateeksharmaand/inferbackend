@@ -12,6 +12,7 @@ import styles from './CreditsBadge.module.css';
 export const CreditsBadge = () => {
   const { wallet, loading } = useWallet();
   const navigate = useNavigate();
+  const [showTooltip, setShowTooltip] = React.useState(false);
 
   const handleClick = () => {
     navigate('/wallet');
@@ -20,13 +21,20 @@ export const CreditsBadge = () => {
   const balance = parseFloat(wallet?.currentBalance || 0);
 
   return (
-    <button
-      onClick={handleClick}
-      className={styles.badge}
-      title="Click to manage credits"
-    >
-      <span className={styles.icon}>💰</span>
-      <span>{Math.floor(balance)}</span>
-    </button>
+    <div className={styles.badgeWrapper} onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)}>
+      <button
+        onClick={handleClick}
+        className={styles.badge}
+      >
+        <span className={styles.icon}>💰</span>
+        <span>{Math.floor(balance)}</span>
+      </button>
+      {showTooltip && (
+        <div className={styles.tooltip}>
+          <div className={styles.tooltipContent}>View Credits</div>
+          <div className={styles.tooltipArrow} />
+        </div>
+      )}
+    </div>
   );
 };
