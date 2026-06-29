@@ -8,6 +8,7 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import AppointmentSlipModal from './AppointmentSlipModal';
 import MedicalDocModal from './MedicalDocModal';
+import { FeatureGuard } from './subscription/FeatureGuard';
 import styles from './AppointmentCard.module.css';
 
 const STATUS_COLOR = {
@@ -352,13 +353,15 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 title="Upload Lab Report">
                 <FlaskConical size={12} strokeWidth={2} /> Lab
               </button>
-              {isAIUser && onInferAssist && (
-                <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
-                  onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
-                  title="Ask InferAssist about this patient">
-                  <Bot size={12} strokeWidth={2} /> Ask AI
-                </button>
-              )}
+              <FeatureGuard featureKey="ai_docassist">
+                {isAIUser && onInferAssist && (
+                  <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
+                    onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
+                    title="Ask InferAssist about this patient">
+                    <Bot size={12} strokeWidth={2} /> Ask AI
+                  </button>
+                )}
+              </FeatureGuard>
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
                   onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">
@@ -398,13 +401,15 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
-              {isAIUser && onInferAssist && (
-                <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
-                  onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
-                  title="Ask InferAssist about this patient">
-                  <Bot size={12} strokeWidth={2} /> Ask AI
-                </button>
-              )}
+              <FeatureGuard featureKey="ai_docassist">
+                {isAIUser && onInferAssist && (
+                  <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
+                    onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
+                    title="Ask InferAssist about this patient">
+                    <Bot size={12} strokeWidth={2} /> Ask AI
+                  </button>
+                )}
+              </FeatureGuard>
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
                   onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">
@@ -447,13 +452,15 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
                 onClick={e => { e.stopPropagation(); setShowDocs(true); }}>
                 <Paperclip size={12} strokeWidth={2} /> Docs
               </button>
-              {isAIUser && onInferAssist && (
-                <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
-                  onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
-                  title="Ask InferAssist about this patient">
-                  <Bot size={12} strokeWidth={2} /> Ask AI
-                </button>
-              )}
+              <FeatureGuard featureKey="ai_docassist">
+                {isAIUser && onInferAssist && (
+                  <button className={`${styles.actionBtn} ${styles.actionBtnAI}`}
+                    onClick={e => { e.stopPropagation(); onInferAssist(appt); }}
+                    title="Ask InferAssist about this patient">
+                    <Bot size={12} strokeWidth={2} /> Ask AI
+                  </button>
+                )}
+              </FeatureGuard>
               <div className={styles.moreWrap} ref={moreRef}>
                 <button className={styles.moreBtn}
                   onClick={e => { e.stopPropagation(); setShowMore(v => !v); }} title="More options">

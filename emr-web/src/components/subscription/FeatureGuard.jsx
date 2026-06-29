@@ -1,4 +1,4 @@
-import { useSubscription } from '../context/SubscriptionContext';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 export function FeatureGuard({ featureKey, children, fallback = null }) {
   const { hasFeature, isActive } = useSubscription();
