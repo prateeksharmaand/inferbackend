@@ -15,8 +15,20 @@ export function SubscriptionProvider({ children }) {
     }
     try {
       setError(null);
-      // Fetch EffectiveLicense (resolved by enforceSubscription middleware)
-      const data = await api.get('/subscription/license');
+      const token = localStorage.getItem('emr_token');
+      const res = await fetch('/api/subscription/license', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
       setLicense(data);
     } catch (err) {
       console.warn('[SubscriptionContext] Failed to fetch license:', err.message);
