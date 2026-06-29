@@ -589,10 +589,10 @@ async function initializeDatabase() {
       VALUES
         ('base','Base Plan','Smart workflow management starts here.',
          0,0,0,0,1,100,150,150,250,
-         '{"queue":true,"billing":true,"appointments":true,"prescriptions":true,"ai_docassist":false,"scribe":false,"vitals_graph":false,"lab_upload":false}'),
+         '{"queue":true,"billing":true,"appointments":true,"prescriptions":true,"ai_docassist":false,"scribe":false,"vitals_graph":false,"lab_upload":false,"ai_meal_plan":false}'),
         ('pro','Infer Pro','Streamline your workflow — unlimited everything.',
          40000,400000,720000,1008000,-1,-1,-1,-1,-1,
-         '{"queue":true,"billing":true,"appointments":true,"prescriptions":true,"ai_docassist":true,"scribe":true,"vitals_graph":true,"lab_upload":true,"qr_prescription":true,"analytics":true}')
+         '{"queue":true,"billing":true,"appointments":true,"prescriptions":true,"ai_docassist":true,"scribe":true,"vitals_graph":true,"lab_upload":true,"qr_prescription":true,"analytics":true,"ai_meal_plan":true}')
       ON CONFLICT (key) DO NOTHING
     `);
     await client.query(`

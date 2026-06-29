@@ -105,6 +105,16 @@ const FEATURES = {
     apiEndpoint: '/api/ai/coding',
     category: 'ai',
   },
+  AI_MEAL_PLAN: {
+    key: 'ai_meal_plan',
+    name: 'AI Meal Plan',
+    requiredPlan: 'pro',
+    requiredSeatTypes: ['premium', 'basic'],
+    aiCreditsRequired: 1,
+    usageLimit: null,
+    apiEndpoint: '/api/diet/ai-meal-plan',
+    category: 'ai',
+  },
 
   // Lab Features
   LAB_UPLOAD: {

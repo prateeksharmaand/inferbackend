@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { INDIAN_FOODS, searchFoods } from '../data/indianFoods';
+import { FeatureGuard } from './subscription/FeatureGuard';
 import s from './DietChartTab.module.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1348,9 +1349,11 @@ export default function DietChartTab({ patientMobile, doctorId, patientContext }
           <button className={s.btnOutline} onClick={() => setShowTemplate(true)}>
             <LayoutTemplate size={13} /> Apply Template
           </button>
-          <button className={s.btnAI} onClick={() => setShowAI(true)}>
-            ✨ AI Meal Plan
-          </button>
+          <FeatureGuard featureKey="ai_meal_plan">
+            <button className={s.btnAI} onClick={() => setShowAI(true)}>
+              ✨ AI Meal Plan
+            </button>
+          </FeatureGuard>
         </div>
       </div>
 
