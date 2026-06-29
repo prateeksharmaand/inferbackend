@@ -86,7 +86,6 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   const [settingTpl,      setSettingTpl]      = useState(null); // id being saved
 
   useEffect(() => {
-    if (user?.role !== 'doctor') { setTplLoading(false); return; }
     Promise.all([
       api.get('/scribe/active-template').catch(() => ({ template: null })),
       api.get('/scribe/templates').catch(() => ({ predefined: [], custom: [] })),
@@ -242,11 +241,7 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
                 Select a specialty template. It will auto-configure InferPad sections and show relevant quick-add suggestions.
               </div>
 
-              {user?.role !== 'doctor' ? (
-                <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8, fontSize: 12, color: '#64748b' }}>
-                  Template selection is available for doctors only.
-                </div>
-              ) : tplLoading ? (
+              {tplLoading ? (
                 <div style={{ padding: 16, fontSize: 13, color: '#9ca3af' }}>Loading templates…</div>
               ) : (
                 <>
