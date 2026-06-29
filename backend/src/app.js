@@ -76,6 +76,9 @@ app.use('/api/v1', v1Routes);
 // Super Admin Portal API
 app.use('/api/admin', require('./emr/admin.routes'));
 
+// Subscription billing webhooks (public — no auth, idempotent via event ID)
+app.use('/webhook/billing', require('./routes/webhook.routes'));
+
 // Sales agent — Meta WhatsApp webhook + internal inbox API (public — no auth)
 app.use('/webhook/meta/whatsapp', require('./sales/sales.wa.routes'));
 app.use('/api/sales/wa',          require('./sales/sales.wa.routes'));
