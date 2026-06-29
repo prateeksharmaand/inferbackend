@@ -973,6 +973,75 @@ async function initializeDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_audit_wallet_id ON wallet_audit_log(wallet_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_audit_created_at ON wallet_audit_log(created_at)`);
 
+    // ── Subscription Enforcement Tables (Phase 8) ──────────────────────────────
+    // Clinic active sessions - tracks concurrent logins and enforces seat limits
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS clinic_active_sessions (
+        id              SERIAL PRIMARY KEY,
+        clinic_id       INTEGER      NOT NULL REFERENCES emr_clinics(id) ON DELETE CASCADE,
+        staff_id        INTEGER      NOT NULL REFERENCES emr_clinic_staff(id) ON DELETE CASCADE,
+        seat_type       VARCHAR(20)  NOT NULL,
+        ip_address      INET,
+        user_agent      TEXT,
+        logged_in_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        last_activity   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        logged_out_at   TIMESTAMPTZ,
+        created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_active_sessions_clinic ON clinic_active_sessions(clinic_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_active_sessions_staff ON clinic_active_sessions(staff_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_active_sessions_seat_type ON clinic_active_sessions(clinic_id, seat_type)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_active_sessions_active ON clinic_active_sessions(clinic_id) WHERE logged_out_at IS NULL`);
+
+    // Subscription audit log - complete audit trail of all subscription changes
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subscription_audit_log (
+        id              SERIAL PRIMARY KEY,
+        clinic_id       INTEGER      NOT NULL REFERENCES emr_clinics(id) ON DELETE CASCADE,
+        action          VARCHAR(100) NOT NULL,
+        admin_id        INTEGER      REFERENCES superadmins(id),
+        old_values      JSONB,
+        new_values      JSONB,
+        ip_address      INET,
+        user_agent      TEXT,
+        reason          TEXT,
+        created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_subscription_audit_clinic ON subscription_audit_log(clinic_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_subscription_audit_action ON subscription_audit_log(action)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_subscription_audit_created ON subscription_audit_log(created_at DESC)`);
+
+    // Subscription webhook log - tracks all webhook processing with idempotency
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subscription_webhook_log (
+        id                      SERIAL PRIMARY KEY,
+        clinic_id               INTEGER      REFERENCES emr_clinics(id) ON DELETE SET NULL,
+        webhook_source          VARCHAR(50)  NOT NULL DEFAULT 'razorpay',
+        razorpay_event_id       VARCHAR(100) UNIQUE,
+        razorpay_order_id       VARCHAR(100),
+        razorpay_payment_id     VARCHAR(100),
+        razorpay_signature      VARCHAR(255),
+        payload                 JSONB        NOT NULL,
+        status                  VARCHAR(20)  NOT NULL DEFAULT 'pending',
+        error_message           TEXT,
+        processed_at            TIMESTAMPTZ,
+        created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_webhook_order_id ON subscription_webhook_log(razorpay_order_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_webhook_payment_id ON subscription_webhook_log(razorpay_payment_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_webhook_event_id ON subscription_webhook_log(razorpay_event_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_webhook_clinic ON subscription_webhook_log(clinic_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_webhook_status ON subscription_webhook_log(status)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_webhook_idempotency ON subscription_webhook_log(razorpay_event_id) WHERE razorpay_event_id IS NOT NULL`);
+
+    // Add seat_type column to staff table if not exists
+    await client.query(`ALTER TABLE emr_clinic_staff ADD COLUMN IF NOT EXISTS seat_type VARCHAR(20) DEFAULT 'basic'`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_staff_seat_type ON emr_clinic_staff(clinic_id, seat_type)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_staff_active_seat ON emr_clinic_staff(clinic_id, seat_type) WHERE is_active = true`);
+
     await client.query('COMMIT');
     logger.info('Database schema initialized successfully');
   } catch (err) {
