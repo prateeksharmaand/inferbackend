@@ -69,6 +69,9 @@ app.use('/api/healthbot', require('./routes/healthbot'));
 app.use('/api/timeline', require('./routes/timeline'));
 app.use('/api/notifications', require('./routes/notifications'));
 
+// Subscription API (license, billing, payment history)
+app.use('/api/subscription', require('./routes/subscription.routes'));
+
 // Lab management v1 API (orders, samples, reports, analytics, catalog, uploads)
 const v1Routes = require('./routes/v1.routes');
 app.use('/api/v1', v1Routes);

@@ -1,0 +1,75 @@
+SUBSCRIPTION API ENDPOINTS
+
+Base URL: /api/subscription
+Authentication: Required (JWT)
+
+ENDPOINTS:
+1. GET /license
+   Returns: EffectiveLicense object (complete subscription state)
+   Used by: Frontend to check features, seat usage, credits
+   Cached: 5 minutes
+
+2. GET /payment-history
+   Returns: List of payments for clinic
+   Params: None
+   Used by: Billing page to show payment history
+
+3. GET /proration
+   Returns: Prorated cost for plan upgrade
+   Params: fromPlan, toPlan, billingCycle (optional)
+   Used by: Calculate upgrade cost before purchase
+
+4. POST /create-order
+   Returns: Payment order details
+   Body: { planKey, billingCycle (optional) }
+   Used by: Create order for Razorpay payment
+
+EffectiveLicense Object Contains:
+- Plan and status
+- Seat information (purchased, used, available)
+- AI credits remaining
+- Feature availability
+- Usage stats (patients, appointments, etc.)
+- Subscription dates
+- All limits
+
+Response Format:
+{
+  "clinicId": number,
+  "staffId": number,
+  "plan": "base" | "pro",
+  "status": "active" | "trial" | "expired" | "cancelled",
+  "subscriptionValid": boolean,
+  "seats": {
+    "premium": { purchased, used, available },
+    "basic": { purchased, used, available }
+  },
+  "aiCreditsRemaining": number,
+  "planFeatures": { [featureName]: boolean },
+  "usage": {
+    [resourceType]: { used, limit, pct }
+  },
+  "isActive": boolean,
+  "isExpired": boolean,
+  "expiresAt": ISO date string,
+  "daysUntilExpiry": number
+}
+
+Error Responses:
+400 Bad Request - Invalid parameters
+401 Unauthorized - Missing/invalid auth
+500 Server Error - Failed to resolve
+
+Usage Patterns:
+1. Check feature: license.planFeatures.featureName === true
+2. Check seat type: license.primarySeatType (scribe/basic/premium)
+3. Check credits: license.aiCreditsRemaining > 0
+4. Check limits: license.usage.patients.used < license.usage.patients.limit
+5. Check expiry: license.daysUntilExpiry > 0
+
+Integration:
+- Frontend calls GET /license on app load
+- Refresh every 5 minutes
+- Use React context to share license state
+- Hide unavailable features based on planFeatures
+- Show usage stats from usage object
