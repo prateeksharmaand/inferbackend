@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queue Setup - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .setup-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .setup-card {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--border-radius);
+        }
+        .doctor-card {
+            background: var(--neutral-50);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .doctor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .doctor-name {
+            font-weight: 600;
+        }
+        .remove-btn {
+            background: var(--error);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .doctor-details {
+            font-size: 0.9rem;
+            color: var(--neutral-600);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .add-doctor-btn {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            padding: 0.75rem;
+            border: 1px solid var(--primary);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Queue Setup</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="setup-container">
+                    <div>
+                        <div class="setup-card">
+                            <h3>Queue Settings</h3>
+
+                            <div class="form-group">
+                                <label>Queue Date</label>
+                                <input type="date" value="2026-06-27">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Queue Status</label>
+                                <select>
+                                    <option selected>Active</option>
+                                    <option>Paused</option>
+                                    <option>Closed</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Max Patients Per Slot</label>
+                                <input type="number" value="5">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Consultation Duration (minutes)</label>
+                                <input type="number" value="20">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Queue Type</label>
+                                <select>
+                                    <option selected>General Queue</option>
+                                    <option>Token Based</option>
+                                    <option>Appointment Based</option>
+                                </select>
+                            </div>
+
+                            <div style="display: flex; gap: 1rem;">
+                                <button class="btn btn-primary" style="flex: 1;">Save Settings</button>
+                                <button class="btn btn-secondary" style="flex: 1;">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="setup-card">
+                            <h3>Assign Doctors</h3>
+
+                            <button class="add-doctor-btn">+ Add Doctor</button>
+
+                            <div class="doctor-card">
+                                <div class="doctor-header">
+                                    <div class="doctor-name">Dr. Rajesh Sharma</div>
+                                    <button class="remove-btn">Remove</button>
+                                </div>
+                                <div class="doctor-details">
+                                    <div>
+                                        <strong>Specialty:</strong> General Medicine
+                                    </div>
+                                    <div>
+                                        <strong>Slot:</strong> 09:00 AM - 01:00 PM
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="doctor-card">
+                                <div class="doctor-header">
+                                    <div class="doctor-name">Dr. Anjali Verma</div>
+                                    <button class="remove-btn">Remove</button>
+                                </div>
+                                <div class="doctor-details">
+                                    <div>
+                                        <strong>Specialty:</strong> Pediatrics
+                                    </div>
+                                    <div>
+                                        <strong>Slot:</strong> 02:00 PM - 06:00 PM
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="padding-top: 1rem; border-top: 1px solid var(--neutral-200);">
+                                <button class="btn btn-primary" style="width: 100%;">Apply Queue</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

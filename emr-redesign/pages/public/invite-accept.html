@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accept Invitation - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .invite-container {
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+        }
+        .invite-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 2.5rem;
+            box-shadow: var(--shadow-lg);
+        }
+        .invite-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .invite-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .invite-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        .invite-subtitle {
+            color: var(--neutral-600);
+            font-size: 0.95rem;
+        }
+        .clinic-info {
+            background: var(--primary-light);
+            border: 1px solid var(--primary);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .clinic-name {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+        .clinic-role {
+            color: var(--neutral-600);
+            font-size: 0.95rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+        }
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .btn-accept {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        .btn-accept:hover {
+            background-color: var(--primary-dark);
+        }
+        .btn-decline {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--neutral-200);
+            color: var(--neutral-900);
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-decline:hover {
+            background-color: var(--neutral-300);
+        }
+    </style>
+</head>
+<body>
+    <div class="invite-container">
+        <div class="invite-card">
+            <div class="invite-header">
+                <div class="invite-icon">👋</div>
+                <div class="invite-title">You're Invited!</div>
+                <div class="invite-subtitle">Join our clinic staff on InferEMR</div>
+            </div>
+
+            <div class="clinic-info">
+                <div class="clinic-name">Prime Health Clinic</div>
+                <div class="clinic-role">Staff Member Invitation</div>
+            </div>
+
+            <p style="color: var(--neutral-700); margin-bottom: 1.5rem; text-align: center;">
+                You've been invited to join Prime Health Clinic as a staff member. Accept this invitation to create your account and start using InferEMR.
+            </p>
+
+            <form>
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" placeholder="Your full name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="your@email.com" required readonly value="staff@primehealth.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Create Password</label>
+                    <input type="password" id="password" name="password" placeholder="At least 8 characters" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm">Confirm Password</label>
+                    <input type="password" id="confirm" name="confirm" placeholder="Confirm your password" required>
+                </div>
+
+                <button type="submit" class="btn-accept">Accept & Create Account</button>
+                <button type="button" class="btn-decline">Decline Invitation</button>
+            </form>
+
+            <p style="font-size: 0.85rem; color: var(--neutral-600); text-align: center; margin-top: 1.5rem;">
+                By accepting this invitation, you agree to the Terms of Service and Privacy Policy.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

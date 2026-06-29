@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic Details - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="admin-dashboard.html" class="nav-link"><span>📊</span> Dashboard</a></li>
+                <li class="nav-item"><a href="admin-clinics.html" class="nav-link active"><span>🏥</span> Clinics</a></li>
+                <li class="nav-item"><a href="admin-subscriptions.html" class="nav-link"><span>💳</span> Subscriptions</a></li>
+                <li class="nav-item"><a href="admin-crm.html" class="nav-link"><span>👥</span> CRM</a></li>
+                <li class="nav-item"><a href="admin-audit.html" class="nav-link"><span>🔒</span> Audit Log</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Clinic Details - Prime Health Clinic</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                    <div>
+                        <div class="card">
+                            <h3>Clinic Information</h3>
+                            <div style="display: grid; gap: 1rem;">
+                                <div style="display: flex; justify-content: space-between;">
+                                    <strong>Clinic Name:</strong> Prime Health Clinic
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <strong>Address:</strong> 123 Medical Street, Mumbai
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <strong>Contact:</strong> +91-9876543210
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <strong>Email:</strong> clinic@primehealth.com
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <strong>License:</strong> MED-12345-67890
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <strong>Joined:</strong> June 20, 2026
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin-top: 2rem;">
+                            <h3>Staff & Users</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Dr. Rajesh Sharma</td>
+                                        <td>Clinic Admin</td>
+                                        <td><span class="badge badge-success">Active</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Dr. Anjali Verma</td>
+                                        <td>Doctor</td>
+                                        <td><span class="badge badge-success">Active</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="card">
+                            <h3>Statistics</h3>
+                            <div style="display: grid; gap: 1rem; text-align: center;">
+                                <div>
+                                    <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">12</div>
+                                    <div style="color: var(--neutral-600); font-size: 0.9rem;">Total Users</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 2rem; font-weight: 700; color: var(--secondary);">247</div>
+                                    <div style="color: var(--neutral-600); font-size: 0.9rem;">Total Patients</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 2rem; font-weight: 700; color: var(--warning);">₹18.5L</div>
+                                    <div style="color: var(--neutral-600); font-size: 0.9rem;">Monthly Revenue</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin-top: 2rem;">
+                            <h3>Actions</h3>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <button class="btn btn-primary" style="width: 100%;">Edit Details</button>
+                                <button class="btn btn-secondary" style="width: 100%;">Manage Subscription</button>
+                                <button class="btn btn-danger" style="width: 100%;">Suspend Account</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

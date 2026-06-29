@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-box {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0.5rem 0;
+        }
+        .stat-label {
+            color: var(--neutral-600);
+            font-size: 0.9rem;
+        }
+        .stat-change {
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            color: var(--secondary);
+        }
+        .stat-change.negative {
+            color: var(--error);
+        }
+        .chart-container {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .chart-placeholder {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--neutral-100) 100%);
+            height: 300px;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--neutral-600);
+            font-size: 1rem;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .table-container {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead {
+            background-color: var(--neutral-100);
+        }
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--neutral-800);
+            border-bottom: 2px solid var(--neutral-200);
+        }
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+        }
+        tr:hover {
+            background-color: var(--neutral-50);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="#" class="nav-link active"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Analytics & Reports</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2 style="margin: 0;">June 2026 Report</h2>
+                    <div style="display: flex; gap: 1rem;">
+                        <select style="padding: 0.75rem; border: 1px solid var(--neutral-300); border-radius: var(--border-radius);">
+                            <option>Last 30 Days</option>
+                            <option>This Month</option>
+                            <option>Custom Range</option>
+                        </select>
+                        <button class="btn btn-primary">Download Report</button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Total Patients</div>
+                        <div class="stat-value">247</div>
+                        <div class="stat-change">↑ 12% from last month</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Appointments</div>
+                        <div class="stat-value">1,240</div>
+                        <div class="stat-change">↑ 8% from last month</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Revenue</div>
+                        <div class="stat-value">₹2.4L</div>
+                        <div class="stat-change">↑ 15% from last month</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Avg. Rating</div>
+                        <div class="stat-value">4.8</div>
+                        <div class="stat-change">⭐ Excellent</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>Patient Demographics</h3>
+                        <div class="chart-placeholder">📊 Age Distribution Chart</div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Appointment Trends</h3>
+                        <div class="chart-placeholder">📈 Monthly Growth Chart</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Daily Appointments</h3>
+                    <div class="chart-placeholder" style="height: 200px;">📉 Daily Trend Chart</div>
+                </div>
+
+                <div class="table-container">
+                    <h3>Top Diagnoses</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Diagnosis</th>
+                                <th>Count</th>
+                                <th>Percentage</th>
+                                <th>Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Respiratory Infection</td>
+                                <td>45</td>
+                                <td>18.2%</td>
+                                <td><span class="badge badge-warning">↑ 12%</span></td>
+                            </tr>
+                            <tr>
+                                <td>Hypertension</td>
+                                <td>38</td>
+                                <td>15.4%</td>
+                                <td><span class="badge badge-success">↓ 3%</span></td>
+                            </tr>
+                            <tr>
+                                <td>Diabetes Checkup</td>
+                                <td>35</td>
+                                <td>14.2%</td>
+                                <td><span class="badge badge-success">→ 0%</span></td>
+                            </tr>
+                            <tr>
+                                <td>Fever</td>
+                                <td>32</td>
+                                <td>12.9%</td>
+                                <td><span class="badge badge-warning">↑ 8%</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

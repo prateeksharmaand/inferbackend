@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMR System - Design Overview</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .overview-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+        .overview-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        .overview-header h1 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        .pages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        .page-card {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+        .page-card:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+            transform: translateY(-4px);
+        }
+        .page-category {
+            display: inline-block;
+            background-color: var(--primary-light);
+            color: var(--primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+        .page-card h3 {
+            margin: 0.5rem 0;
+            font-size: 1.1rem;
+        }
+        .page-card p {
+            color: var(--neutral-600);
+            margin: 0.5rem 0;
+            flex-grow: 1;
+            font-size: 0.9rem;
+        }
+        .page-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary);
+            font-weight: 500;
+            margin-top: 1rem;
+            text-decoration: none;
+        }
+        .page-link:hover {
+            text-decoration: underline;
+        }
+        .section {
+            margin-bottom: 3rem;
+        }
+        .section-title {
+            color: var(--neutral-800);
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="overview-container">
+        <div class="overview-header">
+            <h1>EMR System Redesign</h1>
+            <p>Modern, intuitive healthcare management interface</p>
+        </div>
+
+        <!-- Authentication Pages -->
+        <div class="section">
+            <h2 class="section-title">Authentication</h2>
+            <div class="pages-grid">
+                <a href="pages/public/login.html" class="page-card">
+                    <span class="page-category">Auth</span>
+                    <h3>Login</h3>
+                    <p>Clinic staff login with email and password authentication</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/public/reset-password.html" class="page-card">
+                    <span class="page-category">Auth</span>
+                    <h3>Reset Password</h3>
+                    <p>Password recovery and reset flow</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/public/invite-accept.html" class="page-card">
+                    <span class="page-category">Auth</span>
+                    <h3>Invite Accept</h3>
+                    <p>Staff invitation acceptance and onboarding</p>
+                    <span class="page-link">View →</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Clinic Pages -->
+        <div class="section">
+            <h2 class="section-title">Clinic Operations</h2>
+            <div class="pages-grid">
+                <a href="pages/clinic/queue.html" class="page-card">
+                    <span class="page-category">Clinic</span>
+                    <h3>Queue Management</h3>
+                    <p>Real-time patient queue and appointment management</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/queue-setup.html" class="page-card">
+                    <span class="page-category">Clinic</span>
+                    <h3>Queue Setup</h3>
+                    <p>Configure queue settings and doctor availability</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/patients.html" class="page-card">
+                    <span class="page-category">Clinic</span>
+                    <h3>Patients</h3>
+                    <p>Patient database and management</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/assessment.html" class="page-card">
+                    <span class="page-category">Clinic</span>
+                    <h3>Assessment</h3>
+                    <p>Patient assessment and vitals entry</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/write-rx.html" class="page-card">
+                    <span class="page-category">Clinic</span>
+                    <h3>Write Prescription</h3>
+                    <p>Create and manage patient prescriptions</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/voice-ai.html" class="page-card">
+                    <span class="page-category">Clinic</span>
+                    <h3>Voice AI</h3>
+                    <p>AI-powered voice notes and transcription</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/abha-qr-scan.html" class="page-card">
+                    <span class="page-category">Clinic</span>
+                    <h3>ABHA QR Scan</h3>
+                    <p>Scan and manage ABHA health identities</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/add-patient-abha.html" class="page-card">
+                    <span class="page-category">Clinic</span>
+                    <h3>Add Patient ABHA</h3>
+                    <p>Register patient with ABDM health ID</p>
+                    <span class="page-link">View →</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Financial & Management -->
+        <div class="section">
+            <h2 class="section-title">Financial & Management</h2>
+            <div class="pages-grid">
+                <a href="pages/clinic/payments.html" class="page-card">
+                    <span class="page-category">Financial</span>
+                    <h3>Payments</h3>
+                    <p>Track and manage patient payments</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/wallet.html" class="page-card">
+                    <span class="page-category">Financial</span>
+                    <h3>Wallet</h3>
+                    <p>Clinic wallet and account balance</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/inbound.html" class="page-card">
+                    <span class="page-category">Communication</span>
+                    <h3>Inbound</h3>
+                    <p>Manage incoming messages and requests</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/analytics.html" class="page-card">
+                    <span class="page-category">Analytics</span>
+                    <h3>Analytics</h3>
+                    <p>View clinic statistics and insights</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/settings.html" class="page-card">
+                    <span class="page-category">Admin</span>
+                    <h3>Settings</h3>
+                    <p>Clinic configuration and preferences</p>
+                    <span class="page-link">View →</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Lab Portal -->
+        <div class="section">
+            <h2 class="section-title">Laboratory</h2>
+            <div class="pages-grid">
+                <a href="pages/lab/lab-login.html" class="page-card">
+                    <span class="page-category">Lab</span>
+                    <h3>Lab Login</h3>
+                    <p>Laboratory staff authentication</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/lab/lab-portal.html" class="page-card">
+                    <span class="page-category">Lab</span>
+                    <h3>Lab Portal</h3>
+                    <p>Laboratory management and sample processing</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/clinic/lab-results.html" class="page-card">
+                    <span class="page-category">Lab</span>
+                    <h3>Lab Results</h3>
+                    <p>View and manage patient lab results</p>
+                    <span class="page-link">View →</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Admin Portal -->
+        <div class="section">
+            <h2 class="section-title">Super Admin Portal</h2>
+            <div class="pages-grid">
+                <a href="pages/admin/admin-login.html" class="page-card">
+                    <span class="page-category">Admin</span>
+                    <h3>Admin Login</h3>
+                    <p>Super admin authentication</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/admin/admin-dashboard.html" class="page-card">
+                    <span class="page-category">Admin</span>
+                    <h3>Admin Dashboard</h3>
+                    <p>System-wide statistics and monitoring</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/admin/admin-clinics.html" class="page-card">
+                    <span class="page-category">Admin</span>
+                    <h3>Admin Clinics</h3>
+                    <p>Manage all registered clinics</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/admin/admin-clinic-detail.html" class="page-card">
+                    <span class="page-category">Admin</span>
+                    <h3>Clinic Detail</h3>
+                    <p>View and manage specific clinic</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/admin/admin-subscriptions.html" class="page-card">
+                    <span class="page-category">Admin</span>
+                    <h3>Subscriptions</h3>
+                    <p>Manage clinic subscription plans</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/admin/admin-crm.html" class="page-card">
+                    <span class="page-category">Admin</span>
+                    <h3>CRM</h3>
+                    <p>Customer relationship management</p>
+                    <span class="page-link">View →</span>
+                </a>
+                <a href="pages/admin/admin-audit.html" class="page-card">
+                    <span class="page-category">Admin</span>
+                    <h3>Audit Log</h3>
+                    <p>System activity and security logs</p>
+                    <span class="page-link">View →</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Public Pages -->
+        <div class="section">
+            <h2 class="section-title">Public Pages</h2>
+            <div class="pages-grid">
+                <a href="pages/public/rx-public-view.html" class="page-card">
+                    <span class="page-category">Public</span>
+                    <h3>Public Rx View</h3>
+                    <p>Public prescription sharing and viewing</p>
+                    <span class="page-link">View →</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

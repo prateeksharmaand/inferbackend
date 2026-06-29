@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice AI - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .voice-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .voice-card {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 2rem;
+        }
+        .recorder {
+            text-align: center;
+            padding: 2rem;
+        }
+        .record-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            font-size: 3rem;
+            cursor: pointer;
+            margin: 1rem auto;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
+        }
+        .record-button:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-lg);
+        }
+        .record-button.recording {
+            background: var(--error);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(211, 59, 39, 0.7); }
+            50% { box-shadow: 0 0 0 20px rgba(211, 59, 39, 0); }
+        }
+        .recording-status {
+            font-weight: 600;
+            margin: 1rem 0;
+            color: var(--primary);
+        }
+        .recording-status.active {
+            color: var(--error);
+        }
+        .timer {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'Courier New', monospace;
+        }
+        .transcription-box {
+            background: var(--neutral-50);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            min-height: 300px;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .transcript-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--neutral-800);
+        }
+        .transcript-content {
+            color: var(--neutral-700);
+        }
+        .ai-summary {
+            background: var(--primary-light);
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+        }
+        .ai-summary-title {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        .recording-history {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .history-info {
+            flex: 1;
+        }
+        .history-date {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .history-duration {
+            font-size: 0.85rem;
+            color: var(--neutral-600);
+        }
+        .history-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+            border: 1px solid var(--neutral-300);
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="#" class="nav-link active"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Voice AI - Medical Notes</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="voice-container">
+                    <div>
+                        <div class="voice-card">
+                            <h3 style="text-align: center; margin-bottom: 1.5rem;">Voice Recording</h3>
+                            <div class="recorder">
+                                <p style="color: var(--neutral-600); margin-bottom: 2rem;">
+                                    Click the button below to start recording your voice notes
+                                </p>
+                                <button class="record-button" id="recordBtn" title="Click to record">🎙️</button>
+                                <div class="recording-status" id="status">Ready to record</div>
+                                <div class="timer" id="timer" style="display: none;">00:00</div>
+                            </div>
+
+                            <div style="padding: 0 1rem;">
+                                <div class="form-group">
+                                    <label>Select Patient</label>
+                                    <select style="width: 100%; padding: 0.75rem; border: 1px solid var(--neutral-300); border-radius: var(--border-radius);">
+                                        <option>-- Select Patient --</option>
+                                        <option selected>Rajesh Kumar (PAT-2024-001)</option>
+                                        <option>Priya Singh (PAT-2024-002)</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary" style="width: 100%;">Save Recording</button>
+                            </div>
+                        </div>
+
+                        <div class="recording-history">
+                            <h3>Recent Recordings</h3>
+                            <div class="history-item">
+                                <div class="history-info">
+                                    <div class="history-date">Jun 25, 2026 - Rajesh Kumar</div>
+                                    <div class="history-duration">Duration: 2:45 • Transcribed</div>
+                                </div>
+                                <div class="history-actions">
+                                    <button class="btn-small">Play</button>
+                                    <button class="btn-small">View</button>
+                                </div>
+                            </div>
+                            <div class="history-item">
+                                <div class="history-info">
+                                    <div class="history-date">Jun 24, 2026 - Priya Singh</div>
+                                    <div class="history-duration">Duration: 1:32 • Transcribed</div>
+                                </div>
+                                <div class="history-actions">
+                                    <button class="btn-small">Play</button>
+                                    <button class="btn-small">View</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="voice-card">
+                            <h3 style="margin-bottom: 1rem;">Live Transcription</h3>
+                            <div class="transcription-box">
+                                <div class="transcript-title">Medical Notes:</div>
+                                <div class="transcript-content" id="transcript">
+                                    Patient presents with fever for 3 days and persistent cough. Vital signs show elevated temperature at 37.8°C. Physical examination reveals bilateral lung crackles. Suspecting acute respiratory infection. Recommended chest X-ray for confirmation...
+                                </div>
+                            </div>
+
+                            <div class="ai-summary">
+                                <div class="ai-summary-title">📋 AI-Generated Summary:</div>
+                                <div style="font-size: 0.9rem; color: var(--primary);">
+                                    <strong>Chief Complaint:</strong> Fever and cough<br>
+                                    <strong>Duration:</strong> 3 days<br>
+                                    <strong>Temperature:</strong> 37.8°C (elevated)<br>
+                                    <strong>Findings:</strong> Bilateral lung crackles<br>
+                                    <strong>Preliminary Diagnosis:</strong> Acute respiratory infection<br>
+                                    <strong>Recommendations:</strong> Chest X-ray, supportive care
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 1rem;">
+                                <button class="btn btn-primary">Save to Assessment</button>
+                                <button class="btn btn-secondary">Edit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRecording = false;
+        let seconds = 0;
+        let timerInterval;
+
+        document.getElementById('recordBtn').addEventListener('click', function() {
+            isRecording = !isRecording;
+            const status = document.getElementById('status');
+            const timer = document.getElementById('timer');
+            const btn = this;
+
+            if (isRecording) {
+                btn.classList.add('recording');
+                status.textContent = '🔴 Recording...';
+                status.classList.add('active');
+                timer.style.display = 'block';
+                seconds = 0;
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    const mins = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    timer.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                }, 1000);
+            } else {
+                btn.classList.remove('recording');
+                status.textContent = 'Recording saved ✓';
+                status.classList.remove('active');
+                clearInterval(timerInterval);
+            }
+        });
+    </script>
+</body>
+</html>

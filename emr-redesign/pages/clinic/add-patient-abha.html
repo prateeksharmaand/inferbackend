@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Patient ABHA - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .wizard-container {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .wizard-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        .wizard-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--neutral-200);
+            z-index: 0;
+        }
+        .wizard-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid var(--neutral-300);
+            margin: 0 auto 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--neutral-600);
+        }
+        .step-circle.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .step-circle.completed {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+        .step-label {
+            font-size: 0.85rem;
+            color: var(--neutral-600);
+            display: none;
+        }
+        .step-label.active {
+            color: var(--primary);
+            font-weight: 600;
+            display: block;
+        }
+        .wizard-content {
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--border-radius);
+        }
+        .success-state {
+            text-align: center;
+            padding: 2rem;
+        }
+        .success-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+        }
+        .btn-next {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            flex: 1;
+        }
+        .btn-next:hover {
+            background-color: var(--primary-dark);
+        }
+        .btn-back {
+            background-color: var(--neutral-200);
+            color: var(--neutral-900);
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-back:hover {
+            background-color: var(--neutral-300);
+        }
+        .info-box {
+            background: var(--primary-light);
+            border: 1px solid var(--primary);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Register Patient with ABHA</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="wizard-container">
+                    <h2 style="text-align: center; margin-bottom: 1.5rem;">ABHA Registration</h2>
+
+                    <div class="wizard-steps">
+                        <div class="wizard-step">
+                            <div class="step-circle active">1</div>
+                            <div class="step-label active">Patient Info</div>
+                        </div>
+                        <div class="wizard-step">
+                            <div class="step-circle">2</div>
+                            <div class="step-label">Verification</div>
+                        </div>
+                        <div class="wizard-step">
+                            <div class="step-circle">3</div>
+                            <div class="step-label">Confirmation</div>
+                        </div>
+                    </div>
+
+                    <div class="wizard-content">
+                        <div class="info-box">
+                            ℹ️ ABHA is a unique 14-digit health ID. You can create a new one or link an existing ABHA.
+                        </div>
+
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" placeholder="Enter patient's full name" value="Rajesh Kumar">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Date of Birth</label>
+                            <input type="date" value="1981-03-15">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Gender</label>
+                            <select>
+                                <option selected>Male</option>
+                                <option>Female</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mobile Number</label>
+                            <input type="tel" placeholder="10-digit mobile number" value="9876543210">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" placeholder="Optional" value="rajesh@example.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" placeholder="Enter residential address" value="123, Medical Street, Mumbai">
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group" style="margin: 0;">
+                                <label>State</label>
+                                <select>
+                                    <option selected>Maharashtra</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label>PIN Code</label>
+                                <input type="text" value="400001">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn-back">Cancel</button>
+                        <button class="btn-next" onclick="nextStep()">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function nextStep() {
+            document.querySelector('.step-circle.active').classList.remove('active');
+            document.querySelector('.step-circle.active')?.classList.add('completed');
+
+            const nextActive = document.querySelectorAll('.step-circle')[1];
+            nextActive?.classList.add('active');
+
+            document.querySelector('.step-label.active').classList.remove('active');
+            document.querySelectorAll('.step-label')[1]?.classList.add('active');
+
+            alert('Proceeding to verification step...');
+        }
+    </script>
+</body>
+</html>

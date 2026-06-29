@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patients - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .filter-bar {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            border: 1px solid var(--neutral-200);
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .filter-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+            font-size: 0.9rem;
+        }
+        .filter-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--border-radius);
+        }
+        .patients-table {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            overflow: hidden;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead {
+            background-color: var(--neutral-100);
+        }
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--neutral-800);
+            border-bottom: 2px solid var(--neutral-200);
+        }
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+        }
+        tr:hover {
+            background-color: var(--neutral-50);
+        }
+        .patient-name {
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .patient-id {
+            color: var(--neutral-600);
+            font-size: 0.85rem;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+            border: 1px solid var(--neutral-300);
+            background: white;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-small:hover {
+            background-color: var(--primary-light);
+            border-color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="#" class="nav-link active"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Patient Management</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2 style="margin: 0;">All Patients (247)</h2>
+                    <button class="btn btn-primary">+ Add New Patient</button>
+                </div>
+
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label>Search</label>
+                        <input type="text" placeholder="Patient name or ID...">
+                    </div>
+                    <div class="filter-group" style="flex: 0 0 150px;">
+                        <label>Status</label>
+                        <select style="width: 100%; padding: 0.75rem;">
+                            <option>All</option>
+                            <option>Active</option>
+                            <option>Inactive</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-secondary" style="margin-top: 0;">Search</button>
+                    <button class="btn btn-secondary" style="margin-top: 0;">Reset</button>
+                </div>
+
+                <div class="patients-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Patient Name</th>
+                                <th>Age</th>
+                                <th>Contact</th>
+                                <th>Last Visit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="patient-name">Rajesh Kumar</div>
+                                    <div class="patient-id">PAT-2024-001</div>
+                                </td>
+                                <td>45</td>
+                                <td>9876543210</td>
+                                <td>Jun 25, 2026</td>
+                                <td><span class="badge badge-success">Active</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-small">View</button>
+                                        <button class="btn-small">Edit</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="patient-name">Priya Singh</div>
+                                    <div class="patient-id">PAT-2024-002</div>
+                                </td>
+                                <td>32</td>
+                                <td>9876543211</td>
+                                <td>Jun 20, 2026</td>
+                                <td><span class="badge badge-success">Active</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-small">View</button>
+                                        <button class="btn-small">Edit</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="patient-name">Amit Patel</div>
+                                    <div class="patient-id">PAT-2024-003</div>
+                                </td>
+                                <td>55</td>
+                                <td>9876543212</td>
+                                <td>Jun 22, 2026</td>
+                                <td><span class="badge badge-success">Active</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-small">View</button>
+                                        <button class="btn-small">Edit</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="patient-name">Neha Gupta</div>
+                                    <div class="patient-id">PAT-2024-004</div>
+                                </td>
+                                <td>28</td>
+                                <td>9876543213</td>
+                                <td>Jun 10, 2026</td>
+                                <td><span class="badge badge-warning">Inactive</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-small">View</button>
+                                        <button class="btn-small">Edit</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

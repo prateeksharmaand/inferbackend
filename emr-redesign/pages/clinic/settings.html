@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .settings-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 2rem;
+        }
+        .settings-sidebar {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            height: fit-content;
+            position: sticky;
+            top: 2rem;
+        }
+        .settings-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .settings-nav li {
+            margin: 0;
+        }
+        .settings-nav a {
+            display: block;
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+            color: var(--neutral-700);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .settings-nav a:last-child {
+            border-bottom: none;
+        }
+        .settings-nav a:hover {
+            background-color: var(--neutral-50);
+            color: var(--primary);
+        }
+        .settings-nav a.active {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border-left: 4px solid var(--primary);
+            padding-left: calc(1rem - 4px);
+        }
+        .settings-section {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 2rem;
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--neutral-200);
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+        }
+        input[type="text"], input[type="email"], input[type="tel"], select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--border-radius);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .checkbox-group input {
+            width: auto;
+        }
+        .btn-save {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-save:hover {
+            background-color: var(--primary-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="#" class="nav-link active"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Settings</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="settings-container">
+                    <div class="settings-sidebar">
+                        <ul class="settings-nav">
+                            <li><a href="#clinic" class="active">Clinic Profile</a></li>
+                            <li><a href="#staff">Staff Management</a></li>
+                            <li><a href="#working-hours">Working Hours</a></li>
+                            <li><a href="#billing">Billing</a></li>
+                            <li><a href="#integrations">Integrations</a></li>
+                            <li><a href="#security">Security</a></li>
+                            <li><a href="#notifications">Notifications</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <div class="settings-section">
+                            <h2 class="section-title">Clinic Profile</h2>
+
+                            <div class="form-group">
+                                <label>Clinic Name</label>
+                                <input type="text" value="Prime Health Clinic">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" value="clinic@primehealth.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone</label>
+                                    <input type="tel" value="+91-9876543210">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Address</label>
+                                <input type="text" value="123 Medical Street, City Center">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>City</label>
+                                    <input type="text" value="Mumbai">
+                                </div>
+                                <div class="form-group">
+                                    <label>PIN Code</label>
+                                    <input type="text" value="400001">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>License Number</label>
+                                <input type="text" value="MED-12345-67890">
+                            </div>
+
+                            <div style="display: flex; gap: 1rem;">
+                                <button class="btn-save">Save Changes</button>
+                                <button class="btn btn-secondary">Cancel</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-section" style="margin-top: 2rem;">
+                            <h2 class="section-title">Working Hours</h2>
+
+                            <div class="form-group">
+                                <h4 style="margin-bottom: 1rem;">Monday - Friday</h4>
+                                <div class="form-row">
+                                    <div>
+                                        <label>Opening Time</label>
+                                        <input type="text" value="09:00 AM">
+                                    </div>
+                                    <div>
+                                        <label>Closing Time</label>
+                                        <input type="text" value="06:00 PM">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <h4 style="margin-bottom: 1rem;">Saturday</h4>
+                                <div class="form-row">
+                                    <div>
+                                        <label>Opening Time</label>
+                                        <input type="text" value="09:00 AM">
+                                    </div>
+                                    <div>
+                                        <label>Closing Time</label>
+                                        <input type="text" value="02:00 PM">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="sunday" checked>
+                                    <label for="sunday" style="margin: 0;">Closed on Sundays</label>
+                                </div>
+                            </div>
+
+                            <button class="btn-save">Save Changes</button>
+                        </div>
+
+                        <div class="settings-section" style="margin-top: 2rem;">
+                            <h2 class="section-title">Billing Settings</h2>
+
+                            <div class="form-group">
+                                <label>Default Consultation Fee (₹)</label>
+                                <input type="text" value="500">
+                            </div>
+
+                            <div class="form-group">
+                                <label>GST Rate (%)</label>
+                                <input type="text" value="18">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Payment Gateway</label>
+                                <select>
+                                    <option selected>Razorpay</option>
+                                    <option>PayU</option>
+                                    <option>Stripe</option>
+                                </select>
+                            </div>
+
+                            <button class="btn-save">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

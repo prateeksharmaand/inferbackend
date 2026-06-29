@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .wallet-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .wallet-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+        }
+        .wallet-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        .wallet-balance {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+        .wallet-actions {
+            display: flex;
+            gap: 1rem;
+        }
+        .wallet-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .wallet-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0.5rem 0;
+        }
+        .stat-label {
+            color: var(--neutral-600);
+            font-size: 0.9rem;
+        }
+        .transaction-table {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            overflow: hidden;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead {
+            background: var(--neutral-100);
+        }
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--neutral-800);
+            border-bottom: 2px solid var(--neutral-200);
+        }
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+        }
+        tr:hover {
+            background: var(--neutral-50);
+        }
+        .amount-positive {
+            color: var(--secondary);
+            font-weight: 600;
+        }
+        .amount-negative {
+            color: var(--error);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Clinic Wallet</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="wallet-grid">
+                    <div class="wallet-card">
+                        <div class="wallet-label">Current Balance</div>
+                        <div class="wallet-balance">₹45,800</div>
+                        <div class="wallet-actions">
+                            <button class="wallet-btn">Add Money</button>
+                            <button class="wallet-btn">Withdraw</button>
+                        </div>
+                    </div>
+
+                    <div class="wallet-card" style="background: linear-gradient(135deg, var(--secondary) 0%, #2d7a45 100%);">
+                        <div class="wallet-label">Credit Available</div>
+                        <div class="wallet-balance">₹8,500</div>
+                        <div class="wallet-actions">
+                            <button class="wallet-btn">Use Credit</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Collected</div>
+                        <div class="stat-value">₹98,400</div>
+                        <div style="color: var(--secondary); font-size: 0.85rem;">All time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Withdrawn</div>
+                        <div class="stat-value">₹52,600</div>
+                        <div style="color: var(--error); font-size: 0.85rem;">All time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">This Month</div>
+                        <div class="stat-value">₹18,500</div>
+                        <div style="color: var(--primary); font-size: 0.85rem;">Collected</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Pending Withdrawal</div>
+                        <div class="stat-value">₹5,000</div>
+                        <div style="color: var(--warning); font-size: 0.85rem;">In progress</div>
+                    </div>
+                </div>
+
+                <div class="transaction-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Jun 27, 2026</td>
+                                <td>Patient Payment - Rajesh Kumar</td>
+                                <td>Credit</td>
+                                <td class="amount-positive">+₹500</td>
+                                <td><span class="badge badge-success">Completed</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jun 27, 2026</td>
+                                <td>Patient Payment - Priya Singh</td>
+                                <td>Credit</td>
+                                <td class="amount-positive">+₹800</td>
+                                <td><span class="badge badge-success">Completed</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jun 26, 2026</td>
+                                <td>Withdrawal Request</td>
+                                <td>Debit</td>
+                                <td class="amount-negative">-₹10,000</td>
+                                <td><span class="badge badge-warning">Pending</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jun 25, 2026</td>
+                                <td>Patient Payment - Amit Patel</td>
+                                <td>Credit</td>
+                                <td class="amount-positive">+₹600</td>
+                                <td><span class="badge badge-success">Completed</span></td>
+                            </tr>
+                            <tr>
+                                <td>Jun 24, 2026</td>
+                                <td>Subscription Payment</td>
+                                <td>Debit</td>
+                                <td class="amount-negative">-₹2,999</td>
+                                <td><span class="badge badge-success">Completed</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

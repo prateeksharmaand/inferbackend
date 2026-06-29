@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Write Prescription - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .rx-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+        }
+        .rx-form {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 2rem;
+        }
+        .rx-section {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--neutral-200);
+        }
+        .rx-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .rx-section h3 {
+            margin-bottom: 1rem;
+        }
+        .medicine-item {
+            background: var(--neutral-50);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .medicine-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 0.75rem;
+            align-items: flex-end;
+            margin-bottom: 0.75rem;
+        }
+        .medicine-row input, .medicine-row select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: 4px;
+        }
+        .remove-btn {
+            background: var(--error);
+            color: white;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .add-medicine-btn {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 0.75rem 1.5rem;
+            border: 1px solid var(--primary);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .rx-preview {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+        }
+        .rx-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--neutral-200);
+        }
+        .rx-header h4 {
+            margin: 0.5rem 0;
+        }
+        .rx-content {
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+        .rx-patient {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+        }
+        .rx-medicines {
+            margin: 1rem 0;
+        }
+        .rx-medicine {
+            margin-bottom: 0.75rem;
+        }
+        .rx-footer {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--neutral-200);
+        }
+        .doctor-sig {
+            text-align: right;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="#" class="nav-link active"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Write Prescription</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="rx-container">
+                    <div>
+                        <div class="rx-form">
+                            <div class="rx-section">
+                                <h3>Patient Information</h3>
+                                <div class="form-group">
+                                    <label>Patient</label>
+                                    <select style="width: 100%; padding: 0.75rem; border: 1px solid var(--neutral-300); border-radius: var(--border-radius);">
+                                        <option>-- Select Patient --</option>
+                                        <option selected>Rajesh Kumar (PAT-2024-001)</option>
+                                        <option>Priya Singh (PAT-2024-002)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Diagnosis</label>
+                                    <input type="text" value="Acute Respiratory Infection">
+                                </div>
+                            </div>
+
+                            <div class="rx-section">
+                                <h3>Medicines</h3>
+                                <div class="medicine-item">
+                                    <div class="medicine-row">
+                                        <input type="text" placeholder="Medicine name" value="Amoxicillin">
+                                        <input type="number" placeholder="Qty" value="10">
+                                        <select><option>Tablets</option><option>Capsules</option><option>ml</option></select>
+                                        <input type="text" placeholder="Frequency" value="1-1-1">
+                                        <button class="remove-btn">Remove</button>
+                                    </div>
+                                    <input type="text" placeholder="Instructions" value="After food">
+                                </div>
+
+                                <div class="medicine-item">
+                                    <div class="medicine-row">
+                                        <input type="text" placeholder="Medicine name" value="Paracetamol">
+                                        <input type="number" placeholder="Qty" value="15">
+                                        <select><option>Tablets</option><option>Capsules</option><option>ml</option></select>
+                                        <input type="text" placeholder="Frequency" value="1-0-1">
+                                        <button class="remove-btn">Remove</button>
+                                    </div>
+                                    <input type="text" placeholder="Instructions" value="For fever and pain">
+                                </div>
+
+                                <button class="add-medicine-btn">+ Add Medicine</button>
+                            </div>
+
+                            <div class="rx-section">
+                                <h3>Notes & Instructions</h3>
+                                <textarea style="width: 100%; padding: 0.75rem; border: 1px solid var(--neutral-300); border-radius: var(--border-radius);" placeholder="Additional notes or instructions">Follow-up after 5 days. Rest and hydration recommended. Avoid dairy products.</textarea>
+                            </div>
+
+                            <div style="display: flex; gap: 1rem;">
+                                <button class="btn btn-primary">Save & Sign</button>
+                                <button class="btn btn-secondary">Preview</button>
+                                <button class="btn btn-secondary">Print</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="rx-preview">
+                            <div class="rx-header">
+                                <h4 style="font-size: 1.2rem;">InferEMR Clinic</h4>
+                                <p style="margin: 0; color: var(--neutral-600);">Prescription</p>
+                                <p style="margin: 0; font-size: 0.85rem; color: var(--neutral-500);">Date: Jun 27, 2026</p>
+                            </div>
+
+                            <div class="rx-content">
+                                <div class="rx-patient">
+                                    <strong>Patient Name:</strong> Rajesh Kumar<br>
+                                    <strong>Age:</strong> 45 years<br>
+                                    <strong>Diagnosis:</strong> Acute Respiratory Infection
+                                </div>
+
+                                <div class="rx-medicines">
+                                    <strong>Medicines:</strong>
+                                    <div class="rx-medicine">
+                                        1. Amoxicillin 10 Tablets<br>
+                                        <span style="margin-left: 20px;">1-1-1, After food</span>
+                                    </div>
+                                    <div class="rx-medicine">
+                                        2. Paracetamol 15 Tablets<br>
+                                        <span style="margin-left: 20px;">1-0-1, For fever and pain</span>
+                                    </div>
+                                </div>
+
+                                <div class="rx-footer">
+                                    <strong>Notes:</strong><br>
+                                    Follow-up after 5 days. Rest and hydration recommended.
+                                </div>
+                            </div>
+
+                            <div class="doctor-sig">
+                                <p style="margin: 0; font-size: 0.85rem;">_________________</p>
+                                <p style="margin: 0; font-size: 0.85rem;">Dr. Rajesh Sharma</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

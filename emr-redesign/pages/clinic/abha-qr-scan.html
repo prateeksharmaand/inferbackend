@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABHA QR Scan - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .scan-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .scan-card {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 2rem;
+            text-align: center;
+        }
+        .qr-placeholder {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--neutral-100) 100%);
+            height: 300px;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+        }
+        .scan-button {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+        }
+        .scan-button:hover {
+            background-color: var(--primary-dark);
+        }
+        .scanned-data {
+            background: var(--primary-light);
+            border: 1px solid var(--primary);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+        .data-field {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(26, 115, 232, 0.2);
+        }
+        .data-field:last-child {
+            border-bottom: none;
+        }
+        .data-label {
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .data-value {
+            color: var(--primary);
+        }
+        .info-box {
+            background: #fef3c7;
+            border: 1px solid var(--warning);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            color: #92400e;
+            font-size: 0.9rem;
+        }
+        .success-message {
+            background: #c6f6d5;
+            border: 1px solid var(--secondary);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            color: var(--success);
+            font-weight: 600;
+            display: none;
+        }
+        .history-list {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">ABHA QR Code Scanner</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="scan-container">
+                    <div>
+                        <div class="scan-card">
+                            <h3>Scan ABHA QR Code</h3>
+
+                            <div class="info-box">
+                                📱 Position your camera to scan the patient's ABHA QR code or health ID barcode
+                            </div>
+
+                            <div class="qr-placeholder">📱</div>
+
+                            <button class="scan-button" onclick="simulateScan()">Start Camera</button>
+                            <button class="btn btn-secondary" style="width: 100%;">Manual Entry</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="scan-card">
+                            <h3>Patient Information</h3>
+
+                            <div class="success-message" id="successMsg">✓ ABHA linked successfully!</div>
+
+                            <div class="scanned-data" id="scannedData" style="display: none;">
+                                <div class="data-field">
+                                    <span class="data-label">ABHA ID:</span>
+                                    <span class="data-value">31-1234-5678-9012</span>
+                                </div>
+                                <div class="data-field">
+                                    <span class="data-label">Name:</span>
+                                    <span class="data-value">Rajesh Kumar</span>
+                                </div>
+                                <div class="data-field">
+                                    <span class="data-label">Age:</span>
+                                    <span class="data-value">45 years</span>
+                                </div>
+                                <div class="data-field">
+                                    <span class="data-label">Mobile:</span>
+                                    <span class="data-value">9876543210</span>
+                                </div>
+                                <div class="data-field">
+                                    <span class="data-label">Gender:</span>
+                                    <span class="data-value">Male</span>
+                                </div>
+                                <div class="data-field">
+                                    <span class="data-label">Status:</span>
+                                    <span class="data-value">✓ Verified</span>
+                                </div>
+                            </div>
+
+                            <div style="display: none;" id="emptyState">
+                                <p style="color: var(--neutral-600); margin: 2rem 0;">
+                                    Patient information will appear here after scanning
+                                </p>
+                            </div>
+
+                            <div id="emptyState" style="margin-top: 2rem;">
+                                <p style="color: var(--neutral-600);">Patient information will appear here after scanning</p>
+                            </div>
+
+                            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                                <button class="btn btn-primary" style="flex: 1;">Link Patient</button>
+                                <button class="btn btn-secondary" style="flex: 1;">Clear</button>
+                            </div>
+                        </div>
+
+                        <div class="info-box" style="margin-top: 1.5rem;">
+                            <strong>ℹ️ About ABHA:</strong> Ayushman Bharat Health Account (ABHA) is a unique 14-digit health ID for every resident of India.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="history-list">
+                    <h3>Recent Scans</h3>
+                    <div class="history-item">
+                        <div>
+                            <div style="font-weight: 600;">Rajesh Kumar</div>
+                            <div style="font-size: 0.85rem; color: var(--neutral-600);">ABHA ID: 31-1234-5678-9012 • Jun 27, 2026</div>
+                        </div>
+                        <span class="badge badge-success">✓ Linked</span>
+                    </div>
+                    <div class="history-item">
+                        <div>
+                            <div style="font-weight: 600;">Priya Singh</div>
+                            <div style="font-size: 0.85rem; color: var(--neutral-600);">ABHA ID: 31-9876-5432-1098 • Jun 25, 2026</div>
+                        </div>
+                        <span class="badge badge-success">✓ Linked</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function simulateScan() {
+            document.getElementById('scannedData').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('successMsg').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('successMsg').style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

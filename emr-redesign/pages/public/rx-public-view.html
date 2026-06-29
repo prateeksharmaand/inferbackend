@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Prescription - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        body {
+            background: var(--neutral-50);
+        }
+        .app-wrapper {
+            margin: 0;
+        }
+        .main-content {
+            margin-left: 0;
+        }
+        .navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .content {
+            padding: 2rem;
+        }
+        .rx-document {
+            background: white;
+            border-radius: var(--border-radius);
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 3rem;
+            box-shadow: var(--shadow-md);
+        }
+        .rx-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid var(--neutral-200);
+        }
+        .clinic-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        .clinic-details {
+            color: var(--neutral-600);
+            font-size: 0.9rem;
+        }
+        .rx-content {
+            margin-bottom: 2rem;
+        }
+        .rx-section {
+            margin-bottom: 1.5rem;
+        }
+        .rx-label {
+            font-weight: 600;
+            color: var(--neutral-800);
+            margin-bottom: 0.25rem;
+        }
+        .rx-value {
+            color: var(--neutral-700);
+        }
+        .patient-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: var(--primary-light);
+            border-radius: var(--border-radius);
+        }
+        .medicines-list {
+            margin-bottom: 2rem;
+        }
+        .medicine-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--neutral-200);
+        }
+        .medicine-item:last-child {
+            border-bottom: none;
+        }
+        .medicine-name {
+            font-weight: 600;
+            color: var(--neutral-800);
+        }
+        .medicine-details {
+            color: var(--neutral-600);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        .rx-notes {
+            background: var(--neutral-50);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 2rem;
+            color: var(--neutral-700);
+        }
+        .rx-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-top: 1rem;
+            border-top: 1px solid var(--neutral-200);
+        }
+        .rx-date {
+            color: var(--neutral-600);
+            font-size: 0.9rem;
+        }
+        .rx-signature {
+            text-align: right;
+        }
+        .signature-line {
+            border-top: 1px solid var(--neutral-800);
+            width: 150px;
+            margin-bottom: 0.25rem;
+        }
+        .doctor-name {
+            font-weight: 600;
+            color: var(--neutral-800);
+            font-size: 0.9rem;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+            padding: 2rem 0 0 0;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-print {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-download {
+            background: var(--secondary);
+            color: white;
+        }
+        .btn-share {
+            background: var(--neutral-200);
+            color: var(--neutral-900);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Your Prescription</h1>
+            </nav>
+
+            <div class="content">
+                <div class="rx-document">
+                    <div class="rx-header">
+                        <div class="clinic-name">InferEMR Clinic</div>
+                        <div class="clinic-details">
+                            123 Medical Street, Mumbai<br>
+                            Phone: +91-9876543210
+                        </div>
+                    </div>
+
+                    <div class="patient-details">
+                        <div>
+                            <div class="rx-label">Patient Name</div>
+                            <div class="rx-value">Rajesh Kumar</div>
+                        </div>
+                        <div>
+                            <div class="rx-label">Age/Gender</div>
+                            <div class="rx-value">45 / Male</div>
+                        </div>
+                        <div>
+                            <div class="rx-label">Appointment Date</div>
+                            <div class="rx-value">June 27, 2026</div>
+                        </div>
+                        <div>
+                            <div class="rx-label">Chief Complaint</div>
+                            <div class="rx-value">Fever & Cough</div>
+                        </div>
+                    </div>
+
+                    <div class="rx-section">
+                        <div class="rx-label">Diagnosis</div>
+                        <div class="rx-value">Acute Respiratory Infection</div>
+                    </div>
+
+                    <div class="medicines-list">
+                        <div class="rx-label" style="margin-bottom: 1rem;">Medicines:</div>
+                        <div class="medicine-item">
+                            <div class="medicine-name">1. Amoxicillin</div>
+                            <div class="medicine-details">10 Tablets • 1-1-1 after food • 5 days</div>
+                        </div>
+                        <div class="medicine-item">
+                            <div class="medicine-name">2. Paracetamol</div>
+                            <div class="medicine-details">15 Tablets • 1-0-1 • For fever and pain</div>
+                        </div>
+                        <div class="medicine-item">
+                            <div class="medicine-name">3. Cough Syrup</div>
+                            <div class="medicine-details">100ml • 2 teaspoons • Twice daily</div>
+                        </div>
+                    </div>
+
+                    <div class="rx-notes">
+                        <strong>Notes:</strong><br>
+                        Follow-up after 5 days. Rest and hydration recommended. Avoid dairy products and spicy food. If symptoms persist, get a chest X-ray done.
+                    </div>
+
+                    <div class="rx-footer">
+                        <div>
+                            <div class="rx-date">Date: June 27, 2026</div>
+                            <div class="rx-date">Ref#: APT-2026-001</div>
+                        </div>
+                        <div class="rx-signature">
+                            <div class="signature-line"></div>
+                            <div class="doctor-name">Dr. Rajesh Sharma</div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-print">🖨️ Print</button>
+                        <button class="btn btn-download">📥 Download PDF</button>
+                        <button class="btn btn-share">📤 Share</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

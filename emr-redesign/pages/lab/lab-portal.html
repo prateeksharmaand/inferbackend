@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Portal - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-box {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            color: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--neutral-200);
+        }
+        .tab {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--neutral-600);
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s ease;
+        }
+        .tab.active {
+            color: #7c3aed;
+            border-bottom-color: #7c3aed;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">🧪 LabEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active">
+                        <span>📋</span> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#samples" class="nav-link">
+                        <span>🧬</span> Sample Management
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#tests" class="nav-link">
+                        <span>🔬</span> Test Catalog
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#results" class="nav-link">
+                        <span>📊</span> Results
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#approvals" class="nav-link">
+                        <span>✅</span> Approvals
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#analytics" class="nav-link">
+                        <span>📈</span> Analytics
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#settings" class="nav-link">
+                        <span>⚙️</span> Settings
+                    </a>
+                </li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Laboratory Dashboard</h1>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span>Prime Health Lab</span>
+                    <button class="btn btn-secondary btn-small">Logout</button>
+                </div>
+            </nav>
+
+            <div class="content">
+                <h2 style="margin-bottom: 1.5rem;">Today's Summary</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Total Samples</div>
+                        <div class="stat-value">24</div>
+                    </div>
+                    <div class="stat-box" style="background: linear-gradient(135deg, var(--secondary) 0%, #2d7a45 100%);">
+                        <div class="stat-label">Processed</div>
+                        <div class="stat-value">18</div>
+                    </div>
+                    <div class="stat-box" style="background: linear-gradient(135deg, var(--warning) 0%, #d48806 100%);">
+                        <div class="stat-label">Pending</div>
+                        <div class="stat-value">6</div>
+                    </div>
+                    <div class="stat-box" style="background: linear-gradient(135deg, var(--error) 0%, #c12410 100%);">
+                        <div class="stat-label">Issues</div>
+                        <div class="stat-value">0</div>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('pending')">Pending Samples</button>
+                    <button class="tab" onclick="showTab('results')">Ready Results</button>
+                    <button class="tab" onclick="showTab('approvals')">For Approval</button>
+                </div>
+
+                <div id="pending" class="tab-content active">
+                    <div class="card">
+                        <h3>Pending Sample Processing</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="background: var(--neutral-100);">
+                                <tr>
+                                    <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--neutral-200);">Sample ID</th>
+                                    <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--neutral-200);">Patient</th>
+                                    <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--neutral-200);">Test Type</th>
+                                    <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--neutral-200);">Collected</th>
+                                    <th style="padding: 1rem; text-align: left; border-bottom: 2px solid var(--neutral-200);">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid var(--neutral-200);">
+                                    <td style="padding: 1rem;">SAM-001</td>
+                                    <td style="padding: 1rem;">Rajesh Kumar</td>
+                                    <td style="padding: 1rem;">Complete Blood Count</td>
+                                    <td style="padding: 1rem;">Jun 27, 10:30 AM</td>
+                                    <td style="padding: 1rem;"><span class="badge badge-warning">Processing</span></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--neutral-200);">
+                                    <td style="padding: 1rem;">SAM-002</td>
+                                    <td style="padding: 1rem;">Priya Singh</td>
+                                    <td style="padding: 1rem;">Thyroid Profile</td>
+                                    <td style="padding: 1rem;">Jun 27, 11:15 AM</td>
+                                    <td style="padding: 1rem;"><span class="badge badge-warning">In Queue</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="results" class="tab-content">
+                    <div class="card">
+                        <h3>Results Ready for Upload</h3>
+                        <p style="color: var(--neutral-600);">6 test results are ready to be uploaded and sent to clinics.</p>
+                        <button class="btn btn-primary">Upload Results</button>
+                    </div>
+                </div>
+
+                <div id="approvals" class="tab-content">
+                    <div class="card">
+                        <h3>Pending Approvals</h3>
+                        <p style="color: var(--neutral-600);">No results pending approval.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(c => c.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

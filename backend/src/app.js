@@ -9,6 +9,7 @@ const path = require('path');
 
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./config/logger');
+const { enforceSubscription, logSubscriptionDecisions } = require('./middleware/subscriptionEnforcement');
 
 const app = express();
 
@@ -52,6 +53,11 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Subscription enforcement middleware (applies to all /api routes after auth)
+// Note: Individual routes can apply more specific middleware via enforceFeature(), enforceSeatType(), etc.
+app.use('/api', enforceSubscription());
+app.use('/api', logSubscriptionDecisions());
 
 // API routes
 app.use('/api/auth', require('./routes/auth'));

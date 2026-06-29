@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Assessment - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .assessment-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+        }
+        .form-card {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 2rem;
+        }
+        .vitals-section {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        .vital-input {
+            display: flex;
+            flex-direction: column;
+        }
+        .vital-input label {
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--neutral-800);
+        }
+        .vital-input input {
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--border-radius);
+        }
+        .patient-card {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .patient-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 1rem;
+        }
+        .patient-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        .patient-id {
+            color: var(--neutral-600);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .health-summary {
+            background: var(--primary-light);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .health-summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .health-summary-label {
+            color: var(--neutral-600);
+        }
+        .health-summary-value {
+            font-weight: 600;
+            color: var(--primary);
+        }
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--border-radius);
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+            min-height: 150px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="#" class="nav-link active"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Patient Assessment</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="assessment-grid">
+                    <div>
+                        <div class="vitals-section">
+                            <h3>Vital Signs</h3>
+                            <div class="vitals-grid">
+                                <div class="vital-input">
+                                    <label>Temperature (°C)</label>
+                                    <input type="number" step="0.1" placeholder="98.6" value="37.5">
+                                </div>
+                                <div class="vital-input">
+                                    <label>Blood Pressure</label>
+                                    <input type="text" placeholder="120/80 mmHg" value="130/85">
+                                </div>
+                                <div class="vital-input">
+                                    <label>Heart Rate (bpm)</label>
+                                    <input type="number" placeholder="72" value="78">
+                                </div>
+                                <div class="vital-input">
+                                    <label>Respiration (breaths/min)</label>
+                                    <input type="number" placeholder="16" value="18">
+                                </div>
+                                <div class="vital-input">
+                                    <label>Weight (kg)</label>
+                                    <input type="number" step="0.1" placeholder="70" value="72.5">
+                                </div>
+                                <div class="vital-input">
+                                    <label>Height (cm)</label>
+                                    <input type="number" placeholder="170" value="175">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vitals-section">
+                            <h3>Chief Complaints</h3>
+                            <textarea placeholder="Enter patient's chief complaints...">Fever for 3 days, cough with mild chest pain</textarea>
+                        </div>
+
+                        <div class="vitals-section">
+                            <h3>Physical Examination</h3>
+                            <div class="form-group">
+                                <label>Diagnosis</label>
+                                <textarea placeholder="Enter diagnosis...">Suspected acute respiratory infection. Further tests recommended.</textarea>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="btn btn-primary">Save Assessment</button>
+                            <button class="btn btn-secondary">Clear</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="patient-card">
+                            <div class="patient-avatar">👨</div>
+                            <div class="patient-name">Rajesh Kumar</div>
+                            <div class="patient-id">PAT-2024-001</div>
+
+                            <div class="health-summary">
+                                <div class="health-summary-item">
+                                    <span class="health-summary-label">Age:</span>
+                                    <span class="health-summary-value">45</span>
+                                </div>
+                                <div class="health-summary-item">
+                                    <span class="health-summary-label">Gender:</span>
+                                    <span class="health-summary-value">Male</span>
+                                </div>
+                                <div class="health-summary-item">
+                                    <span class="health-summary-label">Blood Type:</span>
+                                    <span class="health-summary-value">O+</span>
+                                </div>
+                                <div class="health-summary-item">
+                                    <span class="health-summary-label">Visit Date:</span>
+                                    <span class="health-summary-value">Jun 27, 2026</span>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--neutral-200);">
+                                <h4 style="margin-bottom: 1rem;">Medical History</h4>
+                                <div style="font-size: 0.9rem; color: var(--neutral-700);">
+                                    <p style="margin: 0.5rem 0;"><strong>Allergies:</strong> Penicillin</p>
+                                    <p style="margin: 0.5rem 0;"><strong>Chronic Conditions:</strong> Hypertension</p>
+                                    <p style="margin: 0.5rem 0;"><strong>Current Medications:</strong> Amlodipine 5mg</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vitals-section">
+                            <h3>Quick Actions</h3>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <button class="btn btn-primary" style="width: 100%;">Generate Prescription</button>
+                                <button class="btn btn-secondary" style="width: 100%;">Order Lab Tests</button>
+                                <button class="btn btn-secondary" style="width: 100%;">View Medical History</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

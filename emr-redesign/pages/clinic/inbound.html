@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inbound - EMR System</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .message-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 1.5rem;
+            min-height: 600px;
+        }
+        .message-list {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .message-list-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+            background: var(--neutral-50);
+        }
+        .message-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--neutral-200);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .message-item:hover {
+            background: var(--primary-light);
+        }
+        .message-item.active {
+            background: var(--primary-light);
+            border-left: 4px solid var(--primary);
+        }
+        .message-sender {
+            font-weight: 600;
+            color: var(--neutral-800);
+            margin-bottom: 0.25rem;
+        }
+        .message-preview {
+            font-size: 0.9rem;
+            color: var(--neutral-600);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--neutral-500);
+            margin-top: 0.25rem;
+        }
+        .unread {
+            font-weight: 600;
+        }
+        .message-content {
+            background: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--neutral-200);
+            display: flex;
+            flex-direction: column;
+        }
+        .message-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--neutral-200);
+            background: var(--neutral-50);
+        }
+        .sender-info {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .sender-details {
+            font-size: 0.9rem;
+            color: var(--neutral-600);
+        }
+        .message-body {
+            flex: 1;
+            padding: 1.5rem;
+            background: white;
+            overflow-y: auto;
+        }
+        .message-text {
+            color: var(--neutral-800);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+        .message-footer {
+            padding: 1.5rem;
+            border-top: 1px solid var(--neutral-200);
+            display: flex;
+            gap: 0.75rem;
+        }
+        .reply-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--border-radius);
+        }
+        .send-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--neutral-600);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="logo">InferEMR</div>
+            <nav class="nav-menu">
+                <li class="nav-item"><a href="queue.html" class="nav-link"><span>👥</span> Queue</a></li>
+                <li class="nav-item"><a href="patients.html" class="nav-link"><span>👨‍⚕️</span> Patients</a></li>
+                <li class="nav-item"><a href="assessment.html" class="nav-link"><span>📋</span> Assessment</a></li>
+                <li class="nav-item"><a href="write-rx.html" class="nav-link"><span>💊</span> Prescriptions</a></li>
+                <li class="nav-item"><a href="voice-ai.html" class="nav-link"><span>🎤</span> Voice AI</a></li>
+                <li class="nav-item"><a href="analytics.html" class="nav-link"><span>📊</span> Analytics</a></li>
+                <li class="nav-item"><a href="payments.html" class="nav-link"><span>💳</span> Payments</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><span>⚙️</span> Settings</a></li>
+            </nav>
+        </aside>
+
+        <div class="main-content">
+            <nav class="navbar">
+                <h1 style="margin: 0;">Inbound Messages</h1>
+                <button class="btn btn-secondary btn-small">Logout</button>
+            </nav>
+
+            <div class="content">
+                <div class="message-container">
+                    <div class="message-list">
+                        <div class="message-list-header">
+                            <h4 style="margin: 0; font-size: 0.95rem;">Messages (7)</h4>
+                        </div>
+                        <div class="message-item active">
+                            <div class="message-sender unread">Rajesh Kumar</div>
+                            <div class="message-preview">Prescription for amoxicillin</div>
+                            <div class="message-time">2 mins ago</div>
+                        </div>
+                        <div class="message-item">
+                            <div class="message-sender">Priya Singh</div>
+                            <div class="message-preview">Follow-up appointment request</div>
+                            <div class="message-time">1 hour ago</div>
+                        </div>
+                        <div class="message-item">
+                            <div class="message-sender">Dr. Mehul Joshi</div>
+                            <div class="message-preview">Lab reports ready for review</div>
+                            <div class="message-time">3 hours ago</div>
+                        </div>
+                        <div class="message-item">
+                            <div class="message-sender">Support Team</div>
+                            <div class="message-preview">System maintenance scheduled</div>
+                            <div class="message-time">Yesterday</div>
+                        </div>
+                    </div>
+
+                    <div class="message-content">
+                        <div class="message-header">
+                            <div class="sender-info">Rajesh Kumar</div>
+                            <div class="sender-details">Patient ID: PAT-2024-001 • Today at 14:32</div>
+                        </div>
+
+                        <div class="message-body">
+                            <div class="message-text">
+                                Hello Doctor, I wanted to follow up regarding the prescription you gave me last week. The amoxicillin seems to be working well, but I still have a slight cough. Should I continue taking it or consider any other medication?
+                            </div>
+                        </div>
+
+                        <div class="message-footer">
+                            <input type="text" class="reply-input" placeholder="Type your reply...">
+                            <button class="send-btn">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
