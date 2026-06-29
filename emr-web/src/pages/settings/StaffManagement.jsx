@@ -271,7 +271,14 @@ function StaffModal({ member, roles, onSave, onClose }) {
             <div className={s.field}>
               <label>Role</label>
               <select className={s.input} value={form.role} onChange={e => set('role', e.target.value)}>
-                {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
+                <optgroup label="System Roles">
+                  {SYSTEM_ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                </optgroup>
+                {roles.length > 0 && (
+                  <optgroup label="Custom Roles">
+                    {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
+                  </optgroup>
+                )}
               </select>
             </div>
           </div>
@@ -375,7 +382,14 @@ function StaffTab({ roles }) {
         </div>
         <select className={s.roleFilter} value={filterRole} onChange={e => setFilterRole(e.target.value)}>
           <option value="">All Roles</option>
-          {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
+          <optgroup label="System Roles">
+            {SYSTEM_ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+          </optgroup>
+          {roles.length > 0 && (
+            <optgroup label="Custom Roles">
+              {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
+            </optgroup>
+          )}
         </select>
         <button className={s.btnCreate} onClick={() => setShowModal(true)}>
           <Plus size={14} strokeWidth={2.5} /> Add Staff
@@ -621,7 +635,14 @@ function InvitationsTab({ roles }) {
             <div className={s.field}>
               <label>Role</label>
               <select className={s.input} value={form.role} onChange={e => set('role', e.target.value)}>
-                {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
+                <optgroup label="System Roles">
+                  {SYSTEM_ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                </optgroup>
+                {roles.length > 0 && (
+                  <optgroup label="Custom Roles">
+                    {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
+                  </optgroup>
+                )}
               </select>
             </div>
             <div className={s.field}>
