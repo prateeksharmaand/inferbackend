@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS clinic_active_sessions (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_active_sessions_clinic ON clinic_active_sessions(clinic_id);
-CREATE INDEX idx_active_sessions_staff ON clinic_active_sessions(staff_id);
-CREATE INDEX idx_active_sessions_seat_type ON clinic_active_sessions(clinic_id, seat_type);
-CREATE INDEX idx_active_sessions_active ON clinic_active_sessions(clinic_id) WHERE logged_out_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_active_sessions_clinic ON clinic_active_sessions(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_active_sessions_staff ON clinic_active_sessions(staff_id);
+CREATE INDEX IF NOT EXISTS idx_active_sessions_seat_type ON clinic_active_sessions(clinic_id, seat_type);
+CREATE INDEX IF NOT EXISTS idx_active_sessions_active ON clinic_active_sessions(clinic_id) WHERE logged_out_at IS NULL;
 
 -- ── Subscription Audit Log ────────────────────────────────────────────────────
 -- Complete audit trail of all subscription changes
@@ -48,9 +48,9 @@ CREATE TABLE IF NOT EXISTS subscription_audit_log (
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscription_audit_clinic ON subscription_audit_log(clinic_id);
-CREATE INDEX idx_subscription_audit_action ON subscription_audit_log(action);
-CREATE INDEX idx_subscription_audit_created ON subscription_audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscription_audit_clinic ON subscription_audit_log(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_audit_action ON subscription_audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_subscription_audit_created ON subscription_audit_log(created_at DESC);
 
 -- ── Subscription Webhook Log ──────────────────────────────────────────────────
 -- Log of all webhook processing for:
@@ -73,12 +73,12 @@ CREATE TABLE IF NOT EXISTS subscription_webhook_log (
   created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_webhook_order_id ON subscription_webhook_log(razorpay_order_id);
-CREATE INDEX idx_webhook_payment_id ON subscription_webhook_log(razorpay_payment_id);
-CREATE INDEX idx_webhook_event_id ON subscription_webhook_log(razorpay_event_id);
-CREATE INDEX idx_webhook_clinic ON subscription_webhook_log(clinic_id);
-CREATE INDEX idx_webhook_status ON subscription_webhook_log(status);
-CREATE UNIQUE INDEX idx_webhook_idempotency ON subscription_webhook_log(razorpay_event_id) WHERE razorpay_event_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_webhook_order_id ON subscription_webhook_log(razorpay_order_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_payment_id ON subscription_webhook_log(razorpay_payment_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_event_id ON subscription_webhook_log(razorpay_event_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_clinic ON subscription_webhook_log(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_status ON subscription_webhook_log(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_webhook_idempotency ON subscription_webhook_log(razorpay_event_id) WHERE razorpay_event_id IS NOT NULL;
 
 -- ── Add Seat Type to Staff Table ──────────────────────────────────────────────
 -- This column tracks which type of seat each staff member uses
