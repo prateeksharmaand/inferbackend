@@ -47,11 +47,21 @@ async function createStaff(req, res) {
       return res.status(409).json({ error: 'Email already in use' });
     }
 
-    // Use clinic's existing lab (from Lab Settings), or fall back to facility_name in body
-    const existingLab = await pool.query(
+    // Use clinic's existing lab (from Lab Settings)
+    let existingLab = await pool.query(
       `SELECT id, facility_name, lab_type, phone, city FROM laboratories WHERE clinic_id = $1 LIMIT 1`,
       [clinic_id]
     );
+    // Fallback: find via lab staff (rows saved before migration 064)
+    if (!existingLab.rows.length) {
+      existingLab = await pool.query(
+        `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city
+         FROM laboratories l
+         INNER JOIN emr_lab_staff s ON s.lab_id = l.id
+         WHERE s.clinic_id = $1 LIMIT 1`,
+        [clinic_id]
+      );
+    }
 
     let labId, labInfo;
     if (existingLab.rows.length > 0) {
