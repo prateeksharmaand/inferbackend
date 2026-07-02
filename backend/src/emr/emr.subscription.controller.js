@@ -249,6 +249,52 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
+// ── POST /api/emr/subscription/activate-test ─────────────────────────────────
+// Test-only endpoint: upgrade plan without payment (requires TEST_UPGRADE_SECRET)
+
+exports.activateTestPlan = async (req, res) => {
+  const secret = process.env.TEST_UPGRADE_SECRET;
+  if (!secret || req.headers['x-test-secret'] !== secret) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const { plan_key = 'pro', billing_cycle = 'yearly', seat_count = 10 } = req.body;
+  const clinicId = req.emrUser.clinic_id;
+  try {
+    const { rows: [plan] } = await pool.query(
+      'SELECT * FROM subscription_plans WHERE key = $1 AND is_active = true', [plan_key]
+    );
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+
+    const durationMap = { monthly: 1, yearly: 12, '2year': 24, '3year': 36 };
+    const months = durationMap[billing_cycle] || 12;
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + months);
+
+    await pool.query(
+      `INSERT INTO clinic_subscriptions
+         (clinic_id, plan_id, seat_count, billing_cycle, status, started_at, expires_at)
+       VALUES ($1,$2,$3,$4,'active',NOW(),$5)
+       ON CONFLICT (clinic_id) DO UPDATE SET
+         plan_id       = EXCLUDED.plan_id,
+         seat_count    = EXCLUDED.seat_count,
+         billing_cycle = EXCLUDED.billing_cycle,
+         status        = 'active',
+         started_at    = NOW(),
+         expires_at    = EXCLUDED.expires_at,
+         updated_at    = NOW()`,
+      [clinicId, plan.id, seat_count, billing_cycle, expiresAt]
+    );
+    await pool.query('UPDATE emr_clinics SET plan = $1 WHERE id = $2', [plan_key, clinicId]);
+
+    logger.info(`[subscription] test-activate clinic ${clinicId} → ${plan_key}`);
+    const sub = await getSubscription(clinicId);
+    res.json({ ok: true, subscription: sub });
+  } catch (err) {
+    logger.error('[subscription] activate-test failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ── POST /api/emr/webhook/billing ────────────────────────────────────────────
 // Razorpay server-side webhook with idempotency via subscription_webhook_log
 

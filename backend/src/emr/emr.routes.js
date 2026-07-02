@@ -102,6 +102,7 @@ router.get   ('/subscription/license',           subscription.getLicense);
 router.get   ('/subscription/plans',             subscription.getPlans);
 router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
+router.post  ('/subscription/activate-test',     subscription.activateTestPlan);
 
 // Wallet & Credits
 router.use('/wallet', walletRoutes);
