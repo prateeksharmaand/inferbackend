@@ -368,3 +368,18 @@
 .labLoginBanner a { color: #1d4ed8; font-weight: 500; }
 
 .fieldHint { font-size: 11px; color: var(--color-text-3); margin-top: 3px; }
+
+.labSettingsCard {
+  background: #fff; border: 1px solid var(--color-border); border-radius: 14px;
+  padding: 28px; max-width: 560px;
+}
+.labSettingsHeader {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px;
+  color: var(--color-primary);
+}
+.labSettingsTitle { font-size: 15px; font-weight: 600; color: var(--color-text-1); }
+.labSettingsSub   { font-size: 12px; color: var(--color-text-3); margin-top: 2px; }
+.labSettingsForm  { display: flex; flex-direction: column; gap: 14px; }
+.labStatusRow     { display: flex; align-items: center; gap: 8px; }
+.labStatusDot     { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; flex-shrink: 0; }
+.labStatusText    { font-size: 12px; color: var(--color-text-3); }

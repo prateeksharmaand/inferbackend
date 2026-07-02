@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Plus, X, Pencil, Trash2, Check, Users, Shield, Mail, Activity,
-  Copy, Search, ChevronDown, ChevronUp, Link2, RefreshCw, Eye, EyeOff,
+  Copy, Search, ChevronDown, ChevronUp, Link2, RefreshCw, Eye, EyeOff, FlaskConical,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import toast from 'react-hot-toast';
@@ -213,12 +213,10 @@ function PermissionEditor({ role, onSave, onClose }) {
 
 // ── Staff modal (add / edit) ──────────────────────────────────────────────────
 const EMPTY_STAFF = { name: '', email: '', password: '', role: '', mobile: '', employee_id: '', department: '', designation: '',
-  // Lab-specific fields (only used when role === 'lab_technician')
-  lab_role: 'TECHNICIAN', facility_name: '', lab_type: 'DIAGNOSTIC', city: '',
+  lab_role: 'TECHNICIAN',
 };
 
-const LAB_ROLES  = ['TECHNICIAN', 'ADMIN', 'DIRECTOR'];
-const LAB_TYPES  = ['DIAGNOSTIC', 'PATHOLOGY', 'RADIOLOGY', 'MICROBIOLOGY', 'BIOCHEMISTRY', 'HAEMATOLOGY'];
+const LAB_ROLES     = ['TECHNICIAN', 'ADMIN', 'DIRECTOR'];
 const LAB_LOGIN_URL = 'https://opd.inferapp.online/opd/lab-login';
 
 function StaffModal({ member, roles, onSave, onClose }) {
@@ -294,36 +292,12 @@ function StaffModal({ member, roles, onSave, onClose }) {
                 Lab staff login URL:&nbsp;
                 <a href={LAB_LOGIN_URL} target="_blank" rel="noopener noreferrer">{LAB_LOGIN_URL}</a>
               </div>
-              <div className={s.row2}>
-                <div className={s.field}>
-                  <label>Role in Lab</label>
-                  <select className={s.input} value={form.lab_role} onChange={e => set('lab_role', e.target.value)}>
-                    {LAB_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  <span className={s.fieldHint}>Technician: upload only · Admin: full lab access · Director: admin + audit</span>
-                </div>
-                <div className={s.field}>
-                  <label>Lab Type <span className={s.req}>*</span></label>
-                  <select className={s.input} value={form.lab_type} onChange={e => set('lab_type', e.target.value)}>
-                    {LAB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className={s.row2}>
-                <div className={s.field}>
-                  <label>Laboratory / Facility Name <span className={s.req}>*</span></label>
-                  <input className={s.input} value={form.facility_name} onChange={e => set('facility_name', e.target.value)} placeholder="Apollo Diagnostics" />
-                </div>
-                <div className={s.field}>
-                  <label>City</label>
-                  <input className={s.input} value={form.city} onChange={e => set('city', e.target.value)} placeholder="Bangalore" />
-                </div>
-              </div>
-              <div className={s.row2}>
-                <div className={s.field}>
-                  <label>Phone</label>
-                  <input className={s.input} value={form.mobile || ''} onChange={e => set('mobile', e.target.value)} placeholder="+91 9999999999" />
-                </div>
+              <div className={s.field}>
+                <label>Role in Lab</label>
+                <select className={s.input} value={form.lab_role} onChange={e => set('lab_role', e.target.value)}>
+                  {LAB_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <span className={s.fieldHint}>Technician: upload only · Admin: full lab access · Director: admin + audit</span>
               </div>
             </>
           )}
@@ -387,12 +361,10 @@ function StaffTab({ roles }) {
   const handleAdd = async (form, isLab) => {
     let created;
     if (isLab) {
+      // facility info comes from Lab Settings tab
       created = await api.post('/labs/staff', {
-        name: form.name, email: form.email, password: form.password,
-        lab_role: form.lab_role, facility_name: form.facility_name,
-        lab_type: form.lab_type, phone: form.mobile, city: form.city,
+        name: form.name, email: form.email, password: form.password, lab_role: form.lab_role,
       });
-      // Normalise to look like a staff row for the list
       created = { ...created, role: 'lab_technician', department: created.facility_name, designation: created.lab_type };
     } else {
       created = await api.post('/staff', form);
@@ -408,9 +380,7 @@ function StaffTab({ roles }) {
     let updated;
     if (isLab && editMember.lab_staff_id) {
       updated = await api.patch(`/labs/staff/${editMember.lab_staff_id}`, {
-        name: payload.name, email: payload.email, password: payload.password,
-        lab_role: payload.lab_role, facility_name: payload.facility_name,
-        lab_type: payload.lab_type, phone: payload.mobile, city: payload.city,
+        name: payload.name, email: payload.email, password: payload.password, lab_role: payload.lab_role,
       });
       updated = { ...updated, role: 'lab_technician', department: updated.facility_name, designation: updated.lab_type };
     } else {
@@ -829,12 +799,112 @@ function ActivityTab() {
   );
 }
 
+// ── Lab Settings Tab ──────────────────────────────────────────────────────────
+const LAB_TYPES = ['DIAGNOSTIC', 'PATHOLOGY', 'RADIOLOGY', 'MICROBIOLOGY', 'BIOCHEMISTRY', 'HAEMATOLOGY'];
+
+function LabSettingsTab() {
+  const [lab, setLab]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
+  const [form, setForm]       = useState({ facility_name: '', lab_type: 'DIAGNOSTIC', phone: '', city: '' });
+  const [saved, setSaved]     = useState(false);
+
+  useEffect(() => {
+    api.get('/labs/settings').then(data => {
+      if (data) {
+        setLab(data);
+        setForm({ facility_name: data.facility_name || '', lab_type: data.lab_type || 'DIAGNOSTIC', phone: data.phone || '', city: data.city || '' });
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!form.facility_name.trim()) return toast.error('Laboratory name is required');
+    setSaving(true);
+    try {
+      const result = await api.put('/labs/settings', form);
+      setLab(result);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      toast.success('Lab settings saved');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className={s.tabContent}><p className={s.emptyText}>Loading…</p></div>;
+
+  return (
+    <div className={s.tabContent}>
+      <div className={s.labSettingsCard}>
+        <div className={s.labSettingsHeader}>
+          <FlaskConical size={18} strokeWidth={1.8} />
+          <div>
+            <div className={s.labSettingsTitle}>Laboratory / Facility</div>
+            <div className={s.labSettingsSub}>Configure the lab linked to this clinic. Lab staff will be associated with this facility.</div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSave} className={s.labSettingsForm}>
+          <div className={s.field}>
+            <label>Laboratory / Facility Name <span className={s.req}>*</span></label>
+            <input className={s.input} value={form.facility_name} onChange={e => set('facility_name', e.target.value)} placeholder="e.g. Apollo Diagnostics" />
+          </div>
+          <div className={s.row2}>
+            <div className={s.field}>
+              <label>Lab Type</label>
+              <select className={s.input} value={form.lab_type} onChange={e => set('lab_type', e.target.value)}>
+                {LAB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className={s.field}>
+              <label>Phone</label>
+              <input className={s.input} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 9999999999" />
+            </div>
+          </div>
+          <div className={s.field}>
+            <label>City</label>
+            <input className={s.input} value={form.city} onChange={e => set('city', e.target.value)} placeholder="Bangalore" />
+          </div>
+
+          {lab && (
+            <div className={s.labStatusRow}>
+              <span className={s.labStatusDot} />
+              <span className={s.labStatusText}>Lab configured · Status: {lab.status}</span>
+            </div>
+          )}
+
+          <div className={s.modalFooter} style={{ marginTop: 8 }}>
+            <button type="submit" className={s.btnSave} disabled={saving}>
+              {saving ? 'Saving…' : saved ? <><Check size={14} /> Saved!</> : <><Check size={14} /> Save Lab Settings</>}
+            </button>
+          </div>
+        </form>
+
+        <div className={s.labLoginBanner} style={{ marginTop: 16 }}>
+          <Link2 size={13} />
+          Lab staff login URL:&nbsp;
+          <a href="https://opd.inferapp.online/opd/lab-login" target="_blank" rel="noopener noreferrer">
+            https://opd.inferapp.online/opd/lab-login
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main StaffManagement page ─────────────────────────────────────────────────
 const TABS = [
-  { key: 'staff',       Icon: Users,    label: 'Staff Members' },
-  { key: 'roles',       Icon: Shield,   label: 'Roles & Permissions' },
-  { key: 'invitations', Icon: Mail,     label: 'Invitations' },
-  { key: 'activity',    Icon: Activity, label: 'Activity Logs' },
+  { key: 'staff',       Icon: Users,         label: 'Staff Members' },
+  { key: 'roles',       Icon: Shield,        label: 'Roles & Permissions' },
+  { key: 'invitations', Icon: Mail,          label: 'Invitations' },
+  { key: 'activity',    Icon: Activity,      label: 'Activity Logs' },
+  { key: 'lab',         Icon: FlaskConical,  label: 'Lab Settings' },
 ];
 
 export default function StaffManagement() {
@@ -872,6 +942,7 @@ export default function StaffManagement() {
       {tab === 'roles'       && <RolesTab roles={roles} setRoles={setRoles} />}
       {tab === 'invitations' && <InvitationsTab roles={roles} />}
       {tab === 'activity'    && <ActivityTab />}
+      {tab === 'lab'         && <LabSettingsTab />}
     </div>
   );
 }

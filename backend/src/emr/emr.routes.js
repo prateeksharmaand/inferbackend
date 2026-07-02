@@ -188,6 +188,8 @@ router.delete('/staff/invitations/:id',   staff.revokeInvitation);
 router.get   ('/staff/activity-logs',     staff.listActivityLogs);
 
 // Lab Staff (managed from OPD Settings â†’ Lab Staff tab)
+router.get   ('/labs/settings',      labStaff.getLabSettings);
+router.put   ('/labs/settings',      labStaff.upsertLabSettings);
 router.get   ('/labs/staff',         labStaff.listStaff);
 router.post  ('/labs/staff',         labStaff.createStaff);
 router.patch ('/labs/staff/:id',     labStaff.updateStaff);

@@ -35,8 +35,8 @@ async function createStaff(req, res) {
     const { clinic_id } = req.emrUser;
     const { name, email, password, lab_role, facility_name, lab_type, phone, city } = req.body;
 
-    if (!name || !email || !password || !facility_name) {
-      return res.status(400).json({ error: 'name, email, password and facility_name are required' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'name, email and password are required' });
     }
 
     // Check email not already used
@@ -47,23 +47,31 @@ async function createStaff(req, res) {
       return res.status(409).json({ error: 'Email already in use' });
     }
 
-    // Reuse or create laboratory record
-    const labRes = await pool.query(
-      `SELECT id FROM laboratories WHERE facility_name = $1 LIMIT 1`,
-      [facility_name]
+    // Use clinic's existing lab (from Lab Settings), or fall back to facility_name in body
+    const existingLab = await pool.query(
+      `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city
+       FROM laboratories l
+       INNER JOIN emr_lab_staff s ON s.lab_id = l.id
+       WHERE s.clinic_id = $1 LIMIT 1`,
+      [clinic_id]
     );
 
-    let labId;
-    if (labRes.rows.length > 0) {
-      labId = labRes.rows[0].id;
-    } else {
-      const apiKey  = `lab_pk_${crypto.randomBytes(16).toString('hex')}`;
-      const newLab  = await pool.query(
+    let labId, labInfo;
+    if (existingLab.rows.length > 0) {
+      labId   = existingLab.rows[0].id;
+      labInfo = existingLab.rows[0];
+    } else if (facility_name) {
+      // Legacy: create lab from provided fields
+      const apiKey = `lab_pk_${crypto.randomBytes(16).toString('hex')}`;
+      const newLab = await pool.query(
         `INSERT INTO laboratories (facility_name, lab_type, phone, city, api_key, status)
-         VALUES ($1, $2, $3, $4, $5, 'ACTIVE') RETURNING id`,
+         VALUES ($1,$2,$3,$4,$5,'active') RETURNING id, facility_name, lab_type, phone, city`,
         [facility_name, lab_type || 'DIAGNOSTIC', phone || null, city || null, apiKey]
       );
-      labId = newLab.rows[0].id;
+      labId   = newLab.rows[0].id;
+      labInfo = newLab.rows[0];
+    } else {
+      return res.status(400).json({ error: 'No lab configured. Set up a lab in Lab Settings first.' });
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -72,16 +80,10 @@ async function createStaff(req, res) {
       `INSERT INTO emr_lab_staff (clinic_id, lab_id, name, email, password_hash, lab_role)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, name, email, lab_role, is_active, lab_id`,
-      [clinic_id, labId, name, email, hash, lab_role || 'LAB_TECHNICIAN']
+      [clinic_id, labId, name, email, hash, lab_role || 'TECHNICIAN']
     );
 
-    res.status(201).json({
-      ...rows[0],
-      facility_name,
-      lab_type: lab_type || 'DIAGNOSTIC',
-      phone: phone || null,
-      city:  city  || null,
-    });
+    res.status(201).json({ ...rows[0], ...labInfo });
   } catch (err) {
     console.error('createStaff error:', err);
     res.status(500).json({ error: err.message });
@@ -215,4 +217,62 @@ async function loginStaff(req, res) {
   }
 }
 
-module.exports = { listStaff, createStaff, updateStaff, deleteStaff, loginStaff };
+// ── GET /labs/settings ────────────────────────────────────────────────────────
+// Returns the lab linked to this clinic (via its lab staff), or null
+async function getLabSettings(req, res) {
+  try {
+    const { clinic_id } = req.emrUser;
+    const { rows } = await pool.query(
+      `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city, l.status
+       FROM laboratories l
+       INNER JOIN emr_lab_staff s ON s.lab_id = l.id
+       WHERE s.clinic_id = $1
+       LIMIT 1`,
+      [clinic_id]
+    );
+    res.json(rows[0] || null);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// ── PUT /labs/settings ────────────────────────────────────────────────────────
+// Upsert the clinic's lab. Creates one if none exists yet.
+async function upsertLabSettings(req, res) {
+  try {
+    const { clinic_id } = req.emrUser;
+    const { facility_name, lab_type, phone, city } = req.body;
+    if (!facility_name?.trim()) return res.status(400).json({ error: 'facility_name is required' });
+
+    // Find existing lab for this clinic
+    const { rows: existing } = await pool.query(
+      `SELECT l.id FROM laboratories l
+       INNER JOIN emr_lab_staff s ON s.lab_id = l.id
+       WHERE s.clinic_id = $1 LIMIT 1`,
+      [clinic_id]
+    );
+
+    let lab;
+    if (existing.length) {
+      const { rows } = await pool.query(
+        `UPDATE laboratories SET facility_name=$1, lab_type=$2, phone=$3, city=$4
+         WHERE id=$5 RETURNING id, facility_name, lab_type, phone, city, status`,
+        [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, existing[0].id]
+      );
+      lab = rows[0];
+    } else {
+      const apiKey = crypto.randomBytes(24).toString('hex');
+      const { rows } = await pool.query(
+        `INSERT INTO laboratories (facility_name, lab_type, phone, city, api_key, status)
+         VALUES ($1,$2,$3,$4,$5,'active') RETURNING id, facility_name, lab_type, phone, city, status`,
+        [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, apiKey]
+      );
+      lab = rows[0];
+    }
+    res.json(lab);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { listStaff, createStaff, updateStaff, deleteStaff, loginStaff, getLabSettings, upsertLabSettings };
