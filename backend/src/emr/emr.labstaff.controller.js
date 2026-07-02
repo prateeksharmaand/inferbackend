@@ -49,10 +49,7 @@ async function createStaff(req, res) {
 
     // Use clinic's existing lab (from Lab Settings), or fall back to facility_name in body
     const existingLab = await pool.query(
-      `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city
-       FROM laboratories l
-       INNER JOIN emr_lab_staff s ON s.lab_id = l.id
-       WHERE s.clinic_id = $1 LIMIT 1`,
+      `SELECT id, facility_name, lab_type, phone, city FROM laboratories WHERE clinic_id = $1 LIMIT 1`,
       [clinic_id]
     );
 
@@ -218,18 +215,25 @@ async function loginStaff(req, res) {
 }
 
 // ── GET /labs/settings ────────────────────────────────────────────────────────
-// Returns the lab linked to this clinic (via its lab staff), or null
 async function getLabSettings(req, res) {
   try {
     const { clinic_id } = req.emrUser;
-    const { rows } = await pool.query(
-      `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city, l.status
-       FROM laboratories l
-       INNER JOIN emr_lab_staff s ON s.lab_id = l.id
-       WHERE s.clinic_id = $1
-       LIMIT 1`,
+    // First try direct clinic_id link (fast path after migration 064)
+    let { rows } = await pool.query(
+      `SELECT id, facility_name, lab_type, phone, city, status
+       FROM laboratories WHERE clinic_id = $1 LIMIT 1`,
       [clinic_id]
     );
+    // Fallback: find via lab staff (pre-migration rows)
+    if (!rows.length) {
+      ({ rows } = await pool.query(
+        `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city, l.status
+         FROM laboratories l
+         INNER JOIN emr_lab_staff s ON s.lab_id = l.id
+         WHERE s.clinic_id = $1 LIMIT 1`,
+        [clinic_id]
+      ));
+    }
     res.json(rows[0] || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -237,35 +241,39 @@ async function getLabSettings(req, res) {
 }
 
 // ── PUT /labs/settings ────────────────────────────────────────────────────────
-// Upsert the clinic's lab. Creates one if none exists yet.
 async function upsertLabSettings(req, res) {
   try {
     const { clinic_id } = req.emrUser;
     const { facility_name, lab_type, phone, city } = req.body;
     if (!facility_name?.trim()) return res.status(400).json({ error: 'facility_name is required' });
 
-    // Find existing lab for this clinic
-    const { rows: existing } = await pool.query(
-      `SELECT l.id FROM laboratories l
-       INNER JOIN emr_lab_staff s ON s.lab_id = l.id
-       WHERE s.clinic_id = $1 LIMIT 1`,
-      [clinic_id]
+    // Find existing lab for this clinic (direct or via staff)
+    let { rows: existing } = await pool.query(
+      `SELECT id FROM laboratories WHERE clinic_id = $1 LIMIT 1`, [clinic_id]
     );
+    if (!existing.length) {
+      const { rows } = await pool.query(
+        `SELECT l.id FROM laboratories l
+         INNER JOIN emr_lab_staff s ON s.lab_id = l.id
+         WHERE s.clinic_id = $1 LIMIT 1`, [clinic_id]
+      );
+      existing = rows;
+    }
 
     let lab;
     if (existing.length) {
       const { rows } = await pool.query(
-        `UPDATE laboratories SET facility_name=$1, lab_type=$2, phone=$3, city=$4
-         WHERE id=$5 RETURNING id, facility_name, lab_type, phone, city, status`,
-        [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, existing[0].id]
+        `UPDATE laboratories SET facility_name=$1, lab_type=$2, phone=$3, city=$4, clinic_id=$5
+         WHERE id=$6 RETURNING id, facility_name, lab_type, phone, city, status`,
+        [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, clinic_id, existing[0].id]
       );
       lab = rows[0];
     } else {
       const apiKey = crypto.randomBytes(24).toString('hex');
       const { rows } = await pool.query(
-        `INSERT INTO laboratories (facility_name, lab_type, phone, city, api_key, status)
-         VALUES ($1,$2,$3,$4,$5,'ACTIVE') RETURNING id, facility_name, lab_type, phone, city, status`,
-        [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, apiKey]
+        `INSERT INTO laboratories (facility_name, lab_type, phone, city, api_key, status, clinic_id)
+         VALUES ($1,$2,$3,$4,$5,'ACTIVE',$6) RETURNING id, facility_name, lab_type, phone, city, status`,
+        [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, apiKey, clinic_id]
       );
       lab = rows[0];
     }
