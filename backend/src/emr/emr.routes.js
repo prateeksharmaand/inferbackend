@@ -71,6 +71,9 @@ router.get('/scribe/status', scribe.status);
 // Public prescription view â€” no auth, token-verified via HMAC
 router.get('/public/rx/:apptId', rxpublic.getPublicRx);
 
+// Razorpay billing webhook â€” public (Razorpay sends no JWT); HMAC-verified inside handler
+router.post('/webhook/billing', subscription.handleWebhook);
+
 // â”€â”€ Protected (all routes below require EMR JWT) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.use(emrAuth);
 
@@ -99,7 +102,6 @@ router.get   ('/subscription/license',           subscription.getLicense);
 router.get   ('/subscription/plans',             subscription.getPlans);
 router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
-router.post  ('/webhook/billing',                subscription.handleWebhook);
 
 // Wallet & Credits
 router.use('/wallet', walletRoutes);
@@ -646,13 +648,13 @@ router.get('/audit-logs', async (req, res) => {
   res.json(rows);
 });
 
-// Analytics dashboards
-router.get('/analytics/appointments',   analytics.getAppointmentDashboard);
-router.get('/analytics/patients',       analytics.getPatientsDashboard);
-router.get('/analytics/realtime',       analytics.getRealtimeDashboard);
-router.get('/analytics/prescriptions',  analytics.getPrescriptionAnalytics);
-router.get('/analytics/form25',         analytics.getForm25);
-router.get('/analytics/form25/summary', analytics.getForm25Summary);
+// Analytics dashboards â€" Pro only
+router.get('/analytics/appointments',   proOnlyCheck('analytics'), analytics.getAppointmentDashboard);
+router.get('/analytics/patients',       proOnlyCheck('analytics'), analytics.getPatientsDashboard);
+router.get('/analytics/realtime',       proOnlyCheck('analytics'), analytics.getRealtimeDashboard);
+router.get('/analytics/prescriptions',  proOnlyCheck('analytics'), analytics.getPrescriptionAnalytics);
+router.get('/analytics/form25',         proOnlyCheck('analytics'), analytics.getForm25);
+router.get('/analytics/form25/summary', proOnlyCheck('analytics'), analytics.getForm25Summary);
 
 // Inbound automated appointment booking (Telnyx + Gemini)
 router.use('/inbound', inbound);

@@ -30,6 +30,9 @@ const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, '055_whatsapp_call_tracking.sql'),       // WhatsApp call attempt tracking with notes
   path.join(__dirname, '057_add_visits_layer.sql'),             // Visit layer: clinic arrivals decoupled from appointments
   path.join(__dirname, '058_add_visit_type_constraint.sql'),    // Add visit_type constraint and index
+  path.join(__dirname, '024_subscriptions.sql'),                // Subscription plans, clinic_subscriptions, orders
+  path.join(__dirname, '026_subscription_catalog.sql'),         // Seat types, add-ons, clinic line items
+  path.join(__dirname, '027_subscription_enforcement_tables.sql'), // Active sessions, audit log, webhook log, seat_type on staff
 ];
 
 async function runMigrations(pool, logger) {
@@ -80,7 +83,9 @@ async function runMigrations(pool, logger) {
         continue;
       }
 
-      const sql = fs.readFileSync(filePath, 'utf8');
+      // Strip GRANT statements — the target role (app_user) may not exist in all environments
+      const raw = fs.readFileSync(filePath, 'utf8');
+      const sql = raw.split('\n').filter(l => !l.trim().toUpperCase().startsWith('GRANT')).join('\n');
       await client.query(sql);
       await client.query(
         'INSERT INTO migrations (name) VALUES ($1) ON CONFLICT DO NOTHING', [name]

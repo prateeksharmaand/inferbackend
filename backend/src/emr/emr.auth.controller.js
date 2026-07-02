@@ -202,7 +202,7 @@ const addDoctor = async (req, res) => {
 
   if (maxSeats !== -1) {
     const { rows: [countRow] } = await pool.query(
-      `SELECT COUNT(*)::int AS n FROM emr_doctors WHERE clinic_id = $1 AND is_active = true`,
+      `SELECT COUNT(*)::int AS n FROM emr_clinic_staff WHERE clinic_id = $1 AND role = 'doctor' AND is_active = true`,
       [clinic_id]
     );
     if (countRow.n >= maxSeats) {
@@ -262,7 +262,7 @@ const getSeatInfo = async (req, res) => {
   }
 
   const { rows: [countRow] } = await pool.query(
-    `SELECT COUNT(*)::int AS n FROM emr_doctors WHERE clinic_id = $1 AND is_active = true`,
+    `SELECT COUNT(*)::int AS n FROM emr_clinic_staff WHERE clinic_id = $1 AND role = 'doctor' AND is_active = true`,
     [clinic_id]
   );
 
@@ -279,8 +279,14 @@ const getSeatInfo = async (req, res) => {
 // GET /api/emr/auth/doctors
 const listDoctors = async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, name, email, specialization, qualification, registration_no, is_active, google_review_link
-     FROM emr_doctors WHERE clinic_id=$1 ORDER BY name`,
+    `SELECT id, name, email,
+            designation  AS specialization,
+            department   AS qualification,
+            employee_id  AS registration_no,
+            is_active, google_review_link
+     FROM emr_clinic_staff
+     WHERE clinic_id = $1 AND role = 'doctor'
+     ORDER BY name`,
     [req.emrUser.clinic_id]
   );
   res.json(rows);
@@ -317,7 +323,7 @@ const updateDoctor = async (req, res) => {
 // DELETE /api/emr/auth/doctors/:id
 const deleteDoctor = async (req, res) => {
   const { rowCount } = await pool.query(
-    'DELETE FROM emr_doctors WHERE id=$1 AND clinic_id=$2',
+    `DELETE FROM emr_clinic_staff WHERE id = $1 AND clinic_id = $2 AND role = 'doctor'`,
     [req.params.id, req.emrUser.clinic_id]
   );
   if (!rowCount) return res.status(404).json({ error: 'Doctor not found' });

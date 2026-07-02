@@ -56,15 +56,42 @@ const createStaff = async (req, res) => {
   if (password.length < 8)
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
+  // Seat limit check — every staff member consumes one seat
+  const { rows: [subRow] } = await pool.query(
+    `SELECT cs.seat_count, sp.key AS plan_key, sp.max_users
+     FROM clinic_subscriptions cs
+     JOIN subscription_plans sp ON sp.id = cs.plan_id
+     WHERE cs.clinic_id = $1`,
+    [req.emrUser.clinic_id]
+  ).catch(() => ({ rows: [null] }));
+  if (subRow) {
+    const seatLimit = (subRow.seat_count > 0) ? subRow.seat_count : (subRow.max_users ?? 1);
+    if (seatLimit !== -1) {
+      const { rows: [cnt] } = await pool.query(
+        `SELECT COUNT(*)::int AS n FROM emr_clinic_staff WHERE clinic_id = $1 AND is_active = true`,
+        [req.emrUser.clinic_id]
+      );
+      if (cnt.n >= seatLimit) {
+        return res.status(402).json({
+          error: 'seat_limit',
+          used: cnt.n,
+          limit: seatLimit,
+          message: `You have used all ${seatLimit} seat(s). Purchase more seats to add staff.`,
+        });
+      }
+    }
+  }
+
+  const seatType = role === 'doctor' ? 'premium' : 'basic';
   const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   try {
     const { rows } = await pool.query(
       `INSERT INTO emr_clinic_staff
-         (clinic_id, name, email, password_hash, role, mobile, employee_id, department, designation, is_active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true)
+         (clinic_id, name, email, password_hash, role, mobile, employee_id, department, designation, seat_type, is_active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true)
        RETURNING id, name, email, role, mobile, employee_id, department, designation, is_active, created_at`,
       [req.emrUser.clinic_id, name.trim(), email.trim().toLowerCase(), hash, role,
-       mobile || null, employee_id || null, department || null, designation || null]
+       mobile || null, employee_id || null, department || null, designation || null, seatType]
     );
     logActivity({ req, action: 'STAFF_CREATED', resource: 'staff', resourceId: rows[0].id, details: { name: rows[0].name, role: rows[0].role } });
     res.status(201).json(rows[0]);

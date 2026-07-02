@@ -68,12 +68,23 @@ class EffectiveLicenseResolver {
       // Phase 4: Get seat information
       const seatSummary = await SeatService.getSeatSummary(clinicId);
 
-      // Phase 5: Get AI credits
-      const wallet = await CreditService.getWallet(clinicId, staffId);
-      const clinicCreditsRemaining = await CreditService.getClinicCreditsRemaining(clinicId);
+      // Phase 5: Get AI credits (graceful degradation — credit system may use incompatible schema)
+      let wallet = null;
+      let clinicCreditsRemaining = 0;
+      try {
+        wallet = await CreditService.getWallet(clinicId, staffId);
+        clinicCreditsRemaining = await CreditService.getClinicCreditsRemaining(clinicId);
+      } catch (creditErr) {
+        logger.warn(`[EffectiveLicenseResolver] Credit service unavailable: ${creditErr.message}`);
+      }
 
-      // Phase 6: Get usage
-      const usage = await this._getUsage(clinicId);
+      // Phase 6: Get usage and augment with plan limits for frontend consumption
+      const rawUsage = await this._getUsage(clinicId);
+      const usage = {
+        patients:      { used: rawUsage.patients.used,      limit: subscription.max_patients },
+        appointments:  { used: rawUsage.appointments.used,  limit: subscription.max_appointments },
+        prescriptions: { used: rawUsage.prescriptions.used, limit: subscription.max_prescriptions },
+      };
 
       // Phase 7: Get subscription items (seats, add-ons)
       const items = await SubscriptionService.getSubscriptionItems(clinicId);

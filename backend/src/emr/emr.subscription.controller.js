@@ -110,6 +110,9 @@ exports.getPlans = async (req, res) => {
 // ── POST /api/emr/subscription/create-order ──────────────────────────────────
 
 exports.createOrder = async (req, res) => {
+  if (!['admin', 'owner'].includes(req.emrUser.role)) {
+    return res.status(403).json({ error: 'Only clinic admins can manage subscriptions.' });
+  }
   const { plan_key, billing_cycle, seat_count = 1 } = req.body;
   const clinicId = req.emrUser.clinic_id;
 
@@ -173,6 +176,9 @@ exports.createOrder = async (req, res) => {
 // ── POST /api/emr/subscription/verify-payment ────────────────────────────────
 
 exports.verifyPayment = async (req, res) => {
+  if (!['admin', 'owner'].includes(req.emrUser.role)) {
+    return res.status(403).json({ error: 'Only clinic admins can manage subscriptions.' });
+  }
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
   const clinicId = req.emrUser.clinic_id;
 
@@ -323,14 +329,26 @@ exports.subscriptionCheck = (resource) => async (req, res, next) => {
     // Active Pro (not expired) → unlimited access
     if (isPro && isActive && !isExpired) return next();
 
-    // Expired Pro or Base → enforce limits from the plan
-    const limits = {
+    // Expired Pro → fall back to base plan limits (not the pro plan's -1 unlimited)
+    let planLimits = {
       patients:      sub.max_patients,
       appointments:  sub.max_appointments,
       prescriptions: sub.max_prescriptions,
     };
+    if (isPro && isExpired) {
+      const { rows: [basePlan] } = await pool.query(
+        `SELECT max_patients, max_appointments, max_prescriptions FROM subscription_plans WHERE key = 'base'`
+      );
+      if (basePlan) {
+        planLimits = {
+          patients:      basePlan.max_patients,
+          appointments:  basePlan.max_appointments,
+          prescriptions: basePlan.max_prescriptions,
+        };
+      }
+    }
 
-    const limit = limits[resource];
+    const limit = planLimits[resource];
     if (!limit || limit === -1) return next(); // unlimited
 
     const usage = await getUsage(clinicId);

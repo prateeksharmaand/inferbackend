@@ -67,6 +67,16 @@ async function run() {
     `);
     console.log('✓ Pricing updated: base ₹300/seat/mo, pro ₹600/seat/mo');
 
+    // ── Step 3: Add UNIQUE constraint to clinic_subscription_items ────────────
+    console.log('Adding UNIQUE constraint to clinic_subscription_items…');
+    await client.query(`
+      ALTER TABLE clinic_subscription_items
+        DROP CONSTRAINT IF EXISTS uq_clinic_subscription_item,
+        ADD CONSTRAINT uq_clinic_subscription_item
+        UNIQUE (clinic_id, item_type, item_key)
+    `);
+    console.log('✓ UNIQUE constraint added to clinic_subscription_items');
+
     await client.query('COMMIT');
     console.log('\n✅ All migrations applied successfully.');
   } catch (err) {
