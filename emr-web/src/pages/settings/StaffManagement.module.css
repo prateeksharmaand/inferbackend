@@ -359,3 +359,12 @@
 }
 .btnSave:hover    { background: var(--color-primary-dk); }
 .btnSave:disabled { opacity: .6; cursor: not-allowed; }
+
+.labLoginBanner {
+  display: flex; align-items: center; gap: 6px;
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+  padding: 8px 12px; font-size: 12px; color: #1d4ed8; margin-bottom: 4px;
+}
+.labLoginBanner a { color: #1d4ed8; font-weight: 500; }
+
+.fieldHint { font-size: 11px; color: var(--color-text-3); margin-top: 3px; }

@@ -212,14 +212,22 @@ function PermissionEditor({ role, onSave, onClose }) {
 }
 
 // ── Staff modal (add / edit) ──────────────────────────────────────────────────
-const EMPTY_STAFF = { name: '', email: '', password: '', role: '', mobile: '', employee_id: '', department: '', designation: '' };
+const EMPTY_STAFF = { name: '', email: '', password: '', role: '', mobile: '', employee_id: '', department: '', designation: '',
+  // Lab-specific fields (only used when role === 'lab_technician')
+  lab_role: 'TECHNICIAN', facility_name: '', lab_type: 'DIAGNOSTIC', city: '',
+};
+
+const LAB_ROLES  = ['TECHNICIAN', 'ADMIN', 'DIRECTOR'];
+const LAB_TYPES  = ['DIAGNOSTIC', 'PATHOLOGY', 'RADIOLOGY', 'MICROBIOLOGY', 'BIOCHEMISTRY', 'HAEMATOLOGY'];
+const LAB_LOGIN_URL = 'https://opd.inferapp.online/opd/lab-login';
 
 function StaffModal({ member, roles, onSave, onClose }) {
-  const [form, setForm] = useState(member ? { ...member, password: '' } : EMPTY_STAFF);
+  const [form, setForm] = useState(member ? { ...EMPTY_STAFF, ...member, password: '' } : EMPTY_STAFF);
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
   const [showPw, setShowPw] = useState(false);
   const isEdit = !!member;
+  const isLab  = form.role === 'lab_technician';
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -228,8 +236,9 @@ function StaffModal({ member, roles, onSave, onClose }) {
     if (!form.name.trim())  return setError('Name is required');
     if (!form.email.trim()) return setError('Email is required');
     if (!isEdit && !form.password) return setError('Password is required');
+    if (isLab && !form.facility_name.trim()) return setError('Laboratory / Facility Name is required');
     setSaving(true); setError('');
-    try { await onSave(form); }
+    try { await onSave(form, isLab); }
     catch (err) { setError(err.message); setSaving(false); }
   };
 
@@ -277,27 +286,73 @@ function StaffModal({ member, roles, onSave, onClose }) {
             </div>
           </div>
 
-          <div className={s.row2}>
-            <div className={s.field}>
-              <label>Mobile</label>
-              <input className={s.input} value={form.mobile || ''} onChange={e => set('mobile', e.target.value)} placeholder="+91 98765 43210" />
-            </div>
-            <div className={s.field}>
-              <label>Employee ID</label>
-              <input className={s.input} value={form.employee_id || ''} onChange={e => set('employee_id', e.target.value)} placeholder="EMP-001" />
-            </div>
-          </div>
+          {/* ── Lab Technician extra fields ── */}
+          {isLab && (
+            <>
+              <div className={s.labLoginBanner}>
+                <Link2 size={13} />
+                Lab staff login URL:&nbsp;
+                <a href={LAB_LOGIN_URL} target="_blank" rel="noopener noreferrer">{LAB_LOGIN_URL}</a>
+              </div>
+              <div className={s.row2}>
+                <div className={s.field}>
+                  <label>Role in Lab</label>
+                  <select className={s.input} value={form.lab_role} onChange={e => set('lab_role', e.target.value)}>
+                    {LAB_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <span className={s.fieldHint}>Technician: upload only · Admin: full lab access · Director: admin + audit</span>
+                </div>
+                <div className={s.field}>
+                  <label>Lab Type <span className={s.req}>*</span></label>
+                  <select className={s.input} value={form.lab_type} onChange={e => set('lab_type', e.target.value)}>
+                    {LAB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className={s.row2}>
+                <div className={s.field}>
+                  <label>Laboratory / Facility Name <span className={s.req}>*</span></label>
+                  <input className={s.input} value={form.facility_name} onChange={e => set('facility_name', e.target.value)} placeholder="Apollo Diagnostics" />
+                </div>
+                <div className={s.field}>
+                  <label>City</label>
+                  <input className={s.input} value={form.city} onChange={e => set('city', e.target.value)} placeholder="Bangalore" />
+                </div>
+              </div>
+              <div className={s.row2}>
+                <div className={s.field}>
+                  <label>Phone</label>
+                  <input className={s.input} value={form.mobile || ''} onChange={e => set('mobile', e.target.value)} placeholder="+91 9999999999" />
+                </div>
+              </div>
+            </>
+          )}
 
-          <div className={s.row2}>
-            <div className={s.field}>
-              <label>Department</label>
-              <input className={s.input} value={form.department || ''} onChange={e => set('department', e.target.value)} placeholder="Outpatient" />
-            </div>
-            <div className={s.field}>
-              <label>Designation</label>
-              <input className={s.input} value={form.designation || ''} onChange={e => set('designation', e.target.value)} placeholder="Senior Receptionist" />
-            </div>
-          </div>
+          {/* ── Regular staff fields (hidden for lab) ── */}
+          {!isLab && (
+            <>
+              <div className={s.row2}>
+                <div className={s.field}>
+                  <label>Mobile</label>
+                  <input className={s.input} value={form.mobile || ''} onChange={e => set('mobile', e.target.value)} placeholder="+91 98765 43210" />
+                </div>
+                <div className={s.field}>
+                  <label>Employee ID</label>
+                  <input className={s.input} value={form.employee_id || ''} onChange={e => set('employee_id', e.target.value)} placeholder="EMP-001" />
+                </div>
+              </div>
+              <div className={s.row2}>
+                <div className={s.field}>
+                  <label>Department</label>
+                  <input className={s.input} value={form.department || ''} onChange={e => set('department', e.target.value)} placeholder="Outpatient" />
+                </div>
+                <div className={s.field}>
+                  <label>Designation</label>
+                  <input className={s.input} value={form.designation || ''} onChange={e => set('designation', e.target.value)} placeholder="Senior Receptionist" />
+                </div>
+              </div>
+            </>
+          )}
 
           {error && <p className={s.error}>{error}</p>}
           <div className={s.modalFooter}>
@@ -329,17 +384,38 @@ function StaffTab({ roles }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleAdd = async (form) => {
-    const created = await api.post('/staff', form);
+  const handleAdd = async (form, isLab) => {
+    let created;
+    if (isLab) {
+      created = await api.post('/labs/staff', {
+        name: form.name, email: form.email, password: form.password,
+        lab_role: form.lab_role, facility_name: form.facility_name,
+        lab_type: form.lab_type, phone: form.mobile, city: form.city,
+      });
+      // Normalise to look like a staff row for the list
+      created = { ...created, role: 'lab_technician', department: created.facility_name, designation: created.lab_type };
+    } else {
+      created = await api.post('/staff', form);
+    }
     setStaff(s => [...s, created].sort((a, b) => a.name.localeCompare(b.name)));
     setShowModal(false);
     toast.success('Staff member added');
   };
 
-  const handleEdit = async (form) => {
+  const handleEdit = async (form, isLab) => {
     const payload = { ...form };
     if (!payload.password) delete payload.password;
-    const updated = await api.patch(`/staff/${editMember.id}`, payload);
+    let updated;
+    if (isLab && editMember.lab_staff_id) {
+      updated = await api.patch(`/labs/staff/${editMember.lab_staff_id}`, {
+        name: payload.name, email: payload.email, password: payload.password,
+        lab_role: payload.lab_role, facility_name: payload.facility_name,
+        lab_type: payload.lab_type, phone: payload.mobile, city: payload.city,
+      });
+      updated = { ...updated, role: 'lab_technician', department: updated.facility_name, designation: updated.lab_type };
+    } else {
+      updated = await api.patch(`/staff/${editMember.id}`, payload);
+    }
     setStaff(s => s.map(x => x.id === updated.id ? updated : x));
     setEditMember(null);
     toast.success('Staff member updated');
