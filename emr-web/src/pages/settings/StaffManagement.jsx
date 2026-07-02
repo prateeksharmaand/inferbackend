@@ -81,7 +81,7 @@ const PERM_GROUPS = [
   ]},
 ];
 
-const SYSTEM_ROLES = ['admin', 'doctor', 'receptionist', 'nurse', 'billing', 'lab_technician', 'staff'];
+// Roles are now fetched from /staff/roles — no hardcoded list needed
 
 function countPerms(perms) {
   if (!perms) return 0;
@@ -212,7 +212,7 @@ function PermissionEditor({ role, onSave, onClose }) {
 }
 
 // ── Staff modal (add / edit) ──────────────────────────────────────────────────
-const EMPTY_STAFF = { name: '', email: '', password: '', role: 'staff', mobile: '', employee_id: '', department: '', designation: '' };
+const EMPTY_STAFF = { name: '', email: '', password: '', role: '', mobile: '', employee_id: '', department: '', designation: '' };
 
 function StaffModal({ member, roles, onSave, onClose }) {
   const [form, setForm] = useState(member ? { ...member, password: '' } : EMPTY_STAFF);
@@ -271,14 +271,8 @@ function StaffModal({ member, roles, onSave, onClose }) {
             <div className={s.field}>
               <label>Role</label>
               <select className={s.input} value={form.role} onChange={e => set('role', e.target.value)}>
-                <optgroup label="System Roles">
-                  {SYSTEM_ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
-                </optgroup>
-                {roles.length > 0 && (
-                  <optgroup label="Custom Roles">
-                    {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
-                  </optgroup>
-                )}
+                <option value="">Select a role…</option>
+                {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
               </select>
             </div>
           </div>
@@ -382,14 +376,7 @@ function StaffTab({ roles }) {
         </div>
         <select className={s.roleFilter} value={filterRole} onChange={e => setFilterRole(e.target.value)}>
           <option value="">All Roles</option>
-          <optgroup label="System Roles">
-            {SYSTEM_ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
-          </optgroup>
-          {roles.length > 0 && (
-            <optgroup label="Custom Roles">
-              {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
-            </optgroup>
-          )}
+          {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
         </select>
         <button className={s.btnCreate} onClick={() => setShowModal(true)}>
           <Plus size={14} strokeWidth={2.5} /> Add Staff
@@ -635,14 +622,8 @@ function InvitationsTab({ roles }) {
             <div className={s.field}>
               <label>Role</label>
               <select className={s.input} value={form.role} onChange={e => set('role', e.target.value)}>
-                <optgroup label="System Roles">
-                  {SYSTEM_ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
-                </optgroup>
-                {roles.length > 0 && (
-                  <optgroup label="Custom Roles">
-                    {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
-                  </optgroup>
-                )}
+                <option value="">Select a role…</option>
+                {roles.map(r => <option key={r.id} value={r.slug}>{r.name}</option>)}
               </select>
             </div>
             <div className={s.field}>
