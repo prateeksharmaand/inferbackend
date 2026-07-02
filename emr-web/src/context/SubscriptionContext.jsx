@@ -16,7 +16,7 @@ export function SubscriptionProvider({ children }) {
     try {
       setError(null);
       const token = localStorage.getItem('emr_token');
-      const res = await fetch('/api/subscription/license', {
+      const res = await fetch('/api/emr/subscription/license', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

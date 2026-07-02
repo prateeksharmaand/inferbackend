@@ -78,8 +78,8 @@ class EffectiveLicenseResolver {
       // Phase 7: Get subscription items (seats, add-ons)
       const items = await SubscriptionService.getSubscriptionItems(clinicId);
 
-      // Phase 8: Extract plan features
-      const planFeatures = subscription.features ? JSON.parse(subscription.features) : {};
+      // Phase 8: Extract plan features (pg returns JSONB as a JS object already)
+      const planFeatures = subscription.features || {};
 
       // Phase 9: Build EffectiveLicense object
       const effectiveLicense = {

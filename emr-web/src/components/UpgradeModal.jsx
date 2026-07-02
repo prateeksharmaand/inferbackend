@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Zap, Check, ArrowRight, AlertTriangle } from 'lucide-react';
 import { api } from '../api/client';
 import { useSubscription } from '../context/SubscriptionContext';
@@ -37,7 +37,7 @@ function loadRazorpay() {
 }
 
 export default function UpgradeModal({ onClose, triggerResource, limitMessage }) {
-  const { sub, refresh } = useSubscription();
+  const { license, refresh } = useSubscription();
   const [cycle,    setCycle]    = useState('yearly');
   const [seats,    setSeats]    = useState(1);
   const [paying,   setPaying]   = useState(false);
@@ -47,14 +47,14 @@ export default function UpgradeModal({ onClose, triggerResource, limitMessage })
   const proPlan   = null; // fetched inline from sub context or via prop if available
   const cycleInfo = CYCLES.find(c => c.key === cycle);
 
-  // We read pro plan prices from the plans API
+  // Load pro plan prices from the plans API
   const [proPrices, setProPrices] = useState(null);
-  useState(() => {
+  useEffect(() => {
     api.get('/subscription/plans').then(plans => {
       const pro = plans.find(p => p.key === 'pro');
       if (pro) setProPrices(pro);
     }).catch(() => {});
-  });
+  }, []);
 
   const unitPrice  = proPrices ? Math.round(proPrices[cycleInfo?.priceKey || 'price_yearly'] / 100) : 400;
   const totalPaise = proPrices ? (proPrices[cycleInfo?.priceKey || 'price_yearly'] * seats) : 0;
@@ -162,18 +162,18 @@ export default function UpgradeModal({ onClose, triggerResource, limitMessage })
               </ul>
               <div className={styles.currentPlan}>
                 <div className={styles.currentPlanLabel}>Current plan</div>
-                <div className={styles.currentPlanName}>{sub?.display_name || 'Base Plan'}</div>
+                <div className={styles.currentPlanName}>{license?.planName || 'Base Plan'}</div>
                 <div className={styles.usageRow}>
                   <span>Patients:</span>
-                  <span>{sub?.max_patients} limit</span>
+                  <span>{license?.limits?.maxPatients ?? 100} limit</span>
                 </div>
                 <div className={styles.usageRow}>
                   <span>Appointments:</span>
-                  <span>{sub?.max_appointments} limit</span>
+                  <span>{license?.limits?.maxAppointments ?? 150} limit</span>
                 </div>
                 <div className={styles.usageRow}>
                   <span>Prescriptions:</span>
-                  <span>{sub?.max_prescriptions} limit</span>
+                  <span>{license?.limits?.maxPrescriptions ?? 150} limit</span>
                 </div>
               </div>
             </div>

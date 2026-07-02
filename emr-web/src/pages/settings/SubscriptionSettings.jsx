@@ -34,12 +34,14 @@ function UsageBar({ label, icon: Icon, used, limit }) {
 }
 
 export default function SubscriptionSettings() {
-  const { sub, usage, isPro, loading } = useSubscription();
+  const { license, loading, isActive } = useSubscription();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   if (loading) return <div className={styles.loading}>Loading subscription…</div>;
 
-  const expiresAt = sub?.expires_at ? new Date(sub.expires_at) : null;
+  const isPro     = license?.plan === 'pro' && isActive();
+  const usage     = license?.usage;
+  const expiresAt = license?.expiresAt ? new Date(license.expiresAt) : null;
   const daysLeft  = expiresAt
     ? Math.max(0, Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)))
     : null;
@@ -51,8 +53,8 @@ export default function SubscriptionSettings() {
         <div className={styles.planCardLeft}>
           {isPro && <Zap size={20} className={styles.proIcon} />}
           <div>
-            <div className={styles.planName}>{sub?.display_name || 'Base Plan'}</div>
-            <div className={styles.planTagline}>{sub?.tagline}</div>
+            <div className={styles.planName}>{license?.planName || 'Base Plan'}</div>
+            <div className={styles.planTagline}>{license?.tagline}</div>
             {expiresAt && (
               <div className={`${styles.expiry} ${daysLeft <= 30 ? styles.expiryWarn : ''}`}>
                 {daysLeft === 0 ? 'Expires today' : `Valid till ${expiresAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`}
@@ -76,9 +78,9 @@ export default function SubscriptionSettings() {
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Usage</div>
           <div className={styles.usageGrid}>
-            <UsageBar label="Patients"      icon={Users}     used={usage.patients}      limit={sub?.max_patients      || 0} />
-            <UsageBar label="Appointments"  icon={Calendar}  used={usage.appointments}  limit={sub?.max_appointments  || 0} />
-            <UsageBar label="Prescriptions" icon={FileText}  used={usage.prescriptions} limit={sub?.max_prescriptions || 0} />
+            <UsageBar label="Patients"      icon={Users}     used={usage.patients?.used      ?? 0} limit={license?.limits?.maxPatients      ?? 0} />
+            <UsageBar label="Appointments"  icon={Calendar}  used={usage.appointments?.used  ?? 0} limit={license?.limits?.maxAppointments  ?? 0} />
+            <UsageBar label="Prescriptions" icon={FileText}  used={usage.prescriptions?.used ?? 0} limit={license?.limits?.maxPrescriptions ?? 0} />
           </div>
         </div>
       )}
@@ -121,7 +123,7 @@ export default function SubscriptionSettings() {
 
       {!isPro && (
         <button className={styles.upgradeBtnLg} onClick={() => setShowUpgrade(true)}>
-          <Zap size={16} strokeWidth={2} /> Upgrade to Infer Pro — starting ₹400/seat/month
+          <Zap size={16} strokeWidth={2} /> Upgrade to Infer Pro — starting ₹600/seat/month
         </button>
       )}
 

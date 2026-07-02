@@ -4,6 +4,8 @@ const crypto   = require('crypto');
 const nodemailer = require('nodemailer');
 const { pool } = require('../config/database');
 const audit    = require('../services/auditLogger');
+const SeatService = require('../services/subscription/SeatService');
+const logger      = require('../utils/logger');
 
 const JWT_SECRET  = (() => {
   const s = process.env.JWT_SECRET;
@@ -93,6 +95,15 @@ const login = async (req, res) => {
 
   const token = sign({ id: user.id, clinic_id: user.clinic_id, role: effectiveRole, email });
 
+  // Record login session for seat/concurrent-session tracking (fire-and-forget, non-fatal)
+  SeatService.createLoginSession(
+    user.clinic_id,
+    user.id,
+    user.seat_type || 'basic',
+    req.ip,
+    req.headers?.['user-agent'] || null
+  ).catch(e => logger.warn?.('[auth] session tracking failed:', e.message));
+
   // Resolve permissions: merge role-level permissions with per-user overrides
   let permissions = {};
   if (role !== 'doctor') {
@@ -144,8 +155,8 @@ const registerClinic = async (req, res) => {
       [clinic_name, address || null, phone || null, email || null]
     );
     await client.query(
-      `INSERT INTO emr_clinic_staff (clinic_id, name, email, password_hash, role)
-       VALUES ($1,$2,$3,$4,'admin')`,
+      `INSERT INTO emr_clinic_staff (clinic_id, name, email, password_hash, role, seat_type)
+       VALUES ($1,$2,$3,$4,'admin','premium')`,
       [clinic.id, admin_name || admin_email, admin_email, hash]
     );
     await client.query('COMMIT');
@@ -209,8 +220,10 @@ const addDoctor = async (req, res) => {
 
   const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const { rows } = await pool.query(
-    `INSERT INTO emr_clinic_staff (clinic_id, name, email, password_hash, designation, department, employee_id, role, is_active)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, name, email, designation AS specialization, is_active`,
+    `INSERT INTO emr_clinic_staff
+       (clinic_id, name, email, password_hash, designation, department, employee_id, google_review_link, role, seat_type)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'doctor','premium')
+     RETURNING id, name, email, designation AS specialization, is_active`,
     [clinic_id, name, email, hash, specialization || null, qualification || null, registration_no || null, google_review_link || null]
   );
   res.status(201).json(rows[0]);

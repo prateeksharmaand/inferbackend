@@ -1,28 +1,35 @@
 const { pool } = require('../../config/database');
 const logger = require('../../utils/logger');
 
+// Map billing_cycle to the correct price column in subscription_plans
+const PRICE_COLUMN = {
+  monthly: 'price_monthly',
+  yearly:  'price_yearly',
+  '2year': 'price_2year',
+  '3year': 'price_3year',
+};
+
 class BillingService {
   async createPaymentOrder(clinicId, planKey, billingCycle) {
     try {
       logger.info(`[BillingService] Creating payment order for clinic ${clinicId}`);
-      
+
       const { rows: planRows } = await pool.query(
-        'SELECT * FROM subscription_plans WHERE plan_key = $1',
+        'SELECT id, key, price_monthly, price_yearly, price_2year, price_3year FROM subscription_plans WHERE key = $1',
         [planKey]
       );
 
       if (!planRows.length) throw new Error(`Plan not found: ${planKey}`);
 
       const plan = planRows[0];
-      const amount = billingCycle === 'annual' 
-        ? plan.annual_price_paise 
-        : plan.monthly_price_paise;
+      const priceCol = PRICE_COLUMN[billingCycle] || 'price_monthly';
+      const amount = plan[priceCol] || plan.price_monthly;
 
       const { rows: orderRows } = await pool.query(
-        `INSERT INTO subscription_orders (clinic_id, plan_key, billing_cycle, amount_paise, status, created_at)
-         VALUES ($1, $2, $3, $4, $5, NOW())
-         RETURNING id, clinic_id, plan_key, amount_paise, status, created_at`,
-        [clinicId, planKey, billingCycle, amount, 'pending']
+        `INSERT INTO subscription_orders (clinic_id, plan_id, billing_cycle, amount_paise, status, created_at)
+         VALUES ($1, $2, $3, $4, 'pending', NOW())
+         RETURNING id, clinic_id, plan_id, amount_paise, status, created_at`,
+        [clinicId, plan.id, billingCycle, amount]
       );
 
       return orderRows[0];
@@ -39,7 +46,7 @@ class BillingService {
       const orderId = webhookPayload.payload?.payment?.entity?.order_id;
       const paymentId = webhookPayload.payload?.payment?.entity?.id;
 
-      // Check for duplicate (idempotency)
+      // Idempotency: skip duplicate webhooks
       const { rows: existing } = await client.query(
         'SELECT id, status FROM subscription_webhook_log WHERE razorpay_event_id = $1',
         [eventId]
@@ -66,12 +73,14 @@ class BillingService {
         result = await this._handlePaymentCaptured(client, order, paymentId);
       } else if (webhookPayload.event === 'payment.failed') {
         result = await this._handlePaymentFailed(client, order, paymentId);
+      } else {
+        result = { status: 'ignored' };
       }
 
       await client.query(
         `INSERT INTO subscription_webhook_log (clinic_id, webhook_source, razorpay_event_id, razorpay_order_id, razorpay_payment_id, payload, status, processed_at, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
-        [order.clinic_id, 'razorpay', eventId, orderId, paymentId, JSON.stringify(webhookPayload), result.status]
+         VALUES ($1, 'razorpay', $2, $3, $4, $5, $6, NOW(), NOW())`,
+        [order.clinic_id, eventId, orderId, paymentId, JSON.stringify(webhookPayload), result.status]
       );
 
       await client.query('COMMIT');
@@ -93,27 +102,32 @@ class BillingService {
 
     const startDate = new Date();
     const expiryDate = new Date();
-    if (order.billing_cycle === 'annual') {
-      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-    } else {
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
-    }
+    const durationMap = { monthly: 1, yearly: 12, '2year': 24, '3year': 36 };
+    const months = durationMap[order.billing_cycle] || 1;
+    expiryDate.setMonth(expiryDate.getMonth() + months);
 
-    const { rows: subRows } = await client.query(
-      'SELECT id FROM clinic_subscriptions WHERE clinic_id = $1',
-      [order.clinic_id]
+    // Upsert clinic subscription using plan_id (not plan_key)
+    await client.query(
+      `INSERT INTO clinic_subscriptions
+         (clinic_id, plan_id, seat_count, billing_cycle, status, started_at, expires_at, razorpay_order_id, razorpay_payment_id)
+       VALUES ($1, $2, $3, $4, 'active', $5, $6, $7, $8)
+       ON CONFLICT (clinic_id) DO UPDATE SET
+         plan_id             = EXCLUDED.plan_id,
+         seat_count          = EXCLUDED.seat_count,
+         billing_cycle       = EXCLUDED.billing_cycle,
+         status              = 'active',
+         started_at          = EXCLUDED.started_at,
+         expires_at          = EXCLUDED.expires_at,
+         razorpay_order_id   = EXCLUDED.razorpay_order_id,
+         razorpay_payment_id = EXCLUDED.razorpay_payment_id,
+         updated_at          = NOW()`,
+      [order.clinic_id, order.plan_id, order.seat_count || 1, order.billing_cycle, startDate, expiryDate, order.razorpay_order_id, paymentId]
     );
 
-    if (subRows.length > 0) {
-      await client.query(
-        'UPDATE clinic_subscriptions SET plan_key = $1, status = $2, started_at = $3, expires_at = $4 WHERE clinic_id = $5',
-        [order.plan_key, 'active', startDate, expiryDate, order.clinic_id]
-      );
-    } else {
-      await client.query(
-        'INSERT INTO clinic_subscriptions (clinic_id, plan_key, status, billing_cycle, started_at, expires_at, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
-        [order.clinic_id, order.plan_key, 'active', order.billing_cycle, startDate, expiryDate]
-      );
+    // Keep emr_clinics.plan in sync (legacy column)
+    const { rows: planRows } = await client.query('SELECT key FROM subscription_plans WHERE id = $1', [order.plan_id]);
+    if (planRows.length) {
+      await client.query('UPDATE emr_clinics SET plan = $1 WHERE id = $2', [planRows[0].key, order.clinic_id]);
     }
 
     return { status: 'captured' };
@@ -121,7 +135,7 @@ class BillingService {
 
   async _handlePaymentFailed(client, order, paymentId) {
     await client.query(
-      'UPDATE subscription_orders SET status = $1, razorpay_payment_id = $2, failed_at = NOW(), failed_attempts = COALESCE(failed_attempts, 0) + 1 WHERE id = $3',
+      'UPDATE subscription_orders SET status = $1, razorpay_payment_id = $2 WHERE id = $3',
       ['failed', paymentId, order.id]
     );
     return { status: 'failed' };
@@ -132,20 +146,21 @@ class BillingService {
     if (!subscription) throw new Error('Subscription not found');
 
     const { rows: plans } = await pool.query(
-      'SELECT plan_key, monthly_price_paise FROM subscription_plans WHERE plan_key IN ($1, $2)',
+      'SELECT id, key, price_monthly FROM subscription_plans WHERE key IN ($1, $2)',
       [fromPlan, toPlan]
     );
 
-    const fromData = plans.find(p => p.plan_key === fromPlan);
-    const toData = plans.find(p => p.plan_key === toPlan);
+    const fromData = plans.find(p => p.key === fromPlan);
+    const toData = plans.find(p => p.key === toPlan);
+    if (!fromData || !toData) throw new Error('Plan not found for proration calculation');
 
     const now = new Date();
     const cycleEnd = new Date(subscription.expires_at);
-    const daysRemaining = Math.ceil((cycleEnd - now) / (1000 * 60 * 60 * 24));
-    const cycleLength = billingCycle === 'annual' ? 365 : 30;
+    const daysRemaining = Math.max(0, Math.ceil((cycleEnd - now) / (1000 * 60 * 60 * 24)));
+    const cycleLength = billingCycle === 'yearly' ? 365 : 30;
     const percentRemaining = daysRemaining / cycleLength;
 
-    const proratedAmount = Math.round((toData.monthly_price_paise - fromData.monthly_price_paise) * percentRemaining);
+    const proratedAmount = Math.round((toData.price_monthly - fromData.price_monthly) * percentRemaining);
 
     return {
       fromPlan, toPlan, daysRemaining, cycleLength,
@@ -156,7 +171,13 @@ class BillingService {
 
   async getPaymentHistory(clinicId, limit = 20) {
     const { rows } = await pool.query(
-      'SELECT id, plan_key, amount_paise, status, paid_at, created_at FROM subscription_orders WHERE clinic_id = $1 ORDER BY created_at DESC LIMIT $2',
+      `SELECT so.id, sp.key AS plan_key, sp.display_name AS plan_name,
+              so.amount_paise, so.billing_cycle, so.status, so.paid_at, so.created_at
+       FROM subscription_orders so
+       LEFT JOIN subscription_plans sp ON sp.id = so.plan_id
+       WHERE so.clinic_id = $1
+       ORDER BY so.created_at DESC
+       LIMIT $2`,
       [clinicId, limit]
     );
     return rows.map(row => ({ ...row, amount: row.amount_paise / 100 }));

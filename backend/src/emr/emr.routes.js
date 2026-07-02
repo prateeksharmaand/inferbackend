@@ -95,9 +95,11 @@ router.get   ('/appointments/:id/rx-token', rxpublic.getRxToken);
 
 // Subscription
 router.get   ('/subscription',                   subscription.getSubscription);
+router.get   ('/subscription/license',           subscription.getLicense);
 router.get   ('/subscription/plans',             subscription.getPlans);
 router.post  ('/subscription/create-order',      subscription.createOrder);
 router.post  ('/subscription/verify-payment',    subscription.verifyPayment);
+router.post  ('/webhook/billing',                subscription.handleWebhook);
 
 // Wallet & Credits
 router.use('/wallet', walletRoutes);
