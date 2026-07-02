@@ -113,7 +113,8 @@ exports.createOrder = async (req, res) => {
   if (!['admin', 'owner'].includes(req.emrUser.role)) {
     return res.status(403).json({ error: 'Only clinic admins can manage subscriptions.' });
   }
-  const { plan_key, billing_cycle, seat_count = 1 } = req.body;
+  const { plan_key, billing_cycle, seat_count: rawSeatCount = 1 } = req.body;
+  const seat_count = Math.max(1, Math.min(parseInt(rawSeatCount) || 1, 500));
   const clinicId = req.emrUser.clinic_id;
 
   try {
@@ -187,7 +188,7 @@ exports.verifyPayment = async (req, res) => {
     const secret = process.env.RAZORPAY_KEY_SECRET || '';
     const body   = `${razorpay_order_id}|${razorpay_payment_id}`;
     const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
-    if (expected !== razorpay_signature) {
+    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(razorpay_signature || ''))) {
       return res.status(400).json({ error: 'Payment signature mismatch' });
     }
 
@@ -264,7 +265,7 @@ exports.handleWebhook = async (req, res) => {
     const rawBody = req.rawBody || (Buffer.isBuffer(req.body) ? req.body.toString() : JSON.stringify(req.body));
 
     const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
-    if (expected !== signature) {
+    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature || ''))) {
       logger.warn('[webhook] Invalid Razorpay signature');
       return res.status(400).json({ error: 'Invalid webhook signature' });
     }
@@ -369,6 +370,6 @@ exports.subscriptionCheck = (resource) => async (req, res, next) => {
     next();
   } catch (err) {
     logger.error('[subscription-check] failed:', err.message);
-    next(); // fail open — don't block clinical workflow on DB errors
+    return res.status(503).json({ error: 'Subscription service unavailable. Please try again.' });
   }
 };

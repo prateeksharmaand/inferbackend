@@ -299,7 +299,7 @@ class CreditService {
            SUM(wsu.credits_used)::int AS credits_used
          FROM wallet_service_usage wsu
          JOIN wallet w ON w.id = wsu.wallet_id
-         WHERE w.clinic_id = $1 AND wsu.usage_date >= CURRENT_DATE - INTERVAL '$2 days'
+         WHERE w.clinic_id = $1 AND wsu.usage_date >= CURRENT_DATE - ($2 * INTERVAL '1 day')
          GROUP BY wsu.service_type`,
         [clinicId, days]
       );

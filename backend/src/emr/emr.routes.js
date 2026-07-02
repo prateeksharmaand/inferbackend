@@ -636,6 +636,9 @@ router.get('/uploads/:filename', (req, res) => {
 
 // â”€â”€ Audit log viewer (OWASP A10 / ABDM mandatory trail) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/audit-logs', async (req, res) => {
+  if (!['admin', 'owner'].includes(req.emrUser.role)) {
+    return res.status(403).json({ error: 'Only clinic admins can view audit logs.' });
+  }
   const audit = require('../services/auditLogger');
   const { eventType, status, severity, ip, limit = 100, offset = 0 } = req.query;
   const rows = await audit.getRecentLogs({
@@ -662,8 +665,8 @@ router.use('/inbound', inbound);
 // Diet charts + food library
 router.use('/diet', require('../routes/diet.routes'));
 
-// POST /ai/lab-summary â€” AI-driven clinical interpretation of lab results
-router.post('/ai/lab-summary', async (req, res) => {
+// POST /ai/lab-summary â€” AI-driven clinical interpretation of lab results (Pro only)
+router.post('/ai/lab-summary', proOnlyCheck('analytics'), async (req, res) => {
   try {
     const axios = require('axios');
     const { results, patient_name, patient_age, patient_gender, order_number } = req.body;

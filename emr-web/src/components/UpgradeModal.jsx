@@ -6,9 +6,9 @@ import styles from './UpgradeModal.module.css';
 
 const CYCLES = [
   { key: 'monthly', label: '1 Month',  priceKey: 'price_monthly' },
-  { key: 'yearly',  label: '1 Year',   priceKey: 'price_yearly',  badge: 'Save 17%' },
-  { key: '2year',   label: '2 Years',  priceKey: 'price_2year',   badge: 'Save 33%' },
-  { key: '3year',   label: '3 Years',  priceKey: 'price_3year',   badge: 'Save 40%' },
+  { key: 'yearly',  label: '1 Year',   priceKey: 'price_yearly',  badge: 'Save 10%' },
+  { key: '2year',   label: '2 Years',  priceKey: 'price_2year',   badge: 'Save 15%' },
+  { key: '3year',   label: '3 Years',  priceKey: 'price_3year',   badge: 'Save 20%' },
 ];
 
 const PRO_FEATURES = [

@@ -56,16 +56,30 @@ const createStaff = async (req, res) => {
   if (password.length < 8)
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
-  // Seat limit check — every staff member consumes one seat
+  // Seat limit check — unified algorithm with addDoctor: items SUM for pro, max_users for base
   const { rows: [subRow] } = await pool.query(
-    `SELECT cs.seat_count, sp.key AS plan_key, sp.max_users
+    `SELECT sp.key AS plan_key, sp.max_users
      FROM clinic_subscriptions cs
      JOIN subscription_plans sp ON sp.id = cs.plan_id
      WHERE cs.clinic_id = $1`,
     [req.emrUser.clinic_id]
   ).catch(() => ({ rows: [null] }));
   if (subRow) {
-    const seatLimit = (subRow.seat_count > 0) ? subRow.seat_count : (subRow.max_users ?? 1);
+    const planKey = subRow.plan_key || 'base';
+    let seatLimit = subRow.max_users ?? 1; // base default = 1
+
+    if (planKey === 'pro') {
+      // Pro: authoritative seat count is SUM of purchased seat line items (mirrors addDoctor logic)
+      const { rows: [seatRow] } = await pool.query(
+        `SELECT COALESCE(SUM(quantity), 0)::int AS total
+         FROM clinic_subscription_items
+         WHERE clinic_id = $1 AND item_type = 'seat'`,
+        [req.emrUser.clinic_id]
+      ).catch(() => ({ rows: [{ total: 0 }] }));
+      const purchasedSeats = seatRow?.total || 0;
+      seatLimit = purchasedSeats > 0 ? purchasedSeats : (subRow.max_users ?? -1);
+    }
+
     if (seatLimit !== -1) {
       const { rows: [cnt] } = await pool.query(
         `SELECT COUNT(*)::int AS n FROM emr_clinic_staff WHERE clinic_id = $1 AND is_active = true`,
