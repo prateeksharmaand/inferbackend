@@ -7,6 +7,15 @@ const { pool } = require('../config/database');
 const bcrypt   = require('bcryptjs');
 const crypto   = require('crypto');
 
+// Ensure clinic_lab_map exists (guard against migration not yet run)
+pool.query(`
+  CREATE TABLE IF NOT EXISTS clinic_lab_map (
+    clinic_id  INTEGER PRIMARY KEY REFERENCES emr_clinics(id) ON DELETE CASCADE,
+    lab_id     UUID    NOT NULL    REFERENCES laboratories(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(() => {});
+
 // ── GET /labs/staff ───────────────────────────────────────────────────────────
 async function listStaff(req, res) {
   try {
