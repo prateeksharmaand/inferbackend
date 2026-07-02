@@ -89,7 +89,7 @@ async function createStaff(req, res) {
       `INSERT INTO emr_lab_staff (clinic_id, lab_id, name, email, password_hash, lab_role)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, name, email, lab_role, is_active, lab_id`,
-      [clinic_id, labId, name, email, hash, lab_role || 'TECHNICIAN']
+      [clinic_id, labId, name, email, hash, lab_role || 'LAB_TECHNICIAN']
     );
 
     res.status(201).json({ ...rows[0], ...labInfo });

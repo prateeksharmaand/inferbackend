@@ -213,10 +213,14 @@ function PermissionEditor({ role, onSave, onClose }) {
 
 // ── Staff modal (add / edit) ──────────────────────────────────────────────────
 const EMPTY_STAFF = { name: '', email: '', password: '', role: '', mobile: '', employee_id: '', department: '', designation: '',
-  lab_role: 'TECHNICIAN',
+  lab_role: 'LAB_TECHNICIAN',
 };
 
-const LAB_ROLES     = ['TECHNICIAN', 'ADMIN', 'DIRECTOR'];
+const LAB_ROLES     = [
+  { value: 'LAB_TECHNICIAN', label: 'TECHNICIAN' },
+  { value: 'LAB_ADMIN',      label: 'ADMIN' },
+  { value: 'LAB_DIRECTOR',   label: 'DIRECTOR' },
+];
 const LAB_LOGIN_URL = 'https://opd.inferapp.online/opd/lab-login';
 
 function StaffModal({ member, roles, onSave, onClose }) {
@@ -294,7 +298,7 @@ function StaffModal({ member, roles, onSave, onClose }) {
               <div className={s.field}>
                 <label>Role in Lab</label>
                 <select className={s.input} value={form.lab_role} onChange={e => set('lab_role', e.target.value)}>
-                  {LAB_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  {LAB_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
                 <span className={s.fieldHint}>Technician: upload only · Admin: full lab access · Director: admin + audit</span>
               </div>
@@ -799,7 +803,7 @@ function ActivityTab() {
 }
 
 // ── Lab Settings Tab ──────────────────────────────────────────────────────────
-const LAB_TYPES = ['DIAGNOSTIC', 'PATHOLOGY', 'RADIOLOGY', 'MICROBIOLOGY', 'BIOCHEMISTRY', 'HAEMATOLOGY'];
+const LAB_TYPES = ['DIAGNOSTIC', 'CLINICAL', 'REFERENCE', 'NABL', 'POCT'];
 
 function LabSettingsTab() {
   const [lab, setLab]       = useState(null);
