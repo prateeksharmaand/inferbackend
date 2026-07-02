@@ -234,7 +234,6 @@ function StaffModal({ member, roles, onSave, onClose }) {
     if (!form.name.trim())  return setError('Name is required');
     if (!form.email.trim()) return setError('Email is required');
     if (!isEdit && !form.password) return setError('Password is required');
-    if (isLab && !form.facility_name.trim()) return setError('Laboratory / Facility Name is required');
     setSaving(true); setError('');
     try { await onSave(form, isLab); }
     catch (err) { setError(err.message); setSaving(false); }
