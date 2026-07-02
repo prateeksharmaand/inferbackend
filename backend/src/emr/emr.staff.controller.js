@@ -56,7 +56,7 @@ const createStaff = async (req, res) => {
   if (password.length < 8)
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
-  // Seat limit check — unified algorithm with addDoctor: items SUM for pro, max_users for base
+  // Seat limit check — base plan: unlimited non-doctor staff; pro: seat items cap
   const { rows: [subRow] } = await pool.query(
     `SELECT sp.key AS plan_key, sp.max_users
      FROM clinic_subscriptions cs
@@ -66,10 +66,9 @@ const createStaff = async (req, res) => {
   ).catch(() => ({ rows: [null] }));
   if (subRow) {
     const planKey = subRow.plan_key || 'base';
-    let seatLimit = subRow.max_users ?? 1; // base default = 1
 
     if (planKey === 'pro') {
-      // Pro: authoritative seat count is SUM of purchased seat line items (mirrors addDoctor logic)
+      // Pro: cap by purchased seat line items
       const { rows: [seatRow] } = await pool.query(
         `SELECT COALESCE(SUM(quantity), 0)::int AS total
          FROM clinic_subscription_items
@@ -77,23 +76,23 @@ const createStaff = async (req, res) => {
         [req.emrUser.clinic_id]
       ).catch(() => ({ rows: [{ total: 0 }] }));
       const purchasedSeats = seatRow?.total || 0;
-      seatLimit = purchasedSeats > 0 ? purchasedSeats : (subRow.max_users ?? -1);
-    }
-
-    if (seatLimit !== -1) {
-      const { rows: [cnt] } = await pool.query(
-        `SELECT COUNT(*)::int AS n FROM emr_clinic_staff WHERE clinic_id = $1 AND is_active = true`,
-        [req.emrUser.clinic_id]
-      );
-      if (cnt.n >= seatLimit) {
-        return res.status(402).json({
-          error: 'seat_limit',
-          used: cnt.n,
-          limit: seatLimit,
-          message: `You have used all ${seatLimit} seat(s). Purchase more seats to add staff.`,
-        });
+      const seatLimit = purchasedSeats > 0 ? purchasedSeats : (subRow.max_users ?? -1);
+      if (seatLimit !== -1) {
+        const { rows: [cnt] } = await pool.query(
+          `SELECT COUNT(*)::int AS n FROM emr_clinic_staff WHERE clinic_id = $1 AND is_active = true`,
+          [req.emrUser.clinic_id]
+        );
+        if (cnt.n >= seatLimit) {
+          return res.status(402).json({
+            error: 'seat_limit',
+            used: cnt.n,
+            limit: seatLimit,
+            message: `You have used all ${seatLimit} seat(s). Purchase more seats to add staff.`,
+          });
+        }
       }
     }
+    // base plan: no seat limit on non-doctor staff (doctor limit enforced in addDoctor)
   }
 
   const seatType = role === 'doctor' ? 'premium' : 'basic';

@@ -159,6 +159,22 @@ const registerClinic = async (req, res) => {
        VALUES ($1,$2,$3,$4,'admin','premium')`,
       [clinic.id, admin_name || admin_email, admin_email, hash]
     );
+    // Seed default system roles for new clinic
+    await client.query(
+      `INSERT INTO staff_roles (clinic_id, name, slug, is_system, color, permissions)
+       VALUES
+         ($1,'Clinic Admin',      'admin',          true,'#7c3aed','{"all":true}'),
+         ($1,'Owner',             'owner',          true,'#7c3aed','{"all":true}'),
+         ($1,'Doctor',            'doctor',         true,'#0284c7','{"patients.view":true,"patients.edit":true,"consultations.create":true,"consultations.edit":true,"consultations.view":true,"prescriptions.print":true,"assessments.view":true,"assessments.create":true,"inferpad.view":true,"inferpad.create":true}'),
+         ($1,'Receptionist',      'receptionist',   true,'#16a34a','{"patients.view":true,"patients.add":true,"patients.edit":true,"appointments.create":true,"appointments.edit":true,"appointments.cancel":true,"appointments.view":true}'),
+         ($1,'Nurse',             'nurse',          true,'#0891b2','{"patients.view":true,"patients.edit":true,"appointments.view":true,"assessments.view":true,"assessments.create":true}'),
+         ($1,'Accountant',        'accountant',     true,'#d97706','{"patients.view":true,"appointments.view":true,"billing.create":true,"billing.edit":true,"billing.refund":true,"billing.reports":true}'),
+         ($1,'Pharmacist',        'pharmacist',     true,'#16a34a','{"patients.view":true,"prescriptions.view":true,"pharmacy.view":true,"pharmacy.dispense":true}'),
+         ($1,'Lab Technician',    'lab_technician', true,'#dc2626','{"patients.view":true,"lab.view":true,"lab.edit":true}'),
+         ($1,'Staff Member',      'staff',          true,'#64748b','{"patients.view":true,"appointments.view":true}')
+       ON CONFLICT (clinic_id, slug) DO NOTHING`,
+      [clinic.id]
+    );
     await client.query('COMMIT');
     res.status(201).json({ message: 'Clinic registered', clinic_id: clinic.id });
   } catch (err) {
