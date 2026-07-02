@@ -170,8 +170,11 @@ const registerClinic = async (req, res) => {
   }
 };
 
-// POST /api/emr/auth/add-doctor  (staff only)
+// POST /api/emr/auth/add-doctor  (admin/owner only)
 const addDoctor = async (req, res) => {
+  if (!['admin', 'owner'].includes(req.emrUser.role)) {
+    return res.status(403).json({ error: 'Only clinic admins can add doctors.' });
+  }
   const { name, email, password, specialization, qualification, registration_no, google_review_link } = req.body;
   const clinic_id = req.emrUser.clinic_id;
   if (!name || !email || !password) return res.status(400).json({ error: 'name, email, password required' });
@@ -294,14 +297,17 @@ const listDoctors = async (req, res) => {
 
 // PATCH /api/emr/auth/doctors/:id
 const updateDoctor = async (req, res) => {
+  if (!['admin', 'owner'].includes(req.emrUser.role)) {
+    return res.status(403).json({ error: 'Only clinic admins can update doctors.' });
+  }
   const { name, email, password, specialization, qualification, registration_no, is_active, google_review_link } = req.body;
   const sets = []; const params = [];
   let i = 1;
   if (name               !== undefined) { sets.push(`name=$${i++}`);               params.push(name); }
   if (email              !== undefined) { sets.push(`email=$${i++}`);              params.push(email); }
-  if (specialization     !== undefined) { sets.push(`specialization=$${i++}`);     params.push(specialization); }
-  if (qualification      !== undefined) { sets.push(`qualification=$${i++}`);      params.push(qualification); }
-  if (registration_no    !== undefined) { sets.push(`registration_no=$${i++}`);    params.push(registration_no); }
+  if (specialization     !== undefined) { sets.push(`designation=$${i++}`);        params.push(specialization); }
+  if (qualification      !== undefined) { sets.push(`department=$${i++}`);         params.push(qualification); }
+  if (registration_no    !== undefined) { sets.push(`employee_id=$${i++}`);        params.push(registration_no); }
   if (is_active          !== undefined) { sets.push(`is_active=$${i++}`);          params.push(is_active); }
   if (google_review_link !== undefined) { sets.push(`google_review_link=$${i++}`); params.push(google_review_link || null); }
   if (password) {
@@ -322,6 +328,9 @@ const updateDoctor = async (req, res) => {
 
 // DELETE /api/emr/auth/doctors/:id
 const deleteDoctor = async (req, res) => {
+  if (!['admin', 'owner'].includes(req.emrUser.role)) {
+    return res.status(403).json({ error: 'Only clinic admins can delete doctors.' });
+  }
   const { rowCount } = await pool.query(
     `DELETE FROM emr_clinic_staff WHERE id = $1 AND clinic_id = $2 AND role = 'doctor'`,
     [req.params.id, req.emrUser.clinic_id]

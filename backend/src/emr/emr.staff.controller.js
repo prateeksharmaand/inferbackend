@@ -27,8 +27,8 @@ async function logActivity({ clinicId, req, action, resource, resourceId, detail
 const BCRYPT_ROUNDS = 12;
 
 function requireAdmin(req, res) {
-  if (req.emrUser.role !== 'admin') {
-    res.status(403).json({ error: 'Only clinic admins can manage staff and roles' });
+  if (!['admin', 'owner'].includes(req.emrUser.role)) {
+    res.status(403).json({ error: 'Only clinic admins or owners can manage staff and roles' });
     return false;
   }
   return true;

@@ -215,8 +215,8 @@ class SubscriptionService {
 
       // Log change
       await client.query(
-        `INSERT INTO subscription_audit_log (clinic_id, action, old_values, new_values, updated_at)
-         VALUES ($1, $2, $3, $4, NOW())`,
+        `INSERT INTO subscription_audit_log (clinic_id, action, old_values, new_values)
+         VALUES ($1, $2, $3, $4)`,
         [clinicId, 'subscription_updated', JSON.stringify({}), JSON.stringify(updates)]
       );
 

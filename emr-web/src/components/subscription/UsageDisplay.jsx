@@ -1,4 +1,4 @@
-import { useSubscription } from '../context/SubscriptionContext';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 export function SeatUsageBar({ seatType = 'premium' }) {
   const { license } = useSubscription();

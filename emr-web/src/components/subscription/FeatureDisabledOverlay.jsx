@@ -1,4 +1,4 @@
-import { useSubscription } from '../context/SubscriptionContext';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 export function FeatureDisabledOverlay({ featureKey, children, showOverlay = true }) {
   const { hasFeature, isActive, getUpgradeSuggestions } = useSubscription();

@@ -33,6 +33,7 @@ const CUSTOM_MIGRATION_FILES = [
   path.join(__dirname, '024_subscriptions.sql'),                // Subscription plans, clinic_subscriptions, orders
   path.join(__dirname, '026_subscription_catalog.sql'),         // Seat types, add-ons, clinic line items
   path.join(__dirname, '027_subscription_enforcement_tables.sql'), // Active sessions, audit log, webhook log, seat_type on staff
+  path.join(__dirname, '059_subscription_pricing_and_features.sql'), // Correct prices (₹300/₹600), add ai_meal_plan/ai_assessment JSONB keys, UNIQUE on items
 ];
 
 async function runMigrations(pool, logger) {

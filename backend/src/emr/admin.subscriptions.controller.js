@@ -88,7 +88,7 @@ exports.getRevenue = async (req, res) => {
        COUNT(*)::int                AS orders,
        SUM(amount_paise)::bigint    AS total_paise
      FROM subscription_orders
-     WHERE status = 'paid'
+     WHERE status IN ('paid', 'captured')
      GROUP BY 1
      ORDER BY 1 DESC
      LIMIT 12`
