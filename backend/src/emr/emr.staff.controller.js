@@ -181,7 +181,10 @@ const createRole = async (req, res) => {
   const { name, permissions = {}, color = '#7c3aed' } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
 
-  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  // Keep known system role slugs canonical so they match emr_clinic_staff.role values
+  const SLUG_MAP = { 'clinic admin': 'admin', 'staff member': 'staff' };
+  const nameKey = name.trim().toLowerCase();
+  const slug = SLUG_MAP[nameKey] ?? nameKey.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   try {
     const { rows } = await pool.query(
       `INSERT INTO staff_roles (clinic_id, name, slug, is_system, permissions, color)
