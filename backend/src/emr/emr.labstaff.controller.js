@@ -47,21 +47,14 @@ async function createStaff(req, res) {
       return res.status(409).json({ error: 'Email already in use' });
     }
 
-    // Use clinic's existing lab (from Lab Settings)
-    let existingLab = await pool.query(
-      `SELECT id, facility_name, lab_type, phone, city FROM laboratories WHERE clinic_id = $1 LIMIT 1`,
+    // Use clinic's existing lab via clinic_lab_map
+    const existingLab = await pool.query(
+      `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city
+       FROM laboratories l
+       INNER JOIN clinic_lab_map m ON m.lab_id = l.id
+       WHERE m.clinic_id = $1 LIMIT 1`,
       [clinic_id]
     );
-    // Fallback: find via lab staff (rows saved before migration 064)
-    if (!existingLab.rows.length) {
-      existingLab = await pool.query(
-        `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city
-         FROM laboratories l
-         INNER JOIN emr_lab_staff s ON s.lab_id = l.id
-         WHERE s.clinic_id = $1 LIMIT 1`,
-        [clinic_id]
-      );
-    }
 
     let labId, labInfo;
     if (existingLab.rows.length > 0) {
@@ -228,22 +221,13 @@ async function loginStaff(req, res) {
 async function getLabSettings(req, res) {
   try {
     const { clinic_id } = req.emrUser;
-    // First try direct clinic_id link (fast path after migration 064)
-    let { rows } = await pool.query(
-      `SELECT id, facility_name, lab_type, phone, city, status
-       FROM laboratories WHERE clinic_id = $1 LIMIT 1`,
+    const { rows } = await pool.query(
+      `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city, l.status
+       FROM laboratories l
+       INNER JOIN clinic_lab_map m ON m.lab_id = l.id
+       WHERE m.clinic_id = $1 LIMIT 1`,
       [clinic_id]
     );
-    // Fallback: find via lab staff (pre-migration rows)
-    if (!rows.length) {
-      ({ rows } = await pool.query(
-        `SELECT l.id, l.facility_name, l.lab_type, l.phone, l.city, l.status
-         FROM laboratories l
-         INNER JOIN emr_lab_staff s ON s.lab_id = l.id
-         WHERE s.clinic_id = $1 LIMIT 1`,
-        [clinic_id]
-      ));
-    }
     res.json(rows[0] || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -257,37 +241,45 @@ async function upsertLabSettings(req, res) {
     const { facility_name, lab_type, phone, city } = req.body;
     if (!facility_name?.trim()) return res.status(400).json({ error: 'facility_name is required' });
 
-    // Find existing lab for this clinic (direct or via staff)
-    let { rows: existing } = await pool.query(
-      `SELECT id FROM laboratories WHERE clinic_id = $1 LIMIT 1`, [clinic_id]
-    );
-    if (!existing.length) {
-      const { rows } = await pool.query(
-        `SELECT l.id FROM laboratories l
-         INNER JOIN emr_lab_staff s ON s.lab_id = l.id
-         WHERE s.clinic_id = $1 LIMIT 1`, [clinic_id]
-      );
-      existing = rows;
-    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    let lab;
-    if (existing.length) {
-      const { rows } = await pool.query(
-        `UPDATE laboratories SET facility_name=$1, lab_type=$2, phone=$3, city=$4, clinic_id=$5
-         WHERE id=$6 RETURNING id, facility_name, lab_type, phone, city, status`,
-        [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, clinic_id, existing[0].id]
+      // Find existing lab for this clinic via map
+      const { rows: mapRows } = await client.query(
+        `SELECT lab_id FROM clinic_lab_map WHERE clinic_id = $1`, [clinic_id]
       );
-      lab = rows[0];
-    } else {
-      const apiKey = crypto.randomBytes(24).toString('hex');
-      const { rows } = await pool.query(
-        `INSERT INTO laboratories (facility_name, lab_type, phone, city, api_key, status, clinic_id)
-         VALUES ($1,$2,$3,$4,$5,'ACTIVE',$6) RETURNING id, facility_name, lab_type, phone, city, status`,
-        [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, apiKey, clinic_id]
-      );
-      lab = rows[0];
+
+      let lab;
+      if (mapRows.length) {
+        const { rows } = await client.query(
+          `UPDATE laboratories SET facility_name=$1, lab_type=$2, phone=$3, city=$4
+           WHERE id=$5 RETURNING id, facility_name, lab_type, phone, city, status`,
+          [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, mapRows[0].lab_id]
+        );
+        lab = rows[0];
+      } else {
+        const apiKey = crypto.randomBytes(24).toString('hex');
+        const { rows } = await client.query(
+          `INSERT INTO laboratories (facility_name, lab_type, phone, city, api_key, status)
+           VALUES ($1,$2,$3,$4,$5,'ACTIVE') RETURNING id, facility_name, lab_type, phone, city, status`,
+          [facility_name.trim(), lab_type || 'DIAGNOSTIC', phone || null, city || null, apiKey]
+        );
+        lab = rows[0];
+        await client.query(
+          `INSERT INTO clinic_lab_map (clinic_id, lab_id) VALUES ($1,$2) ON CONFLICT (clinic_id) DO UPDATE SET lab_id=$2`,
+          [clinic_id, lab.id]
+        );
+      }
+
+      await client.query('COMMIT');
+      res.json(lab);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-    res.json(lab);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
