@@ -258,19 +258,14 @@ def phase_outreach():
             update_lead(row_index=row, step=next_step, next_send_date=next_date or "", status=status)
             sent += 1
 
-            # WhatsApp on Day 4 — only if they opened the email
-            # WhatsApp on Day 14 — always (final follow-up)
-            if next_step == 4:
+            # WhatsApp on Day 14 — only if they opened the email
+            if next_step == 14:
                 if has_opened_email(lead):
                     wa_sent, wa_msg = send_whatsapp(lead, next_step)
                     if wa_sent:
                         log_whatsapp(row, next_step, wa_msg)
                 else:
                     print(f"  ↷ WhatsApp skipped — {name} hasn't opened email yet")
-            elif next_step == 14:
-                wa_sent, wa_msg = send_whatsapp(lead, next_step)
-                if wa_sent:
-                    log_whatsapp(row, next_step, wa_msg)
         else:
             mark_failed(row)
             failed += 1
