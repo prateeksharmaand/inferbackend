@@ -213,7 +213,7 @@ const deleteFoodGroup = async (req, res) => {
 
 const axios = require('axios');
 
-const GROQ_MODEL    = 'llama-3.3-70b-versatile';
+const { groqModelParams } = require('../config/groq');
 const GROQ_BASE     = 'https://api.groq.com/openai/v1/chat/completions';
 
 const generateAIMealPlan = async (req, res) => {
@@ -277,7 +277,7 @@ Fill ALL meals with appropriate Indian foods for the patient's conditions. Repla
 
   try {
     const body = {
-      model: GROQ_MODEL,
+      ...groqModelParams(),
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.1,
       max_tokens: Math.min(8192, 1500 + numDays * 1200),

@@ -1,7 +1,7 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const { groqModelParams } = require('../config/groq');
 const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
 
 async function _callGroq(prompt) {
@@ -10,7 +10,7 @@ async function _callGroq(prompt) {
   const response = await axios.post(
     GROQ_URL,
     {
-      model: GROQ_MODEL,
+      ...groqModelParams(),
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 4096,
       temperature: 0.3,

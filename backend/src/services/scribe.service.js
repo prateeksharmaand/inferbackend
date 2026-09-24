@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 // Read lazily so the server picks up .env changes without restart
 const groqKey   = () => process.env.GROQ_API_KEY;
 const groqModel = () => process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
-const GROQ_LLM_MODEL = process.env.GROQ_LLM_MODEL || 'llama-3.3-70b-versatile';
+const { groqModelParams } = require('../config/groq');
 
 // Short clinical hint for Whisper — keeps initial_prompt small for speed
 const WHISPER_PROMPT_BASE = 'Medical consultation. Doctor speaking with patient. Clinical terms, drug names, dosages, medications, patient history, vital signs, examination findings.';
@@ -253,7 +253,7 @@ async function groqLLM(prompt) {
   const res = await axios.post(
     'https://api.groq.com/openai/v1/chat/completions',
     {
-      model: GROQ_LLM_MODEL,
+      ...groqModelParams(),
       temperature: 0.1,
       max_tokens: 8192,
       response_format: { type: 'json_object' },
