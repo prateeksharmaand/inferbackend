@@ -60,13 +60,16 @@ async function uploadDocument(req, res) {
     await addTimelineEvent(req.user.id, 'document', `Document Uploaded: ${doc.title}`,
       `Type: ${doc.type}${doc.doctor_name ? ` | Dr. ${doc.doctor_name}` : ''}`, null, new Date(), doc.id, 'document');
 
-    res.status(201).json({ document: doc });
-
     // The app asks the user for every upload whether this document may be sent to the AI provider.
     if (req.body.ai_analysis !== 'true') {
+      // Empty result (not NULL) tells the app no analysis is coming, so it doesn't show "generating".
+      await query(`UPDATE documents SET extracted_vitals = '{}'::jsonb WHERE id = $1`, [doc.id]);
+      doc.extracted_vitals = {};
+      res.status(201).json({ document: doc });
       logger.info(`${reqId} | 201 | success | doc id: ${doc.id} | AI analysis skipped (no consent)`);
       return;
     }
+    res.status(201).json({ document: doc });
     logger.info(`${reqId} | 201 | success | doc id: ${doc.id} | starting async OCR`);
 
     // Run OCR asynchronously after responding — does not block the client

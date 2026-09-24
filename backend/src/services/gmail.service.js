@@ -260,6 +260,9 @@ async function syncUserEmails(userId) {
           ingestDocumentAsync(doc.id, savedPath, userId, att.mimeType).catch(
             e => logger.error(`[Gmail Sync] OCR failed | doc:${doc.id} | ${e.message}`),
           );
+        } else {
+          // No AI consent: mark as "no analysis" so the app doesn't show it as generating forever.
+          await query(`UPDATE documents SET extracted_vitals = '{}'::jsonb WHERE id = $1`, [doc.id]);
         }
 
         synced++;
