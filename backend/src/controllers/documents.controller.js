@@ -62,9 +62,8 @@ async function uploadDocument(req, res) {
 
     res.status(201).json({ document: doc });
 
-    // The app sends ai_analysis=false when the user hasn't consented to sharing data with the AI provider.
-    const consentRes = await query('SELECT ai_consent FROM users WHERE id = $1', [req.user.id]);
-    if (req.body.ai_analysis === 'false' || consentRes.rows[0]?.ai_consent !== true) {
+    // The app asks the user for every upload whether this document may be sent to the AI provider.
+    if (req.body.ai_analysis !== 'true') {
       logger.info(`${reqId} | 201 | success | doc id: ${doc.id} | AI analysis skipped (no consent)`);
       return;
     }
@@ -112,9 +111,9 @@ async function reanalyzeDocument(req, res) {
       return res.status(404).json({ error: 'Document not found' });
     }
     const doc = result.rows[0];
-    const consentRes = await query('SELECT ai_consent FROM users WHERE id = $1', [req.user.id]);
-    if (consentRes.rows[0]?.ai_consent !== true) {
-      return res.status(403).json({ error: 'Allow AI Health Insights in Profile to analyse documents' });
+    // Re-analysis sends the document to the AI provider: require consent given for this request.
+    if (req.body?.ai_analysis !== true) {
+      return res.status(403).json({ error: 'AI analysis needs your permission for this document' });
     }
     if (!doc.file_path) {
       return res.status(400).json({ error: 'No file associated with this document' });

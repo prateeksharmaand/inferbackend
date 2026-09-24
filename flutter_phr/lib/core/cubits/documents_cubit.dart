@@ -1,5 +1,4 @@
 import 'dart:io';
-import '../services/ai_consent.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/document_model.dart';
@@ -104,11 +103,12 @@ class DocumentsCubit extends Cubit<DocumentsState> {
   Future<DocumentModel?> uploadDocument({
     required File file, required String title, required String type,
     String? doctorName, String? facilityName, DateTime? documentDate, List<String>? tags,
+    required bool aiAnalysis,
     void Function(double)? onProgress,
   }) async {
     emit(state.copyWith(isUploading: true, uploadProgress: 0, error: null));
     try {
-      final formData = await _buildFormData(file, title, type, doctorName, facilityName, documentDate, tags);
+      final formData = await _buildFormData(file, title, type, doctorName, facilityName, documentDate, tags, aiAnalysis);
 
       final response = await _api.uploadFile('/documents', formData, onProgress: (sent, total) {
         final progress = sent / total;
@@ -128,7 +128,7 @@ class DocumentsCubit extends Cubit<DocumentsState> {
 
   Future<FormData> _buildFormData(File file, String title, String type,
       String? doctorName, String? facilityName, DateTime? documentDate,
-      List<String>? tags) async {
+      List<String>? tags, bool aiAnalysis) async {
     final fileName = file.path.split(RegExp(r'[/\\]')).last;
     return FormData.fromMap({
       'file': await MultipartFile.fromFile(file.path, filename: fileName),
@@ -138,7 +138,7 @@ class DocumentsCubit extends Cubit<DocumentsState> {
       if (facilityName != null) 'facility_name': facilityName,
       if (documentDate != null) 'document_date': documentDate.toIso8601String(),
       if (tags != null && tags.isNotEmpty) 'tags': tags.join(','),
-      'ai_analysis': AiConsent.isGranted ? 'true' : 'false',
+      'ai_analysis': aiAnalysis ? 'true' : 'false',
     });
   }
 
@@ -146,6 +146,7 @@ class DocumentsCubit extends Cubit<DocumentsState> {
     try {
       final response = await _api.post(
         '/documents/$id/reanalyze',
+        data: {'ai_analysis': true},
         options: Options(receiveTimeout: const Duration(minutes: 3)),
       );
       final updated = DocumentModel.fromJson(response.data['document']);

@@ -34,7 +34,7 @@ class _SmartReportScreenState extends State<SmartReportScreen> {
 
   Future<void> _reanalyze() async {
     if (_doc.id == null) return;
-    if (!AiConsent.isGranted && !await AiConsent.request(context)) return;
+    if (await askAiAnalysisForDocument(context) != true) return;
     if (!mounted) return;
     setState(() => _reanalyzing = true);
     final updated = await context.read<DocumentsCubit>().reanalyzeDocument(_doc.id!);

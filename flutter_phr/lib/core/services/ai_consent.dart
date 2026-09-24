@@ -79,6 +79,31 @@ class AiConsent {
   }
 }
 
+/// Asks, for one specific document, whether it may be sent to the AI provider.
+/// Returns true (analyse), false (don't analyse) or null (user cancelled).
+Future<bool?> askAiAnalysisForDocument(BuildContext context) => showDialog<bool>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    title: const Text('Analyse this report with AI?'),
+    content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text(
+        'To create a Smart Report, Infer sends the text of this document to Google\'s Gemini AI service, '
+        'which reads the values and summarises them. The document is still saved to your records if you choose not to.',
+        style: AppTextStyles.body2,
+      ),
+      const SizedBox(height: 10),
+      GestureDetector(
+        onTap: () => launchUrl(Uri.parse(AppConstants.privacyPolicyUrl)),
+        child: Text('Read our Privacy Policy', style: AppTextStyles.body2.copyWith(color: AppColors.primary, decoration: TextDecoration.underline)),
+      ),
+    ])),
+    actions: [
+      TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Upload without AI')),
+      TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Analyse with AI')),
+    ],
+  ),
+);
+
 /// Wraps an AI-powered screen: shows an explanation + Allow button until the user consents.
 class AiConsentGate extends StatefulWidget {
   final Widget child;

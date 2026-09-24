@@ -8,6 +8,7 @@ import '../../../core/cubits/documents_cubit.dart';
 import '../../../core/cubits/vitals_cubit.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/ai_consent.dart';
 import '../../../widgets/common/custom_button.dart';
 import '../../../widgets/common/custom_text_field.dart';
 
@@ -53,12 +54,15 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
       if (_selectedFile == null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a file')));
       return;
     }
+    final aiAnalysis = await askAiAnalysisForDocument(context);
+    if (aiAnalysis == null || !mounted) return;
     setState(() { _isUploading = true; _uploadProgress = 0; });
     final doc = await context.read<DocumentsCubit>().uploadDocument(
       file: _selectedFile!, title: _titleCtrl.text.trim(), type: _selectedType,
       doctorName: _doctorCtrl.text.trim().isEmpty ? null : _doctorCtrl.text.trim(),
       facilityName: _facilityCtrl.text.trim().isEmpty ? null : _facilityCtrl.text.trim(),
       documentDate: _documentDate, tags: _tags,
+      aiAnalysis: aiAnalysis,
       onProgress: (p) => setState(() => _uploadProgress = p),
     );
     setState(() { _isUploading = false; });
@@ -67,8 +71,8 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
       await context.read<VitalsCubit>().loadLatestVitals();
       final messenger = ScaffoldMessenger.of(context);
       context.pop();
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Document uploaded! OCR analysis running in background.'),
+      messenger.showSnackBar(SnackBar(
+        content: Text(aiAnalysis ? 'Document uploaded! AI analysis running in background.' : 'Document uploaded.'),
         backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating,
       ));
     } else {
