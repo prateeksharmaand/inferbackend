@@ -1,7 +1,9 @@
-﻿const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { query } = require('../config/database');
+const fs = require('fs');
+const path = require('path');
+const { pool, query } = require('../config/database');
 const { addTimelineEvent } = require('../services/timeline.service');
 
 async function register(req, res) {
@@ -72,6 +74,58 @@ async function forgotPassword(req, res) {
   res.json({ message: 'If the email exists, a reset link has been sent' });
 }
 
+async function setAiConsent(req, res) {
+  const { granted } = req.body || {};
+  if (typeof granted !== 'boolean') return res.status(400).json({ error: 'granted must be true or false' });
+  await query('UPDATE users SET ai_consent = $1 WHERE id = $2', [granted, req.user.id]);
+  res.json({ ai_consent: granted });
+}
+
+// App Store guideline 5.1.1(v): users must be able to delete their account in-app.
+async function deleteAccount(req, res) {
+  const { password } = req.body || {};
+  if (!password) return res.status(400).json({ error: 'Password is required to delete your account' });
+  const result = await query('SELECT id, password_hash FROM users WHERE id = $1', [req.user.id]);
+  if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+  const valid = await bcrypt.compare(password, result.rows[0].password_hash);
+  if (!valid) return res.status(401).json({ error: 'Incorrect password' });
+
+  const userId = req.user.id;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+    await client.query('SAVEPOINT hard_delete');
+    try {
+      // Health data tables reference users ON DELETE CASCADE.
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    } catch (err) {
+      if (err.code !== '23503') throw err;
+      // A non-cascading reference (e.g. lab records) blocks the delete:
+      // scrub all personal data and deactivate instead.
+      await client.query('ROLLBACK TO SAVEPOINT hard_delete');
+      await client.query(
+        `UPDATE users SET email = $2, password_hash = '', first_name = NULL, last_name = NULL, phone = NULL,
+         date_of_birth = NULL, gender = NULL, blood_type = NULL, height = NULL, weight = NULL,
+         conditions = '{}', allergies = '{}', emergency_contact_name = NULL, emergency_contact_phone = NULL,
+         avatar_url = NULL, fcm_token = NULL,
+         is_active = false WHERE id = $1`,
+        [userId, `deleted-${userId}@deleted.invalid`]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  const uploadDir = process.env.UPLOADS_PATH || './uploads';
+  fs.rm(path.join(uploadDir, userId), { recursive: true, force: true }, () => {});
+  res.json({ message: 'Account deleted' });
+}
+
 async function _generateTokens(userId) {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
   const refreshToken = uuidv4();
@@ -85,4 +139,4 @@ function _sanitizeUser(user) {
   return safe;
 }
 
-module.exports = { register, login, refresh, logout, getMe, updateProfile, forgotPassword };
+module.exports = { register, login, refresh, logout, getMe, updateProfile, forgotPassword, deleteAccount, setAiConsent };

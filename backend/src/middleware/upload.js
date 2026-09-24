@@ -9,8 +9,9 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const userDir = path.join(uploadDir, req.user?.id || 'tmp');
-    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
-    cb(null, userDir);
+    // Pass filesystem errors (e.g. EACCES on the uploads volume) to multer so the
+    // request fails with an error instead of an uncaught exception killing the server.
+    fs.mkdir(userDir, { recursive: true }, (err) => cb(err || null, userDir));
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();

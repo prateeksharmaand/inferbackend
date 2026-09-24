@@ -1,4 +1,4 @@
-﻿const { Pool } = require('pg');
+const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
 const pool = new Pool({
@@ -495,6 +495,8 @@ async function initializeDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appt_queue       ON emr_appointments(queue_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_emr_appt_mobile      ON emr_appointments(patient_mobile)`);
     await client.query(`ALTER TABLE emr_appointments ADD COLUMN IF NOT EXISTS service_type VARCHAR(50) DEFAULT 'consultation'`);
+    // PHR app: consent to send health data to the third-party AI provider (null = not asked).
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_consent BOOLEAN`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS emr_encounters (
         id                   SERIAL PRIMARY KEY,

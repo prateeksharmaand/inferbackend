@@ -1,5 +1,5 @@
-﻿const router = require('express').Router();
-const { register, login, refresh, logout, getMe, updateProfile, forgotPassword } = require('../controllers/auth.controller');
+const router = require('express').Router();
+const { register, login, refresh, logout, getMe, updateProfile, forgotPassword, deleteAccount, setAiConsent } = require('../controllers/auth.controller');
 const { loginStaff } = require('../emr/emr.labstaff.controller');
 const auth = require('../middleware/auth');
 router.post('/register', register);
@@ -8,6 +8,8 @@ router.post('/refresh', refresh);
 router.post('/logout', auth, logout);
 router.get('/me', auth, getMe);
 router.put('/profile', auth, updateProfile);
+router.delete('/account', auth, deleteAccount);
+router.put('/ai-consent', auth, setAiConsent);
 router.post('/forgot-password', forgotPassword);
 router.post('/lab/login', loginStaff);
 module.exports = router;

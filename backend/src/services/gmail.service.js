@@ -187,6 +187,9 @@ async function syncUserEmails(userId) {
   const messages = listRes.data.messages || [];
   if (messages.length === 0) return { synced: 0 };
 
+  const consentRes = await query('SELECT ai_consent FROM users WHERE id = $1', [userId]);
+  const aiConsent  = consentRes.rows[0]?.ai_consent === true;
+
   const uploadDir = process.env.UPLOADS_PATH || './uploads';
   const userDir   = path.join(uploadDir, userId);
   if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
@@ -251,11 +254,13 @@ async function syncUserEmails(userId) {
         const doc = docRes.rows[0];
         logger.info(`[Gmail Sync] Saved "${doc.title}" | user:${userId} | doc:${doc.id}`);
 
-        // Kick off OCR asynchronously — does not block this loop
-        const { ingestDocumentAsync } = require('../controllers/documents.controller');
-        ingestDocumentAsync(doc.id, savedPath, userId, att.mimeType).catch(
-          e => logger.error(`[Gmail Sync] OCR failed | doc:${doc.id} | ${e.message}`),
-        );
+        // Kick off OCR/AI asynchronously — only if the user consented to AI data sharing
+        if (aiConsent) {
+          const { ingestDocumentAsync } = require('../controllers/documents.controller');
+          ingestDocumentAsync(doc.id, savedPath, userId, att.mimeType).catch(
+            e => logger.error(`[Gmail Sync] OCR failed | doc:${doc.id} | ${e.message}`),
+          );
+        }
 
         synced++;
       }

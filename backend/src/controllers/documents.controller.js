@@ -1,4 +1,4 @@
-﻿const path = require('path');
+const path = require('path');
 const fs = require('fs');
 const { query } = require('../config/database');
 const { analyzeDocumentText } = require('../services/vitals-extractor.service');
@@ -60,8 +60,15 @@ async function uploadDocument(req, res) {
     await addTimelineEvent(req.user.id, 'document', `Document Uploaded: ${doc.title}`,
       `Type: ${doc.type}${doc.doctor_name ? ` | Dr. ${doc.doctor_name}` : ''}`, null, new Date(), doc.id, 'document');
 
-    logger.info(`${reqId} | 201 | success | doc id: ${doc.id} | starting async OCR`);
     res.status(201).json({ document: doc });
+
+    // The app sends ai_analysis=false when the user hasn't consented to sharing data with the AI provider.
+    const consentRes = await query('SELECT ai_consent FROM users WHERE id = $1', [req.user.id]);
+    if (req.body.ai_analysis === 'false' || consentRes.rows[0]?.ai_consent !== true) {
+      logger.info(`${reqId} | 201 | success | doc id: ${doc.id} | AI analysis skipped (no consent)`);
+      return;
+    }
+    logger.info(`${reqId} | 201 | success | doc id: ${doc.id} | starting async OCR`);
 
     // Run OCR asynchronously after responding — does not block the client
     _processDocumentOcr(doc.id, req.file.path, req.user.id, req.file.mimetype)
@@ -105,6 +112,10 @@ async function reanalyzeDocument(req, res) {
       return res.status(404).json({ error: 'Document not found' });
     }
     const doc = result.rows[0];
+    const consentRes = await query('SELECT ai_consent FROM users WHERE id = $1', [req.user.id]);
+    if (consentRes.rows[0]?.ai_consent !== true) {
+      return res.status(403).json({ error: 'Allow AI Health Insights in Profile to analyse documents' });
+    }
     if (!doc.file_path) {
       return res.status(400).json({ error: 'No file associated with this document' });
     }
