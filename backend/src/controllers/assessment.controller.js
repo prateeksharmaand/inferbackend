@@ -67,7 +67,7 @@ Return a JSON object with this exact structure:
     logger.info(`[Assessment] Generated ${data.questions?.length} questions for "${category}" > "${subcategory}"`);
     res.json({ questions: data.questions || [] });
   } catch (e) {
-    logger.error('[Assessment] generateQuestions error:', e.message);
+    logger.error(`[Assessment] generateQuestions error: ${e.message}${e.response ? ` | Groq ${e.response.status}: ${JSON.stringify(e.response.data)}` : ''}`);
     res.status(500).json({ error: 'Failed to generate questions. Please try again.' });
   }
 }
@@ -110,7 +110,7 @@ Important:
     logger.info(`[Assessment] Analyzed ${answers.length} answers for "${category}" > "${subcategory}" | risk: ${data.risk_level} (${data.risk_score})`);
     res.json({ result: data });
   } catch (e) {
-    logger.error('[Assessment] analyzeAnswers error:', e.message);
+    logger.error(`[Assessment] analyzeAnswers error: ${e.message}${e.response ? ` | Groq ${e.response.status}: ${JSON.stringify(e.response.data)}` : ''}`);
     res.status(500).json({ error: 'Failed to analyze answers. Please try again.' });
   }
 }

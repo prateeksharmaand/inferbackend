@@ -103,7 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SwitchListTile(
                 secondary: const Icon(Icons.auto_awesome_outlined, color: AppColors.primary),
                 title: const Text('AI Health Insights', style: AppTextStyles.body1),
-                subtitle: const Text('Share data with Google Gemini for AI features', style: AppTextStyles.caption),
+                subtitle: const Text('Share data with Google Gemini and Groq for AI features', style: AppTextStyles.caption),
                 value: AiConsent.isGranted,
                 onChanged: (v) async {
                   if (v) { await AiConsent.request(context); } else { await AiConsent.set(false); }

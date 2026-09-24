@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
 
-/// Consent to send health data to the third-party AI provider (Google Gemini).
+/// Consent to send health data to third-party AI providers (Google Gemini; Groq for the symptom self-check).
 /// Required by App Store guideline 5.1.2(i) before any personal data is shared with third-party AI.
 class AiConsent {
   static const _key = 'ai_data_sharing_consent';
@@ -52,12 +52,13 @@ class AiConsent {
         content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text(
             'Infer\'s AI features — health chat, drug checker, risk scores, symptom self-check and automatic report analysis — '
-            'send the data you enter, your vitals and the text of documents you upload to Google\'s Gemini AI service to generate results.',
+            'send the data you enter, your vitals and the text of documents you upload to third-party AI services to generate results: '
+            'Google\'s Gemini for most features, and Groq for the symptom self-check.',
             style: AppTextStyles.body2,
           ),
           const SizedBox(height: 10),
           const Text(
-            'Google processes this data only to return a response to Infer. It is not used for advertising. '
+            'These providers process this data only to return a response to Infer. It is not used for advertising. '
             'You can still use the rest of the app if you don\'t allow this, and you can change your choice anytime in Profile.',
             style: AppTextStyles.body2,
           ),
@@ -129,7 +130,7 @@ class _AiConsentGateState extends State<AiConsentGate> {
           Text('${widget.featureName} uses AI', style: AppTextStyles.h4, textAlign: TextAlign.center),
           const SizedBox(height: 8),
           const Text(
-            'To use this feature, allow Infer to send the relevant health data to Google\'s Gemini AI service.',
+            'To use this feature, allow Infer to send the relevant health data to third-party AI services (Google Gemini and Groq).',
             style: AppTextStyles.body2, textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),

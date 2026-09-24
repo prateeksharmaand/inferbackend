@@ -150,7 +150,7 @@ DEMO ACCOUNT
 The demo account above already has sample lab reports and vitals.
 
 AI FEATURES
-AI features (health chat, drug interaction checker, risk assessment, symptom self-check, lab report summaries) use Google's Gemini API through our server. Following guideline 5.1.2(i), the app asks for explicit permission before any data is sent to the AI provider. The prompt appears on the Home screen after sign-in and can be changed anytime in Profile → AI Health Insights. If declined, AI screens stay locked and the rest of the app works normally. In addition, every document upload (and every re-analysis) asks separately whether that specific document may be sent for AI analysis; choosing "Upload without AI" saves it without sending it to the AI provider.
+AI features (health chat, drug interaction checker, risk assessment, symptom self-check, lab report summaries) use third-party AI services through our server: Google's Gemini API (chat, drug checker, risk assessment, lab report summaries) and Groq (symptom self-check). Following guideline 5.1.2(i), the app asks for explicit permission before any data is sent to the AI provider. The prompt appears on the Home screen after sign-in and can be changed anytime in Profile → AI Health Insights. If declined, AI screens stay locked and the rest of the app works normally. In addition, every document upload (and every re-analysis) asks separately whether that specific document may be sent for AI analysis; choosing "Upload without AI" saves it without sending it to the AI provider.
 
 APPLE HEALTH
 Read-only. Vitals → sync icon → Sync Now imports heart rate, blood pressure, glucose, weight, SpO2, temperature, steps and active energy. We never write to Apple Health and never share HealthKit data.
