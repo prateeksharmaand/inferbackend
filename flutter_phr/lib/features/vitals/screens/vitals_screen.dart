@@ -48,10 +48,10 @@ class _VitalsScreenState extends State<VitalsScreen> with SingleTickerProviderSt
         actions: [
           IconButton(
             icon: const Icon(Icons.health_and_safety_outlined),
-            tooltip: 'Sync Health Connect',
+            tooltip: 'Sync ${AppConstants.healthPlatform}',
             onPressed: () => HealthSyncSheet.show(context),
           ),
-          IconButton(icon: const Icon(Icons.camera_alt_outlined), onPressed: () => context.go(AppRoutes.heartRate), tooltip: 'Camera HR'),
+          if (FeatureFlags.cameraHeartRate) IconButton(icon: const Icon(Icons.camera_alt_outlined), onPressed: () => context.go(AppRoutes.heartRate), tooltip: 'Camera HR'),
           IconButton(icon: const Icon(Icons.add), onPressed: () => context.push('${AppRoutes.vitals}/add?type=$_selectedType')),
         ],
         bottom: PreferredSize(preferredSize: const Size.fromHeight(48), child: TabBar(
@@ -209,7 +209,7 @@ class _VitalTypeViewState extends State<_VitalTypeView> {
         // ── How it works ──
         const Text('HOW IT WORKS', style: AppTextStyles.label),
         const SizedBox(height: 14),
-        _howItWorksStep(1, 'Log a reading', 'Tap "Add Manually" or sync from a wearable via Health Connect.', Icons.edit_note_rounded),
+        _howItWorksStep(1, 'Log a reading', 'Tap "Add Manually" or sync from a wearable via ${AppConstants.healthPlatform}.', Icons.edit_note_rounded),
         _howItWorksStep(2, 'Upload a report', 'Upload a lab report — vitals are extracted automatically using AI.', Icons.upload_file_rounded),
         _howItWorksStep(3, 'Track trends', 'View 30-day charts, status badges, and history in this tab.', Icons.show_chart_rounded),
 

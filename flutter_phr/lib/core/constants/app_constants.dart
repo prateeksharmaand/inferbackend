@@ -1,5 +1,11 @@
-﻿class AppConstants {
+import 'dart:io';
+
+class AppConstants {
+  /// Apple Health on iOS, Health Connect on Android — App Review rejects references to other platforms.
+  static String get healthPlatform => Platform.isIOS ? 'Apple Health' : 'Health Connect';
   static const String baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.inferapp.online/api');
+  static const String privacyPolicyUrl = 'https://inferapp.online/privacy.html';
+  static const String termsUrl = 'https://inferapp.online/terms.html';
   static String get fileBaseUrl => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
   static const int connectTimeout = 30000;
   static const int receiveTimeout = 30000;
@@ -47,6 +53,13 @@
 
   static const List<String> bloodTypes = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
+}
+
+/// Features hidden for the first App Store release. Flip to true to re-enable.
+class FeatureFlags {
+  static const bool abdm = false;
+  static const bool cameraHeartRate = true;
+  static const bool gmailSync = true;
 }
 
 class AppRoutes {

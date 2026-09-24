@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>phr_care</string>
+	<string>Infer PHR</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -24,6 +24,27 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -31,15 +52,12 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>UIBackgroundModes</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>remote-notification</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
@@ -48,18 +66,10 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Infer uses the camera to measure your heart rate and scan medical documents.</string>
+	<string>Infer uses the camera to measure your heart rate with your fingertip and to photograph medical documents and reports.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Infer uses your photo library to upload medical documents and reports.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Infer may use the microphone for future health monitoring features.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Infer uses Face ID to securely authenticate you.</string>
+	<string>Infer uses your photo library so you can choose medical documents and reports to add to your records.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Infer reads health data such as heart rate and steps to provide personalized health insights.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Infer writes health data such as heart rate readings to Apple Health.</string>
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>Infer sends reminders for medications and appointments.</string>
+	<string>Infer reads vitals such as heart rate, blood pressure, glucose, weight and steps from Apple Health so you can see them alongside your medical records.</string>
 </dict>
 </plist>

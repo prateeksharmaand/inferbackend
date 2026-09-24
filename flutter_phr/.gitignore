@@ -1,0 +1,23 @@
+# Flutter/Dart build output and caches
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+*.iml
+
+# iOS generated
+ios/Pods/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Flutter.podspec
+ios/.symlinks/
+**/xcuserdata/
+
+# Android generated / machine-specific
+android/local.properties
+android/.gradle/
+android/app/build/
+
+.env

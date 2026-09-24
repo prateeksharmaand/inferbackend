@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../services/ai_consent.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/document_model.dart';
@@ -137,6 +138,7 @@ class DocumentsCubit extends Cubit<DocumentsState> {
       if (facilityName != null) 'facility_name': facilityName,
       if (documentDate != null) 'document_date': documentDate.toIso8601String(),
       if (tags != null && tags.isNotEmpty) 'tags': tags.join(','),
+      'ai_analysis': AiConsent.isGranted ? 'true' : 'false',
     });
   }
 

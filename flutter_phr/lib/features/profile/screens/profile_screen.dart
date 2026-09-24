@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/services/ai_consent.dart';
 import '../../../core/cubits/auth_cubit.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
@@ -96,9 +99,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           if (!_editing) ...[
             _buildSection('Account', [
-              ListTile(leading: const Icon(Icons.timeline_outlined, color: AppColors.primary), title: const Text('View Timeline', style: AppTextStyles.body1), onTap: () {}),
-              ListTile(leading: const Icon(Icons.download_outlined, color: AppColors.primary), title: const Text('Export Health Data', style: AppTextStyles.body1), onTap: () {}),
+              ListTile(leading: const Icon(Icons.timeline_outlined, color: AppColors.primary), title: const Text('View Timeline', style: AppTextStyles.body1), onTap: () => context.push(AppRoutes.timeline)),
+              SwitchListTile(
+                secondary: const Icon(Icons.auto_awesome_outlined, color: AppColors.primary),
+                title: const Text('AI Health Insights', style: AppTextStyles.body1),
+                subtitle: const Text('Share data with Google Gemini for AI features', style: AppTextStyles.caption),
+                value: AiConsent.isGranted,
+                onChanged: (v) async {
+                  if (v) { await AiConsent.request(context); } else { await AiConsent.set(false); }
+                  if (mounted) setState(() {});
+                },
+              ),
+              ListTile(leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.primary), title: const Text('Privacy Policy', style: AppTextStyles.body1), onTap: () => launchUrl(Uri.parse(AppConstants.privacyPolicyUrl))),
+              ListTile(leading: const Icon(Icons.description_outlined, color: AppColors.primary), title: const Text('Terms of Use', style: AppTextStyles.body1), onTap: () => launchUrl(Uri.parse(AppConstants.termsUrl))),
               ListTile(leading: const Icon(Icons.logout, color: AppColors.error), title: const Text('Logout', style: TextStyle(fontFamily: 'Poppins', color: AppColors.error)), onTap: () => context.read<AuthCubit>().logout()),
+              ListTile(leading: const Icon(Icons.delete_forever_outlined, color: AppColors.error), title: const Text('Delete Account', style: TextStyle(fontFamily: 'Poppins', color: AppColors.error)), onTap: _confirmDeleteAccount),
             ]),
           ] else ...[
             CustomButton(text: 'Save Profile', isLoading: _isSaving, onPressed: _save),
@@ -108,6 +123,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ])),
       ])),
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final passwordCtrl = TextEditingController();
+    String? error;
+    bool deleting = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Delete Account?'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('This permanently deletes your account and all your health data, documents and vitals. This cannot be undone.', style: AppTextStyles.body2),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordCtrl,
+              obscureText: true,
+              decoration: InputDecoration(labelText: 'Enter your password to confirm', errorText: error),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: deleting ? null : () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+            TextButton(
+              onPressed: deleting ? null : () async {
+                if (passwordCtrl.text.isEmpty) { setDialogState(() => error = 'Password is required'); return; }
+                setDialogState(() { deleting = true; error = null; });
+                final result = await context.read<AuthCubit>().deleteAccount(passwordCtrl.text);
+                if (!dialogContext.mounted) return;
+                if (result == null) {
+                  Navigator.of(dialogContext).pop();
+                } else {
+                  setDialogState(() { deleting = false; error = result; });
+                }
+              },
+              child: deleting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Delete', style: TextStyle(color: AppColors.error)),
+            ),
+          ],
+        ),
+      ),
+    );
+    passwordCtrl.dispose();
   }
 
   Widget _buildHeader(String initials, String name, String email) => Container(

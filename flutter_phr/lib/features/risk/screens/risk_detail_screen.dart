@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/common/medical_disclaimer.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/cubits/risk_cubit.dart';
@@ -42,13 +43,16 @@ class _RiskDetailScreenState extends State<RiskDetailScreen> {
           ),
         ],
       ),
-      body: BlocBuilder<RiskCubit, RiskState>(
-        builder: (context, state) {
-          if (state.isLoading && state.result == null) return _buildLoading();
-          if (state.result == null) return _buildEmpty(context, state.error);
-          return _buildContent(context, state.result!);
-        },
-      ),
+      body: Column(children: [
+        const MedicalDisclaimer(text: 'Risk scores are estimates based on the data you entered — not a medical diagnosis. Always consult a qualified doctor.'),
+        Expanded(child: BlocBuilder<RiskCubit, RiskState>(
+          builder: (context, state) {
+            if (state.isLoading && state.result == null) return _buildLoading();
+            if (state.result == null) return _buildEmpty(context, state.error);
+            return _buildContent(context, state.result!);
+          },
+        )),
+      ]),
     );
   }
 

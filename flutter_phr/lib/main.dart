@@ -15,10 +15,12 @@ import 'core/cubits/risk_cubit.dart';
 import 'core/cubits/self_assessment_cubit.dart';
 import 'core/cubits/abdm_cubit.dart';
 import 'navigation/app_router.dart';
+import 'core/services/ai_consent.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await AiConsent.load();
   AppTheme.applySystemUI();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   final authCubit = AuthCubit();

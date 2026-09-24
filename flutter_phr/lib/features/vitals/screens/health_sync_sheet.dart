@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_constants.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/cubits/health_sync_cubit.dart';
 import '../../../core/cubits/vitals_cubit.dart';
@@ -74,9 +76,9 @@ class _HealthSyncSheetState extends State<HealthSyncSheet> {
                 child: const Icon(Icons.sync_rounded, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
-              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Health Connect Sync', style: AppTextStyles.h4),
-                Text('Import vitals from your health apps', style: AppTextStyles.caption),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${AppConstants.healthPlatform} Sync', style: AppTextStyles.h4),
+                const Text('Import vitals from your health apps', style: AppTextStyles.caption),
               ])),
             ]),
 
@@ -128,11 +130,17 @@ class _HealthSyncSheetState extends State<HealthSyncSheet> {
   }
 
   Widget _buildHowItWorks() {
-    const steps = [
-      (Icons.download_rounded, 'Install Health Connect', 'Get it free from the Play Store if not already installed.'),
-      (Icons.settings_rounded, 'Enable Samsung Health sync', 'Samsung Health → Settings → Connected services → Health Connect → turn on data types.'),
-      (Icons.sync_rounded, 'Tap Sync Now', 'Your vitals are imported automatically and saved to your PHR profile.'),
-    ];
+    final steps = Platform.isIOS
+      ? const [
+          (Icons.watch_rounded, 'Record in Apple Health', 'Readings from Apple Watch, connected devices and other health apps are collected in the Health app.'),
+          (Icons.lock_open_rounded, 'Allow access', 'Tap Sync Now and choose which data Infer PHR can read.'),
+          (Icons.sync_rounded, 'Tap Sync Now', 'Your vitals are imported automatically and saved to your PHR profile.'),
+        ]
+      : const [
+          (Icons.download_rounded, 'Install Health Connect', 'Get it free from the Play Store if not already installed.'),
+          (Icons.settings_rounded, 'Enable Samsung Health sync', 'Samsung Health → Settings → Connected services → Health Connect → turn on data types.'),
+          (Icons.sync_rounded, 'Tap Sync Now', 'Your vitals are imported automatically and saved to your PHR profile.'),
+        ];
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -233,7 +241,7 @@ class _HealthSyncSheetState extends State<HealthSyncSheet> {
 
     switch (state.status) {
       case HealthSyncStatus.checkingAvailability:
-        content = _statusRow(Icons.search_rounded, AppColors.info, 'Checking Health Connect...');
+        content = _statusRow(Icons.search_rounded, AppColors.info, 'Checking ${AppConstants.healthPlatform}...');
         break;
       case HealthSyncStatus.requestingPermission:
         content = _statusRow(Icons.lock_open_rounded, AppColors.warning, 'Requesting permissions...');
@@ -265,7 +273,7 @@ class _HealthSyncSheetState extends State<HealthSyncSheet> {
         break;
       case HealthSyncStatus.unavailable:
         content = _statusRow(Icons.warning_rounded, AppColors.warning,
-          'Health Connect is not installed. Install it from the Play Store.');
+          Platform.isIOS ? 'Apple Health is not available on this device.' : 'Health Connect is not installed. Install it from the Play Store.');
         break;
       default:
         content = const SizedBox.shrink();

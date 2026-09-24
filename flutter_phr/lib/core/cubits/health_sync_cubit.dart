@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/health_connect_service.dart';
 import '../services/api_service.dart';
+import '../constants/app_constants.dart';
 
 enum HealthSyncStatus { idle, checkingAvailability, requestingPermission, syncing, success, error, unavailable }
 
@@ -71,14 +73,14 @@ class HealthSyncCubit extends Cubit<HealthSyncState> {
 
     final available = await _service.isAvailable();
     if (!available) {
-      emit(state.copyWith(status: HealthSyncStatus.unavailable, error: 'Health Connect is not available on this device.'));
+      emit(state.copyWith(status: HealthSyncStatus.unavailable, error: '${AppConstants.healthPlatform} is not available on this device.'));
       return;
     }
 
     emit(state.copyWith(status: HealthSyncStatus.requestingPermission));
     final granted = await _service.requestPermissions();
     if (!granted) {
-      emit(state.copyWith(status: HealthSyncStatus.error, error: 'Permission denied. Please grant access in Health Connect settings.'));
+      emit(state.copyWith(status: HealthSyncStatus.error, error: Platform.isIOS ? 'Permission denied. Allow access in the Health app → Sharing → Apps → Infer PHR.' : 'Permission denied. Please grant access in Health Connect settings.'));
       return;
     }
 

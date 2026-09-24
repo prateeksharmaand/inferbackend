@@ -54,10 +54,10 @@ const _kPages = [
     accentColor: Color(0xFF7B6EF6),
     tag: 'STAY IN CONTROL',
     title: 'Stay Ahead of\nYour Health',
-    description: 'Track your health journey over time, set smart reminders, and never miss an important health update.',
+    description: 'Track your health journey over time, get alerts for abnormal readings, and never miss an important health update.',
     features: [
       (Icons.timeline_rounded,        'Health Timeline'),
-      (Icons.alarm_rounded,           'Medication Reminders'),
+      (Icons.notifications_active_rounded, 'Abnormal Vital Alerts'),
       (Icons.mail_rounded,            'Auto Gmail Import'),
     ],
   ),

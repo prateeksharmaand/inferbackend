@@ -28,6 +28,7 @@ import '../features/abdm/screens/consent_screen.dart';
 import '../features/abdm/screens/health_records_screen.dart';
 import '../core/models/document_model.dart';
 import 'main_scaffold.dart';
+import '../core/services/ai_consent.dart';
 
 CustomTransitionPage<void> _fadeSlideTransition({required Widget child, required GoRouterState state}) {
   return CustomTransitionPage<void>(
@@ -69,6 +70,11 @@ GoRouter createRouter(AuthCubit authCubit) {
           state.matchedLocation == AppRoutes.splash ||
           state.matchedLocation == AppRoutes.onboarding;
       if (isUnknown) return AppRoutes.splash;
+      final loc = state.matchedLocation;
+      if ((!FeatureFlags.abdm && loc.startsWith(AppRoutes.abdmHome)) ||
+          (!FeatureFlags.cameraHeartRate && loc == AppRoutes.heartRate)) {
+        return isAuth ? AppRoutes.home : AppRoutes.login;
+      }
       if (!isAuth && !onAuthPage) return AppRoutes.login;
       if (isAuth && (state.matchedLocation == AppRoutes.login || state.matchedLocation == AppRoutes.register)) {
         return AppRoutes.home;
@@ -126,7 +132,7 @@ GoRouter createRouter(AuthCubit authCubit) {
           ),
           GoRoute(
             path: AppRoutes.healthbot,
-            pageBuilder: (_, s) => _fadeSlideTransition(child: const HealthBotScreen(), state: s),
+            pageBuilder: (_, s) => _fadeSlideTransition(child: const AiConsentGate(featureName: 'AI Health Assistant', child: HealthBotScreen()), state: s),
           ),
           GoRoute(
             path: AppRoutes.allVitals,
@@ -134,11 +140,11 @@ GoRouter createRouter(AuthCubit authCubit) {
           ),
           GoRoute(
             path: AppRoutes.riskPrediction,
-            pageBuilder: (_, s) => _fadeSlideTransition(child: const RiskDetailScreen(), state: s),
+            pageBuilder: (_, s) => _fadeSlideTransition(child: const AiConsentGate(featureName: 'Risk Assessment', child: RiskDetailScreen()), state: s),
           ),
           GoRoute(
             path: AppRoutes.selfAssessment,
-            pageBuilder: (_, s) => _fadeSlideTransition(child: const SelfAssessmentScreen(), state: s),
+            pageBuilder: (_, s) => _fadeSlideTransition(child: const AiConsentGate(featureName: 'Symptom Self-Check', child: SelfAssessmentScreen()), state: s),
           ),
           GoRoute(
             path: AppRoutes.abdmHome,

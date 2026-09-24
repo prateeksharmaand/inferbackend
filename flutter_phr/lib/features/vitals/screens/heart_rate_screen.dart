@@ -118,7 +118,7 @@ class _HeartRateScreenState extends State<HeartRateScreen> with TickerProviderSt
   ), child: const Row(children: [
     Icon(Icons.info_outline, color: AppColors.primary, size: 18),
     SizedBox(width: 10),
-    Expanded(child: Text('Cover the camera lens completely with your fingertip for accurate reading. Make sure flashlight is on.',
+    Expanded(child: Text('Cover the camera lens completely with your fingertip and keep still. This gives an estimate for personal tracking only — it is not a medical measurement.',
       style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: AppColors.primary))),
   ]));
 

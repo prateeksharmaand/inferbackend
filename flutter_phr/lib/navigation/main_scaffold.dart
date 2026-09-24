@@ -11,14 +11,14 @@ class MainScaffold extends StatelessWidget {
     AppRoutes.vitals,
     AppRoutes.allVitals,
     AppRoutes.documents,
-    AppRoutes.abdmHome,
+    if (FeatureFlags.abdm) AppRoutes.abdmHome,
   ];
 
   int _selectedIndex(String location) {
     if (location.startsWith(AppRoutes.vitals)) return 1;
     if (location.startsWith(AppRoutes.allVitals)) return 2;
     if (location.startsWith(AppRoutes.documents)) return 3;
-    if (location.startsWith(AppRoutes.abdmHome)) return 4;
+    if (FeatureFlags.abdm && location.startsWith(AppRoutes.abdmHome)) return 4;
     return 0;
   }
 
@@ -52,11 +52,12 @@ class MainScaffold extends StatelessWidget {
             selectedIcon: Icon(Icons.folder_rounded),
             label: 'Records',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.badge_outlined),
-            selectedIcon: Icon(Icons.badge_rounded),
-            label: 'ABHA',
-          ),
+          if (FeatureFlags.abdm)
+            NavigationDestination(
+              icon: Icon(Icons.badge_outlined),
+              selectedIcon: Icon(Icons.badge_rounded),
+              label: 'ABHA',
+            ),
         ],
       ),
     );

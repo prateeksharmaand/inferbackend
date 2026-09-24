@@ -27,7 +27,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     super.initState();
     Future.microtask(() {
       context.read<DocumentsCubit>().loadDocuments();
-      context.read<GmailSyncCubit>().loadStatus();
+      if (FeatureFlags.gmailSync) context.read<GmailSyncCubit>().loadStatus();
       _startPolling();
     });
   }
@@ -133,7 +133,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           ])),
         ])),
         // Gmail sync banner
-        BlocBuilder<GmailSyncCubit, GmailSyncState>(
+        if (FeatureFlags.gmailSync) BlocBuilder<GmailSyncCubit, GmailSyncState>(
           builder: (context, gmail) => _GmailSyncBanner(
             state: gmail,
             onConnect: _connectGmail,

@@ -1,8 +1,9 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
 import '../constants/app_constants.dart';
 import 'api_service.dart';
+import 'ai_consent.dart';
 
 class AuthService {
   final ApiService _api = ApiService();
@@ -32,6 +33,14 @@ class AuthService {
     try { await _api.post('/auth/logout'); } catch (_) {}
     await _api.clearTokens();
     await _storage.delete(key: AppConstants.userKey);
+    await AiConsent.clear();
+  }
+
+  Future<void> deleteAccount(String password) async {
+    await _api.delete('/auth/account', data: {'password': password});
+    await _api.clearTokens();
+    await _storage.deleteAll();
+    await AiConsent.clear();
   }
 
   Future<UserModel?> getCurrentUser() async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/common/medical_disclaimer.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
 import '../../../core/cubits/healthbot_cubit.dart';
@@ -117,7 +118,7 @@ class _HealthBotScreenState extends State<HealthBotScreen> with SingleTickerProv
           ),
           const SizedBox(width: 10),
           const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('AI Consult', style: AppTextStyles.h5),
+            Text('AI Health Assistant', style: AppTextStyles.h5),
             Text('Your Health, Smarter Every Day', style: AppTextStyles.caption),
           ]),
         ]),
@@ -138,9 +139,12 @@ class _HealthBotScreenState extends State<HealthBotScreen> with SingleTickerProv
         ],
         bottom: TabBar(controller: _tabCtrl, tabs: const [Tab(text: 'Chat'), Tab(text: 'Drug Checker')]),
       ),
-      body: TabBarView(controller: _tabCtrl, children: [
-        _buildChatTab(botState),
-        _buildDrugCheckerTab(botState),
+      body: Column(children: [
+        const MedicalDisclaimer(),
+        Expanded(child: TabBarView(controller: _tabCtrl, children: [
+          _buildChatTab(botState),
+          _buildDrugCheckerTab(botState),
+        ])),
       ]),
     );
   }
@@ -217,7 +221,7 @@ class _HealthBotScreenState extends State<HealthBotScreen> with SingleTickerProv
         child: const Icon(Icons.auto_awesome, color: Colors.white, size: 36),
       ),
       const SizedBox(height: 20),
-      Text('Consult AI on Health Matters', style: AppTextStyles.h3.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+      Text('Ask AI about Health Topics', style: AppTextStyles.h3.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
       const SizedBox(height: 6),
       const Text('Your Health, Smarter Every Day', style: AppTextStyles.body2, textAlign: TextAlign.center),
       const SizedBox(height: 32),

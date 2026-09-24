@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/cubits/auth_cubit.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
@@ -137,6 +138,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(
               color: AppColors.errorLight, borderRadius: BorderRadius.circular(10),
             ), child: Text(auth.error!, style: AppTextStyles.caption.copyWith(color: AppColors.error))),
+          ],
+          if (_step == 2) ...[
+            const SizedBox(height: 20),
+            Wrap(alignment: WrapAlignment.center, children: [
+              const Text('By creating an account you confirm you are 18+ and agree to our ', style: AppTextStyles.caption, textAlign: TextAlign.center),
+              GestureDetector(onTap: () => launchUrl(Uri.parse(AppConstants.termsUrl)),
+                child: Text('Terms of Use', style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600))),
+              const Text(' and ', style: AppTextStyles.caption),
+              GestureDetector(onTap: () => launchUrl(Uri.parse(AppConstants.privacyPolicyUrl)),
+                child: Text('Privacy Policy', style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600))),
+              const Text('.', style: AppTextStyles.caption),
+            ]),
           ],
           const SizedBox(height: 32),
           Row(children: [

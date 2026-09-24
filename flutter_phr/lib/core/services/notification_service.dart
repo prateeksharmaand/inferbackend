@@ -26,7 +26,7 @@ class NotificationService {
       requestAlertPermission: true, requestBadgePermission: true, requestSoundPermission: true,
     );
     const initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
-    await _localNotifications.initialize(initSettings,
+    await _localNotifications.initialize(settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped);
 
     await _fcm.requestPermission(alert: true, badge: true, sound: true);
@@ -56,7 +56,7 @@ class NotificationService {
     );
     const iosDetails = DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true);
     const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
-    await _localNotifications.show(id, title, body, details, payload: payload);
+    await _localNotifications.show(id: id, title: title, body: body, notificationDetails: details, payload: payload);
   }
 
   Future<void> showVitalAlert({required String vitalType, required String value, required String status}) async {
@@ -79,7 +79,7 @@ class NotificationService {
     }
   }
 
-  Future<void> cancelReminder(int id) => _localNotifications.cancel(id);
+  Future<void> cancelReminder(int id) => _localNotifications.cancel(id: id);
 
   Future<void> cancelAllReminders() => _localNotifications.cancelAll();
 

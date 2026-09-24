@@ -1,4 +1,6 @@
 import 'dart:typed_data';
+import '../../../widgets/common/medical_disclaimer.dart';
+import '../../../core/services/ai_consent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -32,6 +34,8 @@ class _SmartReportScreenState extends State<SmartReportScreen> {
 
   Future<void> _reanalyze() async {
     if (_doc.id == null) return;
+    if (!AiConsent.isGranted && !await AiConsent.request(context)) return;
+    if (!mounted) return;
     setState(() => _reanalyzing = true);
     final updated = await context.read<DocumentsCubit>().reanalyzeDocument(_doc.id!);
     if (mounted) {
@@ -93,12 +97,15 @@ class _SmartReportScreenState extends State<SmartReportScreen> {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _SmartReportTab(doc: _doc),
-            _OriginalReportTab(doc: _doc),
-          ],
-        ),
+        body: Column(children: [
+          const MedicalDisclaimer(text: 'AI-generated summary for general information only — not a diagnosis. Check values against your original report and discuss them with your doctor.'),
+          Expanded(child: TabBarView(
+            children: [
+              _SmartReportTab(doc: _doc),
+              _OriginalReportTab(doc: _doc),
+            ],
+          )),
+        ]),
       ),
     ));
   }

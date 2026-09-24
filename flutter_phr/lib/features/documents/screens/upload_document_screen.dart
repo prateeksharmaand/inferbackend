@@ -35,7 +35,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
   void dispose() { _titleCtrl.dispose(); _doctorCtrl.dispose(); _facilityCtrl.dispose(); _tagCtrl.dispose(); super.dispose(); }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'], type: FileType.custom, withData: false);
+    final result = await FilePicker.pickFiles(allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'], type: FileType.custom, withData: false);
     if (result != null && result.files.isNotEmpty) {
       setState(() { _selectedFile = File(result.files.first.path!); _fileName = result.files.first.name; });
     }

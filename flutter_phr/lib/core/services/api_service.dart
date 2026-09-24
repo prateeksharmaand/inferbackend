@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/app_constants.dart';
 
@@ -66,8 +66,8 @@ class ApiService {
   Future<Response> patch(String path, {dynamic data}) =>
       _dio.patch(path, data: data);
 
-  Future<Response> delete(String path) =>
-      _dio.delete(path);
+  Future<Response> delete(String path, {dynamic data}) =>
+      _dio.delete(path, data: data);
 
   Future<Response> uploadFile(String path, FormData formData,
       {void Function(int, int)? onProgress}) =>

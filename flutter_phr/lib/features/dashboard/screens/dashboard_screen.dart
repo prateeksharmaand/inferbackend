@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../core/services/ai_consent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -33,17 +34,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     Future.microtask(() {
       context.read<VitalsCubit>().loadLatestVitals();
-      context.read<GmailSyncCubit>().loadStatus();
-      context.read<RiskCubit>().loadRisk();
+      if (FeatureFlags.gmailSync) context.read<GmailSyncCubit>().loadStatus();
+      if (AiConsent.isGranted) context.read<RiskCubit>().loadRisk();
       context.read<TimelineCubit>().loadTimeline();
     });
+    if (AiConsent.granted == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final granted = await AiConsent.request(context);
+        if (granted && mounted) context.read<RiskCubit>().loadRisk();
+      });
+    }
   }
 
   Future<void> _onRefresh() async {
     setState(() => _isRefreshing = true);
     await Future.wait([
       context.read<VitalsCubit>().loadLatestVitals(),
-      context.read<GmailSyncCubit>().loadStatus(),
+      if (FeatureFlags.gmailSync) context.read<GmailSyncCubit>().loadStatus(),
       context.read<TimelineCubit>().loadTimeline(),
     ]);
     if (mounted) setState(() => _isRefreshing = false);
@@ -93,8 +101,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 12),
               _buildSelfAssessmentCard(),
               const SizedBox(height: 12),
-              _buildAbdmCard(),
-              const SizedBox(height: 16),
+              if (FeatureFlags.abdm) ...[
+                _buildAbdmCard(),
+                const SizedBox(height: 16),
+              ] else
+                const SizedBox(height: 4),
               showShimmer
                 ? const Row(children: [
                     Expanded(child: ShimmerMetricCard()),
@@ -103,12 +114,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ])
                 : _buildMetricsRow(vitals),
               const SizedBox(height: 16),
-              showShimmer ? const ShimmerHeartHealthCard() : _buildHeartHealthCard(vitals),
-              const SizedBox(height: 16),
+              if (FeatureFlags.cameraHeartRate) ...[
+                showShimmer ? const ShimmerHeartHealthCard() : _buildHeartHealthCard(vitals),
+                const SizedBox(height: 16),
+              ],
               showShimmer ? const ShimmerSyncCard() : _buildHealthSyncCard(),
               const SizedBox(height: 12),
-              showShimmer ? const ShimmerSyncCard() : _buildGmailSyncCard(),
-              const SizedBox(height: 12),
+              if (FeatureFlags.gmailSync) ...[
+                showShimmer ? const ShimmerSyncCard() : _buildGmailSyncCard(),
+                const SizedBox(height: 12),
+              ],
               _buildHealthRiskChecks(),
               const SizedBox(height: 16),
               BlocBuilder<TimelineCubit, TimelineState>(
@@ -145,8 +160,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Text(name, style: AppTextStyles.h5),
     ]),
     const Spacer(),
-    _iconBtn(Icons.favorite_rounded, () => context.go(AppRoutes.heartRate), color: AppColors.heartRate),
-    const SizedBox(width: 8),
+    if (FeatureFlags.cameraHeartRate) ...[
+      _iconBtn(Icons.favorite_rounded, () => context.go(AppRoutes.heartRate), color: AppColors.heartRate),
+      const SizedBox(width: 8),
+    ],
     _iconBtn(Icons.chat_bubble_outline_rounded, () => context.push(AppRoutes.healthbot)),
     const SizedBox(width: 8),
     _iconBtn(Icons.notifications_outlined, () {}),
@@ -179,7 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Start Consult Health with AI', style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+          const Text('Ask AI about your health', style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
           Text('Your Health, Smarter Every Day', style: TextStyle(fontFamily: 'Poppins', fontSize: 11, color: Colors.white.withValues(alpha:0.8))),
         ])),
         const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
@@ -463,7 +480,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Health Connect', style: AppTextStyles.h5),
+            Text(AppConstants.healthPlatform, style: AppTextStyles.h5),
             const SizedBox(height: 2),
             Text(subtitle, style: AppTextStyles.caption),
           ])),
