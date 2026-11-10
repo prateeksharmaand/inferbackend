@@ -566,6 +566,11 @@ const saveEncounter = async (req, res) => {
   // Auto-mark appointment as completed
   await pool.query(`UPDATE emr_appointments SET status='completed', completed_at=NOW() WHERE id=$1`, [a.id]);
 
+  // Learn symptoms/diagnoses into the clinic's InferPad master data (never blocks the save)
+  require('./emr.clinicalterms.controller')
+    .learnFromEncounter(a.clinic_id, symptoms, diagnosis)
+    .catch(err => logger.warn('[clinical-terms] learn failed', { error: err.message }));
+
   // â"€â"€ ABDM: auto-create / update care context so this encounter is discoverable â"€â"€
   // Architecture: ONE Care Context = ONE Visit/Encounter
   //              ONE Care Context can contain MANY Health Records (different HI types)

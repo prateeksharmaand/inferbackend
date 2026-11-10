@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, Fragment } from 'react';
 import { Plus, ChevronDown, Settings2, X, Search, GripVertical, Sparkles } from 'lucide-react';
 import { getTemplateSuggestions } from '../data/templateSuggestions';
+import { api } from '../api/client';
 import styles from './InferPad.module.css';
 import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
@@ -15,12 +16,40 @@ const NLM = 'https://clinicaltables.nlm.nih.gov/api';
 
 async function fetchICD10(query) {
   try {
-    const r = await fetch(`${NLM}/icd10cm/v3/search?terms=${encodeURIComponent(query)}&sf=code,name&maxList=12`);
+    // Short timeout: master-data results are shown regardless of NLM's speed
+    const r = await fetch(`${NLM}/icd10cm/v3/search?terms=${encodeURIComponent(query)}&sf=code,name&maxList=12`,
+      { signal: AbortSignal.timeout(2500) });
     const data = await r.json();
     const rows = data[3] || [];
     return rows.map(([code, name]) => ({ code, name, label: `${code} — ${name}` }));
   } catch { return []; }
 }
+
+// Symptom/diagnosis search: the clinic's master data first (Settings → Symptoms & Diagnoses),
+// then NLM ICD-10 for anything not in it. Duplicates by name are dropped.
+async function fetchClinicalTerms(kind, query) {
+  const [master, nlm] = await Promise.all([
+    api.get(`/clinical-terms?kind=${kind}&q=${encodeURIComponent(query)}&limit=8`).catch(() => []),
+    fetchICD10(query),
+  ]);
+  const seen = new Set();
+  const out  = [];
+  for (const t of Array.isArray(master) ? master : []) {
+    const k = t.name.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push({ code: t.icd10_code || '', name: t.name, label: t.icd10_code ? `${t.icd10_code} — ${t.name}` : t.name });
+  }
+  for (const r of nlm) {
+    const k = r.name.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(r);
+  }
+  return out.slice(0, 15);
+}
+const fetchSymptomTerms   = q => fetchClinicalTerms('symptom', q);
+const fetchDiagnosisTerms = q => fetchClinicalTerms('diagnosis', q);
 
 async function fetchLOINC(query) {
   try {
@@ -375,7 +404,25 @@ function SeverityPills({ value, onChange }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function InferPad({ form, set, setVital, setCalcResult, appt, pastNotes = [], clinicId = 'default', activeTemplate }) {
-  const suggestions = getTemplateSuggestions(activeTemplate);
+  // Quick-add chips: symptoms/diagnoses from the master data (clinic's most-used first, then the
+  // template specialty); investigations still from the built-in list. Falls back to the built-in
+  // lists if the API is unavailable.
+  const staticSuggestions = getTemplateSuggestions(activeTemplate);
+  const specialty = (activeTemplate?.specialty || 'general').toLowerCase().trim();
+  const [masterSuggestions, setMasterSuggestions] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    api.get(`/clinical-terms/suggestions?specialty=${encodeURIComponent(specialty)}`)
+      .then(d => { if (alive) setMasterSuggestions(d); })
+      .catch(() => { if (alive) setMasterSuggestions(null); });
+    return () => { alive = false; };
+  }, [specialty]);
+  const asItems = list => (list || []).map(name => ({ name, code: '' }));
+  const suggestions = {
+    symptoms:       masterSuggestions?.symptoms  ?? asItems(staticSuggestions?.symptoms),
+    diagnoses:      masterSuggestions?.diagnoses ?? asItems(staticSuggestions?.diagnoses),
+    investigations: staticSuggestions?.investigations || [],
+  };
   const [showVitalsCfg, setShowVitalsCfg] = useState(false);
   const [vitalsOrder,   setVitalsOrder]   = useState(() => getVitalsPrefs(clinicId));
   const [calcOrder,     setCalcOrder]     = useState(() => getCalcPrefs(clinicId));
@@ -687,12 +734,12 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
             {/* Template suggestion chips */}
             {suggestions?.symptoms?.length > 0 && (() => {
               const existing = new Set(form.symptoms.map(s => (typeof s === 'string' ? s : s.name).toLowerCase()));
-              const remaining = suggestions.symptoms.filter(s => !existing.has(s.toLowerCase()));
+              const remaining = suggestions.symptoms.filter(s => !existing.has(s.name.toLowerCase()));
               return remaining.length > 0 ? (
                 <div className={styles.suggestionRow}>
                   <span className={styles.suggestionLabel}><Sparkles size={11} /> Quick add</span>
                   {remaining.slice(0, 8).map(s => (
-                    <button key={s} className={styles.suggestionChip} onClick={() => addSymptom(s)}>{s}</button>
+                    <button key={s.name} className={styles.suggestionChip} onClick={() => addSymptom(s)} title={s.code || undefined}>{s.name}</button>
                   ))}
                 </div>
               ) : null;
@@ -711,7 +758,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
                 );
               })}
             </div>
-            <AutocompleteInput value={form.symptomInput || ''} onChange={v => { set('symptomInput', v); set('symptomCode', ''); }} onSelect={selectSymptomSuggestion} onAddChip={addSymptom} fetchSuggestions={fetchICD10} placeholder="Search ICD-10 or type symptom, press Enter…" renderItem={item => <div className={styles.acItem}><span className={styles.acCode}>{item.code}</span><span className={styles.acName}>{item.name}</span></div>} />
+            <AutocompleteInput value={form.symptomInput || ''} onChange={v => { set('symptomInput', v); set('symptomCode', ''); }} onSelect={selectSymptomSuggestion} onAddChip={addSymptom} fetchSuggestions={fetchSymptomTerms} placeholder="Search ICD-10 or type symptom, press Enter…" renderItem={item => <div className={styles.acItem}><span className={styles.acCode}>{item.code}</span><span className={styles.acName}>{item.name}</span></div>} />
             <div className={styles.metaRow}>
               <div className={styles.metaField}><label>Since</label><NumberUnitInput placeholder="e.g. 2 days, 1 week" className={styles.metaInput} value={form.symptomSince || ''} onChange={v => set('symptomSince', v)} /></div>
               <div className={styles.metaField}><label>Severity</label><SeverityPills value={form.symptomSeverity || ''} onChange={v => set('symptomSeverity', v)} /></div>
@@ -722,12 +769,12 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
           <ICard key="diagnosis" title="Diagnosis" icon="🔬" color="#eab308">
             {suggestions?.diagnoses?.length > 0 && (() => {
               const existing = new Set(form.diagnosis.map(d => d.display.toLowerCase()));
-              const remaining = suggestions.diagnoses.filter(d => !existing.has(d.toLowerCase()));
+              const remaining = suggestions.diagnoses.filter(d => !existing.has(d.name.toLowerCase()));
               return remaining.length > 0 ? (
                 <div className={styles.suggestionRow}>
                   <span className={styles.suggestionLabel}><Sparkles size={11} /> Quick add</span>
                   {remaining.slice(0, 6).map(d => (
-                    <button key={d} className={styles.suggestionChip} onClick={() => addDiag(d)}>{d}</button>
+                    <button key={d.name} className={styles.suggestionChip} onClick={() => addDiag(d)} title={d.code || undefined}>{d.name}</button>
                   ))}
                 </div>
               ) : null;
@@ -740,7 +787,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
                 </span>
               ))}
             </div>
-            <AutocompleteInput value={form.diagInput || ''} onChange={v => { set('diagInput', v); set('diagCode', ''); }} onSelect={selectDiagSuggestion} onAddChip={addDiag} fetchSuggestions={fetchICD10} placeholder="Search ICD-10 or type diagnosis, press Enter…" renderItem={item => <div className={styles.acItem}><span className={styles.acCode}>{item.code}</span><span className={styles.acName}>{item.name}</span></div>} />
+            <AutocompleteInput value={form.diagInput || ''} onChange={v => { set('diagInput', v); set('diagCode', ''); }} onSelect={selectDiagSuggestion} onAddChip={addDiag} fetchSuggestions={fetchDiagnosisTerms} placeholder="Search ICD-10 or type diagnosis, press Enter…" renderItem={item => <div className={styles.acItem}><span className={styles.acCode}>{item.code}</span><span className={styles.acName}>{item.name}</span></div>} />
             <div className={styles.metaRow}>
               <div className={styles.metaField}><label>Since</label><NumberUnitInput placeholder="e.g. 3 years" className={styles.metaInput} value={form.diagSince || ''} onChange={v => set('diagSince', v)} /></div>
               <div className={styles.metaField}><label>Severity</label><SeverityPills value={form.diagSeverity || ''} onChange={v => set('diagSeverity', v)} /></div>
