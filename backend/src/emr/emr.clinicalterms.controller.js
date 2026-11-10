@@ -39,8 +39,10 @@ exports.list = async (req, res) => {
   if (!includeHidden) where += ' AND COALESCE(c.hidden, FALSE) = FALSE';
   const term = clean(q);
   if (term) {
-    params.push(`%${term.toLowerCase()}%`, `${term.toUpperCase()}%`);
-    where += ` AND (LOWER(t.name) LIKE $${params.length - 1} OR UPPER(COALESCE(t.icd10_code,'')) LIKE $${params.length})`;
+    // Match the start of any word ("urin" → "Painful Urination", not "During"), or a code prefix
+    const rx = '\\m' + term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    params.push(rx, `${term.toUpperCase()}%`);
+    where += ` AND (LOWER(t.name) ~ $${params.length - 1} OR UPPER(COALESCE(t.icd10_code,'')) LIKE $${params.length})`;
   }
   let specOrder = '';
   if (specialty) {
@@ -54,7 +56,9 @@ exports.list = async (req, res) => {
 
   const { rows } = await pool.query(
     `${VISIBLE_SQL} ${where}
-     ORDER BY ${prefixOrder} ${specOrder} COALESCE(c.usage_count, 0) DESC, t.sort_rank, t.name
+     ORDER BY ${prefixOrder} ${specOrder} COALESCE(c.usage_count, 0) DESC,
+              (t.icd10_code IS NULL),  -- coded terms before uncoded (e.g. 032 dataset names)
+              t.sort_rank, t.name
      LIMIT $${params.length}`,
     params,
   );
