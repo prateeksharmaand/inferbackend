@@ -301,14 +301,4 @@
 }
 .btnDone:hover { background: var(--color-primary-dk); }
 
-/* ── Print: only receipt document ─────────────── */
-@media print {
-  body * { visibility: hidden; }
-  #receipt-print-area,
-  #receipt-print-area * { visibility: visible; }
-  #receipt-print-area {
-    position: absolute; left: 0; top: 0;
-    width: 100%; max-width: none;
-    box-shadow: none; border-radius: 0;
-  }
-}
+/* Receipt printing: utils/printElement.js (a print-only rule here applied app-wide and blanked every print) */

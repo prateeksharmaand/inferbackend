@@ -167,9 +167,5 @@
   padding: 10px 18px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0;
 }
 
-@media print {
-  body * { visibility: hidden; }
-  #receipt-print-area, #receipt-print-area * { visibility: visible; }
-  #receipt-print-area { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border-radius: 0; }
-}
+/* Receipt printing: utils/printElement.js (a print-only rule here applied app-wide and blanked every print) */
 

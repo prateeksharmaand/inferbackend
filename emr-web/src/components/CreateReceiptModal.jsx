@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, ChevronDown, CheckCircle, Printer, Download, Send, MessageCircle, Pencil } from 'lucide-react';
 import { api } from '../api/client';
 import { track } from '../lib/mixpanel';
+import { useAuth } from '../context/AuthContext';
+import { useRxImages } from './RxExtras';
+import { printElement } from '../utils/printElement';
 import styles from './CreateReceiptModal.module.css';
 
 const PAYMODES = ['Cash', 'UPI', 'Card', 'Net Banking', 'Cheque', 'Other'];
@@ -178,6 +181,17 @@ function ReceiptDocument({ receipt, appt, user, rxImages = {} }) {
 }
 
 // ── Post-receipt success view ─────────────────────────────────────────────────
+// Print the receipt document in its own window (window.print() on the app page is blanked by
+// other screens' print rules — see utils/printElement.js)
+export function printReceipt(receipt, appt, { download = false } = {}) {
+  const name = (appt?.patient_name || receipt?.patient_name || 'Patient').replace(/\s+/g, '_');
+  const ok = printElement(document.getElementById('receipt-print-area'), {
+    title: `Receipt_${receipt?.receipt_number || receipt?.id || ''}_${name}`,
+    autoClose: !download,   // Download keeps the window open so it can be saved as PDF
+  });
+  if (!ok) alert('Pop-up blocked — please allow pop-ups for this site to print.');
+}
+
 function ReceiptCreatedView({ receipt, appt, user, rxImages, onEdit, onNewReceipt, onDone }) {
   const grandTotal = parseFloat(receipt.grand_total || 0);
 
@@ -192,13 +206,13 @@ function ReceiptCreatedView({ receipt, appt, user, rxImages, onEdit, onNewReceip
       icon: <Printer size={18} />,
       label: 'Print',
       sub: 'View and print the receipt',
-      onClick: () => window.print(),
+      onClick: () => printReceipt(receipt, appt),
     },
     {
       icon: <Download size={18} />,
       label: 'Download',
       sub: 'Get a PDF version of the receipt',
-      onClick: () => window.print(),
+      onClick: () => printReceipt(receipt, appt, { download: true }),
     },
     {
       icon: <MessageCircle size={18} />,
@@ -250,7 +264,11 @@ function ReceiptCreatedView({ receipt, appt, user, rxImages, onEdit, onNewReceip
 }
 
 // ── Main modal ────────────────────────────────────────────────────────────────
-export default function CreateReceiptModal({ appt, user, rxImages = {}, onClose, onSaved }) {
+export default function CreateReceiptModal({ appt, user: userProp, onClose, onSaved }) {
+  // Header/footer the same way as the prescription (clinic's server copy first), on every page
+  const { user: authUser } = useAuth();
+  const user = userProp || authUser;
+  const rxImages = useRxImages(user);
   const [rows,          setRows]          = useState([emptyItem(), emptyItem()]);
   const [addlDiscount,  setAddlDiscount]  = useState('');
   const [paymode,       setPaymode]       = useState('Cash');

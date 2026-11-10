@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { X, Plus, Eye, Pencil, Trash2, CheckCircle } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import CreateReceiptModal from './CreateReceiptModal';
+import CreateReceiptModal, { printReceipt } from './CreateReceiptModal';
+import { useRxImages } from './RxExtras';
 import styles from './ViewReceiptsModal.module.css';
 
 const STATUS_LABEL = {
@@ -19,13 +20,6 @@ function fmtDateTime(iso) {
   return { date, time };
 }
 
-function getRxImages(clinicId) {
-  const cid = clinicId || 'default';
-  return {
-    headerImg:  localStorage.getItem(`rx_header_${cid}`)  || '',
-    footerImg:  localStorage.getItem(`rx_footer_${cid}`)  || '',
-  };
-}
 
 // ── Single receipt view (right side of the post-receipt screen) ───────────────
 function ReceiptDocumentView({ receipt, appt, user, rxImages, onClose }) {
@@ -98,7 +92,7 @@ function ReceiptDocumentView({ receipt, appt, user, rxImages, onClose }) {
         <div className={styles.header}>
           <span>Receipt #{receipt.id}</span>
           <div style={{ display:'flex', gap:8 }}>
-            <button className={styles.printBtn} onClick={() => window.print()}>Print</button>
+            <button className={styles.printBtn} onClick={() => printReceipt(receipt, appt)}>Print</button>
             <button className={styles.closeBtn} onClick={onClose}><X size={16}/></button>
           </div>
         </div>
@@ -113,7 +107,7 @@ function ReceiptDocumentView({ receipt, appt, user, rxImages, onClose }) {
 // ── Main: View All Receipts ───────────────────────────────────────────────────
 export default function ViewReceiptsModal({ appt, receipts: initialReceipts, onClose, onReceiptsChange }) {
   const { user } = useAuth();
-  const rxImages = getRxImages(user?.clinic_id);
+  const rxImages = useRxImages(user);
 
   const [receipts,     setReceipts]     = useState(initialReceipts || []);
   const [viewReceipt,  setViewReceipt]  = useState(null);
