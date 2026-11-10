@@ -146,7 +146,7 @@ function toInputDate(d) {
 // Convert YYYY-MM-DD → "DD Mon'YY"
 function fmtInputDate(str) {
   if (!str) return '';
-  const d = new Date(str + 'T00:00:00');
+  const d = new Date(String(str).slice(0, 10) + 'T00:00:00');
   return fmtVaccDate(d);
 }
 
@@ -487,7 +487,7 @@ export default function VaccinationChart({ dob, age, vaccinations = {}, onChange
   const [mode, setMode] = useState('iap');
   const [modalEntries, setModalEntries] = useState(null); // null = closed
 
-  const dobDate = dob ? new Date(dob + 'T00:00:00') : null;
+  const dobDate = dob ? new Date(String(dob).slice(0, 10) + 'T00:00:00') : null;
   const today   = new Date();
   const ageInDays = dobDate ? Math.floor((today - dobDate) / 86400000) : null;
   const ageYears  = ageInDays ? Math.floor(ageInDays / 365) : null;

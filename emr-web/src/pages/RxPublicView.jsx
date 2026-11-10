@@ -13,7 +13,7 @@ const VUNIT = {
 
 function fmtDate(d) {
   if (!d) return '';
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', {
+  return new Date(String(d).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-IN', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
 }

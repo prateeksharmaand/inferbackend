@@ -6,7 +6,7 @@ import s from './AppointmentSlipModal.module.css';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', {
+  return new Date(String(d).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-IN', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   });
 }

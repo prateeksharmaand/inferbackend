@@ -267,7 +267,7 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
   const diagStr       = form.diagnosis.map(d => { const mp=[d.since&&`Since: ${d.since}`,d.severity&&`Severity: ${d.severity}`].filter(Boolean); return `${d.display}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
   const labInvLines   = form.lab_investigations.map(l => { if(typeof l==='string') return l; const rep=l.repeat_on?` | Repeat: ${l.repeat_on}`:''; const rem=l.remarks?` Remark: ${l.remarks}`:''; return `${l.test} (On: ${todayFmt}${rep})${rem}`;});
   const labResultLines= form.lab_results.map(r => { const flag=getFlag(r); return `${r.test}: ${r.result}${r.unit?' '+r.unit:''}${flag?` [${flag}]`:''} - ${todayFmt}`;});
-  const followupStr   = form.next_visit_date ? `Visit on ${new Date(form.next_visit_date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}` : '';
+  const followupStr   = form.next_visit_date ? `Visit on ${new Date(String(form.next_visit_date).slice(0, 10)+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}` : '';
   const proceduresStr = form.procedures.map(p=>`${p} - ${todayFmt}`).join(', ');
 
   return (
@@ -932,14 +932,25 @@ export default function WriteRx() {
 </html>`;
   };
 
+  // The PDF is built on the server from the clinic's saved images. InferPad keeps them in this
+  // browser too, so push whatever this browser has before asking for the PDF; otherwise the
+  // header/footer/signature set in Configure InferPad never reach the printout.
+  const syncRxImagesToServer = () => {
+    const body = {};
+    if (rxImages.headerImg)    body.rx_header_img = rxImages.headerImg;
+    if (rxImages.footerImg)    body.rx_footer_img = rxImages.footerImg;
+    if (rxImages.signatureImg) body.rx_signature  = rxImages.signatureImg;
+    return Object.keys(body).length ? api.patch('/settings/clinic-assets', body).catch(() => {}) : Promise.resolve();
+  };
+
   const openPdfWindow = (apptId) => {
     const token = localStorage.getItem('emr_token');
     const win   = window.open('', '_blank', 'width=900,height=700');
     if (!win) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
     // Fetch PDF with auth token and open in blob URL so print works
-    fetch(`/api/emr/appointments/${apptId}/prescription.pdf`, {
+    syncRxImagesToServer().then(() => fetch(`/api/emr/appointments/${apptId}/prescription.pdf`, {
       headers: { Authorization: `Bearer ${token}` },
-    }).then(r => r.blob()).then(b => {
+    })).then(r => r.blob()).then(b => {
       const url = URL.createObjectURL(b);
       win.location.href = url;
       setTimeout(() => { try { win.print(); } catch {} }, 1200);
@@ -986,9 +997,9 @@ export default function WriteRx() {
       const token = localStorage.getItem('emr_token');
       const name  = `Rx_${(appt.patient_name || 'Patient').replace(/\s+/g, '_')}.pdf`;
       const tid = toast.loading('Downloading PDF…');
-      fetch(`/api/emr/appointments/${appt.id}/prescription.pdf`, {
+      syncRxImagesToServer().then(() => fetch(`/api/emr/appointments/${appt.id}/prescription.pdf`, {
         headers: { Authorization: `Bearer ${token}` },
-      }).then(r => r.blob()).then(b => {
+      })).then(r => r.blob()).then(b => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(b);
         a.download = name;

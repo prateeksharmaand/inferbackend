@@ -277,7 +277,7 @@ function today() {
 }
 function fmtDate(str) {
   if (!str) return '';
-  return new Date(str + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(String(str).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 function sigBlock(p, d) {
   return `
