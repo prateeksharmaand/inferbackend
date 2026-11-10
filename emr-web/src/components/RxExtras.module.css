@@ -1,0 +1,39 @@
+/* Shared prescription extras: diet plan, QR code, section heading (used by RxDocumentBody) */
+.prescHeading {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  color: #475569; margin-bottom: 8px;
+}
+.prescLine { flex: 1; height: 1px; background: #cbd5e1; }
+.qrSection {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 0 10px;
+  padding: 12px 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.qrLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qrPlaceholder {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 27px;
+  background: #f8f9ff;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.dietSection { margin-top: 12px; }
+.dietChart { margin-bottom: 8px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 4px; }
+.dietChartTitle { font-size: 11px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.dietMealRow { display: flex; gap: 6px; font-size: 10px; padding: 2px 0; }
+.dietMealName { font-weight: 600; white-space: nowrap; min-width: 100px; color: #374151; }
+.dietMealItems { color: #475569; flex: 1; }
