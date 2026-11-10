@@ -3,7 +3,16 @@ const fs     = require('fs');
 const multer = require('multer');
 const { pool } = require('../config/database');
 
-const ensureTable = async () => {
+// Run the table setup once per process and share it between concurrent requests: two
+// simultaneous CREATE TABLE IF NOT EXISTS calls can still fail with "already exists"
+// (the app requests documents and patient-documents together on first open).
+let _tableReady = null;
+const ensureTable = () => {
+  if (!_tableReady) _tableReady = _createTable().catch(err => { _tableReady = null; throw err; });
+  return _tableReady;
+};
+
+const _createTable = async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS emr_documents (
       id             SERIAL PRIMARY KEY,

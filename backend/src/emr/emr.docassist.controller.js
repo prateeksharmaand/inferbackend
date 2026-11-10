@@ -401,7 +401,10 @@ exports.generateDocument = async (req, res) => {
   }
 
   const promptFn = DOC_PROMPTS[doc_type];
-  const prompt = promptFn(context || '', patient_context || '');
+  const patientText = patient_context && typeof patient_context === 'object'
+    ? JSON.stringify(patient_context)
+    : (patient_context || '');
+  const prompt = promptFn(context || '', patientText);
 
   if (!process.env.GROQ_API_KEY) {
     return res.json({ document: _docFallback(doc_type) });
@@ -410,7 +413,7 @@ exports.generateDocument = async (req, res) => {
   try {
     const document = await callGroq(
       [
-        { role: 'system', content: 'You are a medical documentation expert. Generate professional, clinically accurate medical documents in proper format. Use markdown formatting.' },
+        { role: 'system', content: 'You are a medical documentation expert. Generate professional, clinically accurate medical documents in proper format. Use markdown formatting. Use only the patient details given; where a detail is missing, keep a bracketed placeholder such as [Patient Name], [Date of Birth] or [Patient ID]. Never invent names, dates of birth, record numbers, or results.' },
         { role: 'user', content: prompt },
       ],
       2048,

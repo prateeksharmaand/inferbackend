@@ -95,6 +95,9 @@ async function runMigrations(pool, logger) {
       logger.info(`Migration applied: ${name}`);
     } catch (err) {
       logger.error(`Migration FAILED: ${name}`, { error: err.message });
+      // A migration that opened its own BEGIN leaves this client in an aborted transaction;
+      // roll back so the pooled connection doesn't poison every later query.
+      await client.query('ROLLBACK').catch(() => {});
     } finally {
       client.release(); // single release point — no double-release possible
     }

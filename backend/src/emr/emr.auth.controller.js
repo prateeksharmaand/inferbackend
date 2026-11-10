@@ -134,7 +134,11 @@ const login = async (req, res) => {
       plan:           user.plan,
       max_patients:   user.max_patients,
       permissions,
-      ...(role === 'doctor' ? { specialization: user.specialization, qualification: user.qualification, google_review_link: user.google_review_link || '' } : {}),
+      // Doctor profile fields live in emr_clinic_staff as designation / department (see updateDoctor).
+      // Sent for every login: clinic owners (role admin) also write and sign prescriptions.
+      specialization:     user.designation || '',
+      qualification:      user.department  || '',
+      google_review_link: user.google_review_link || '',
     },
   });
 };

@@ -121,9 +121,10 @@ exports.createClinic = async (req, res) => {
     await client.query('BEGIN');
 
     const { rows: [clinic] } = await client.query(
-      `INSERT INTO emr_clinics (name, address, phone, email)
-       VALUES ($1,$2,$3,$4) RETURNING *`,
-      [clinic_name, address || null, phone || null, email || null]
+      // plan mirrors the subscription below — login (emr.auth.controller) reads emr_clinics.plan
+      `INSERT INTO emr_clinics (name, address, phone, email, plan)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [clinic_name, address || null, phone || null, email || null, plan_key]
     );
 
     // Owner account (admin staff)

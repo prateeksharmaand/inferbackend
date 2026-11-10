@@ -418,12 +418,13 @@ const updateStatus = async (req, res) => {
 const getAppointment = async (req, res) => {
   const { rows } = await pool.query(
     `SELECT a.*, d.name AS doctor_name, e.id AS encounter_id,
+       DATE_PART('year', AGE(a.patient_dob))::int AS patient_age,  -- used by the Rx print
        e.chief_complaint, e.symptoms, e.diagnosis, e.medications, e.instructions,
        e.next_visit_date, e.next_visit_notes, e.vitals,
        e.lab_investigations, e.lab_results, e.examination_findings,
        e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image, e.custom_sections, e.vaccinations, e.rx_language, e.calc_results
      FROM emr_appointments a
-     LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
+     LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
      WHERE a.id=$1 AND a.clinic_id=$2`,
     [req.params.id, req.emrUser.clinic_id]
