@@ -591,11 +591,13 @@
 .postVisitEndBtn:hover { background: #b91c1c; }
 
 /* Print media — portal-based, hides entire React app and shows only the prescription */
+/* Scoped with :has() — this stylesheet is bundled app-wide, so unscoped rules would also blank
+   the queue print modal and the print window built by buildPrintHTML. */
 @media print {
   @page { size: A4 portrait; margin: 10mm; }
-  body * { visibility: hidden !important; }
-  #root { display: none !important; }
-  #rx-print-portal {
+  :global(body:has(#rx-print-portal) *) { visibility: hidden !important; }
+  :global(body:has(#rx-print-portal) #root) { display: none !important; }
+  :global(#rx-print-portal) {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
@@ -606,11 +608,11 @@
     background: #fff !important;
     visibility: visible !important;
   }
-  #rx-print-portal,
-  #rx-print-portal * { visibility: visible !important; }
+  :global(#rx-print-portal),
+  :global(#rx-print-portal) * { visibility: visible !important; }
   /* Remove shadow/border-radius from paper in print */
-  #rx-print-portal .rxPaper,
-  #rx-print-portal [class*=”rxPaper”] {
+  :global(#rx-print-portal) .rxPaper,
+  :global(#rx-print-portal) [class*=”rxPaper”] {
     box-shadow: none !important;
     border-radius: 0 !important;
     width: 100% !important;

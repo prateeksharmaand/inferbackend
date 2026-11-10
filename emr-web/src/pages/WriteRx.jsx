@@ -819,32 +819,31 @@ export default function WriteRx() {
   };
 
   const buildPrintHTML = (title, autoClose) => {
-    // Use the visible post-visit element, or the hidden portal fallback
+    // Print exactly the preview document (RxDocumentBody): the visible preview, or the hidden portal copy
     const el = document.getElementById('rx-print-area') || document.querySelector('#rx-print-portal > div');
     if (!el) return null;
 
-    // Identify header and footer children by DOM position (first and last direct children of rxPaper)
+    // The paper's first and last children are the clinic header and footer (image or default block)
     const children   = Array.from(el.children);
-    const headerEl   = children[0];
-    const footerEl   = children[children.length - 1];
-    const headerH    = headerEl ? headerEl.getBoundingClientRect().height : 0;
-    const footerH    = footerEl ? footerEl.getBoundingClientRect().height : 0;
-    const headerHTML = headerEl ? headerEl.outerHTML : '';
-    const footerHTML = footerEl ? footerEl.outerHTML : '';
+    const headerHTML = children.length > 1 ? children[0].outerHTML : '';
+    const footerHTML = children.length > 1 ? children[children.length - 1].outerHTML : '';
 
-    // Collect all CSS from the document (preserves hashed CSS module class names)
+    // Copy the app's CSS (keeps hashed CSS-module class names) but not its @media print rules:
+    // those belong to the app's own screens and would hide this window's content.
     let css = '';
     try {
       for (const sheet of document.styleSheets) {
-        try { for (const rule of sheet.cssRules) css += rule.cssText + '\n'; } catch {}
+        try {
+          for (const rule of sheet.cssRules) {
+            if (rule.type === CSSRule.MEDIA_RULE && /print/i.test(rule.media?.mediaText || '')) continue;
+            css += rule.cssText + '\n';
+          }
+        } catch {}
       }
     } catch {}
 
-    // Convert header/footer px height to mm for margin calculation
-    const pxToMm = px => Math.ceil(px * 0.2646) + 4;
-    const topMm    = headerH > 0 ? pxToMm(headerH) : 10;
-    const bottomMm = footerH > 0 ? pxToMm(footerH) : 10;
-
+    // Header/footer sit in a table's <thead>/<tfoot>, which browsers (Chrome, Safari, Firefox)
+    // repeat on every printed page and also show on screen.
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -853,39 +852,19 @@ export default function WriteRx() {
   <style>
     ${css}
     *, *::before, *::after { box-sizing: border-box; }
-
-    /* ── Page setup ── */
-    @page { size: A4 portrait; margin: ${topMm}mm 10mm ${bottomMm}mm 10mm; }
-
+    @page { size: A4 portrait; margin: 8mm 8mm; }
     html, body {
       margin: 0; padding: 0; background: #fff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 14px;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
+    table.rx-print-layout { width: 100%; border-collapse: collapse; }
+    table.rx-print-layout > thead { display: table-header-group; }
+    table.rx-print-layout > tfoot { display: table-footer-group; }
+    table.rx-print-layout > * > tr > td { padding: 0; vertical-align: top; }
+    .rx-print-head img, .rx-print-foot img { width: 100% !important; display: block !important; max-height: none !important; }
 
-    /* ── Fixed header repeats on every printed page ── */
-    #print-header-fixed {
-      position: fixed;
-      top: -${topMm}mm; left: -10mm; right: -10mm;
-      width: calc(100% + 20mm);
-      z-index: 1000;
-      background: #fff;
-      line-height: 0;
-    }
-    #print-header-fixed img { width: 100% !important; display: block !important; max-height: none !important; }
-
-    /* ── Fixed footer repeats on every printed page ── */
-    #print-footer-fixed {
-      position: fixed;
-      bottom: -${bottomMm}mm; left: -10mm; right: -10mm;
-      width: calc(100% + 20mm);
-      z-index: 1000;
-      background: #fff;
-      line-height: 0;
-    }
-    #print-footer-fixed img { width: 100% !important; display: block !important; }
-
-    /* ── Reset paper element ── */
     #rx-print-area {
       width: 100% !important;
       min-height: unset !important;
@@ -895,26 +874,21 @@ export default function WriteRx() {
       margin: 0 !important;
       display: block !important;
     }
-    /* Hide the original header/footer inside the paper (we're using fixed ones) */
+    /* The paper's own header/footer are shown by the table instead */
     #rx-print-area > *:first-child,
-    #rx-print-area > *:last-child { visibility: hidden !important; height: 0 !important; overflow: hidden !important; padding: 0 !important; margin: 0 !important; }
+    #rx-print-area > *:last-child { display: none !important; }
 
-    /* ── Prevent rows splitting across pages ── */
-    tr { break-inside: avoid; page-break-inside: avoid; }
-
+    /* Keep rows of the prescription's own tables together */
+    #rx-print-area tr { break-inside: avoid; page-break-inside: avoid; }
     img { max-width: 100% !important; }
   </style>
 </head>
 <body>
-  <!-- Fixed header on every page -->
-  <div id="print-header-fixed">${headerHTML}</div>
-
-  <!-- Main prescription content -->
-  ${el.outerHTML}
-
-  <!-- Fixed footer on every page -->
-  <div id="print-footer-fixed">${footerHTML}</div>
-
+  <table class="rx-print-layout">
+    <thead><tr><td class="rx-print-head">${headerHTML}</td></tr></thead>
+    <tfoot><tr><td class="rx-print-foot">${footerHTML}</td></tr></tfoot>
+    <tbody><tr><td>${el.outerHTML}</td></tr></tbody>
+  </table>
   <script>
     window.onload = function() {
       ${autoClose

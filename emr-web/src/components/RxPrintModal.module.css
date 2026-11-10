@@ -89,12 +89,13 @@
 }
 
 /* Print isolation — only show the prescription */
+/* Scoped with :has() so it only applies while this modal is open (the CSS is bundled app-wide) */
 @media print {
   @page { size: A4 portrait; margin: 0; }
-  body * { visibility: hidden; }
-  #rx-print-modal-area,
-  #rx-print-modal-area * { visibility: visible; }
-  #rx-print-modal-area {
+  :global(body:has(#rx-print-modal-area) *) { visibility: hidden; }
+  :global(#rx-print-modal-area),
+  :global(#rx-print-modal-area) * { visibility: visible; }
+  :global(#rx-print-modal-area) {
     position: fixed; top: 0; left: 0;
     width: 210mm !important; min-height: 297mm;
     box-shadow: none !important; border-radius: 0; border: none;
