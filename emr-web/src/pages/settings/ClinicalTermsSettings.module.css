@@ -1,0 +1,20 @@
+/* Symptoms & Diagnoses settings — reuses ServicesSettings.module.css; only the grid differs */
+.grid.grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 110px 90px 70px 100px 80px;
+  align-items: center;
+  gap: 8px;
+}
+.code   { font-size: 12px; font-weight: 600; color: var(--color-text-2); font-family: monospace; }
+.muted  { font-size: 11px; color: var(--color-text-3); }
+.source { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; justify-self: start; }
+.sourceShared { background: #eef2ff; color: #4f46e5; }
+.sourceClinic { background: #fef3c7; color: #b45309; }
+.hiddenRow { opacity: .55; }
+.count  { font-size: 12px; color: var(--color-text-2); }
+.hint   { font-size: 11px; color: var(--color-text-3); margin: -6px 0 0; }
+
+@media (max-width: 720px) {
+  .grid.grid { grid-template-columns: 1fr 90px 80px; }
+  .grid.grid > :nth-child(3), .grid > :nth-child(4) { display: none; }
+}

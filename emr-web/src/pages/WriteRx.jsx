@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { track } from '../lib/mixpanel';
 import { RX_LANGUAGES, getLang, translateTiming, translateFrequency, translateDuration, translateDose } from '../data/rxTranslations';
 import ConfigureInferPadModal from '../components/ConfigureInferPadModal';
+import { VitalsTrend, DietPlanBlock, QrBlock, useRxExtras, useRxImages, getRxPrintPrefs } from '../components/RxExtras';
 import MedicalRecordsTab from '../components/MedicalRecordsTab';
 import CreateReceiptModal from '../components/CreateReceiptModal';
 import DrawingCanvas from '../components/DrawingCanvas';
@@ -27,6 +28,36 @@ import toast from 'react-hot-toast';
 import styles from './WriteRx.module.css';
 
 // ── Language picker (bottom bar) ─────────────────────────────────────────────
+
+/** Saved appointment + encounter (GET /appointments/:id) → InferPad form shape. */
+export function formFromAppointment(data, base = EMPTY_FORM) {
+  return {
+    ...base,
+    vitals:               data.vitals          ? { ...EMPTY_FORM.vitals, ...data.vitals } : base.vitals,
+    medical_history:      data.medical_history || base.medical_history || [],
+    symptoms:             data.symptoms        || [],
+    diagnosis:            data.diagnosis       || [],
+    medications:          data.medications     || [],
+    lab_investigations:   data.lab_investigations || [],
+    lab_results:          data.lab_results     || [],
+    examination_findings: data.examination_findings || '',
+    notes:                data.notes           || '',
+    refer_to:             data.refer_to        || '',
+    next_visit_date:      data.next_visit_date ? data.next_visit_date.slice(0, 10) : '',
+    next_visit_notes:     data.next_visit_notes || '',
+    advices:              data.advices || data.instructions || '',
+    procedures:           data.procedures || [],
+    injections:           data.injections || [],
+    dental_chart:         data.dental_chart || '',
+    ophtho:               data.ophtho || {},
+    custom_sections:      data.custom_sections || [],
+    canvasImage:          data.canvas_image || '',
+    vaccinations:         data.vaccinations  || {},
+    rx_language:          data.rx_language   || '',
+    calc_results:         data.calc_results  || {},
+  };
+}
+
 function LangPicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -234,7 +265,8 @@ function RxInlineRow({ label, value }) {
 }
 
 // ── Shared prescription document (used in preview modal + post-visit screen) ──
-function RxDocumentBody({ form, appt, user, rxImages = {} }) {
+// The one prescription renderer: InferPad preview, Print/Download and the queue's print modal.
+export function RxDocumentBody({ form, appt, user, rxImages = {}, dietCharts = [], vitalsHistory = [], qrUrl = '', hidePhone = false }) {
   const lang = form.rx_language || 'en';
   const t    = getLang(lang);
   const cid  = user?.clinic_id || 'default';
@@ -287,6 +319,8 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
           <span className={styles.rxPatientName}>{appt?.patient_name||'—'}</span>
           {(gender||age) && <span className={styles.rxPatientMeta}>, {[gender,age].filter(Boolean).join(', ')},</span>}
           {appt?.uhid && <div className={styles.rxUhid}>UHID : {appt.uhid}.</div>}
+          {!hidePhone && appt?.patient_mobile && <div className={styles.rxUhid}>Mob : {appt.patient_mobile}</div>}
+          {appt?.doctor_name && <div className={styles.rxUhid}>Doctor : Dr. {appt.doctor_name}</div>}
         </div>
         <div className={styles.rxDateTime}>{dateStr}</div>
       </div>
@@ -503,7 +537,11 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
             : null;
         })()}
         {form.canvasImage && <div style={{marginTop:8}}><img src={form.canvasImage} alt="Clinical drawing" style={{width:'100%',borderRadius:4,border:'1px solid #e2e8f0'}} /></div>}
+        <DietPlanBlock charts={dietCharts} />
       </div>
+
+      <VitalsTrend history={vitalsHistory} vitals={form.vitals} labResults={form.lab_results} />
+      <QrBlock url={qrUrl} />
 
       {rxImages.signatureImg && (
         <div className={styles.rxSignatureBlock}>
@@ -531,7 +569,7 @@ function RxDocumentBody({ form, appt, user, rxImages = {} }) {
 }
 
 // ── Prescription preview modal (Preview button) ───────────────────────────────
-function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint, onConfirmFinish }) {
+function PrescriptionPreview({ form, appt, user, rxImages = {}, rxExtras = {}, onClose, onPrint, onConfirmFinish }) {
   return (
     <div className={styles.previewOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.previewModal}>
@@ -548,7 +586,7 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
           </div>
         </div>
         <div className={styles.previewBody}>
-          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} />
+          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} {...rxExtras} />
         </div>
       </div>
     </div>
@@ -556,7 +594,7 @@ function PrescriptionPreview({ form, appt, user, rxImages = {}, onClose, onPrint
 }
 
 // ── Post-visit screen (shown after Finish Prescription) ───────────────────────
-function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint, onDownload, onSendEmail, onGoogleReview, onBillPatient, onEndVisit }) {
+function PostVisitScreen({ form, appt, user, rxImages = {}, rxExtras = {}, onBookAgain, onPrint, onDownload, onSendEmail, onGoogleReview, onBillPatient, onEndVisit }) {
   const actions = [
     { icon: <Share2     size={20} />, label: 'Send Attachment',    onClick: onSendEmail,     color: '#6366f1' },
     { icon: <Calendar   size={20} />, label: 'Book Slot Again',    onClick: onBookAgain,     color: '#0891b2' },
@@ -580,7 +618,7 @@ function PostVisitScreen({ form, appt, user, rxImages = {}, onBookAgain, onPrint
 
         {/* Left — prescription document */}
         <div className={styles.postVisitRx}>
-          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} />
+          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} {...rxExtras} />
         </div>
 
         {/* Right — action panel */}
@@ -684,33 +722,14 @@ export default function WriteRx() {
     ...(dietChartEnabled ? ['Diet Chart'] : []),
   ];
 
-  const [rxImages, setRxImages] = useState(() => {
-    const stored = JSON.parse(localStorage.getItem('emr_user') || '{}');
-    const cid = stored?.clinic_id || 'default';
-    const uid = stored?.id        || 'default';
-    return {
-      headerImg:        localStorage.getItem(`rx_header_${cid}`)        || '',
-      footerImg:        localStorage.getItem(`rx_footer_${cid}`)        || '',
-      googleReviewLink: localStorage.getItem(`rx_google_review_${cid}`) || '',
-      signatureImg:     localStorage.getItem(`rx_sig_${uid}_${cid}`)    || '',
-    };
-  });
-
-  // Re-read images once user loads (clinic_id may differ from localStorage init)
-  useEffect(() => {
-    if (!user) return;
-    const cid = user.clinic_id || 'default';
-    const uid = user.id        || 'default';
-    const reload = () => setRxImages({
-      headerImg:        localStorage.getItem(`rx_header_${cid}`)        || '',
-      footerImg:        localStorage.getItem(`rx_footer_${cid}`)        || '',
-      googleReviewLink: localStorage.getItem(`rx_google_review_${cid}`) || '',
-      signatureImg:     localStorage.getItem(`rx_sig_${uid}_${cid}`)    || '',
-    });
-    reload();
-    window.addEventListener('storage', reload);
-    return () => window.removeEventListener('storage', reload);
-  }, [user?.clinic_id, user?.id]);
+  const rxImages = useRxImages(user);
+  // Diet plan, vitals trend and QR code — the same extras the queue's print modal shows.
+  // QR only once the prescription is saved (an encounter exists).
+  const rxPrefs  = getRxPrintPrefs();
+  const rxExtras = {
+    ...useRxExtras(appt, { encounterId: appt?.encounter_id || (showPostVisit ? 'saved' : null), prefs: rxPrefs }),
+    hidePhone: rxPrefs.hidePhone,
+  };
 
   useEffect(() => {
     if (appointmentId === 'new') return;
@@ -727,31 +746,7 @@ export default function WriteRx() {
       }
       if (data.encounter_id) {
         setPrescriptionMode(true);
-        setForm(f => ({
-          ...f,
-          vitals:               data.vitals          ? { ...EMPTY_FORM.vitals, ...data.vitals } : f.vitals,
-          medical_history:      data.medical_history || appt?.medical_history || [],
-          symptoms:             data.symptoms        || [],
-          diagnosis:            data.diagnosis       || [],
-          medications:          data.medications     || [],
-          lab_investigations:   data.lab_investigations || [],
-          lab_results:          data.lab_results     || [],
-          examination_findings: data.examination_findings || '',
-          notes:                data.notes           || '',
-          refer_to:             data.refer_to        || '',
-          next_visit_date:      data.next_visit_date ? data.next_visit_date.slice(0, 10) : '',
-          next_visit_notes:     data.next_visit_notes || '',
-          advices:              data.advices || data.instructions || '',
-          procedures:           data.procedures || [],
-          injections:           data.injections || [],
-          dental_chart:         data.dental_chart || '',
-          ophtho:               data.ophtho || {},
-          custom_sections:      data.custom_sections || [],
-          canvasImage:          data.canvas_image || '',
-          vaccinations:         data.vaccinations  || {},
-          rx_language:          data.rx_language   || '',
-          calc_results:         data.calc_results  || {},
-        }));
+        setForm(f => formFromAppointment(data, f));
         if (searchParams.get('print') === '1') {
           setTimeout(() => handlePrint(), 800);
         }
@@ -932,9 +927,8 @@ export default function WriteRx() {
 </html>`;
   };
 
-  // The PDF is built on the server from the clinic's saved images. InferPad keeps them in this
-  // browser too, so push whatever this browser has before asking for the PDF; otherwise the
-  // header/footer/signature set in Configure InferPad never reach the printout.
+  // Keep the clinic's server copy of the header/footer/signature in step with this browser's
+  // InferPad settings, so other devices and the emailed PDF use the same images.
   const syncRxImagesToServer = () => {
     const body = {};
     if (rxImages.headerImg)    body.rx_header_img = rxImages.headerImg;
@@ -943,23 +937,10 @@ export default function WriteRx() {
     return Object.keys(body).length ? api.patch('/settings/clinic-assets', body).catch(() => {}) : Promise.resolve();
   };
 
-  const openPdfWindow = (apptId) => {
-    const token = localStorage.getItem('emr_token');
-    const win   = window.open('', '_blank', 'width=900,height=700');
-    if (!win) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
-    // Fetch PDF with auth token and open in blob URL so print works
-    syncRxImagesToServer().then(() => fetch(`/api/emr/appointments/${apptId}/prescription.pdf`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })).then(r => r.blob()).then(b => {
-      const url = URL.createObjectURL(b);
-      win.location.href = url;
-      setTimeout(() => { try { win.print(); } catch {} }, 1200);
-    }).catch(() => { win.close(); alert('Could not load PDF'); });
-  };
-
   const handlePrint = () => {
     try {
-      if (appt?.id) { openPdfWindow(appt.id); toast.success('Opening print…'); return; }
+      // Print exactly what the preview shows (RxDocumentBody), not a separately built PDF
+      syncRxImagesToServer();
       const html = buildPrintHTML('Prescription', true);
       if (!html) { window.print(); toast.success('Sent to printer'); return; }
       const win = window.open('', '_blank', 'width=900,height=700');
@@ -993,21 +974,8 @@ export default function WriteRx() {
   };
 
   const handleDownload = () => {
-    if (appt?.id) {
-      const token = localStorage.getItem('emr_token');
-      const name  = `Rx_${(appt.patient_name || 'Patient').replace(/\s+/g, '_')}.pdf`;
-      const tid = toast.loading('Downloading PDF…');
-      syncRxImagesToServer().then(() => fetch(`/api/emr/appointments/${appt.id}/prescription.pdf`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })).then(r => r.blob()).then(b => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(b);
-        a.download = name;
-        a.click();
-        toast.success('PDF downloaded', { id: tid });
-      }).catch(() => toast.error('Could not download PDF', { id: tid }));
-      return;
-    }
+    // Same document as the preview; the browser's print dialog saves it as PDF
+    syncRxImagesToServer();
     try {
       const patientName = appt?.patient_name?.replace(/\s+/g, '_') || 'Prescription';
       const html = buildPrintHTML(`${patientName}_Rx`, false);
@@ -1379,7 +1347,7 @@ export default function WriteRx() {
         </div>
         <div className={styles.content} style={{ overflow: 'auto' }}>
           <PostVisitScreen
-            form={form} appt={appt} user={user} rxImages={rxImages}
+            form={form} appt={appt} user={user} rxImages={rxImages} rxExtras={rxExtras}
             onBookAgain={handleBookAgain}
             onPrint={handlePrint}
             onDownload={handleDownload}
@@ -1724,7 +1692,7 @@ export default function WriteRx() {
 
       {showPreview && (
         <PrescriptionPreview
-          form={form} appt={appt} user={user} rxImages={rxImages}
+          form={form} appt={appt} user={user} rxImages={rxImages} rxExtras={rxExtras}
           onClose={() => setShowPreview(false)}
           onPrint={handlePrint}
           onConfirmFinish={
@@ -1762,7 +1730,7 @@ export default function WriteRx() {
       {/* Print portal — off-screen but always laid out so browser renders it before print */}
       {createPortal(
         <div id="rx-print-portal" style={{ position: 'fixed', left: '-9999px', top: 0, width: '210mm', opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
-          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} />
+          <RxDocumentBody form={form} appt={appt} user={user} rxImages={rxImages} {...rxExtras} />
         </div>,
         document.body
       )}

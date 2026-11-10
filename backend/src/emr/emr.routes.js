@@ -247,6 +247,14 @@ router.patch ('/visits/:id/check-out',           visit.checkOut);
 router.patch ('/visits/:id/assign-doctor',       visit.assignDoctor);
 
 // Tags (Custom Attribute Values)
+// Symptom & diagnosis master data (InferPad suggestions + Settings → Symptoms & Diagnoses)
+const clinicalTerms = require('./emr.clinicalterms.controller');
+router.get   ('/clinical-terms/suggestions', clinicalTerms.suggestions);
+router.get   ('/clinical-terms',             clinicalTerms.list);
+router.post  ('/clinical-terms',             clinicalTerms.create);
+router.patch ('/clinical-terms/:id',         clinicalTerms.update);
+router.delete('/clinical-terms/:id',         clinicalTerms.remove);
+
 router.get   ('/tags',     tags.listTags);
 router.post  ('/tags',     tags.createTag);
 router.patch ('/tags/:id', tags.updateTag);

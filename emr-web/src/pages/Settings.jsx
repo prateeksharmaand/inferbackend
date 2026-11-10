@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, LayoutList, FlaskConical, Zap, KeyRound, Palette, ShieldCheck } from 'lucide-react';
+import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, LayoutList, FlaskConical, Zap, KeyRound, Palette, ShieldCheck, ClipboardList } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import UhidSettings from './settings/UhidSettings';
 import CustomAttributes from './settings/CustomAttributes';
 import ServicesSettings from './settings/ServicesSettings';
 import InferPadSettings from './settings/InferPadSettings';
+import ClinicalTermsSettings from './settings/ClinicalTermsSettings';
 import QueuesSettings from './settings/QueuesSettings';
 import LabStaffSettings from './settings/LabStaffSettings';
 import SubscriptionSettings from './settings/SubscriptionSettings';
@@ -22,6 +23,7 @@ const ALL_TABS = [
   { key: 'tags',         Icon: Tag,            label: 'Custom Attributes',    adminOnly: false },
   { key: 'services',     Icon: Stethoscope,    label: 'Services',             adminOnly: false },
   { key: 'inferpad',     Icon: LayoutTemplate, label: 'InferPad',             adminOnly: false },
+  { key: 'terms',        Icon: ClipboardList,  label: 'Symptoms & Diagnoses', adminOnly: false },
   { key: 'theme',        Icon: Palette,        label: 'Theme',                adminOnly: false },
   { key: 'password',     Icon: KeyRound,       label: 'Change Password',      adminOnly: false },
 ];
@@ -65,6 +67,7 @@ export default function Settings() {
         {tab === 'tags'         && <CustomAttributes />}
         {tab === 'services'     && <ServicesSettings />}
         {tab === 'inferpad'     && <InferPadSettings />}
+        {tab === 'terms'        && <ClinicalTermsSettings />}
         {tab === 'theme'        && <ThemeSettings />}
         {tab === 'password'     && <ChangePassword />}
       </div>
