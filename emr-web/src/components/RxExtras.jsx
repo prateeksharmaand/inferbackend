@@ -290,35 +290,36 @@ export function useRxExtras(appt, { encounterId, prefs }) {
 }
 
 /**
- * Header/footer/signature images for the prescription. This browser's copy (set in Configure
- * InferPad) wins; otherwise the clinic's copy saved on the server, so every device prints them.
- * Re-reads when another tab or the InferPad settings change localStorage.
+ * Header/footer/signature images for the prescription.
+ * Header/footer: the clinic's server copy (saved by Configure InferPad) first, so every device
+ * shows the same letterhead; this browser's copy only if the server has none or is unreachable.
+ * Signature: this doctor's browser copy first (it's per user), then the clinic's server copy.
+ * Re-reads (and re-fetches the server copy) whenever InferPad settings fire a 'storage' event.
  */
 export function useRxImages(user) {
   const cid = user?.clinic_id || 'default';
   const uid = user?.id || 'default';
   const [server, setServer] = useState(null);
-  const read = () => ({
-    headerImg:        lsGet(`rx_header_${cid}`)        || server?.rx_header_img || '',
-    footerImg:        lsGet(`rx_footer_${cid}`)        || server?.rx_footer_img || '',
+  const read = (srv) => ({
+    headerImg:        srv?.rx_header_img || lsGet(`rx_header_${cid}`) || '',
+    footerImg:        srv?.rx_footer_img || lsGet(`rx_footer_${cid}`) || '',
     googleReviewLink: lsGet(`rx_google_review_${cid}`) || '',
-    signatureImg:     lsGet(`rx_sig_${uid}_${cid}`)    || server?.rx_signature  || '',
+    signatureImg:     lsGet(`rx_sig_${uid}_${cid}`) || srv?.rx_signature || '',
   });
-  const [images, setImages] = useState(read);
+  const [images, setImages] = useState(() => read(null));
 
   useEffect(() => {
     if (!user) return;
     let alive = true;
-    api.get('/settings/clinic-assets').then(a => { if (alive) setServer(a || {}); }).catch(() => {});
-    return () => { alive = false; };
-  }, [user?.clinic_id]);
+    const fetchServer = () => api.get('/settings/clinic-assets')
+      .then(a => { if (alive) setServer(a || {}); })
+      .catch(() => { if (alive) setImages(read(null)); });
+    fetchServer();
+    window.addEventListener('storage', fetchServer);
+    return () => { alive = false; window.removeEventListener('storage', fetchServer); };
+  }, [user?.clinic_id, user?.id]);
 
-  useEffect(() => {
-    const reload = () => setImages(read());
-    reload();
-    window.addEventListener('storage', reload);
-    return () => window.removeEventListener('storage', reload);
-  }, [cid, uid, server]);
+  useEffect(() => { setImages(read(server)); }, [server, cid, uid]);
 
   return images;
 }

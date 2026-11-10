@@ -185,25 +185,46 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   const [saved,        setSaved]        = useState(false);
   const [sigMsg,       setSigMsg]       = useState('');
   const [showCropper,  setShowCropper]  = useState(false);
+  const [saveError,    setSaveError]    = useState('');
 
-  const handleSaveAppearance = async () => {
-    headerImg ? localStorage.setItem(key('header'), headerImg)          : localStorage.removeItem(key('header'));
-    footerImg ? localStorage.setItem(key('footer'), footerImg)          : localStorage.removeItem(key('footer'));
-    googleLink ? localStorage.setItem(key('google_review'), googleLink) : localStorage.removeItem(key('google_review'));
-    // Persist images to DB so backend can use them for PDF/email
-    api.patch('/settings/clinic-assets', {
-      rx_header_img: headerImg  || null,
-      rx_footer_img: footerImg  || null,
-    }).catch(() => {});
+  // The clinic's server copy is the source of truth (every device and the emailed PDF use it).
+  // The browser copy is a cache: a full localStorage must never block or silently drop a save.
+  const lsSet = (k, v) => {
+    try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch { /* quota full: server copy still saved */ }
+  };
+  const persistImages = async (patch) => {
+    setSaveError('');
+    try {
+      await api.patch('/settings/clinic-assets', patch);
+    } catch (e) {
+      setSaveError(`Not saved — ${e.message || 'could not reach the server'}. Please try again.`);
+      return false;
+    }
+    if ('rx_header_img' in patch) lsSet(key('header'), patch.rx_header_img);
+    if ('rx_footer_img' in patch) lsSet(key('footer'), patch.rx_footer_img);
+    window.dispatchEvent(new Event('storage'));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-    window.dispatchEvent(new Event('storage'));
+    return true;
   };
-  const handleSaveSig = url => {
-    localStorage.setItem(sigK(), url);
+  // Uploading or removing an image saves it immediately (no separate Save step to forget)
+  const changeHeader = v => { setHeaderImg(v); persistImages({ rx_header_img: v || null }); };
+  const changeFooter = v => { setFooterImg(v); persistImages({ rx_footer_img: v || null }); };
+
+  const handleSaveAppearance = async () => {
+    lsSet(key('google_review'), googleLink);
+    await persistImages({ rx_header_img: headerImg || null, rx_footer_img: footerImg || null });
+  };
+  const handleSaveSig = async url => {
     setSignatureImg(url);
-    // Persist signature to DB
-    api.patch('/settings/clinic-assets', { rx_signature: url }).catch(() => {});
+    try {
+      await api.patch('/settings/clinic-assets', { rx_signature: url });
+    } catch (e) {
+      setSigMsg(`Signature not saved — ${e.message || 'server error'}`);
+      return;
+    }
+    lsSet(sigK(), url);
+    window.dispatchEvent(new Event('storage'));
     setSigMsg('Signature saved!');
     setTimeout(() => setSigMsg(''), 2500);
   };
@@ -417,7 +438,7 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
                   <PenLine size={14} /> Doctor Signature
                 </div>
                 <div className={styles.sectionHint}>Appears at bottom-right of every prescription.</div>
-                <SignaturePad current={signatureImg} doctorName={user?.name || ''} onSave={handleSaveSig} onClear={() => { localStorage.removeItem(sigK()); setSignatureImg(''); }} />
+                <SignaturePad current={signatureImg} doctorName={user?.name || ''} onSave={handleSaveSig} onClear={() => { lsSet(sigK(), ''); setSignatureImg(''); api.patch('/settings/clinic-assets', { rx_signature: null }).catch(() => {}); window.dispatchEvent(new Event('storage')); }} />
                 {sigMsg && <span className={styles.savedMsg}><Check size={12} /> {sigMsg}</span>}
               </div>
 
@@ -441,13 +462,13 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
               <div className={styles.section}>
                 <div className={styles.sectionTitle}>Prescription Header</div>
                 <div className={styles.sectionHint}>Clinic letterhead top — recommended 680 × 150 px</div>
-                <ImageUpload title="" hint="" value={headerImg} onChange={setHeaderImg} />
+                <ImageUpload title="" hint="" value={headerImg} onChange={changeHeader} />
               </div>
 
               <div className={styles.section}>
                 <div className={styles.sectionTitle}>Prescription Footer</div>
                 <div className={styles.sectionHint}>Stamp or contact info — recommended 680 × 100 px</div>
-                <ImageUpload title="" hint="" value={footerImg} onChange={setFooterImg} />
+                <ImageUpload title="" hint="" value={footerImg} onChange={changeFooter} />
               </div>
 
               <div className={styles.section}>
@@ -458,6 +479,7 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+                {saveError && <span style={{ color: '#dc2626', fontSize: 12 }}>{saveError}</span>}
                 {saved && <span className={styles.savedMsg}><Check size={12} /> Saved</span>}
                 <button className={styles.btnSave} onClick={handleSaveAppearance}>
                   <Check size={13} /> Save Changes
@@ -480,16 +502,7 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
             setHeaderImg(header);
             setFooterImg(footer);
             setShowCropper(false);
-            // Auto-save
-            localStorage.setItem(key('header'), header);
-            localStorage.setItem(key('footer'), footer);
-            api.patch('/settings/clinic-assets', {
-              rx_header_img: header || null,
-              rx_footer_img: footer || null,
-            }).catch(() => {});
-            window.dispatchEvent(new Event('storage'));
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2500);
+            persistImages({ rx_header_img: header || null, rx_footer_img: footer || null });
           }}
         />
       )}
