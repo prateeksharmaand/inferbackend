@@ -128,7 +128,7 @@ async function processConversationTurn(clinicContext, dbMessages, userMessage, t
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: require('../../config/gemini').GEMINI_MODEL,
       systemInstruction: buildSystemPrompt(
         clinicContext.clinicName,
         clinicContext.doctors,
@@ -138,10 +138,13 @@ async function processConversationTurn(clinicContext, dbMessages, userMessage, t
       toolConfig: { functionCallingConfig: { mode: FunctionCallingMode.AUTO } },
     });
 
-    const history = formatHistory(dbMessages);
-    const chat    = model.startChat({ history });
+    // Contents are managed here instead of model.startChat(): the SDK's ChatSession sends tool
+    // results with role "function", which Gemini 3.x rejects (400 "Role 'function' is not
+    // supported"). Tool results go back as role "user", and the model's own turn is replayed
+    // as returned so its thoughtSignature is preserved.
+    const contents = [...formatHistory(dbMessages), { role: 'user', parts: [{ text: userMessage }] }];
 
-    let result = await chat.sendMessage(userMessage);
+    let result = await model.generateContent({ contents });
 
     // Handle iterative tool calls (model may chain multiple calls)
     for (let round = 0; round < 5; round++) {
@@ -167,7 +170,8 @@ async function processConversationTurn(clinicContext, dbMessages, userMessage, t
         });
       }
 
-      result = await chat.sendMessage(toolResponses);
+      contents.push(candidate.content, { role: 'user', parts: toolResponses });
+      result = await model.generateContent({ contents });
     }
 
     const text = result.response.text();
@@ -175,7 +179,7 @@ async function processConversationTurn(clinicContext, dbMessages, userMessage, t
     return { text, confidence, toolCalls: [] };
 
   } catch (err) {
-    logger.error('[Gemini] API error', err.message);
+    logger.error('[Gemini] API error', { error: err.message });
     return { text: "I'm having trouble right now. Please call the clinic directly or try again in a moment.", confidence: 0, toolCalls: [] };
   }
 }

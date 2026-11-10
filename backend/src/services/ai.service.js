@@ -2,8 +2,8 @@ const axios = require('axios');
 const fs = require('fs');
 const logger = require('../utils/logger');
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const { geminiUrl } = require('../config/gemini');
+const GEMINI_URL = geminiUrl();
 
 async function analyzeWithAI(message, history = [], systemPrompt = '') {
   if (!process.env.GEMINI_API_KEY) {

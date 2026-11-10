@@ -298,17 +298,28 @@ const { generatePrescriptionPDF } = require('./emr.pdfgen');
 router.get('/appointments/:id/prescription.pdf', async (req, res) => {
   try {
     const { rows: [appt] } = await pool.query(
-      `SELECT a.*, d.name AS doctor_name FROM emr_appointments a LEFT JOIN emr_clinic_staff d ON d.id=a.doctor_id AND d.role='doctor' WHERE a.id=$1 AND a.clinic_id=$2`,
+      `SELECT a.*, d.name AS doctor_name, d.designation AS doctor_specialization, d.department AS doctor_qualification
+       FROM emr_appointments a LEFT JOIN emr_clinic_staff d ON d.id=a.doctor_id
+       WHERE a.id=$1 AND a.clinic_id=$2`,
       [req.params.id, req.emrUser.clinic_id]
     );
     if (!appt) return res.status(404).json({ error: 'Appointment not found' });
     const { rows: [encounter] } = await pool.query(`SELECT * FROM emr_encounters WHERE appointment_id=$1`, [req.params.id]);
     const { rows: [clinic] }   = await pool.query(`SELECT name, address, rx_header_img, rx_footer_img, rx_signature FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
+    // Patient's diet charts (diet_charts.clinic_id is TEXT) — same selection as the OPD print modal
+    const { rows: dietCharts } = appt.patient_mobile
+      ? await pool.query(
+          `SELECT title, duration, nutrition_targets, day_plans FROM diet_charts
+           WHERE clinic_id=$1 AND patient_mobile=$2 AND is_template=FALSE ORDER BY created_at DESC LIMIT 2`,
+          [String(req.emrUser.clinic_id), appt.patient_mobile])
+      : { rows: [] };
     const pdf = await generatePrescriptionPDF({
-      appt, encounter,
+      appt, encounter, dietCharts,
       clinicName:    clinic?.name || 'Clinic',
       clinicAddress: clinic?.address || '',
       doctorName:    appt.doctor_name || '',
+      doctorSpecialization: appt.doctor_specialization || '',
+      doctorQualification:  appt.doctor_qualification  || '',
       headerImg:     clinic?.rx_header_img  || '',
       footerImg:     clinic?.rx_footer_img  || '',
       signatureImg:  clinic?.rx_signature   || '',
@@ -708,7 +719,7 @@ Instructions:
     };
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `${require('../config/gemini').geminiUrl()}?key=${process.env.GEMINI_API_KEY}`,
       body,
       { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
     );

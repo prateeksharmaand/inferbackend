@@ -659,7 +659,8 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE emr_clinics ADD COLUMN IF NOT EXISTS rx_signature   TEXT`);
     await client.query(`ALTER TABLE emr_patients     ADD COLUMN IF NOT EXISTS email VARCHAR(255)`);
     await client.query(`ALTER TABLE emr_appointments ADD COLUMN IF NOT EXISTS patient_email VARCHAR(255)`);
-    await client.query(`ALTER TABLE emr_receipts     ADD COLUMN IF NOT EXISTS patient_email VARCHAR(255)`);
+    // IF EXISTS: emr_receipts is created lazily by emr.receipts.controller, so on a fresh DB it may not exist yet
+    await client.query(`ALTER TABLE IF EXISTS emr_receipts ADD COLUMN IF NOT EXISTS patient_email VARCHAR(255)`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS admin_audit_logs (
         id          SERIAL PRIMARY KEY,

@@ -56,7 +56,7 @@ const status = async (req, res) => {
     if (!GEMINI_KEY) return 'no api key';
     try {
       await axios.get(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${GEMINI_KEY}`,
+        `${require('../config/gemini').geminiUrl(null)}?key=${GEMINI_KEY}`,
         { timeout: 5000 }
       );
       return 'ok';

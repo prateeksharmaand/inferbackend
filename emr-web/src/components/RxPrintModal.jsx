@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { getICD10Settings } from '../pages/settings/InferPadSettings';
+import { CALCULATORS } from '../data/calculators';
 import styles from './RxPrintModal.module.css';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -190,11 +191,13 @@ function buildChartData(history, currentVitals, currentLabResults) {
 }
 
 // ── Prescription document ─────────────────────────────────────────────────────
-function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, vitalsHistory = [] }) {
+function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, vitalsHistory = [], clinicAssets = null }) {
   const cid      = user?.clinic_id || 'default';
   const icd10    = getICD10Settings(cid);
-  const headerImg = localStorage.getItem(`rx_header_${cid}`) || '';
-  const footerImg = localStorage.getItem(`rx_footer_${cid}`) || '';
+  // This browser's copy first; otherwise the clinic's saved images, so other devices print them too
+  const headerImg = localStorage.getItem(`rx_header_${cid}`) || clinicAssets?.rx_header_img || '';
+  const footerImg = localStorage.getItem(`rx_footer_${cid}`) || clinicAssets?.rx_footer_img || '';
+  const signatureImg = localStorage.getItem(`rx_sig_${user?.id}_${cid}`) || clinicAssets?.rx_signature || '';
 
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
@@ -210,8 +213,25 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, v
   const diagStr     = (data.diagnosis||[]).map(d => { const code=icd10.print&&d.code?` [${d.code}]`:''; const mp=[d.since&&`Since: ${d.since}`,d.severity&&`Severity: ${d.severity}`].filter(Boolean); return `${d.display}${code}${mp.length?` (${mp.join(' | ')})`:''}`;}).join(', ');
   const labInvLines = (data.lab_investigations||[]).map(l => typeof l==='string'?l:`${l.test} (On: ${todayFmt}${l.repeat_on?` | Repeat: ${l.repeat_on}`:''}${l.remarks?` Remark: ${l.remarks}`:''})` );
   const labResLines = (data.lab_results||[]).map(r => { const f=getFlag(r); return `${r.test}: ${r.result}${r.unit?' '+r.unit:''}${f?` [${f}]`:''} - ${todayFmt}`;});
-  const followupStr = data.next_visit_date ? `Visit on ${new Date(data.next_visit_date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}` : '';
+  const followupStr = data.next_visit_date ? `Visit on ${new Date(String(data.next_visit_date).slice(0, 10)+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}` : '';
   const procsStr    = (data.procedures||[]).map(p=>`${p} - ${todayFmt}`).join(', ');
+  const calcStr     = Object.entries(data.calc_results || {}).filter(([, r]) => r?.value).map(([id, r]) => {
+    const calc = CALCULATORS.find(c => c.id === id);
+    return `${(calc?.name || id).toUpperCase()}: ${r.value}${r.unit ? ' ' + r.unit : ''}${r.label ? ` (${r.label})` : ''}`;
+  }).join(' | ');
+  const vaccStr     = (() => {
+    const groups = { given: [], due: [], missed: [], refused: [] };
+    Object.entries(data.vaccinations || {}).filter(([, v]) => v?.status).forEach(([k, v]) => {
+      const name = k.replace(/^(iap_|other_)/, '').replace(/_/g, ' ');
+      (groups[v.status] || groups.given).push(`${name}${v.date ? ` (${v.date})` : ''}`);
+    });
+    return [
+      groups.given.length   && `Given: ${groups.given.join(', ')}`,
+      groups.due.length     && `Due: ${groups.due.join(', ')}`,
+      groups.missed.length  && `Missed: ${groups.missed.join(', ')}`,
+      groups.refused.length && `Patient Refused: ${groups.refused.join(', ')}`,
+    ].filter(Boolean).join(' | ');
+  })();
 
   const Row = ({ label, value }) => (
     <div className={styles.inlineRow}>
@@ -237,6 +257,8 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, v
           <span className={styles.patientName}>{data.patient_name || '—'}</span>
           {(gender||age) && <span className={styles.patientMeta}>, {[gender,age].filter(Boolean).join(', ')},</span>}
           {data.uhid && <div className={styles.uhid}>UHID : {data.uhid}.</div>}
+          {!hidePhone && data.patient_mobile && <div className={styles.patientMeta}>Mob : {data.patient_mobile}</div>}
+          {data.doctor_name && <div className={styles.patientMeta}>Doctor : Dr. {data.doctor_name}</div>}
         </div>
         <div className={styles.dateTime}>{dateStr}</div>
       </div>
@@ -279,6 +301,8 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, v
         {data.refer_to && <Row label="REFERRED TO" value={data.refer_to} />}
         {(followupStr||data.next_visit_notes) && <Row label="FOLLOWUP" value={[followupStr,data.next_visit_notes].filter(Boolean).join(' · ')} />}
         {procsStr && <Row label="PROCEDURES" value={procsStr} />}
+        {calcStr  && <Row label="CLINICAL CALCULATIONS" value={calcStr} />}
+        {vaccStr  && <Row label="VACCINATIONS" value={vaccStr} />}
         {(data.custom_sections||[]).filter(s=>s.content).map(s=><Row key={s.id} label={(s.title||'NOTES').toUpperCase()} value={s.content} />)}
         {data.canvas_image && <div style={{marginTop:8}}><img src={data.canvas_image} alt="Clinical drawing" style={{width:'100%',borderRadius:4,border:'1px solid #e2e8f0'}} /></div>}
 
@@ -365,6 +389,17 @@ function RxDoc({ data, user, dietCharts = [], qrUrl = null, hidePhone = false, v
         </div>
       )}
 
+      {signatureImg && (
+        <div className={styles.signatureBlock}>
+          <img src={signatureImg} alt="Doctor signature" className={styles.signatureImg} />
+          <div className={styles.signatureName}>
+            {user?.name && <span>{user.name}</span>}
+            {user?.specialization && <span className={styles.signatureSub}>{user.specialization}</span>}
+            {user?.qualification  && <span className={styles.signatureSub}>{user.qualification}</span>}
+          </div>
+        </div>
+      )}
+
       <hr className={styles.hr} />
       {footerImg
         ? <div className={styles.imgBlock}><img src={footerImg} alt="Footer" className={styles.paperImg} /></div>
@@ -396,7 +431,12 @@ export default function RxPrintModal({ appt, onClose }) {
   const [showVitalsGraph,setShowVitalsGraph]= useState(() => localStorage.getItem(SHOW_VITALS_GRAPH) !== 'false');
   const [vitalsHistory,  setVitalsHistory]  = useState([]);
   const [showSettings,  setShowSettings]  = useState(false);
+  const [clinicAssets,  setClinicAssets]  = useState(null);
   const settingsRef = useRef(null);
+
+  useEffect(() => {
+    api.get('/settings/clinic-assets').then(setClinicAssets).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.get(`/appointments/${appt.id}`)
@@ -505,6 +545,8 @@ export default function RxPrintModal({ appt, onClose }) {
               dietCharts={dietCharts}
               qrUrl={qrEnabled ? (qrLoading ? 'loading' : qrUrl) : null}
               vitalsHistory={showVitalsGraph ? vitalsHistory : []}
+              hidePhone={hidePhone}
+              clinicAssets={clinicAssets}
             />
           )}
         </div>

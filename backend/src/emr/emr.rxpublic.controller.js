@@ -64,13 +64,14 @@ exports.getPublicRx = async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT a.id, a.appointment_date, a.patient_name, a.patient_age,
+      `SELECT a.id, a.appointment_date, a.patient_name,
+              DATE_PART('year', AGE(a.patient_dob))::int AS patient_age,
               a.patient_gender, a.patient_dob, pc.uhid, a.rx_public_token,
               c.name           AS clinic_name,
               c.address        AS clinic_address,
               c.phone          AS clinic_phone,
               d.name           AS doctor_name,
-              d.specialization AS doctor_specialization,
+              d.designation    AS doctor_specialization,
               e.id                 AS encounter_id,
               e.vitals,
               e.symptoms,
@@ -86,9 +87,9 @@ exports.getPublicRx = async (req, res) => {
               e.refer_to,
               e.procedures
        FROM emr_appointments a
-       LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
+       LEFT JOIN patient_clinics pc ON a.emr_patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
        LEFT JOIN emr_clinics   c ON c.id = a.clinic_id
-       LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
+       LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id
        LEFT JOIN emr_encounters e ON e.appointment_id = a.id
        WHERE a.id = $1`,
       [apptId],
@@ -97,11 +98,15 @@ exports.getPublicRx = async (req, res) => {
 
     const r = rows[0];
 
-    // Verify token if the column exists and a token is stored
-    if (r.rx_public_token && t !== r.rx_public_token) {
+    // A token is always required. QR links are only issued by getRxToken, which stores the
+    // token first, so an appointment without one has never been shared. (Allowing access when
+    // no token was stored exposed every unshared prescription by appointment id.)
+    const tokenOk = typeof t === 'string' && r.rx_public_token
+      && t.length === r.rx_public_token.length
+      && crypto.timingSafeEqual(Buffer.from(t), Buffer.from(r.rx_public_token));
+    if (!tokenOk) {
       return res.status(403).json({ error: 'Invalid or expired QR link' });
     }
-    // If no token stored yet (old appointments / column missing), allow access
 
     let age = r.patient_age;
     if (!age && r.patient_dob) {

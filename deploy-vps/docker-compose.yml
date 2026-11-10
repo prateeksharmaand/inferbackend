@@ -1,0 +1,64 @@
+# Infer backend + Postgres on the shared VPS (187.127.135.184), deployed to /opt/inferapp.
+# Public traffic arrives through the shared Caddy (/opt/beyondlife/deploy/Caddyfile),
+# which reaches the API on the beyondlife_default network as "inferapp-api:3000".
+# Static sites (landing, OPD, EMR) live in /opt/sites/inferapp*.
+name: inferapp
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: phr_db
+      POSTGRES_USER: phr_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phr_user -d phr_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    networks:
+      internal:
+        # Unique name: the api also sits on beyondlife_default, where "db" is beyondlife's Postgres.
+        aliases: [inferapp-db]
+
+  api:
+    build:
+      context: ./src
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: inferapp-db
+      DB_PORT: 5432
+      DB_NAME: phr_db
+      DB_USER: phr_user
+      DB_SSL: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+    mem_limit: 1g
+    networks:
+      internal: {}
+      edge:
+        aliases: [inferapp-api]
+
+volumes:
+  postgres_data:
+  uploads_data:
+  logs_data:
+
+networks:
+  internal: {}
+  edge:
+    external: true
+    name: beyondlife_default
