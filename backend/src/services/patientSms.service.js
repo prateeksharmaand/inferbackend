@@ -6,7 +6,7 @@
  *
  * WhatsApp (.env):
  *   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN   WhatsApp Cloud API number + permanent token
- *   WA_TEMPLATE_BOOKED / _REMINDER / _CHECKIN / _VISIT / _RECEIPT   approved template names
+ *   WA_TEMPLATE_BOOKED / _REMINDER / _VISIT / _RECEIPT   approved template names
  *   WA_TEMPLATE_LANG                       template language code (default en)
  *   Template body variables {{1}}, {{2}}… are filled in the same order as the SMS variables below.
  *
@@ -17,7 +17,6 @@
  *   TSMS_SENDER_ID          6-letter DLT header approved for the account (e.g. INFRCR)
  *   TSMS_TEMPLATE_BOOKED    appointment confirmation   vars: name, clinic, date, time, token
  *   TSMS_TEMPLATE_REMINDER  appointment reminder        vars: name, clinic, date, time
- *   TSMS_TEMPLATE_CHECKIN   checked in, token number    vars: name, clinic, token
  *   TSMS_TEMPLATE_VISIT     visit complete + follow-up  vars: name, clinic, follow-up date
  *   TSMS_TEMPLATE_RECEIPT   payment received            vars: name, amount, clinic
  *
@@ -34,7 +33,6 @@ const SENDER = process.env.TSMS_SENDER_ID || '';
 const TEMPLATES = {
   booked:       process.env.TSMS_TEMPLATE_BOOKED || '',
   reminder:     process.env.TSMS_TEMPLATE_REMINDER || '',
-  check_in:     process.env.TSMS_TEMPLATE_CHECKIN || '',
   prescription: process.env.TSMS_TEMPLATE_VISIT || '',
   receipt:      process.env.TSMS_TEMPLATE_RECEIPT || '',
 };
@@ -48,12 +46,30 @@ const WA_API = `https://graph.facebook.com/${process.env.WA_API_VERSION || 'v23.
 const WA_TEMPLATES = {
   booked:       process.env.WA_TEMPLATE_BOOKED || '',
   reminder:     process.env.WA_TEMPLATE_REMINDER || '',
-  check_in:     process.env.WA_TEMPLATE_CHECKIN || '',
   prescription: process.env.WA_TEMPLATE_VISIT || '',
   receipt:      process.env.WA_TEMPLATE_RECEIPT || '',
 };
 const waEnabled = kind => !!(WA_PHONE_ID && WA_TOKEN && WA_TEMPLATES[kind]);
 const enabled = kind => waEnabled(kind) || smsEnabled(kind);
+
+/**
+ * Which values fill a template's variables, in order. Defaults below; any template can be reworded
+ * on Meta / DLT with different variables by setting e.g. WA_VARS_BOOKED=clinic,date,time,token
+ * (or TSMS_VARS_BOOKED for SMS). Available fields:
+ *   name (first name), clinic, doctor, date, time, token, followup, amount, ref (visit / receipt number)
+ */
+const DEFAULT_VARS = {
+  booked:       ['name', 'clinic', 'date', 'time', 'token'],
+  reminder:     ['name', 'clinic', 'date', 'time'],
+  prescription: ['name', 'clinic', 'followup'],
+  receipt:      ['name', 'amount', 'clinic'],
+};
+const ENV_KIND = { booked: 'BOOKED', reminder: 'REMINDER', prescription: 'VISIT', receipt: 'RECEIPT' };
+function varsFor(channel, kind, fields) {
+  const env = process.env[`${channel === 'whatsapp' ? 'WA' : 'TSMS'}_VARS_${ENV_KIND[kind]}`];
+  const order = env ? env.split(',').map(x => x.trim()).filter(Boolean) : DEFAULT_VARS[kind];
+  return order.map(f => (fields[f] === undefined || fields[f] === null || fields[f] === '' ? '-' : fields[f]));
+}
 // DLT variables are limited to 30 characters each.
 const v = x => String(x ?? '').replace(/\s+/g, ' ').trim().slice(0, 30);
 const firstName = n => String(n || 'Patient').trim().split(/\s+/)[0];
@@ -86,7 +102,8 @@ async function log(entry) {
 }
 
 /** WhatsApp template message via the Cloud API. */
-async function sendWhatsApp(kind, { phone, vars, clinicId, appointmentId, dedupeKey }) {
+async function sendWhatsApp(kind, { phone, fields, clinicId, appointmentId, dedupeKey }) {
+  const vars = varsFor('whatsapp', kind, fields);
   const body = {
     messaging_product: 'whatsapp', to: `91${phone}`, type: 'template',
     template: {
@@ -114,7 +131,7 @@ async function sendWhatsApp(kind, { phone, vars, clinicId, appointmentId, dedupe
  * Send one patient message: WhatsApp first, SMS if WhatsApp is not configured or fails.
  * Returns { status: 'sent'|'skipped'|'failed', channel, detail }. Never throws.
  */
-async function send(kind, { mobile, vars, clinicId, appointmentId, dedupeKey }) {
+async function send(kind, { mobile, fields, clinicId, appointmentId, dedupeKey }) {
   const phone = normalisePhone(mobile);
   if (!enabled(kind)) return { status: 'skipped', detail: 'template not configured' };
   if (!phone) return { status: 'skipped', detail: 'no valid mobile number' };
@@ -123,14 +140,15 @@ async function send(kind, { mobile, vars, clinicId, appointmentId, dedupeKey }) 
     if (rows.length) return { status: 'skipped', detail: 'already sent' };
   }
   if (waEnabled(kind)) {
-    const wa = await sendWhatsApp(kind, { phone, vars, clinicId, appointmentId, dedupeKey });
+    const wa = await sendWhatsApp(kind, { phone, fields, clinicId, appointmentId, dedupeKey });
     if (wa.status === 'sent' || !smsEnabled(kind)) return wa;
   }
-  return sendSms(kind, { phone, vars, clinicId, appointmentId, dedupeKey });
+  return sendSms(kind, { phone, fields, clinicId, appointmentId, dedupeKey });
 }
 
 /** 2Factor transactional SMS with a DLT template. */
-async function sendSms(kind, { phone, vars, clinicId, appointmentId, dedupeKey }) {
+async function sendSms(kind, { phone, fields, clinicId, appointmentId, dedupeKey }) {
+  const vars = varsFor('sms', kind, fields);
   const form = new URLSearchParams({ module: 'TRANS_SMS', apikey: API_KEY, to: `91${phone}`, from: SENDER, templatename: TEMPLATES[kind] });
   vars.forEach((val, i) => form.append(`var${i + 1}`, v(val)));
   try {
@@ -153,10 +171,13 @@ async function sendSms(kind, { phone, vars, clinicId, appointmentId, dedupeKey }
 async function appointmentContext(appointmentId) {
   const { rows: [a] } = await pool.query(
     `SELECT a.id, a.clinic_id, a.patient_name, a.patient_mobile, a.appointment_date, a.appointment_time,
-            a.token_number, a.status, c.name AS clinic_name
-       FROM emr_appointments a JOIN emr_clinics c ON c.id = a.clinic_id WHERE a.id = $1`, [appointmentId]);
+            a.token_number, a.status, c.name AS clinic_name, d.name AS doctor_name
+       FROM emr_appointments a JOIN emr_clinics c ON c.id = a.clinic_id
+       LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id WHERE a.id = $1`, [appointmentId]);
   return a || null;
 }
+// Fields every appointment message can use (ref = visit number shown to the patient)
+const base = a => ({ name: firstName(a.patient_name), clinic: a.clinic_name, doctor: a.doctor_name || '', token: a.token_number || '-', ref: `APT-${a.id}` });
 
 // ── Events ──────────────────────────────────────────────────────────────────
 async function appointmentBooked(appointmentId) {
@@ -164,7 +185,7 @@ async function appointmentBooked(appointmentId) {
   if (!a || a.status !== 'booked') return null;
   return send('booked', {
     mobile: a.patient_mobile, clinicId: a.clinic_id, appointmentId: a.id, dedupeKey: `booked:${a.id}`,
-    vars: [firstName(a.patient_name), a.clinic_name, fmtDate(a.appointment_date), fmtTime(a.appointment_time) || 'your slot', a.token_number || '-'],
+    fields: { ...base(a), date: fmtDate(a.appointment_date), time: fmtTime(a.appointment_time) || 'your slot' },
   });
 }
 
@@ -174,16 +195,7 @@ async function appointmentReminder(appointmentId, { manual = false } = {}) {
   return send('reminder', {
     mobile: a.patient_mobile, clinicId: a.clinic_id, appointmentId: a.id,
     dedupeKey: manual ? null : `reminder:${a.id}`,
-    vars: [firstName(a.patient_name), a.clinic_name, fmtDate(a.appointment_date), fmtTime(a.appointment_time) || 'your slot'],
-  });
-}
-
-async function checkedIn(appointmentId) {
-  const a = await appointmentContext(appointmentId);
-  if (!a) return null;
-  return send('check_in', {
-    mobile: a.patient_mobile, clinicId: a.clinic_id, appointmentId: a.id, dedupeKey: `check_in:${a.id}`,
-    vars: [firstName(a.patient_name), a.clinic_name, a.token_number || '-'],
+    fields: { ...base(a), date: fmtDate(a.appointment_date), time: fmtTime(a.appointment_time) || 'your slot' },
   });
 }
 
@@ -192,7 +204,7 @@ async function visitCompleted(appointmentId, nextVisitDate) {
   if (!a) return null;
   return send('prescription', {
     mobile: a.patient_mobile, clinicId: a.clinic_id, appointmentId: a.id, dedupeKey: `visit:${a.id}`,
-    vars: [firstName(a.patient_name), a.clinic_name, nextVisitDate ? fmtDate(nextVisitDate) : 'as advised'],
+    fields: { ...base(a), followup: nextVisitDate ? fmtDate(nextVisitDate) : 'as advised' },
   });
 }
 
@@ -201,7 +213,7 @@ async function paymentReceived(receipt) {
   const { rows: [c] } = await pool.query(`SELECT name FROM emr_clinics WHERE id = $1`, [receipt.clinic_id]);
   return send('receipt', {
     mobile: receipt.phone, clinicId: receipt.clinic_id, appointmentId: receipt.appointment_id, dedupeKey: `receipt:${receipt.id}`,
-    vars: [firstName(receipt.patient_name), `Rs ${Math.round(Number(receipt.grand_total || 0))}`, c?.name || 'the clinic'],
+    fields: { name: firstName(receipt.patient_name), clinic: c?.name || 'the clinic', amount: `Rs ${Math.round(Number(receipt.grand_total || 0))}`, ref: `RCPT-${receipt.id}` },
   });
 }
 
@@ -221,6 +233,6 @@ async function sendTomorrowReminders() {
 const fire = p => { Promise.resolve(p).catch(e => logger.warn('[sms] event failed', { error: e.message })); };
 
 module.exports = {
-  enabled, waEnabled, smsEnabled, send, appointmentBooked, appointmentReminder, checkedIn, visitCompleted, paymentReceived,
+  enabled, waEnabled, smsEnabled, send, appointmentBooked, appointmentReminder, visitCompleted, paymentReceived,
   sendTomorrowReminders, fire, TEMPLATES, normalisePhone,
 };
