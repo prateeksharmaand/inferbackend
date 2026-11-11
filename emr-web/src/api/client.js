@@ -37,6 +37,7 @@ async function req(method, path, body) {
   if (!res.ok) {
     const err = new Error(data.error || `HTTP ${res.status}`);
     err.detail  = data.detail;
+    err.data    = data;   // full error body (e.g. clinical-template validation errors[])
     err.status  = res.status;
     // Subscription limit exceeded — fire global event so any component can show upgrade modal
     if (res.status === 402 && data.error === 'subscription_limit') {

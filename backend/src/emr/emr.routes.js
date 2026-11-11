@@ -107,6 +107,9 @@ router.post  ('/subscription/activate-test',     subscription.activateTestPlan);
 // Wallet & Credits
 router.use('/wallet', walletRoutes);
 
+// Clinical Template Builder (templates, clinic/doctor configuration, consultation templates)
+router.use(require('./clinicalTemplates/routes').emrRouter);
+
 // â”€â”€ Clinic ABDM settings (self-service for clinic admins) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/clinic-settings/abdm', async (req, res) => {
   const { rows } = await pool.query(
@@ -313,6 +316,7 @@ router.get('/appointments/:id/prescription.pdf', async (req, res) => {
     );
     if (!appt) return res.status(404).json({ error: 'Appointment not found' });
     const { rows: [encounter] } = await pool.query(`SELECT * FROM emr_encounters WHERE appointment_id=$1`, [req.params.id]);
+    await require('./clinicalTemplates/service').attachTemplatePrint(pool, encounter);
     const { rows: [clinic] }   = await pool.query(`SELECT name, address, rx_header_img, rx_footer_img, rx_signature FROM emr_clinics WHERE id=$1`, [req.emrUser.clinic_id]);
     // Patient's diet charts (diet_charts.clinic_id is TEXT) — same selection as the OPD print modal
     const { rows: dietCharts } = appt.patient_mobile
@@ -360,6 +364,7 @@ router.post('/email/prescription', async (req, res) => {
     const { rows: [encounter] } = appointment_id
       ? await pool.query(`SELECT * FROM emr_encounters WHERE appointment_id=$1`, [appointment_id])
       : { rows: [null] };
+    if (encounter) await require('./clinicalTemplates/service').attachTemplatePrint(pool, encounter);
     const { rows: [doctor] } = appt?.doctor_id
       ? await pool.query(`SELECT name FROM emr_clinic_staff WHERE id=$1`, [appt.doctor_id])
       : { rows: [null] };

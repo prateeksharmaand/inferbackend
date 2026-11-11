@@ -26,6 +26,8 @@ import AssessmentPanel from '../components/AssessmentPanel';
 import { getMandatoryFields, MANDATORY_FIELDS, getPrintSections } from './settings/InferPadSettings';
 import toast from 'react-hot-toast';
 import styles from './WriteRx.module.css';
+import { ctApi, errorsBySection } from '../api/clinicalTemplates';
+import { templatePrintRows, templatePrints } from '../utils/templatePrint';
 
 // ── Language picker (bottom bar) ─────────────────────────────────────────────
 
@@ -55,7 +57,27 @@ export function formFromAppointment(data, base = EMPTY_FORM) {
     vaccinations:         data.vaccinations  || {},
     rx_language:          data.rx_language   || '',
     calc_results:         data.calc_results  || {},
+    // Clinical template of a saved consultation: its snapshot (never the current template)
+    clinical_template:    data.clinical_template?.definition || base.clinical_template || null,
+    template_values:      data.clinical_template?.values || base.template_values || {},
   };
+}
+
+/** Pre-fill a NEW consultation with the template's default texts and field values. */
+function applyTemplateDefaults(form, definition) {
+  const next = { ...form, clinical_template: definition, template_values: { ...(form.template_values || {}) } };
+  for (const sec of definition?.sections || []) {
+    if (!sec.enabled) continue;
+    if (sec.default_value != null && sec.default_value !== '' && typeof next[sec.key] === 'string' && !next[sec.key]) {
+      next[sec.key] = String(sec.default_value);
+    }
+    for (const f of sec.fields || []) {
+      if (f.storage === 'core' || f.enabled === false || f.default_value == null || f.default_value === '') continue;
+      const cur = next.template_values[sec.key] || {};
+      if (cur[f.key] === undefined) next.template_values[sec.key] = { ...cur, [f.key]: f.default_value };
+    }
+  }
+  return next;
 }
 
 function LangPicker({ value, onChange }) {
@@ -242,6 +264,8 @@ const EMPTY_FORM = {
   vaccinations: {},
   rx_language: '',
   calc_results: {},  // { [calcId]: { value, unit, label, color } }
+  clinical_template: null,   // effective clinical template definition (null = not adopted)
+  template_values: {},       // { [section_key]: { [field_key]: value } }
 };
 
 // ── Prescription data formatting ─────────────────────────────────────────────
@@ -271,7 +295,8 @@ export function RxDocumentBody({ form, appt, user, rxImages = {}, dietCharts = [
   const t    = getLang(lang);
   const cid  = user?.clinic_id || 'default';
   const printSecs = getPrintSections(cid);
-  const inPrint = key => printSecs.includes(key);
+  const inPrint = key => templatePrints(form.clinical_template, key) ?? printSecs.includes(key);
+  const tplRows = templatePrintRows(form.clinical_template, form.template_values);
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
   const dateStr  = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -404,6 +429,7 @@ export function RxDocumentBody({ form, appt, user, rxImages = {}, dietCharts = [
         {inPrint('notes')    && form.notes    && <RxInlineRow label={t.NOTES}       value={form.notes} />}
         {inPrint('advices')  && form.advices  && <RxInlineRow label={t.ADVICES}     value={form.advices} />}
         {inPrint('refer_to') && form.refer_to && <RxInlineRow label={t.REFERRED_TO} value={form.refer_to} />}
+        {tplRows.map((r, i) => <RxInlineRow key={`tpl-${i}`} label={r.label.toUpperCase()} value={r.value} />)}
         {inPrint('follow_up') && (followupStr||form.next_visit_notes) && <RxInlineRow label={t.FOLLOWUP} value={[followupStr,form.next_visit_notes].filter(Boolean).join(' · ')} />}
         {inPrint('procedures') && proceduresStr && <RxInlineRow label={t.PROCEDURES} value={proceduresStr} />}
         {inPrint('dental_chart') && (() => {
@@ -684,6 +710,8 @@ export default function WriteRx() {
     : 0;
   const [showPostVisit,   setShowPostVisit]   = useState(false);
   const [missingFields,   setMissingFields]   = useState(null); // null = no modal, array = show modal
+  const [clinicalTpl,     setClinicalTpl]     = useState(null); // { template, definition, source } when the clinic uses templates
+  const [templateErrors,  setTemplateErrors]  = useState({});   // server validation errors by section
   const [showReceipt,     setShowReceipt]     = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
 
@@ -743,6 +771,17 @@ export default function WriteRx() {
       // Always seed medical_history from appointment (check-in data)
       if (data.medical_history?.length) {
         setForm(f => ({ ...f, medical_history: data.medical_history }));
+      }
+      if (data.clinical_template) {
+        setClinicalTpl({ definition: data.clinical_template.definition, template: data.clinical_template.definition?.template || null, source: 'snapshot' });
+      } else {
+        // Not saved with a template yet: load what this consultation should use (null when the clinic hasn't adopted templates)
+        ctApi.effectiveFor(appointmentId).then(t => {
+          if (!t?.adopted) return;
+          setClinicalTpl({ definition: t.definition, template: t.template, source: t.source });
+          if (!data.encounter_id) setForm(f => applyTemplateDefaults(f, t.definition));
+          else setForm(f => ({ ...f, clinical_template: t.definition }));
+        }).catch(() => {});
       }
       if (data.encounter_id) {
         setPrescriptionMode(true);
@@ -966,6 +1005,7 @@ export default function WriteRx() {
   };
 
   function checkMandatory() {
+    if (clinicalTpl) return null;   // clinical template: the server validates required sections/fields
     const required = getMandatoryFields(user?.clinic_id || 'default');
     if (!required.length) return null;
     const missing = [];
@@ -1015,7 +1055,10 @@ export default function WriteRx() {
         vaccinations:         form.vaccinations  || {},
         calc_results:         form.calc_results  || {},
         rx_language:          form.rx_language  || '',
+        template_values:      form.template_values || {},
+        template_id:          clinicalTpl?.template?.id || undefined,
       });
+      setTemplateErrors({});
       setShowPostVisit(true);
       track('prescription_saved', {
         clinic_id:        user?.clinic_id,
@@ -1027,7 +1070,13 @@ export default function WriteRx() {
         has_follow_up:    !!form.next_visit_date,
       });
     } catch (err) {
-      setError(err.message);
+      if (err.status === 422 && err.data?.errors) {
+        // Clinical template validation: show what is missing, highlight it in InferPad
+        setTemplateErrors(errorsBySection(err.data.errors));
+        setMissingFields(err.data.errors.map(e => e.message));
+      } else {
+        setError(err.message);
+      }
       setSaving(false);
     }
   };
@@ -1528,7 +1577,8 @@ export default function WriteRx() {
           )}
 
           {tab === 'InferPad' && (
-            <InferPad form={form} set={set} setVital={setVital} setCalcResult={setCalcResult} appt={appt} pastNotes={pastNotes} clinicId={user?.clinic_id || 'default'} activeTemplate={activeTemplate} />
+            <InferPad form={form} set={set} setVital={setVital} setCalcResult={setCalcResult} appt={appt} pastNotes={pastNotes} clinicId={user?.clinic_id || 'default'} activeTemplate={activeTemplate}
+              clinicalTemplate={clinicalTpl} templateErrors={templateErrors} />
           )}
 
           {tab === 'Canvas' && (
@@ -1636,9 +1686,17 @@ export default function WriteRx() {
                     custom_sections: form.custom_sections || [],
                     canvas_image: form.canvasImage || null, vaccinations: form.vaccinations || {},
                     calc_results: form.calc_results || {}, rx_language: form.rx_language || '',
+                    template_values: form.template_values || {}, template_id: clinicalTpl?.template?.id || undefined,
+                    allow_incomplete: true,   // "End without Rx": only locked (compliance) items still block
                   });
                   setShowPostVisit(true);
-                } catch (err) { setError(err.message); setSaving(false); }
+                } catch (err) {
+                  if (err.status === 422 && err.data?.errors) {
+                    setTemplateErrors(errorsBySection(err.data.errors));
+                    setError(`Cannot finish: ${err.data.errors.map(e => e.message).join('; ')}`);
+                  } else setError(err.message);
+                  setSaving(false);
+                }
               }}>
                 ➜ End w/o Rx
               </button>

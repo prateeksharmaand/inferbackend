@@ -21,12 +21,13 @@ async function request(method, path, body) {
     return;
   }
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const err = new Error(data.error || 'Request failed'); err.status = res.status; err.data = data; throw err; }
   return data;
 }
 
 export const adminApi = {
+  request,   // generic: (method, path, body)
   login:   (body) => request('POST', '/auth/login', body),
   changePassword: (body) => request('POST', '/auth/change-password', body),
 

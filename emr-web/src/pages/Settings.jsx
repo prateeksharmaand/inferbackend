@@ -12,6 +12,7 @@ import SubscriptionSettings from './settings/SubscriptionSettings';
 import ChangePassword from './settings/ChangePassword';
 import ThemeSettings from './settings/ThemeSettings';
 import StaffManagement from './settings/StaffManagement';
+import ClinicalTemplateBuilder from './settings/ClinicalTemplateBuilder';
 import styles from './Settings.module.css';
 
 const ALL_TABS = [
@@ -23,6 +24,7 @@ const ALL_TABS = [
   { key: 'tags',         Icon: Tag,            label: 'Custom Attributes',    adminOnly: false },
   { key: 'services',     Icon: Stethoscope,    label: 'Services',             adminOnly: false },
   { key: 'inferpad',     Icon: LayoutTemplate, label: 'InferPad',             adminOnly: false },
+  { key: 'templates',    Icon: ClipboardList,  label: 'Clinical Templates',   adminOnly: false },
   { key: 'terms',        Icon: ClipboardList,  label: 'Symptoms & Diagnoses', adminOnly: false },
   { key: 'theme',        Icon: Palette,        label: 'Theme',                adminOnly: false },
   { key: 'password',     Icon: KeyRound,       label: 'Change Password',      adminOnly: false },
@@ -67,6 +69,7 @@ export default function Settings() {
         {tab === 'tags'         && <CustomAttributes />}
         {tab === 'services'     && <ServicesSettings />}
         {tab === 'inferpad'     && <InferPadSettings />}
+        {tab === 'templates'    && <ClinicalTemplateBuilder />}
         {tab === 'terms'        && <ClinicalTermsSettings />}
         {tab === 'theme'        && <ThemeSettings />}
         {tab === 'password'     && <ChangePassword />}

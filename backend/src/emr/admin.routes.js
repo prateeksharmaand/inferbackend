@@ -15,6 +15,9 @@ router.use(adminAuth);
 
 router.post('/auth/change-password', authCtrl.changePassword);
 
+// System clinical templates (create / edit / publish)
+router.use(require('./clinicalTemplates/routes').adminRouter);
+
 // Stats
 router.get('/stats', clinicsCtrl.getStats);
 

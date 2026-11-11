@@ -383,6 +383,8 @@ async function start() {
     const { pool } = require('./src/config/database');
     const { runMigrations } = require('./migrations/run-migrations');
     await runMigrations(pool, logger);
+    // System clinical templates for every speciality (only missing ones are created)
+    await require('./src/emr/clinicalTemplates/seed').ensureSystemTemplates(pool, logger);
     // Seed superadmin from env vars (no-op if already exists)
     const { seedSuperadmin } = require('./src/emr/admin.auth.controller');
     await seedSuperadmin();

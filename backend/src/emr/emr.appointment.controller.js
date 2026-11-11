@@ -422,7 +422,8 @@ const getAppointment = async (req, res) => {
        e.chief_complaint, e.symptoms, e.diagnosis, e.medications, e.instructions,
        e.next_visit_date, e.next_visit_notes, e.vitals,
        e.lab_investigations, e.lab_results, e.examination_findings,
-       e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image, e.custom_sections, e.vaccinations, e.rx_language, e.calc_results
+       e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image, e.custom_sections, e.vaccinations, e.rx_language, e.calc_results,
+       e.template_snapshot_id
      FROM emr_appointments a
      LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
@@ -431,6 +432,11 @@ const getAppointment = async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ error: 'Not found' });
   const appt = rows[0];
+  // Clinical template of a saved consultation (snapshot + custom values), for display and print
+  if (appt.template_snapshot_id) {
+    appt.clinical_template = await require('./clinicalTemplates/service')
+      .encounterTemplate(pool, appt.encounter_id, appt.template_snapshot_id).catch(() => null);
+  }
 
   // Fetch past encounter notes for the same patient (by mobile)
   let past_encounter_notes = [];
@@ -507,15 +513,36 @@ const saveEncounter = async (req, res) => {
     ],
   };
 
-  const { rows } = await pool.query(
+  // Clinical templates: validate against the consultation's template and snapshot it, in the same
+  // transaction as the encounter. Clinics that have not adopted templates get tplPrep = null and the
+  // save is exactly as before.
+  const clinicalTemplates = require('./clinicalTemplates/service');
+  const client = await pool.connect();
+  let rows, tplPrep = null;
+  try {
+    await client.query('BEGIN');
+    const { rows: [existingEnc] } = await client.query(
+      `SELECT id, template_snapshot_id FROM emr_encounters WHERE appointment_id = $1 FOR UPDATE`, [a.id]);
+    tplPrep = await clinicalTemplates.prepareConsultationSave(client, {
+      clinicId: a.clinic_id, staffId: a.doctor_id || req.emrUser.id, appointment: a,
+      existingSnapshotId: existingEnc?.template_snapshot_id || null, body: req.body || {},
+    });
+    if (tplPrep?.blocked) {
+      await client.query('ROLLBACK');
+      return res.status(422).json({ error: 'validation_failed', errors: tplPrep.errors, warnings: tplPrep.warnings });
+    }
+
+  ({ rows } = await client.query(
     `INSERT INTO emr_encounters
        (appointment_id, clinic_id, doctor_id, emr_patient_id,
         chief_complaint, symptoms, diagnosis, medications,
         instructions, next_visit_date, next_visit_notes, vitals, fhir_bundle,
         lab_investigations, lab_results, examination_findings,
-        notes, refer_to, advices, procedures, canvas_image, custom_sections, vaccinations, rx_language, calc_results)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+        notes, refer_to, advices, procedures, canvas_image, custom_sections, vaccinations, rx_language, calc_results,
+        template_snapshot_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
      ON CONFLICT (appointment_id) DO UPDATE SET
+       template_snapshot_id = COALESCE(emr_encounters.template_snapshot_id, EXCLUDED.template_snapshot_id),
        chief_complaint      = EXCLUDED.chief_complaint,
        symptoms             = EXCLUDED.symptoms,
        diagnosis            = EXCLUDED.diagnosis,
@@ -560,8 +587,23 @@ const saveEncounter = async (req, res) => {
       JSON.stringify(vaccinations || {}),
       rx_language || '',
       JSON.stringify(calc_results || {}),
+      tplPrep?.snapshotId || null,
     ]
-  );
+  ));
+
+    if (tplPrep) {
+      await clinicalTemplates.saveValues(client, {
+        encounterId: rows[0].id, clinicId: a.clinic_id, snapshotId: rows[0].template_snapshot_id || tplPrep.snapshotId,
+        values: tplPrep.values,
+      });
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 
   // Auto-mark appointment as completed
   await pool.query(`UPDATE emr_appointments SET status='completed', completed_at=NOW() WHERE id=$1`, [a.id]);
@@ -650,7 +692,7 @@ const saveEncounter = async (req, res) => {
   fhir.pushEncounterBundle(a, rows[0]).catch(err =>
     console.error('[FHIR] encounter push failed:', err.message)
   );
-  res.json(rows[0]);
+  res.json(tplPrep ? { ...rows[0], template_warnings: tplPrep.warnings, template_errors: tplPrep.errors } : rows[0]);
 };
 
 // POST /api/emr/appointments/:id/reminder

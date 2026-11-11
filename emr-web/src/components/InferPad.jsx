@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Fragment } from 'react';
+import { useState, useRef, useEffect, Fragment, cloneElement } from 'react';
 import { Plus, ChevronDown, Settings2, X, Search, GripVertical, Sparkles } from 'lucide-react';
 import { getTemplateSuggestions } from '../data/templateSuggestions';
 import { api } from '../api/client';
@@ -9,6 +9,7 @@ import CalculatorsSection from './CalculatorsSection';
 import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
 import { getSectionOrder, getICD10Settings, getDisabledSections } from '../pages/settings/InferPadSettings';
 import GrowthChart from './GrowthChart';
+import DynamicFields, { customFieldsOf } from './clinicalTemplates/DynamicFields';
 import s2 from './GrowthChart.module.css';
 import DentalChart from './DentalChart';
 
@@ -401,9 +402,35 @@ function SeverityPills({ value, onChange }) {
   );
 }
 
+// Columns InferPad draws itself; any other enabled template column is drawn by RowExtras.
+const MED_NATIVE = ['name', 'dose', 'frequency', 'timing', 'duration', 'start_from', 'instructions'];
+const LABINV_NATIVE = ['test', 'repeat_on', 'remarks'];
+
+function RowExtras({ cols, row, onChange, disabled = false }) {
+  if (!cols.length) return null;
+  return (
+    <div className={styles.rowExtras}>
+      {cols.map(c => (
+        <div key={c.key} className={styles.medSmallCell}>
+          <label>{c.label}{c.required ? ' *' : ''}</label>
+          {c.type === 'dropdown' ? (
+            <select className={styles.cellInput} value={row?.[c.key] ?? ''} disabled={disabled} onChange={e => onChange(c.key, e.target.value)}>
+              <option value="">Select…</option>
+              {(c.options || []).map(o => <option key={o.value} value={o.label}>{o.label}</option>)}
+            </select>
+          ) : (
+            <input className={styles.cellInput} type={c.type === 'number' ? 'number' : 'text'} placeholder={c.placeholder || ''}
+              value={row?.[c.key] ?? ''} disabled={disabled} onChange={e => onChange(c.key, e.target.value)} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function InferPad({ form, set, setVital, setCalcResult, appt, pastNotes = [], clinicId = 'default', activeTemplate }) {
+export default function InferPad({ form, set, setVital, setCalcResult, appt, pastNotes = [], clinicId = 'default', activeTemplate, clinicalTemplate = null, templateErrors = {} }) {
   // Quick-add chips: symptoms/diagnoses from the master data (clinic's most-used first, then the
   // template specialty); investigations still from the built-in list. Falls back to the built-in
   // lists if the API is unavailable.
@@ -465,9 +492,61 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
     return () => window.removeEventListener('lab:apply', handler);
   }); // no deps — reads latest form
 
-  const visibleVitals = vitalsOrder
-    .map(k => VITALS_ALL.find(v => v.key === k))
-    .filter(Boolean);
+  // ── Clinical template (Settings → Clinical Templates). null = clinic has not adopted templates:
+  //    everything below falls back to this browser's InferPad settings, exactly as before.
+  const tdef = clinicalTemplate?.definition || null;
+  const tsec = key => tdef?.sections?.find(x => x.key === key) || null;
+  const tOrdered = tdef ? [...tdef.sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : null;
+  const effOrder    = tOrdered ? tOrdered.map(x => x.key) : sectionOrder;
+  const effDisabled = tOrdered ? tOrdered.filter(x => !x.enabled).map(x => x.key) : disabledSections;
+  const growthOn    = tdef ? !!tsec('growth_chart')?.enabled : growthEnabled;
+  const colField = (sec, col) => tsec(sec)?.fields?.find(f => f.key === col && f.storage === 'core') || null;
+  const colOn    = (sec, col) => (tdef ? (colField(sec, col)?.enabled ?? true) !== false : true);
+  const colLabel = (sec, col, fallback) => {
+    const f = tdef && colField(sec, col);
+    return f ? `${f.label}${f.required ? ' *' : ''}` : fallback;
+  };
+  const extraCols = (sec, native) => (tdef ? (tsec(sec)?.fields || [])
+    .filter(f => f.storage === 'core' && f.enabled !== false && !native.includes(f.key))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []);
+  const setTemplateValues = (key, v) => set('template_values', { ...(form.template_values || {}), [key]: v });
+  // Adds template labels, a "Required" badge and the section's configured fields to a built-in card.
+  const decorate = (key, el) => {
+    const sec = tsec(key);
+    if (!tdef || !sec) return el;
+    const hasFields = customFieldsOf(sec).length > 0;
+    const extra = hasFields ? (
+      <DynamicFields section={sec} values={form.template_values?.[key] || {}} errors={templateErrors?.[key] || {}}
+        onChange={v => setTemplateValues(key, v)} />
+    ) : null;
+    const sectionErr = templateErrors?.[key]?._section;
+    if (!el) {
+      if (sec.builtin || !hasFields) return null;   // custom section defined in the template
+      return (
+        <ICard key={key} title={sec.label} icon="📝" color="#64748b" badge={sec.required ? 'Required' : undefined}>
+          {extra}{sectionErr && <p className={styles.tplError} role="alert">{sectionErr}</p>}
+        </ICard>
+      );
+    }
+    if (el.type !== ICard) return <Fragment key={key}>{el}{extra && <div className={styles.tplExtra}>{extra}</div>}</Fragment>;
+    return cloneElement(el, {
+      title: sec.label || el.props.title,
+      badge: el.props.badge || (sec.required ? 'Required' : undefined),
+    }, <>{el.props.children}{extra}{sectionErr && <p className={styles.tplError} role="alert">{sectionErr}</p>}</>);
+  };
+
+  const visibleVitals = tdef
+    ? (tsec('vitals')?.fields || [])
+        .filter(f => f.storage === 'core' && f.enabled !== false)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map(f => {
+          const v = VITALS_ALL.find(x => x.key === f.key);
+          return v ? { ...v, label: f.label || v.label, unit: f.unit ?? v.unit } : null;
+        })
+        .filter(Boolean)
+    : vitalsOrder
+        .map(k => VITALS_ALL.find(v => v.key === k))
+        .filter(Boolean);
 
   // ── Symptom helpers ──────────────────────────────────────────────────────
   const selectSymptomSuggestion = (item) => {
@@ -514,9 +593,16 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const removeDiag = (i) => set('diagnosis', form.diagnosis.filter((_, j) => j !== i));
 
   // ── Medication helpers ────────────────────────────────────────────────────
-  const addMed = () => set('medications', [...form.medications,
-    { name: '', dose: '', frequency: '', timing: '', duration: '', start_from: '', instructions: '' }
-  ]);
+  const addMed = () => {
+    const row = { name: '', dose: '', frequency: '', timing: '', duration: '', start_from: '', instructions: '' };
+    // Template column defaults (e.g. a preferred route or frequency)
+    for (const f of (tsec('medications')?.fields || [])) {
+      if (f.storage === 'core' && f.enabled !== false && f.default_value != null && f.default_value !== '') {
+        row[f.core_path.split('.').pop()] = f.default_value;
+      }
+    }
+    set('medications', [...form.medications, row]);
+  };
   const updateMed = (i, k, v) => {
     const arr = [...form.medications]; arr[i] = { ...arr[i], [k]: v }; set('medications', arr);
   };
@@ -672,14 +758,14 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
       </div>
 
       {/* ── All sections rendered in saved order ── */}
-      {sectionOrder.filter(key => !disabledSections.includes(key)).map(key => {
+      {effOrder.filter(key => !effDisabled.includes(key)).map(key => decorate(key, (() => {
         if (key === 'vitals') return (
           <ICard key="vitals" title="Vitals" icon="🩺" color="#3b82f6"
-            action={
+            action={tdef ? null : (
               <button className={styles.vitalsConfigBtn} onClick={e => { e.stopPropagation(); setShowVitalsCfg(true); }} title="Configure vitals">
                 <Settings2 size={13} strokeWidth={2} />
               </button>
-            }
+            )}
           >
             <div className={styles.vitalsGrid}>
               {visibleVitals.map(({ key: k, label, unit, placeholder, decimal, safeRange }) => {
@@ -711,7 +797,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
           </ICard>
         );
         if (key === 'growth_chart') {
-          if (!growthEnabled || (patientAge !== null && patientAge >= 15)) return null;
+          if (!growthOn || (patientAge !== null && patientAge >= 15)) return null;
           return (
             <div key="growth_chart" className={s2.strip}>
               <span className={s2.stripLabel}>GROWTH CHART [WHO/IAP]</span>
@@ -800,19 +886,20 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
               {form.medications.map((m, i) => (
                 <div key={i} className={styles.medCard}>
                   <div className={styles.medCardRow}>
-                    <div className={styles.medNameCell}><label>Medicine</label>
+                    <div className={styles.medNameCell}><label>{colLabel('medications', 'name', 'Medicine')}</label>
                       <AutocompleteInput value={m.name} onChange={v => updateMed(i, 'name', v)} onSelect={item => updateMed(i, 'name', item.name)} fetchSuggestions={fetchRxTerms} placeholder="Search or type medicine…" inputClassName={styles.cellInput} renderItem={item => <div className={styles.acItem}><span className={styles.acName}>{item.name}</span>{item.strength && <span className={styles.acSub}>{item.strength}</span>}</div>} />
                     </div>
-                    <div className={styles.medSmallCell}><label>Dose</label><input className={styles.cellInput} placeholder="e.g. 1 tablet" value={m.dose || m.dosage || ''} onChange={e => updateMed(i, 'dose', e.target.value)} /></div>
-                    <div className={styles.medSmallCell}><label>Frequency</label><input className={styles.cellInput} placeholder="e.g. 1-0-1, TDS" value={m.frequency || ''} onChange={e => updateMed(i, 'frequency', e.target.value)} /></div>
+                    {colOn('medications', 'dose') && (<div className={styles.medSmallCell}><label>{colLabel('medications', 'dose', 'Dose')}</label><input className={styles.cellInput} placeholder="e.g. 1 tablet" value={m.dose || m.dosage || ''} onChange={e => updateMed(i, 'dose', e.target.value)} /></div>)}
+                    {colOn('medications', 'frequency') && (<div className={styles.medSmallCell}><label>{colLabel('medications', 'frequency', 'Frequency')}</label><input className={styles.cellInput} placeholder="e.g. 1-0-1, TDS" value={m.frequency || ''} onChange={e => updateMed(i, 'frequency', e.target.value)} /></div>)}
                     <button className={`${styles.del} ${styles.delTop}`} onClick={() => set('medications', form.medications.filter((_, j) => j !== i))}>✕</button>
                   </div>
                   <div className={styles.medCardRow2}>
-                    <div className={styles.medSmallCell}><label>Timing</label><input className={styles.cellInput} placeholder="e.g. After meal" value={m.timing || ''} onChange={e => updateMed(i, 'timing', e.target.value)} /></div>
-                    <div className={styles.medSmallCell}><label>Duration</label><NumberUnitInput className={styles.cellInput} placeholder="e.g. 5 days" value={m.duration || ''} onChange={v => updateMed(i, 'duration', v)} /></div>
-                    <div className={styles.medSmallCell}><label>Start From</label><NumberUnitInput className={styles.cellInput} placeholder="e.g. Today, Day 3" value={m.start_from || ''} onChange={v => updateMed(i, 'start_from', v)} /></div>
+                    {colOn('medications', 'timing') && (<div className={styles.medSmallCell}><label>{colLabel('medications', 'timing', 'Timing')}</label><input className={styles.cellInput} placeholder="e.g. After meal" value={m.timing || ''} onChange={e => updateMed(i, 'timing', e.target.value)} /></div>)}
+                    {colOn('medications', 'duration') && (<div className={styles.medSmallCell}><label>{colLabel('medications', 'duration', 'Duration')}</label><NumberUnitInput className={styles.cellInput} placeholder="e.g. 5 days" value={m.duration || ''} onChange={v => updateMed(i, 'duration', v)} /></div>)}
+                    {colOn('medications', 'start_from') && (<div className={styles.medSmallCell}><label>{colLabel('medications', 'start_from', 'Start From')}</label><NumberUnitInput className={styles.cellInput} placeholder="e.g. Today, Day 3" value={m.start_from || ''} onChange={v => updateMed(i, 'start_from', v)} /></div>)}
                   </div>
-                  <div className={styles.medCardRow3}><label>Instructions</label><input className={styles.cellInput} placeholder="Special instructions for this medicine…" value={m.instructions || ''} onChange={e => updateMed(i, 'instructions', e.target.value)} /></div>
+                  <RowExtras cols={extraCols('medications', MED_NATIVE)} row={m} onChange={(k, v) => updateMed(i, k, v)} />
+                  {colOn('medications', 'instructions') && (<div className={styles.medCardRow3}><label>{colLabel('medications', 'instructions', 'Instructions')}</label><input className={styles.cellInput} placeholder="Special instructions for this medicine…" value={m.instructions || ''} onChange={e => updateMed(i, 'instructions', e.target.value)} /></div>)}
                 </div>
               ))}
               <button className={styles.addLine} onClick={addMed}><Plus size={13} /> Add Medicine</button>
@@ -844,10 +931,11 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
                       <div className={styles.labInvName}><label>Test</label>
                         <AutocompleteInput value={isStr ? l : (l.test || '')} onChange={v => isStr ? set('lab_investigations', form.lab_investigations.map((x,j)=>j===i?v:x)) : updateLabInv(i, 'test', v)} onSelect={item => updateLabInv(i, 'test', item.name)} fetchSuggestions={fetchLOINC} placeholder="e.g. CBC, HbA1c, Lipid Profile" inputClassName={styles.cellInput} />
                       </div>
-                      <div className={styles.labInvSmall}><label>Repeat On</label><input className={styles.cellInput} placeholder="e.g. 2 weeks" value={isStr ? '' : (l.repeat_on || '')} onChange={e => updateLabInv(i, 'repeat_on', e.target.value)} disabled={isStr} /></div>
+                      {colOn('lab_investigations', 'repeat_on') && (<div className={styles.labInvSmall}><label>{colLabel('lab_investigations', 'repeat_on', 'Repeat On')}</label><input className={styles.cellInput} placeholder="e.g. 2 weeks" value={isStr ? '' : (l.repeat_on || '')} onChange={e => updateLabInv(i, 'repeat_on', e.target.value)} disabled={isStr} /></div>)}
                       <button className={styles.del} onClick={() => set('lab_investigations', form.lab_investigations.filter((_,j)=>j!==i))}>✕</button>
                     </div>
-                    <div className={styles.labInvRemarks}><label>Remarks</label><input className={styles.cellInput} placeholder="Special instructions or remarks…" value={isStr ? '' : (l.remarks || '')} onChange={e => updateLabInv(i, 'remarks', e.target.value)} disabled={isStr} /></div>
+                    {colOn('lab_investigations', 'remarks') && (<div className={styles.labInvRemarks}><label>{colLabel('lab_investigations', 'remarks', 'Remarks')}</label><input className={styles.cellInput} placeholder="Special instructions or remarks…" value={isStr ? '' : (l.remarks || '')} onChange={e => updateLabInv(i, 'remarks', e.target.value)} disabled={isStr} /></div>)}
+                    <RowExtras cols={extraCols('lab_investigations', LABINV_NATIVE)} row={isStr ? {} : l} onChange={(k, v) => updateLabInv(i, k, v)} disabled={isStr} />
                   </div>
                 );
               })}
@@ -1173,7 +1261,7 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
         );
 
         return null;
-      })}
+      })()))}
 
       {showVitalsCfg && (
         <VitalsConfigModal

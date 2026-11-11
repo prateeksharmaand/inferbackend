@@ -36,6 +36,7 @@ import SuperAdminDash    from './pages/admin/AdminDashboard';
 import AdminClinics      from './pages/admin/AdminClinics';
 import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import AdminAudit        from './pages/admin/AdminAudit';
+import AdminClinicalTemplates from './pages/admin/AdminClinicalTemplates';
 import AdminClinicDetail from './pages/admin/AdminClinicDetail';
 import AdminCRM          from './pages/admin/AdminCRM';
 
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="subscriptions"   element={<AdminSubscriptions />} />
             <Route path="crm"             element={<AdminCRM />} />
             <Route path="audit"           element={<AdminAudit />} />
+            <Route path="clinical-templates" element={<AdminClinicalTemplates />} />
           </Route>
         </Routes>
       </BrowserRouter>

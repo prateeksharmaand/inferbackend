@@ -303,6 +303,14 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
       doc.y += 10;
     }
 
+    // Clinical template fields (Clinical Template Builder), grouped by section
+    for (const sec of safeArr(enc.template_print)) {
+      if (!sec || !Array.isArray(sec.fields) || !sec.fields.length) continue;
+      section(sec.section_label || 'Additional details');
+      doc.text(sec.fields.map(f => `${f.label}: ${f.value}`).join('\n'), 40, doc.y, { width: W });
+      doc.y += 10;
+    }
+
     // Clinical calculators
     const calc = enc.calc_results && typeof enc.calc_results === 'object' ? enc.calc_results : {};
     const calcLines = Object.entries(calc).filter(([, r]) => r && r.value)
