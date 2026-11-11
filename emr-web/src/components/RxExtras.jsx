@@ -257,11 +257,20 @@ export function useRxExtras(appt, { encounterId, prefs }) {
   const apptId = appt?.id;
   const mobile = appt?.patient_mobile;
 
+  // Diet charts: reload whenever one is created, edited or deleted, so preview / print are current
   useEffect(() => {
-    if (!mobile) { setDietCharts([]); setVitalsHistory([]); return; }
+    if (!mobile) { setDietCharts([]); return; }
     let alive = true;
-    api.get(`/diet/charts?patient_mobile=${encodeURIComponent(mobile)}`)
+    const load = () => api.get(`/diet/charts?patient_mobile=${encodeURIComponent(mobile)}`)
       .then(d => { if (alive) setDietCharts(Array.isArray(d) ? d : []); }).catch(() => {});
+    load();
+    window.addEventListener('diet-charts:changed', load);
+    return () => { alive = false; window.removeEventListener('diet-charts:changed', load); };
+  }, [mobile]);
+
+  useEffect(() => {
+    if (!mobile) { setVitalsHistory([]); return; }
+    let alive = true;
     api.get(`/patients/history?mobile=${encodeURIComponent(mobile)}`)
       .then(rows => {
         if (!alive) return;

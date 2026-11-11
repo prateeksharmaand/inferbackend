@@ -131,7 +131,7 @@ const listAppointments = async (req, res) => {
   const { queue_id, date, status, doctor_id } = req.query;
   const apptDate = date || new Date().toISOString().slice(0, 10);
 
-  let sql = `SELECT a.*, d.name AS doctor_name,
+  let sql = `SELECT a.*, d.name AS doctor_name, pcu.uhid AS uhid,
                CASE
                  WHEN a.patient_mobile IS NOT NULL AND a.patient_mobile != ''
                  THEN (SELECT COUNT(*) FROM emr_appointments p
@@ -144,6 +144,7 @@ const listAppointments = async (req, res) => {
                hps.share_code AS share_token_code
              FROM emr_appointments a
              LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id AND d.role = 'doctor'
+             LEFT JOIN patient_clinics pcu ON pcu.patient_id = a.emr_patient_id AND pcu.clinic_id = a.clinic_id
              LEFT JOIN LATERAL (
                SELECT token_expires_at, share_code FROM hip_profile_shares
                WHERE patient_id = a.emr_patient_id AND status = 'linked'
@@ -425,10 +426,12 @@ const getAppointment = async (req, res) => {
        e.next_visit_date, e.next_visit_notes, e.vitals,
        e.lab_investigations, e.lab_results, e.examination_findings,
        e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image, e.custom_sections, e.vaccinations, e.rx_language, e.calc_results,
-       e.template_snapshot_id, e.injections, e.dental_chart, e.ophtho, e.ent
+       e.template_snapshot_id, e.injections, e.dental_chart, e.ophtho, e.ent,
+       pc.uhid AS uhid   -- UHID lives in patient_clinics (per patient per clinic)
      FROM emr_appointments a
      LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
+     LEFT JOIN patient_clinics pc ON pc.patient_id = a.emr_patient_id AND pc.clinic_id = a.clinic_id
      WHERE a.id=$1 AND a.clinic_id=$2`,
     [req.params.id, req.emrUser.clinic_id]
   );

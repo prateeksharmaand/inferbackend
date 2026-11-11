@@ -46,7 +46,11 @@ const listCharts = async (req, res) => {
   const { clinic_id } = req.emrUser;
   try {
     const q = patient_mobile
-      ? `SELECT * FROM diet_charts WHERE clinic_id=$1 AND patient_mobile=$2 AND is_template=FALSE ORDER BY created_at DESC`
+      // Match on the last 10 digits so "+91 98…", "9198…" and "98…" are the same patient
+      ? `SELECT * FROM diet_charts WHERE clinic_id=$1 AND is_template=FALSE
+           AND right(regexp_replace(COALESCE(patient_mobile,''), '\\D', '', 'g'), 10) = right(regexp_replace($2, '\\D', '', 'g'), 10)
+           AND length(regexp_replace($2, '\\D', '', 'g')) >= 10
+         ORDER BY created_at DESC`
       : `SELECT * FROM diet_charts WHERE clinic_id=$1 AND is_template=FALSE ORDER BY created_at DESC`;
     const params = patient_mobile ? [clinic_id, patient_mobile] : [clinic_id];
     const { rows } = await pool.query(q, params);

@@ -857,6 +857,9 @@ function DietChartEditor({ chart: initialChart, patientMobile, doctorId, onSave,
         saved = await api.post('/diet/charts', payload);
       }
       onSave(saved);
+      window.dispatchEvent(new Event('diet-charts:changed'));   // refresh Rx preview / print
+    } catch (e) {
+      window.alert(`Diet chart not saved: ${e.message}`);
     } finally {
       setSaving(false);
     }
@@ -1286,8 +1289,8 @@ export default function DietChartTab({ patientMobile, doctorId, patientContext }
 
   useEffect(() => {
     if (!patientMobile) { setLoading(false); return; }
-    api.get(`/diet/charts?patient_mobile=${patientMobile}`)
-      .then(setCharts).finally(() => setLoading(false));
+    api.get(`/diet/charts?patient_mobile=${encodeURIComponent(patientMobile)}`)
+      .then(setCharts).catch(() => setCharts([])).finally(() => setLoading(false));
   }, [patientMobile]);
 
   function handleNewChart() { setShowNutrTargets(true); }
@@ -1317,6 +1320,7 @@ export default function DietChartTab({ patientMobile, doctorId, patientContext }
     if (!confirm('Delete this diet chart?')) return;
     await api.delete(`/diet/charts/${id}`);
     setCharts(prev => prev.filter(c => c.id !== id));
+    window.dispatchEvent(new Event('diet-charts:changed'));
   }
 
   function handleApplyTemplate(template) {
