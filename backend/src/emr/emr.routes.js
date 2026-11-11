@@ -55,7 +55,12 @@ router.get ('/invite/:token',         staff.getInvitation);
 router.post('/invite/:token/accept',  staff.acceptInvitation);
 
 router.post('/auth/login',            loginLimiter, auth.login);
-router.post('/auth/register-clinic',  auth.registerClinic);
+// Old unverified sign-up is retired: every self-registration goes through email verification
+router.post('/auth/register-clinic', (_req, res) => res.status(410).json({ error: 'Use /auth/signup/start' }));
+const clinicSignup = require('./clinicSignup.controller');
+router.post('/auth/signup/start',  loginLimiter, clinicSignup.start);
+router.post('/auth/signup/resend', loginLimiter, clinicSignup.resend);
+router.post('/auth/signup/verify', loginLimiter, clinicSignup.verify);
 router.post('/auth/lab/login',        labStaff.loginStaff);
 router.post('/auth/forgot-password',  auth.forgotPassword);
 router.post('/auth/reset-password',   auth.resetPassword);

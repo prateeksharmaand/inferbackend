@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
+import ClinicSignup from '../components/ClinicSignup';
 import styles from './Login.module.css';
 
 const FEATURES = [
@@ -25,6 +26,7 @@ export default function Login() {
   const navigate    = useNavigate();
   const [searchParams] = useSearchParams();
   const suspended   = searchParams.get('suspended') === '1';
+  const [showSignup, setShowSignup] = useState(() => searchParams.get('signup') === '1');
 
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
@@ -120,6 +122,29 @@ export default function Login() {
       </div>
     </div>
   );
+
+  if (showSignup) {
+    return (
+      <div className={styles.page}>
+        <LeftPanel />
+        <div className={styles.right}>
+          <div className={styles.card}>
+            <div className={styles.logo}>
+              <div className={styles.logoIcon}>I</div>
+              <div className={styles.logoTextWrap}>
+                <span className={styles.logoText}>Infer Care</span>
+                <span className={styles.logoSub}>Doctor Management</span>
+              </div>
+            </div>
+            <ClinicSignup
+              onBack={() => setShowSignup(false)}
+              onSignedIn={data => { login(data.token, data.user); navigate('/queue'); }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showForgot) {
     return (
@@ -221,6 +246,14 @@ export default function Login() {
           >
             Forgot your password?
           </button>
+
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #e5e7eb', textAlign: 'center', fontSize: 13, color: '#4b5563' }}>
+            New to Infer Care?{' '}
+            <button type="button" onClick={() => setShowSignup(true)}
+              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--color-primary)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              Create your clinic account — 10 days free
+            </button>
+          </div>
 
           <p className={styles.bottomNote}>
             Protected by Infer Care · ABDM compliant · ISO 27001

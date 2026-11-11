@@ -219,4 +219,48 @@ async function sendGoogleReviewRequest({ to, patientName, clinicName, doctorName
   });
 }
 
-module.exports = { sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt, sendStaffInvitation, sendGoogleReviewRequest };
+// ── Clinic sign-up: verification code + welcome ─────────────────────────────
+async function sendSignupCode({ to, name, clinicName, code, minutes }) {
+  await buildMailer().sendMail({
+    from: FROM, to,
+    subject: `${code} is your Infer Care verification code`,
+    text: `Hello ${name},\n\nYour verification code for creating ${clinicName} on Infer Care is ${code}. It expires in ${minutes} minutes.\n\nIf you did not request this, you can ignore this email.`,
+    html: `
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#3A2ED4,#7B6EF6);padding:20px 24px;"><h2 style="color:#fff;margin:0;font-size:19px;">Infer Care</h2></div>
+      <div style="padding:24px;font-size:15px;color:#1e293b;line-height:1.6;">
+        <p style="margin:0 0 12px;">Hello <strong>${esc(name)}</strong>,</p>
+        <p style="margin:0 0 16px;">Use this code to finish creating <strong>${esc(clinicName)}</strong> on Infer Care:</p>
+        <p style="margin:0 0 16px;text-align:center;font-size:32px;font-weight:800;letter-spacing:8px;color:#3A2ED4;">${esc(code)}</p>
+        <p style="margin:0;font-size:13px;color:#64748b;">The code expires in ${minutes} minutes. If you did not request it, ignore this email.</p>
+      </div>
+    </div>`,
+  });
+}
+
+async function sendClinicWelcome({ to, name, clinicName, trialDays }) {
+  const login = `${process.env.APP_URL || 'https://opd.inferapp.online'}/opd/login`;
+  await buildMailer().sendMail({
+    from: FROM, to,
+    subject: `Welcome to Infer Care, ${clinicName}`,
+    text: `Hello ${name},\n\n${clinicName} is ready on Infer Care. Your ${trialDays}-day trial has started. Sign in: ${login}\n\nNeed help? Reply to this email.`,
+    html: `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#3A2ED4,#7B6EF6);padding:20px 24px;"><h2 style="color:#fff;margin:0;font-size:20px;">Welcome to Infer Care</h2></div>
+      <div style="padding:24px;font-size:15px;color:#1e293b;line-height:1.6;">
+        <p style="margin:0 0 12px;">Hello <strong>${esc(name)}</strong>,</p>
+        <p style="margin:0 0 12px;"><strong>${esc(clinicName)}</strong> is ready. Your <strong>${trialDays}-day trial</strong> has started.</p>
+        <p style="margin:0 0 8px;">Good first steps:</p>
+        <ul style="margin:0 0 18px;padding-left:20px;">
+          <li>Add your letterhead in <em>Configure your Pad → Appearance</em></li>
+          <li>Check your services and prices in <em>Settings → Services</em></li>
+          <li>Add patients and start writing prescriptions</li>
+        </ul>
+        <p style="margin:0 0 20px;text-align:center;"><a href="${esc(login)}" style="display:inline-block;background:#5A4BD1;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:8px;">Sign in to Infer Care</a></p>
+        <p style="margin:0;font-size:13px;color:#64748b;">Questions? Reply to this email.</p>
+      </div>
+    </div>`,
+  });
+}
+
+module.exports = { sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt, sendStaffInvitation, sendGoogleReviewRequest, sendSignupCode, sendClinicWelcome };

@@ -404,6 +404,10 @@ async function start() {
       // Inbound appointment reminders — check every 5 minutes
       const cron = require('node-cron');
       cron.schedule('*/5 * * * *', () => sendPendingReminders().catch(() => {}));
+      // Hourly: finished 10-day Base trials continue as the normal Base plan
+      const signup = require('./src/emr/clinicSignup.controller');
+      signup.convertEndedTrials().catch(() => {});
+      cron.schedule('5 * * * *', () => signup.convertEndedTrials().catch(() => {}));
       // 6 PM IST: SMS reminder to patients booked for tomorrow (only when the reminder template is configured)
       cron.schedule('0 18 * * *', () => require('./src/services/patientSms.service').sendTomorrowReminders().catch(() => {}), { timezone: 'Asia/Kolkata' });
       logger.info('Inbound appointment reminder cron started');
