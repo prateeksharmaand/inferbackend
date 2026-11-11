@@ -61,6 +61,30 @@
     .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
     .btn-outline:hover { background: var(--primary-light); }
     .section { padding: 96px 0; }
+    /* Self sign-up */
+    .hero-trust { margin-top: 16px; font-size: 13px; color: rgba(255,255,255,0.82); }
+    .signup-strip { padding: 64px 0; background: var(--bg); border-bottom: 1px solid var(--divider); }
+    .signup-strip-head { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; }
+    .signup-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .signup-step { display: flex; gap: 14px; background: var(--surface); border-radius: var(--radius-xl); padding: 22px; box-shadow: var(--shadow-sm); border: 1px solid rgba(202,196,208,0.35); }
+    .signup-step b { font-size: 16px; }
+    .signup-step p { margin: 4px 0 0; font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+    .signup-step-num { width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; background: linear-gradient(135deg, var(--secondary), var(--primary)); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .signup-url { font-weight: 600; color: var(--primary-dark); white-space: nowrap; }
+    .demo-or { margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.18); display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; color: rgba(255,255,255,0.85); font-size: 14px; }
+    .btn-white-sm { background: #fff; color: var(--primary-dark); padding: 11px 20px; font-size: 14px; box-shadow: 0 6px 20px rgba(20,10,80,0.18); }
+    .btn-white-sm:hover { transform: translateY(-2px); }
+    .mobile-signup-bar { display: none; }
+    @media (max-width: 860px) { .signup-steps { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) {
+      .mobile-signup-bar { display: flex; position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 300; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 12px 18px; border-radius: 16px; color: #fff; background: linear-gradient(135deg, var(--grad-start), var(--primary));
+        box-shadow: 0 10px 30px rgba(58,46,212,0.4); transform: translateY(140%); transition: transform .25s ease; }
+      .mobile-signup-bar.show { transform: translateY(0); }
+      .mobile-signup-bar span { display: flex; flex-direction: column; line-height: 1.3; }
+      .mobile-signup-bar b { font-size: 15px; }
+      .mobile-signup-bar small { font-size: 12px; opacity: .85; }
+    }
     .section-sm { padding: 64px 0; }
     .section-tag { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--primary); text-transform: uppercase; margin-bottom: 12px; }
     .section-tag::before { content: ''; width: 24px; height: 2px; background: linear-gradient(90deg, var(--secondary), var(--primary)); border-radius: 2px; }
@@ -384,9 +408,9 @@
       </nav>
 
       <div class="navbar-actions">
-        <a href="#demo" class="demo-link">Book a Demo</a>
-        <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="launch-btn">
-          Launch EMR
+        <a href="https://opd.inferapp.online/opd/login" class="demo-link">Log in</a>
+        <a href="https://opd.inferapp.online/opd/login?signup=1" class="launch-btn" data-cta="nav-signup">
+          Start free trial
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
@@ -406,7 +430,8 @@
   <a href="#inferassist" class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">InferAssist</a>
   <a href="#testimonials" class="nav-link" onclick="toggleMenu()">Stories</a>
   <a href="#demo" class="nav-link" onclick="toggleMenu()" style="color:var(--primary);font-weight:600;">Book a Demo</a>
-  <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="launch-btn" style="margin-top:8px;justify-content:center;" onclick="toggleMenu()">Launch EMR</a>
+  <a href="https://opd.inferapp.online/opd/login" class="nav-link" onclick="toggleMenu()">Log in</a>
+  <a href="https://opd.inferapp.online/opd/login?signup=1" class="launch-btn" style="margin-top:8px;justify-content:center;" onclick="toggleMenu()" data-cta="mobile-menu-signup">Start free 10-day trial</a>
 </div>
 
 <!-- ════════════════ HERO ════════════════ -->
@@ -429,12 +454,13 @@
           </h1>
           <p class="hero-sub">Dictate naturally in 15+ Indian languages. InferPad listens, transcribes, extracts SOAP notes, and fills every clinical field — so you can focus entirely on the patient.</p>
           <div class="hero-actions">
-            <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-primary">
-              Start Free — No Setup
+            <a href="https://opd.inferapp.online/opd/login?signup=1" class="btn btn-primary" data-cta="hero-signup">
+              Start your free 10-day trial
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
             <a href="#demo" class="btn btn-ghost">Get a Live Tour</a>
           </div>
+          <p class="hero-trust">✓ No card needed &nbsp;·&nbsp; ✓ Set up in 2 minutes &nbsp;·&nbsp; ✓ Your own clinic website included</p>
           <div class="hero-pills">
             <div class="hero-pill">🎙️ AI Scribe</div>
             <div class="hero-pill">🗓️ OPD Queue</div>
@@ -533,6 +559,25 @@
 </div>
 
 <!-- ════════════════ PRODUCTS ════════════════ -->
+<!-- ═══ START FREE: 3 steps ═══ -->
+<section class="signup-strip" id="start-free">
+  <div class="container">
+    <div class="signup-strip-head">
+      <div>
+        <div class="section-tag">Start free</div>
+        <h2 class="section-title">Your clinic live on Infer in 2 minutes</h2>
+        <p class="section-subtitle">Create your account yourself — no demo call, no setup fee, no card. Your 10-day trial starts the moment you verify your email.</p>
+      </div>
+      <a href="https://opd.inferapp.online/opd/login?signup=1" class="btn btn-primary" data-cta="strip-signup">Create clinic account <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    </div>
+    <div class="signup-steps">
+      <div class="signup-step"><span class="signup-step-num">1</span><div><b>Sign up</b><p>Clinic name, your email and mobile. We email you a 6-digit code to verify.</p></div></div>
+      <div class="signup-step"><span class="signup-step-num">2</span><div><b>Ready to use</b><p>Services, queues, staff roles and UHID numbering are set up for you. Add your letterhead in a click.</p></div></div>
+      <div class="signup-step"><span class="signup-step-num">3</span><div><b>See patients</b><p>Write prescriptions, bill, and share your free clinic website — <span class="signup-url">inferapp.online/c/your-clinic</span></p></div></div>
+    </div>
+  </div>
+</section>
+
 <section class="section-sm" id="products" style="background:var(--surface);">
   <div class="container">
     <div style="text-align:center;" class="reveal">
@@ -620,8 +665,8 @@
           </div>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
-          <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="btn btn-primary">
-            Launch InferPad Free
+          <a href="https://opd.inferapp.online/opd/login?signup=1" class="btn btn-primary" data-cta="inferpad-signup">
+            Try InferPad free for 10 days
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>
           <a href="#demo" class="btn btn-outline">Book a Demo</a>
@@ -912,7 +957,7 @@
         <div class="reveal reveal-delay-3" style="margin-top:8px;padding:20px;background:rgba(255,255,255,0.05);border:1px solid rgba(124,58,237,0.3);border-radius:16px;">
           <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:14px;line-height:1.6;">InferAssist is included in <strong style="color:#a78bfa;">Infer Pro</strong> — available inside your OPD as a floating copilot, always one click away.</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <a href="https://opd.inferapp.online/opd/queue" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;">
+            <a href="https://opd.inferapp.online/opd/login?signup=1" data-cta="inferassist-signup" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;">
               Try InferAssist Free
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
@@ -1000,6 +1045,10 @@
             <div><div style="font-size:14px;font-weight:600;color:#fff;">Completely free</div><div style="font-size:12px;color:rgba(255,255,255,0.6);">No credit card, no commitment required</div></div>
           </div>
         </div>
+        <div class="demo-or">
+          <span>Prefer to try it yourself?</span>
+          <a href="https://opd.inferapp.online/opd/login?signup=1" class="btn btn-white-sm" data-cta="demo-signup">Start your free 10-day trial <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+        </div>
       </div>
       <div class="reveal reveal-delay-2">
         <div style="background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:var(--radius-2xl);padding:6px;backdrop-filter:blur(12px);box-shadow:0 24px 80px rgba(0,0,0,0.2);overflow:hidden;">
@@ -1033,6 +1082,7 @@
         <div class="footer-links">
           <a href="index.html" class="footer-link">Infer EMR</a>
           <a href="phr.html" class="footer-link">Infer PHR</a>
+          <a href="https://opd.inferapp.online/opd/login?signup=1" class="footer-link">Start free trial</a>
           <a href="#demo" class="footer-link">Book a Demo</a>
         </div>
       </div>
@@ -1042,7 +1092,7 @@
           <a href="#inferpad" class="footer-link">AI Scribe</a>
           <a href="#emr-features" class="footer-link">Features</a>
           <a href="#testimonials" class="footer-link">Stories</a>
-          <a href="https://opd.inferapp.online/opd/queue" target="_blank" class="footer-link">Launch →</a>
+          <a href="https://opd.inferapp.online/opd/login" class="footer-link">Log in →</a>
         </div>
       </div>
       <div>
@@ -1090,6 +1140,22 @@
     entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
   }, { threshold: 0.12 });
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+<a href="https://opd.inferapp.online/opd/login?signup=1" class="mobile-signup-bar" id="mobileSignupBar" data-cta="mobile-sticky-signup" aria-label="Start your free 10-day trial">
+  <span><b>Start free 10-day trial</b><small>No card · 2-minute setup</small></span>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+</a>
+<script>
+  (function () {
+    var bar = document.getElementById('mobileSignupBar'), hero = document.getElementById('home'), demo = document.getElementById('demo');
+    if (!bar || !hero) return;
+    function onScroll() {
+      var pastHero = hero.getBoundingClientRect().bottom < 0;
+      var inDemo = demo && demo.getBoundingClientRect().top < window.innerHeight && demo.getBoundingClientRect().bottom > 0;
+      bar.classList.toggle('show', pastHero && !inDemo);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  })();
 </script>
 </body>
 </html>
