@@ -33,6 +33,8 @@ deploy_backend() {
 
   log "Backend: building image and restarting api (database keeps running)"
   ssh "$VPS" 'set -e; cd /opt/inferapp
+    # Folder for generated clinic pages (written by the api container user, uid 1001)
+    mkdir -p /opt/sites/inferapp/c && chown 1001:1001 /opt/sites/inferapp/c
     docker compose build api 2>&1 | tail -1
     docker compose up -d api 2>&1 | tail -1
     for i in $(seq 1 40); do
@@ -58,7 +60,8 @@ deploy_opd() {
 
 deploy_static() {
   log "Landing page (web/) and EMR tool (backend/public/emr)"
-  rsync -az --delete "$REPO/web/" "$VPS:/opt/sites/inferapp/"
+  # c/ holds the generated clinic pages — never delete them
+  rsync -az --delete --exclude /c/ "$REPO/web/" "$VPS:/opt/sites/inferapp/"
   rsync -az --delete "$REPO/backend/public/emr/" "$VPS:/opt/sites/inferapp-emr/"
 }
 

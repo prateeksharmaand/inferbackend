@@ -110,6 +110,9 @@ router.use('/wallet', walletRoutes);
 // Clinical Template Builder (templates, clinic/doctor configuration, consultation templates)
 router.use(require('./clinicalTemplates/routes').emrRouter);
 
+// Clinic public website (Settings → Clinic Website)
+router.use(require('./clinicPage/routes'));
+
 // â”€â”€ Clinic ABDM settings (self-service for clinic admins) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get('/clinic-settings/abdm', async (req, res) => {
   const { rows } = await pool.query(
@@ -295,6 +298,7 @@ router.get  ('/receipts',     rec.listReceipts);
 router.post ('/receipts',     rec.createReceipt);
 router.get  ('/receipts/:id', rec.getReceipt);
 router.patch('/receipts/:id', rec.updateReceipt);
+router.delete('/receipts/:id', rec.deleteReceipt);
 
 // Theme Settings
 router.get  ('/settings/theme',  theme.getTheme);
@@ -389,6 +393,32 @@ router.post('/email/prescription', async (req, res) => {
     console.error('[email] prescription route error:', e.message);
     res.status(500).json({ error: e.message });
   }
+});
+
+// POST /api/emr/email/google-review { appointment_id, to?, link? } — email the patient a Google review request
+router.post('/email/google-review', async (req, res) => {
+  const { appointment_id, to, link } = req.body || {};
+  const { rows: [a] } = await pool.query(
+    `SELECT a.patient_name, a.patient_email, c.name AS clinic_name, d.name AS doctor_name, d.google_review_link
+       FROM emr_appointments a
+       JOIN emr_clinics c ON c.id = a.clinic_id
+       LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id
+      WHERE a.id = $1 AND a.clinic_id = $2`, [appointment_id, req.emrUser.clinic_id]);
+  if (!a) return res.status(404).json({ error: 'Appointment not found' });
+  const email = String(to || a.patient_email || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'no_email', message: 'This patient has no valid email address' });
+  const { rows: [me] } = await pool.query(`SELECT google_review_link FROM emr_clinic_staff WHERE id = $1`, [req.emrUser.id]);
+  const reviewLink = [link, me?.google_review_link, a.google_review_link].find(l => /^https:\/\/\S+$/i.test(String(l || '').trim()));
+  if (!reviewLink) return res.status(400).json({ error: 'no_link', message: 'No Google review link is set' });
+  if (to && !a.patient_email) {
+    await pool.query(`UPDATE emr_appointments SET patient_email = $1 WHERE id = $2 AND clinic_id = $3`, [email, appointment_id, req.emrUser.clinic_id]);
+  }
+  try {
+    await mailer.sendGoogleReviewRequest({ to: email, patientName: a.patient_name, clinicName: a.clinic_name, doctorName: a.doctor_name, link: reviewLink.trim() });
+  } catch (e) {
+    return res.status(502).json({ error: 'email_failed', message: `Email could not be sent: ${e.message}` });
+  }
+  res.json({ ok: true, to: email });
 });
 
 router.post('/email/receipt', async (req, res) => {

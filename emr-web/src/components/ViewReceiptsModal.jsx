@@ -112,6 +112,7 @@ export default function ViewReceiptsModal({ appt, receipts: initialReceipts, onC
   const [receipts,     setReceipts]     = useState(initialReceipts || []);
   const [viewReceipt,  setViewReceipt]  = useState(null);
   const [showCreate,   setShowCreate]   = useState(false);
+  const [editReceipt,  setEditReceipt]  = useState(null);
   const [deleting,     setDeleting]     = useState(null);
 
   const reload = async () => {
@@ -130,7 +131,7 @@ export default function ViewReceiptsModal({ appt, receipts: initialReceipts, onC
       const updated = receipts.filter(x => x.id !== r.id);
       setReceipts(updated);
       onReceiptsChange?.(updated);
-    } catch {}
+    } catch (e) { window.alert(`Could not delete the receipt: ${e.message}`); }
     setDeleting(null);
   };
 
@@ -139,6 +140,16 @@ export default function ViewReceiptsModal({ appt, receipts: initialReceipts, onC
       <ReceiptDocumentView
         receipt={viewReceipt} appt={appt} user={user} rxImages={rxImages}
         onClose={() => setViewReceipt(null)}
+      />
+    );
+  }
+
+  if (editReceipt) {
+    return (
+      <CreateReceiptModal
+        appt={appt} user={user} receipt={editReceipt}
+        onClose={() => { setEditReceipt(null); reload(); }}
+        onSaved={() => {}}
       />
     );
   }
@@ -219,7 +230,7 @@ export default function ViewReceiptsModal({ appt, receipts: initialReceipts, onC
                       <button className={styles.actView} onClick={() => setViewReceipt(r)}>View</button>
                       {r.payment_status === 'unbilled' ? (
                         <>
-                          <button className={styles.actEdit} onClick={() => {}}>Edit</button>
+                          <button className={styles.actEdit} onClick={() => setEditReceipt(r)}>Edit</button>
                           <button className={styles.actDelete} onClick={() => handleDelete(r)} disabled={deleting === r.id}>
                             {deleting === r.id ? '…' : 'Delete'}
                           </button>

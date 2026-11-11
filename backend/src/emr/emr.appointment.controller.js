@@ -5,6 +5,7 @@ const abdmSvc     = require('../services/abdm.service');
 const logger      = require('../utils/logger');
 const abdmResolver = require('../services/abdm-clinic-resolver.service');
 const { sendAppointmentConfirmation } = require('./emr.mailer');
+const patientSms = require('../services/patientSms.service');
 const { logActivity } = require('./emr.staff.controller');
 const abdmIntegration = require('../controllers/abdm-registration-integration');
 
@@ -363,6 +364,7 @@ const createAppointment = async (req, res) => {
   }
 
   res.status(201).json(created);
+  patientSms.fire(patientSms.appointmentBooked(created.id));   // SMS confirmation (if template configured)
 };
 
 // PATCH /api/emr/appointments/:id/status  { status }
@@ -407,6 +409,7 @@ const updateStatus = async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ error: 'Appointment not found' });
   res.json(rows[0]);
+  if (status === 'checked_in') patientSms.fire(patientSms.checkedIn(rows[0].id));   // token number by SMS
 
   // Log appointment status change
   if (status) {
@@ -423,7 +426,7 @@ const getAppointment = async (req, res) => {
        e.next_visit_date, e.next_visit_notes, e.vitals,
        e.lab_investigations, e.lab_results, e.examination_findings,
        e.notes, e.refer_to, e.advices, e.procedures, e.canvas_image, e.custom_sections, e.vaccinations, e.rx_language, e.calc_results,
-       e.template_snapshot_id
+       e.template_snapshot_id, e.injections, e.dental_chart, e.ophtho, e.ent
      FROM emr_appointments a
      LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id
      LEFT JOIN emr_encounters e ON e.appointment_id = a.id
@@ -467,7 +470,10 @@ const saveEncounter = async (req, res) => {
     instructions, next_visit_date, next_visit_notes, vitals,
     lab_investigations, lab_results, examination_findings,
     notes, refer_to, advices, procedures, canvas_image, custom_sections, vaccinations, rx_language, calc_results,
+    injections, dental_chart, ophtho, ent,
   } = req.body;
+  // dental chart: object from InferPad, '' when untouched
+  const dentalChart = dental_chart && typeof dental_chart === 'object' ? dental_chart : null;
 
   const appt = await pool.query(
     `SELECT * FROM emr_appointments WHERE id=$1 AND clinic_id=$2`,
@@ -518,11 +524,12 @@ const saveEncounter = async (req, res) => {
   // save is exactly as before.
   const clinicalTemplates = require('./clinicalTemplates/service');
   const client = await pool.connect();
-  let rows, tplPrep = null;
+  let rows, tplPrep = null, firstSave = false;
   try {
     await client.query('BEGIN');
     const { rows: [existingEnc] } = await client.query(
       `SELECT id, template_snapshot_id FROM emr_encounters WHERE appointment_id = $1 FOR UPDATE`, [a.id]);
+    firstSave = !existingEnc;
     tplPrep = await clinicalTemplates.prepareConsultationSave(client, {
       clinicId: a.clinic_id, staffId: req.emrUser.role === 'doctor' ? req.emrUser.id : (a.doctor_id || req.emrUser.id), appointment: a,
       existingSnapshotId: existingEnc?.template_snapshot_id || null, body: req.body || {},
@@ -539,8 +546,8 @@ const saveEncounter = async (req, res) => {
         instructions, next_visit_date, next_visit_notes, vitals, fhir_bundle,
         lab_investigations, lab_results, examination_findings,
         notes, refer_to, advices, procedures, canvas_image, custom_sections, vaccinations, rx_language, calc_results,
-        template_snapshot_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+        template_snapshot_id, injections, dental_chart, ophtho, ent)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
      ON CONFLICT (appointment_id) DO UPDATE SET
        template_snapshot_id = COALESCE(emr_encounters.template_snapshot_id, EXCLUDED.template_snapshot_id),
        chief_complaint      = EXCLUDED.chief_complaint,
@@ -564,6 +571,10 @@ const saveEncounter = async (req, res) => {
        vaccinations         = EXCLUDED.vaccinations,
        rx_language          = EXCLUDED.rx_language,
        calc_results         = EXCLUDED.calc_results,
+       injections           = EXCLUDED.injections,
+       dental_chart         = EXCLUDED.dental_chart,
+       ophtho               = EXCLUDED.ophtho,
+       ent                  = EXCLUDED.ent,
        updated_at           = NOW()
      RETURNING *`,
     [
@@ -588,6 +599,10 @@ const saveEncounter = async (req, res) => {
       rx_language || '',
       JSON.stringify(calc_results || {}),
       tplPrep?.snapshotId || null,
+      JSON.stringify(Array.isArray(injections) ? injections : []),
+      dentalChart ? JSON.stringify(dentalChart) : null,
+      JSON.stringify(ophtho && typeof ophtho === 'object' ? ophtho : {}),
+      JSON.stringify(ent && typeof ent === 'object' ? ent : {}),
     ]
   ));
 
@@ -693,18 +708,35 @@ const saveEncounter = async (req, res) => {
     console.error('[FHIR] encounter push failed:', err.message)
   );
   res.json(tplPrep ? { ...rows[0], template_warnings: tplPrep.warnings, template_errors: tplPrep.errors } : rows[0]);
+  if (firstSave) patientSms.fire(patientSms.visitCompleted(a.id, next_visit_date));   // visit done + follow-up date
 };
 
 // POST /api/emr/appointments/:id/reminder
 const sendReminder = async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, patient_name, patient_mobile, appointment_date, appointment_time
-     FROM emr_appointments WHERE id=$1 AND clinic_id=$2`,
+    `SELECT a.id, a.patient_name, a.patient_mobile, a.appointment_date, a.appointment_time,
+            c.name AS clinic_name, c.phone AS clinic_phone, d.name AS doctor_name
+       FROM emr_appointments a
+       JOIN emr_clinics c ON c.id = a.clinic_id
+       LEFT JOIN emr_clinic_staff d ON d.id = a.doctor_id
+      WHERE a.id=$1 AND a.clinic_id=$2`,
     [req.params.id, req.emrUser.clinic_id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Appointment not found' });
-  // Reminder dispatch (SMS/WhatsApp) would be wired here
-  res.json({ ok: true, message: 'Reminder queued' });
+  const a = rows[0];
+  const digits = String(a.patient_mobile || '').replace(/\D/g, '');
+  if (digits.length < 10) return res.status(400).json({ error: 'This patient has no valid mobile number' });
+  // SMS when the reminder template is approved and configured; otherwise the reminder is sent from
+  // the clinic's own WhatsApp: the app opens this link with the message filled in.
+  if (patientSms.enabled('reminder')) {
+    const r = await patientSms.appointmentReminder(a.id, { manual: true });
+    if (r?.status === 'sent') return res.json({ ok: true, channel: r.channel, message: r.channel === 'whatsapp' ? 'Reminder sent on WhatsApp' : 'Reminder SMS sent' });
+  }
+  const date = new Date(a.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  const time = a.appointment_time ? ` at ${String(a.appointment_time).slice(0, 5)}` : '';
+  const message = `Hello ${a.patient_name}, this is a reminder of your appointment${a.doctor_name ? ` with ${a.doctor_name}` : ''} at ${a.clinic_name} on ${date}${time}.${a.clinic_phone ? ` For any change please call ${a.clinic_phone}.` : ''}`;
+  const phone = digits.length === 10 ? `91${digits}` : digits;
+  res.json({ ok: true, channel: 'whatsapp_link', message, whatsapp_url: `https://wa.me/${phone}?text=${encodeURIComponent(message)}` });
 };
 
 // GET /api/emr/patients/history?mobile=&name=
@@ -747,6 +779,13 @@ const listPatientHistory = async (req, res) => {
            OR (e.refer_to      IS NOT NULL AND TRIM(e.refer_to)          != '')
            OR (e.examination_findings IS NOT NULL AND TRIM(e.examination_findings) != '')
            OR (e.vitals        IS NOT NULL AND e.vitals::text != '{}' AND e.vitals::text != 'null')
+           OR (e.procedures    IS NOT NULL AND e.procedures::text NOT IN ('[]', 'null'))
+           OR (e.injections    IS NOT NULL AND e.injections::text NOT IN ('[]', 'null'))
+           OR (e.ophtho        IS NOT NULL AND e.ophtho::text NOT IN ('{}', 'null'))
+           OR (e.ent           IS NOT NULL AND e.ent::text NOT IN ('{}', 'null'))
+           OR e.dental_chart IS NOT NULL
+           OR (e.next_visit_date IS NOT NULL)
+           OR EXISTS (SELECT 1 FROM consultation_field_values v WHERE v.encounter_id = e.id)
          )
        )
      ORDER BY a.appointment_date DESC, a.created_at DESC

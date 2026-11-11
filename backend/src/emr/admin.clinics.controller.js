@@ -134,6 +134,9 @@ exports.createClinic = async (req, res) => {
       [clinic.id, owner_name || owner_email, owner_email, hash]
     );
 
+    // Staff roles, services, queues, custom attributes and UHID numbering so the clinic is usable at once
+    await require('./clinicDefaults').ensureClinicDefaults(client, clinic.id);
+
     // Subscription
     const { rows: [plan] } = await client.query(
       `SELECT * FROM subscription_plans WHERE key = $1`, [plan_key]
@@ -158,6 +161,8 @@ exports.createClinic = async (req, res) => {
     );
 
     await client.query('COMMIT');
+    // Public clinic page at https://inferapp.online/c/<slug> (never blocks creation)
+    require('./clinicPage/service').publishClinicPage(require('../config/database').pool, clinic.id).catch(() => {});
 
     // Send credentials email (fire-and-forget)
     sendCredentials({

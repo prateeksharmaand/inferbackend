@@ -52,6 +52,7 @@ export function formFromAppointment(data, base = EMPTY_FORM) {
     injections:           data.injections || [],
     dental_chart:         data.dental_chart || '',
     ophtho:               data.ophtho || {},
+    ent:                  data.ent || {},
     custom_sections:      data.custom_sections || [],
     canvasImage:          data.canvas_image || '',
     vaccinations:         data.vaccinations  || {},
@@ -626,7 +627,7 @@ function PostVisitScreen({ form, appt, user, rxImages = {}, rxExtras = {}, onBoo
     { icon: <Calendar   size={20} />, label: 'Book Slot Again',    onClick: onBookAgain,     color: '#0891b2' },
     { icon: <Printer    size={20} />, label: 'Print',              onClick: onPrint,         color: '#059669' },
     { icon: <Download   size={20} />, label: 'Download',           onClick: onDownload,      color: '#7c3aed' },
-    { icon: <CreditCard size={20} />, label: 'Send Payment Link',  onClick: () => {},        color: '#d97706' },
+    // 'Send Payment Link' hidden until a payment gateway (Razorpay) is configured and patient payment links are built
     { icon: <FileText   size={20} />, label: 'Bill Patient',       onClick: onBillPatient,   color: '#dc2626' },
     { icon: <Star       size={20} />, label: 'Send Google Review', onClick: onGoogleReview,  color: '#ca8a04' },
   ];
@@ -1064,6 +1065,7 @@ export default function WriteRx() {
         injections:           form.injections || [],
         dental_chart:         form.dental_chart || '',
         ophtho:               form.ophtho || {},
+        ent:                  form.ent || {},
         custom_sections:      form.custom_sections || [],
         canvas_image:         form.canvasImage || null,
         vaccinations:         form.vaccinations  || {},
@@ -1389,9 +1391,21 @@ export default function WriteRx() {
             onPrint={handlePrint}
             onDownload={handleDownload}
             onSendEmail={handleSendEmail}
-            onGoogleReview={() => {
+            onGoogleReview={async () => {
               const link = user?.google_review_link || rxImages.googleReviewLink;
-              link ? window.open(link, '_blank') : alert('No Google review link set. Add it in Settings → Doctors → Edit your profile.');
+              if (!link) { alert('No Google review link set. Add it in Configure your Pad → Appearance → Google Review Link.'); return; }
+              // Email the patient a review request; ask for an email address if none is on file
+              let to = appt?.patient_email || '';
+              if (!to) {
+                to = window.prompt(`Email address for ${appt?.patient_name || 'the patient'}:`, '') || '';
+                if (!to.trim()) return;
+              }
+              try {
+                const r = await api.post('/email/google-review', { appointment_id: appointmentId, to: to.trim(), link });
+                toast.success(`Google review request emailed to ${r.to}`);
+              } catch (e) {
+                toast.error(e.data?.message || e.message);
+              }
             }}
             onBillPatient={() => setShowReceipt(true)}
             onEndVisit={() => navigate('/queue')}
@@ -1696,7 +1710,7 @@ export default function WriteRx() {
                     lab_investigations: form.lab_investigations, lab_results: form.lab_results,
                     examination_findings: form.examination_findings, notes: form.notes,
                     refer_to: form.refer_to, procedures: form.procedures, injections: form.injections || [],
-                    dental_chart: form.dental_chart || '', ophtho: form.ophtho || {},
+                    dental_chart: form.dental_chart || '', ophtho: form.ophtho || {}, ent: form.ent || {},
                     custom_sections: form.custom_sections || [],
                     canvas_image: form.canvasImage || null, vaccinations: form.vaccinations || {},
                     calc_results: form.calc_results || {}, rx_language: form.rx_language || '',

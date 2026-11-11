@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, LayoutList, FlaskConical, Zap, KeyRound, Palette, ShieldCheck, ClipboardList } from 'lucide-react';
+import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, LayoutList, FlaskConical, Zap, KeyRound, Palette, ShieldCheck, ClipboardList, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import UhidSettings from './settings/UhidSettings';
 import CustomAttributes from './settings/CustomAttributes';
@@ -13,6 +13,7 @@ import ChangePassword from './settings/ChangePassword';
 import ThemeSettings from './settings/ThemeSettings';
 import StaffManagement from './settings/StaffManagement';
 import ClinicalTemplateBuilder from './settings/ClinicalTemplateBuilder';
+import ClinicWebsiteSettings from './settings/ClinicWebsiteSettings';
 import styles from './Settings.module.css';
 
 const ALL_TABS = [
@@ -25,6 +26,7 @@ const ALL_TABS = [
   { key: 'services',     Icon: Stethoscope,    label: 'Services',             adminOnly: false },
   { key: 'inferpad',     Icon: LayoutTemplate, label: 'InferPad',             adminOnly: false },
   { key: 'templates',    Icon: ClipboardList,  label: 'Clinical Templates',   adminOnly: false },
+  { key: 'website',      Icon: Globe,          label: 'Clinic Website',       adminOnly: false },
   { key: 'terms',        Icon: ClipboardList,  label: 'Symptoms & Diagnoses', adminOnly: false },
   { key: 'theme',        Icon: Palette,        label: 'Theme',                adminOnly: false },
   { key: 'password',     Icon: KeyRound,       label: 'Change Password',      adminOnly: false },
@@ -70,6 +72,7 @@ export default function Settings() {
         {tab === 'services'     && <ServicesSettings />}
         {tab === 'inferpad'     && <InferPadSettings />}
         {tab === 'templates'    && <ClinicalTemplateBuilder />}
+        {tab === 'website'      && <ClinicWebsiteSettings />}
         {tab === 'terms'        && <ClinicalTermsSettings />}
         {tab === 'theme'        && <ThemeSettings />}
         {tab === 'password'     && <ChangePassword />}

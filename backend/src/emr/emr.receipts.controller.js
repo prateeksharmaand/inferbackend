@@ -76,6 +76,7 @@ const createReceipt = async (req, res) => {
     ]
   );
   res.status(201).json(rows[0]);
+  require('../services/patientSms.service').fire(require('../services/patientSms.service').paymentReceived(rows[0]));   // payment SMS
 };
 
 // GET /api/emr/receipts/:id
@@ -123,6 +124,22 @@ const updateReceipt = async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ error: 'Receipt not found' });
   res.json(rows[0]);
+  require('../services/patientSms.service').fire(require('../services/patientSms.service').paymentReceived(rows[0]));   // payment SMS
 };
 
-module.exports = { listReceipts, createReceipt, getReceipt, updateReceipt };
+// DELETE /api/emr/receipts/:id — only unbilled receipts can be deleted (settled ones are locked)
+const deleteReceipt = async (req, res) => {
+  const { rows } = await pool.query(
+    `DELETE FROM emr_receipts WHERE id=$1 AND clinic_id=$2 AND COALESCE(payment_status, 'unbilled') = 'unbilled'
+     RETURNING id`,
+    [req.params.id, req.emrUser.clinic_id]
+  );
+  if (!rows.length) {
+    const { rows: [r] } = await pool.query(`SELECT payment_status FROM emr_receipts WHERE id=$1 AND clinic_id=$2`, [req.params.id, req.emrUser.clinic_id]);
+    return r ? res.status(409).json({ error: 'Only unbilled receipts can be deleted' }) : res.status(404).json({ error: 'Receipt not found' });
+  }
+  res.json({ ok: true });
+};
+
+module.exports = { listReceipts, createReceipt, getReceipt, updateReceipt, deleteReceipt };
+

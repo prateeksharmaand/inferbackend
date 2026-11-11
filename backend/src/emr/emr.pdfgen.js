@@ -289,6 +289,14 @@ function generatePrescriptionPDF({ appt, encounter, clinicName, clinicAddress, d
     const procs = safeArr(enc.procedures);
     if (procs.length) { section('Procedures'); doc.text(procs.join(', '), 40, doc.y, { width: W }); doc.y += 10; }
 
+    // Injections
+    const injs = safeArr(enc.injections).filter(x => x && (x.name || typeof x === 'string'));
+    if (injs.length) {
+      section('Injections');
+      doc.text(injs.map(x => typeof x === 'string' ? x : [x.name, x.dose, x.route, x.frequency].filter(Boolean).join(' · ')).join('\n'), 40, doc.y, { width: W });
+      doc.y += 10;
+    }
+
     // Advices / Instructions
     if (enc.advices)      { section('Advice'); doc.text(enc.advices, 40, doc.y, { width: W }); doc.y += 10; }
     if (enc.instructions) { section('Instructions'); doc.text(enc.instructions, 40, doc.y, { width: W }); doc.y += 10; }

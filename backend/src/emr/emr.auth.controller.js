@@ -179,7 +179,10 @@ const registerClinic = async (req, res) => {
        ON CONFLICT (clinic_id, slug) DO NOTHING`,
       [clinic.id]
     );
+    // Services, queues, custom attributes and UHID numbering for the new clinic
+    await require('./clinicDefaults').ensureClinicDefaults(client, clinic.id);
     await client.query('COMMIT');
+    require('./clinicPage/service').publishClinicPage(pool, clinic.id).catch(() => {});
     res.status(201).json({ message: 'Clinic registered', clinic_id: clinic.id });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -380,7 +383,8 @@ const forgotPassword = async (req, res) => {
     [email, role, token, expires]
   );
 
-  const resetUrl = `${process.env.APP_URL || 'https://emr.inferapp.online'}/reset-password?token=${token}&role=${role}`;
+  // The reset page lives in the OPD app (basename /opd), like the invite and login links
+  const resetUrl = `${process.env.APP_URL || 'https://opd.inferapp.online'}/opd/reset-password?token=${token}&role=${role}`;
 
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 465,

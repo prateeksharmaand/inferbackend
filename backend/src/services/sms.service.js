@@ -86,11 +86,8 @@ const sendSMS = async (phoneNumber, message, options = {}) => {
       message: message?.substring(0, 100),
     });
 
-    return {
-      Status: 'Success',
-      Details: 'OTP service ready (general SMS not supported)',
-      Note: 'Use sendOTP() for OTP messages',
-    };
+    // Not sent: report it honestly (patient messages go through patientSms.service.js templates)
+    return { skipped: true, reason: 'Free-text SMS is not supported by the OTP service; use a DLT template' };
   } catch (error) {
     logger.error('Failed to send SMS via 2Factor.in', {
       phone: phoneNumber,

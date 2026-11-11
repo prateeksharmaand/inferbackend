@@ -206,7 +206,11 @@ export default function AppointmentCard({ appt: initialAppt, clinicTags = [], on
   const handleSendReminder = async (e) => {
     e.stopPropagation();
     setReminding(true);
-    try { await api.post(`/appointments/${appt.id}/reminder`, {}); } catch (_) {}
+    try {
+      const r = await api.post(`/appointments/${appt.id}/reminder`, {});
+      if (r?.channel === 'sms' || r?.channel === 'whatsapp') window.alert(`${r.message} to ${appt.patient_name}`);
+      else if (r?.whatsapp_url) window.open(r.whatsapp_url, '_blank', 'noopener');
+    } catch (err) { window.alert(`Reminder not sent: ${err.message}`); }
     setReminding(false);
   };
 

@@ -15,8 +15,9 @@ const STATUS_COLOR = {
 
 function parseTime(t) {
   if (!t) return null;
-  t = t.trim();
-  if (/^\d{1,2}:\d{2}$/.test(t)) {
+  t = String(t).trim();
+  // "14:30" or "14:30:00" (PostgreSQL TIME columns come back with seconds)
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t)) {
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
   }
@@ -30,7 +31,7 @@ function parseTime(t) {
 
 function fmt12(t) {
   if (!t) return '';
-  if (/^\d{1,2}:\d{2}$/.test(t.trim())) {
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(String(t).trim())) {
     let [h, m] = t.split(':').map(Number);
     const mer = h >= 12 ? 'PM' : 'AM';
     if (h > 12) h -= 12;
@@ -52,7 +53,18 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
     ...(board.completed || []),
   ];
 
+  // Where an appointment sits on the day: its booked time, else (walk-ins) its check-in time
+  const minuteOf = a => {
+    const booked = parseTime(a.appointment_time);
+    if (booked !== null) return { min: booked, label: fmt12(a.appointment_time) };
+    const ts = a.checked_in_at || a.created_at;
+    if (!ts) return { min: null, label: '' };
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return { min: null, label: '' };
+    return { min: d.getHours() * 60 + d.getMinutes(), label: `Walk-in ${format(d, 'h:mm a')}` };
+  };
   const startMin   = START_HOUR * 60;
+  const offGrid = allAppts.filter(a => { const { min } = minuteOf(a); return min === null || min < START_HOUR * 60 || min >= END_HOUR * 60; });
   const totalSlots = Math.ceil((END_HOUR - START_HOUR) * 60 / slotDuration);
 
   const year           = selectedDate.getFullYear();
@@ -114,6 +126,20 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
           ))}
         </div>
 
+        {offGrid.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--color-border)', fontSize: 12 }}>
+            <span style={{ fontWeight: 600, color: 'var(--color-text-2)' }}>Not on the schedule ({offGrid.length}):</span>
+            {offGrid.map(a => {
+              const color = STATUS_COLOR[a.status] || '#3b82f6';
+              const { label } = minuteOf(a);
+              return (
+                <span key={a.id} style={{ border: `1px solid ${color}55`, background: color + '18', borderRadius: 999, padding: '3px 10px' }}>
+                  {a.patient_name}{label ? ` · ${label}` : ' · no time'} · <span style={{ color }}>{String(a.status || '').replace('_', ' ')}</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div className={styles.gridScroll}>
           {/* One container that everything is positioned inside */}
           <div className={styles.gridContainer}>
@@ -135,7 +161,7 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
 
             {/* Appointment blocks — positioned over the cell column */}
             {allAppts.map(a => {
-              const min = parseTime(a.appointment_time);
+              const { min, label: timeLabel } = minuteOf(a);
               if (min === null || min < startMin || min >= END_HOUR * 60) return null;
               const slotIdx = Math.floor((min - startMin) / slotDuration);
               const top     = slotIdx * ROW_H + 2;
@@ -156,7 +182,7 @@ export default function CalendarView({ board, slotDuration, setSlotDuration, sel
                 >
                   <span className={styles.apptDot} style={{ background: color }} />
                   <span className={styles.apptName}>{a.patient_name}</span>
-                  <span className={styles.apptTime}>{fmt12(a.appointment_time)}</span>
+                  <span className={styles.apptTime}>{timeLabel}</span>
                   <span className={styles.apptStatus} style={{ color }}>
                     {a.status.replace('_', ' ')}
                   </span>

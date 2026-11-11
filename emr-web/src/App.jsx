@@ -95,6 +95,7 @@ export default function App() {
             <Route path="analytics"          element={<Analytics />} />
             <Route path="payments"           element={<Payments />} />
             <Route path="wallet"             element={<Wallet />} />
+            <Route path="wallet/recharge" element={<Navigate to="/wallet" replace />} />
             <Route path="add-patient-abha"   element={<AddPatientAbhaPage />} />
 
             {/* Doctor: View patient lab results (inside clinic layout) */}

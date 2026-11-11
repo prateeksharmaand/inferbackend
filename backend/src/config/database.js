@@ -916,11 +916,14 @@ async function initializeDatabase() {
 
     await client.query(`
       INSERT INTO wallet_packs (pack_name, credit_quantity, price_inr, gst_amount, total_amount, popularity_rank, is_best_value, enabled)
-      VALUES
+      SELECT v.* FROM (VALUES
         ('Starter Pack', 200, 200.00, 36.00, 236.00, 3, FALSE, TRUE),
         ('Professional Pack', 500, 500.00, 90.00, 590.00, 2, TRUE, TRUE),
         ('Enterprise Pack', 1000, 1000.00, 180.00, 1180.00, 1, FALSE, TRUE)
-      ON CONFLICT DO NOTHING
+      ) AS v(pack_name, credit_quantity, price_inr, gst_amount, total_amount, popularity_rank, is_best_value, enabled)
+      -- wallet_packs has no unique key on pack_name in older databases, so "ON CONFLICT DO NOTHING"
+      -- inserted the 3 packs again on every restart; insert only the missing ones.
+      WHERE NOT EXISTS (SELECT 1 FROM wallet_packs w WHERE w.pack_name = v.pack_name)
     `);
 
     await client.query(`

@@ -1,12 +1,14 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut } from 'lucide-react';
+import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut, Users, Wallet } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 const ALL_NAV = [
   { to: '/queue',    Icon: LayoutList, label: 'Queue',           perm: 'appointments.view' },
+  { to: '/patients', Icon: Users,      label: 'Patients',        perm: 'patients.view' },
   { to: '/voice',    Icon: Mic2,       label: 'Infer Voice AI',  perm: 'consultations.create' },
   { to: '/payments', Icon: CreditCard, label: 'Payments',        perm: 'billing.view' },
+  { to: '/wallet',   Icon: Wallet,     label: 'Wallet',          perm: 'billing.view' },
   { to: '/analytics',Icon: BarChart2,  label: 'Analytics',       perm: 'dashboard.analytics' },
   { to: '/settings', Icon: Settings,   label: 'Settings',        perm: 'settings.clinic' },
 ];

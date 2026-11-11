@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, ChevronDown, CheckCircle, Printer, Download, Send, MessageCircle, Pencil } from 'lucide-react';
 import { api } from '../api/client';
+import toast from 'react-hot-toast';
 import { track } from '../lib/mixpanel';
 import { useAuth } from '../context/AuthContext';
 import { useRxImages } from './RxExtras';
@@ -192,15 +193,44 @@ export function printReceipt(receipt, appt, { download = false } = {}) {
   if (!ok) alert('Pop-up blocked — please allow pop-ups for this site to print.');
 }
 
+// WhatsApp message with the receipt summary, sent from the clinic's own WhatsApp
+function receiptWhatsAppUrl(receipt, appt, user) {
+  const digits = String(receipt.phone || appt?.patient_mobile || '').replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  const phone = digits.length === 10 ? `91${digits}` : digits;
+  const lines = (receipt.items || []).map(i => `• ${i.service_name} × ${i.qty || 1}: ₹${parseFloat(i.total ?? i.amount ?? 0).toFixed(0)}`);
+  const text = [
+    `Hello ${receipt.patient_name || appt?.patient_name || ''},`,
+    `Receipt #${receipt.id} from ${user?.clinic_name || 'the clinic'}:`,
+    ...lines,
+    `Total: ₹${parseFloat(receipt.grand_total || 0).toFixed(0)} (${String(receipt.payment_status || 'unbilled').toUpperCase()}${receipt.paymode ? `, ${receipt.paymode}` : ''})`,
+    'Thank you.',
+  ].join('\n');
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}
+
 function ReceiptCreatedView({ receipt, appt, user, rxImages, onEdit, onNewReceipt, onDone }) {
   const grandTotal = parseFloat(receipt.grand_total || 0);
+  const openWhatsApp = () => {
+    const url = receiptWhatsAppUrl(receipt, appt, user);
+    if (!url) return toast.error('Add a valid phone number to send on WhatsApp');
+    window.open(url, '_blank', 'noopener');
+  };
+  const sendAll = async () => {
+    const email = appt?.patient_email;
+    if (email) {
+      try { await api.post('/email/receipt', { to: email, patient_name: receipt.patient_name || appt?.patient_name, receipt_id: receipt.id }); toast.success(`Receipt emailed to ${email}`); }
+      catch (e) { toast.error(`Email not sent: ${e.message}`); }
+    }
+    openWhatsApp();
+  };
 
   const actions = [
     {
       icon: <Send size={18} />,
       label: 'Send',
-      sub: 'Via SMS and Whatsapp',
-      onClick: () => {},
+      sub: 'By email (if on file) and WhatsApp',
+      onClick: sendAll,
     },
     {
       icon: <Printer size={18} />,
@@ -218,7 +248,7 @@ function ReceiptCreatedView({ receipt, appt, user, rxImages, onEdit, onNewReceip
       icon: <MessageCircle size={18} />,
       label: 'Send on WhatsApp',
       sub: 'Send from your own WhatsApp',
-      onClick: () => {},
+      onClick: openWhatsApp,
     },
   ];
 
@@ -264,19 +294,28 @@ function ReceiptCreatedView({ receipt, appt, user, rxImages, onEdit, onNewReceip
 }
 
 // ── Main modal ────────────────────────────────────────────────────────────────
-export default function CreateReceiptModal({ appt, user: userProp, onClose, onSaved }) {
+export default function CreateReceiptModal({ appt: apptProp, user: userProp, receipt: editReceipt = null, onClose, onSaved }) {
+  // From the Payments page there is no visit yet: the user first picks the patient's visit.
+  const [appt, setAppt] = useState(apptProp || null);
+  const [editingId, setEditingId] = useState(editReceipt?.id || null);   // set → save updates this receipt
+  const [pickQuery, setPickQuery] = useState('');
+  const [pickResults, setPickResults] = useState(null);
+  const [picking, setPicking] = useState(false);
   // Header/footer the same way as the prescription (clinic's server copy first), on every page
   const { user: authUser } = useAuth();
   const user = userProp || authUser;
   const rxImages = useRxImages(user);
-  const [rows,          setRows]          = useState([emptyItem(), emptyItem()]);
-  const [addlDiscount,  setAddlDiscount]  = useState('');
-  const [paymode,       setPaymode]       = useState('Cash');
-  const [amountPaid,    setAmountPaid]    = useState('');
-  const [paymentId,     setPaymentId]     = useState('');
-  const [paymentStatus, setPaymentStatus] = useState('Unbilled');
-  const [remarks,       setRemarks]       = useState('');
-  const [phone,         setPhone]         = useState(appt?.patient_mobile || '');
+  const capStatus = v => PAYMENT_STATUSES.find(x => x.toLowerCase() === String(v || '').toLowerCase()) || 'Unbilled';
+  const [rows,          setRows]          = useState(() => (editReceipt?.items?.length
+    ? editReceipt.items.map(i => ({ ...emptyItem(), ...i, amount: String(i.amount ?? ''), discount: String(i.discount ?? '') }))
+    : [emptyItem(), emptyItem()]));
+  const [addlDiscount,  setAddlDiscount]  = useState(editReceipt?.additional_discount ? String(editReceipt.additional_discount) : '');
+  const [paymode,       setPaymode]       = useState(editReceipt?.paymode || 'Cash');
+  const [amountPaid,    setAmountPaid]    = useState(editReceipt?.amount_paid ? String(editReceipt.amount_paid) : '');
+  const [paymentId,     setPaymentId]     = useState(editReceipt?.payment_id || '');
+  const [paymentStatus, setPaymentStatus] = useState(capStatus(editReceipt?.payment_status));
+  const [remarks,       setRemarks]       = useState(editReceipt?.remarks || '');
+  const [phone,         setPhone]         = useState(editReceipt?.phone || apptProp?.patient_mobile || '');
   const [saving,        setSaving]        = useState(false);
   const [error,         setError]         = useState('');
   const [savedReceipt,  setSavedReceipt]  = useState(null);
@@ -296,19 +335,35 @@ export default function CreateReceiptModal({ appt, user: userProp, onClose, onSa
   const resetForm = () => {
     setRows([emptyItem(), emptyItem()]); setAddlDiscount(''); setPaymode('Cash');
     setAmountPaid(''); setPaymentId(''); setPaymentStatus('Unbilled');
-    setRemarks(''); setPhone(appt?.patient_mobile || ''); setSavedReceipt(null);
+    setRemarks(''); setPhone(appt?.patient_mobile || ''); setSavedReceipt(null); setEditingId(null);
   };
+  // "Edit" after saving: back to the form with the same data; saving updates that receipt
+  const editSaved = () => { setEditingId(savedReceipt?.id || editingId); setSavedReceipt(null); };
+
+  const searchVisits = async () => {
+    const q = pickQuery.trim();
+    if (!q) return;
+    setPicking(true);
+    try {
+      const digits = q.replace(/\D/g, '');
+      const res = await api.get(digits.length >= 10 ? `/patients/history?mobile=${digits.slice(-10)}` : `/patients/history?name=${encodeURIComponent(q)}`);
+      setPickResults(res || []);
+    } catch (e) { setPickResults([]); setError(e.message); }
+    finally { setPicking(false); }
+  };
+  const pickVisit = v => { setAppt(v); setPhone(v.patient_mobile || ''); setPickResults(null); };
 
   const handleSave = async () => {
     const filledRows = computedRows.filter(r => r.service_name.trim());
     if (!filledRows.length) return setError('Add at least one service.');
+    if (!appt && !editingId) return setError('Choose the patient visit for this receipt first.');
     setSaving(true); setError('');
     try {
-      const saved = await api.post('/receipts', {
-        appointment_id:    appt.id,
-        patient_name:      appt.patient_name,
-        uhid:              appt.uhid || null,
-        phone:             phone || appt.patient_mobile || null,
+      const body = {
+        appointment_id:    appt?.id ?? editReceipt?.appointment_id,
+        patient_name:      appt?.patient_name ?? editReceipt?.patient_name,
+        uhid:              appt?.uhid || editReceipt?.uhid || null,
+        phone:             phone || appt?.patient_mobile || null,
         payment_status:    paymentStatus.toLowerCase(),
         items:             filledRows.map(r => ({
           service_id:   r.service_id, service_name: r.service_name,
@@ -319,7 +374,10 @@ export default function CreateReceiptModal({ appt, user: userProp, onClose, onSa
         paymode, payment_id: paymentId || null,
         amount_paid: parseFloat(amountPaid) || 0,
         remarks:     remarks || null,
-      });
+      };
+      // Editing updates the existing receipt instead of creating a duplicate
+      const saved = editingId ? await api.patch(`/receipts/${editingId}`, body) : await api.post('/receipts', body);
+      setEditingId(saved.id);
       setSavedReceipt(saved);
       onSaved?.(saved);
       track('payment_created', {
@@ -332,9 +390,9 @@ export default function CreateReceiptModal({ appt, user: userProp, onClose, onSa
       });
       // Auto-send receipt to patient email if available
       const email = appt?.patient_email;
-      if (email) {
+      if (email && !editReceipt) {
         api.post('/email/receipt', {
-          to: email, patient_name: appt.patient_name, receipt_id: saved.id,
+          to: email, patient_name: appt?.patient_name, receipt_id: saved.id,
         }).catch(() => {});
       }
     } catch (err) { setError(err.message); }
@@ -349,7 +407,7 @@ export default function CreateReceiptModal({ appt, user: userProp, onClose, onSa
       <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
         <div className={`${styles.modal} ${styles.modalWide}`}>
           <div className={styles.header}>
-            <span>Receipt Created</span>
+            <span>{editingId && editReceipt ? 'Receipt Updated' : 'Receipt Created'}</span>
             <button className={styles.closeBtn} onClick={onClose}><X size={16} /></button>
           </div>
           <ReceiptCreatedView
@@ -357,7 +415,7 @@ export default function CreateReceiptModal({ appt, user: userProp, onClose, onSa
             appt={appt}
             user={user}
             rxImages={rxImages}
-            onEdit={resetForm}
+            onEdit={editSaved}
             onNewReceipt={resetForm}
             onDone={onClose}
           />
@@ -371,16 +429,39 @@ export default function CreateReceiptModal({ appt, user: userProp, onClose, onSa
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal}>
         <div className={styles.header}>
-          <span>Create Receipt</span>
+          <span>{editingId ? `Edit Receipt #${editingId}` : 'Create Receipt'}</span>
           <button className={styles.closeBtn} onClick={onClose}><X size={16} /></button>
         </div>
 
         <div className={styles.body}>
+          {!appt && !editingId && (
+            <div className={styles.field} style={{ marginBottom: 12 }}>
+              <label>Find the patient’s visit <span className={styles.req}>*</span></label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className={styles.input} value={pickQuery} placeholder="Mobile number or full name"
+                  onChange={e => setPickQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchVisits()} aria-label="Patient mobile or name" />
+                <button type="button" className={styles.btnSave || undefined} onClick={searchVisits} disabled={picking}
+                  style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {picking ? 'Searching…' : 'Search'}
+                </button>
+              </div>
+              {pickResults && (pickResults.length ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8, maxHeight: 220, overflowY: 'auto' }}>
+                  {pickResults.map(v => (
+                    <button key={v.id} type="button" onClick={() => pickVisit(v)}
+                      style={{ textAlign: 'left', padding: '8px 10px', border: '1px solid var(--color-border)', borderRadius: 8, background: 'var(--color-surface)', cursor: 'pointer', fontSize: 13 }}>
+                      <strong>{v.patient_name}</strong> · {v.patient_mobile || '—'} · {new Date(v.appointment_date).toLocaleDateString('en-IN')}{v.doctor_name ? ` · ${v.doctor_name}` : ''}
+                    </button>
+                  ))}
+                </div>
+              ) : <p style={{ fontSize: 12, color: 'var(--color-text-3)', margin: '6px 0 0' }}>No visits found. Search by the full name or the 10-digit mobile number.</p>)}
+            </div>
+          )}
           {/* Patient info row */}
           <div className={styles.patientRow}>
             <div className={styles.field}>
               <label>Name <span className={styles.req}>*</span></label>
-              <input className={styles.input} value={appt?.patient_name || ''} readOnly />
+              <input className={styles.input} value={appt?.patient_name || editReceipt?.patient_name || ''} readOnly />
             </div>
             <div className={styles.field}>
               <label>UHID</label>

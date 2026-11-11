@@ -40,12 +40,16 @@ services:
       DB_NAME: phr_db
       DB_USER: phr_user
       DB_SSL: "false"
+      CLINIC_PAGES_DIR: /srv/clinic-pages
+      PUBLIC_SITE_URL: https://inferapp.online
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - uploads_data:/app/uploads
       - logs_data:/app/logs
+      # Public clinic pages, served by the inferapp.online site at /c/<slug>
+      - /opt/sites/inferapp/c:/srv/clinic-pages
     mem_limit: 1g
     networks:
       internal: {}

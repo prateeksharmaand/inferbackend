@@ -70,8 +70,8 @@ function sectionIsEmpty(section, payload) {
   const k = section.key;
   let core;
   if (k === 'follow_up') core = payload.next_visit_date || payload.next_visit_notes;
-  else if (k.startsWith('ophtho_')) core = payload.ophtho?.[k.replace(/^ophtho_/, '')] ?? null;
-  else if (k.startsWith('ent_')) core = payload.ent?.[k.replace(/^ent_/, '')] ?? null;
+  else if (k.startsWith('ophtho_')) core = payload.ophtho ?? null;   // flat object of eye readings
+  else if (k.startsWith('ent_')) core = payload.ent ?? null;
   else core = payload[k];
   return isEmpty(core) && !anyCustom;
 }

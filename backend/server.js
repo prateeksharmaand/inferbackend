@@ -385,6 +385,10 @@ async function start() {
     await runMigrations(pool, logger);
     // System clinical templates for every speciality (only missing ones are created)
     await require('./src/emr/clinicalTemplates/seed').ensureSystemTemplates(pool, logger);
+    // Every clinic gets the default roles / services / queues / attributes it is missing
+    await require('./src/emr/clinicDefaults').ensureAllClinicDefaults(pool, logger);
+    // Public clinic pages (https://inferapp.online/c/<slug>): generate now and refresh every 10 min
+    require('./src/emr/clinicPage/service').startClinicPages(pool, logger);
     // Seed superadmin from env vars (no-op if already exists)
     const { seedSuperadmin } = require('./src/emr/admin.auth.controller');
     await seedSuperadmin();
@@ -400,6 +404,8 @@ async function start() {
       // Inbound appointment reminders — check every 5 minutes
       const cron = require('node-cron');
       cron.schedule('*/5 * * * *', () => sendPendingReminders().catch(() => {}));
+      // 6 PM IST: SMS reminder to patients booked for tomorrow (only when the reminder template is configured)
+      cron.schedule('0 18 * * *', () => require('./src/services/patientSms.service').sendTomorrowReminders().catch(() => {}), { timezone: 'Asia/Kolkata' });
       logger.info('Inbound appointment reminder cron started');
     });
   } catch (err) {

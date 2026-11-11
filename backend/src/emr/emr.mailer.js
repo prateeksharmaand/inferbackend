@@ -19,6 +19,8 @@ function buildMailer() {
   });
 }
 
+// HTML-escape text placed into email bodies
+const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const FROM = `"${process.env.FROM_NAME || 'Infer EMR'}" <${process.env.SMTP_FROM || 'support@inferapp.online'}>`;
 
 // ── Appointment confirmation ──────────────────────────────────────────────────
@@ -105,8 +107,8 @@ async function sendReceipt({ to, patientName, clinicName, receiptData }) {
   const dateStr = new Date(created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   const itemRows = items.map(i =>
     `<tr>
-      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${i.description || i.name || ''}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${(+i.amount || 0).toFixed(2)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${esc(i.service_name || i.description || i.name || '')}${(+i.qty || 1) > 1 ? ` × ${+i.qty}` : ''}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${(+(i.total ?? i.amount) || 0).toFixed(2)}</td>
     </tr>`
   ).join('');
 
@@ -185,4 +187,36 @@ async function sendStaffInvitation({ to, name, clinicName, roleName, inviteUrl, 
   });
 }
 
-module.exports = { sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt, sendStaffInvitation };
+// ── Google review request ─────────────────────────────────────────────────────
+async function sendGoogleReviewRequest({ to, patientName, clinicName, doctorName, link }) {
+  const mailer = buildMailer();
+  const name = esc(patientName || 'there');
+  const clinic = esc(clinicName || 'our clinic');
+  const href = esc(link);
+  await mailer.sendMail({
+    from: FROM, to,
+    subject: `How was your visit to ${clinicName || 'our clinic'}?`,
+    text: `Dear ${patientName || 'patient'},\n\nThank you for visiting ${clinicName || 'our clinic'}${doctorName ? ` and consulting ${doctorName}` : ''}. We would be grateful if you could share your experience in a quick Google review:\n${link}\n\nThank you!`,
+    html: `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+      <div style="background:#2563eb;padding:20px 24px;">
+        <h2 style="color:#fff;margin:0;font-size:20px;">${clinic}</h2>
+      </div>
+      <div style="padding:24px;font-size:15px;color:#1e293b;line-height:1.6;">
+        <p style="margin:0 0 12px;">Dear <strong>${name}</strong>,</p>
+        <p style="margin:0 0 12px;">Thank you for visiting ${clinic}${doctorName ? ` and consulting <strong>${esc(doctorName)}</strong>` : ''}.
+          Your feedback helps us care for you better and helps other patients find us.</p>
+        <p style="margin:0 0 20px;">Could you spare a minute to share your experience on Google?</p>
+        <p style="margin:0 0 20px;text-align:center;">
+          <a href="${href}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:8px;">★ Write a Google review</a>
+        </p>
+        <p style="margin:0;font-size:12px;color:#64748b;">If the button does not work, open this link: <a href="${href}">${href}</a></p>
+      </div>
+      <div style="padding:12px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">
+        Sent by ${clinic} via Infer Care
+      </div>
+    </div>`,
+  });
+}
+
+module.exports = { sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt, sendStaffInvitation, sendGoogleReviewRequest };
