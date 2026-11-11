@@ -793,6 +793,20 @@ export default function WriteRx() {
     }).catch(() => {});
   }, [appointmentId]);
 
+  // Doctor switched template in "Configure your Pad" (or settings changed): refresh an unsaved consultation
+  useEffect(() => {
+    const refresh = () => {
+      if (appointmentId === 'new' || clinicalTpl?.source === 'snapshot') return;
+      ctApi.effectiveFor(appointmentId).then(t => {
+        if (!t?.adopted) { setClinicalTpl(null); setForm(f => ({ ...f, clinical_template: null })); return; }
+        setClinicalTpl({ definition: t.definition, template: t.template, source: t.source });
+        setForm(f => (appt?.encounter_id ? { ...f, clinical_template: t.definition } : applyTemplateDefaults(f, t.definition)));
+      }).catch(() => {});
+    };
+    window.addEventListener('clinical-templates:changed', refresh);
+    return () => window.removeEventListener('clinical-templates:changed', refresh);
+  }, [appointmentId, clinicalTpl?.source, appt?.encounter_id]);
+
   // Fetch lab results when appt UHID or mobile is known
   useEffect(() => {
     if (!appt) return;

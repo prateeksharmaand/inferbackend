@@ -524,7 +524,7 @@ const saveEncounter = async (req, res) => {
     const { rows: [existingEnc] } = await client.query(
       `SELECT id, template_snapshot_id FROM emr_encounters WHERE appointment_id = $1 FOR UPDATE`, [a.id]);
     tplPrep = await clinicalTemplates.prepareConsultationSave(client, {
-      clinicId: a.clinic_id, staffId: a.doctor_id || req.emrUser.id, appointment: a,
+      clinicId: a.clinic_id, staffId: req.emrUser.role === 'doctor' ? req.emrUser.id : (a.doctor_id || req.emrUser.id), appointment: a,
       existingSnapshotId: existingEnc?.template_snapshot_id || null, body: req.body || {},
     });
     if (tplPrep?.blocked) {

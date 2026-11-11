@@ -4,6 +4,7 @@ import LetterheadCropper from './LetterheadCropper';
 import { getDisabledSectionsForSpecialty } from './TemplateSelector';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
+import { ctApi } from '../api/clinicalTemplates';
 import SignaturePad from './SignaturePad';
 import {
   INFERPAD_SECTIONS, MANDATORY_FIELDS,
@@ -85,15 +86,44 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
   const [tplSearch,       setTplSearch]       = useState('');
   const [settingTpl,      setSettingTpl]      = useState(null); // id being saved
 
+  // Clinical templates (Settings → Clinical Templates): when the clinic offers any, this tab lists
+  // exactly those and the doctor picks one for their consultations.
+  const [ctOffered, setCtOffered] = useState(null);   // null = clinic hasn't adopted templates
+  const [ctMine,    setCtMine]    = useState(null);   // doctor's chosen template id (null = clinic default)
+
   useEffect(() => {
     Promise.all([
       api.get('/scribe/active-template').catch(() => ({ template: null })),
       api.get('/scribe/templates').catch(() => ({ predefined: [], custom: [] })),
-    ]).then(([active, tpls]) => {
+      ctApi.config().catch(() => null),
+      ctApi.list().catch(() => null),
+    ]).then(([active, tpls, cfg, list]) => {
       setActiveTemplate(active.template || null);
       setAllTemplates([...(tpls.predefined || []), ...(tpls.custom || [])]);
+      if (cfg?.adopted && list?.templates) {
+        const sel = new Map(cfg.selections.map(x => [x.template_id, x]));
+        setCtOffered(list.templates.filter(t => sel.has(t.id)).map(t => ({ ...t, is_default: !!sel.get(t.id)?.is_default })));
+        setCtMine(cfg.my_template_id || null);
+      }
     }).finally(() => setTplLoading(false));
   }, []);
+
+  const handleSetClinicalTemplate = async (tpl) => {
+    setSettingTpl(`ct-${tpl?.id ?? 'default'}`);
+    try {
+      await ctApi.saveDoctorConfig('me', { template_id: tpl ? tpl.id : null });
+      setCtMine(tpl ? tpl.id : null);
+      // Keep the AI scribe + quick-add suggestions on the same speciality (best effort)
+      const chosen = tpl || ctOffered?.find(t => t.is_default);
+      const scribe = allTemplates.find(t => t.is_predefined && t.specialty && t.specialty === (chosen?.scribe_specialty || chosen?.specialty_key));
+      if (scribe) {
+        await api.patch('/scribe/active-template', { template_id: scribe.id, is_predefined: true }).catch(() => {});
+        setActiveTemplate(scribe);
+        localStorage.setItem(`rx_active_tpl_${uid}`, JSON.stringify(scribe));
+      }
+      window.dispatchEvent(new Event('clinical-templates:changed'));
+    } catch {} finally { setSettingTpl(null); }
+  };
 
   const handleSetTemplate = async (tpl) => {
     setSettingTpl(tpl.id);
@@ -264,6 +294,44 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
 
               {tplLoading ? (
                 <div style={{ padding: 16, fontSize: 13, color: '#9ca3af' }}>Loading templates…</div>
+              ) : ctOffered ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    Your clinic offers these templates. The one you set is used for your consultations in InferPad.
+                  </div>
+                  {[{ id: null, name: 'Clinic default', specialty_key: ctOffered.find(t => t.is_default)?.name || '' }, ...ctOffered]
+                    .filter(t => !tplSearch || t.name.toLowerCase().includes(tplSearch.toLowerCase()) || (t.specialty_key || '').toLowerCase().includes(tplSearch.toLowerCase()))
+                    .map(t => {
+                      const isActive = (t.id ?? null) === (ctMine ?? null);
+                      const busy = settingTpl === `ct-${t.id ?? 'default'}`;
+                      return (
+                        <div key={t.id ?? 'default'} style={{
+                          display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10,
+                          border: `1.5px solid ${isActive ? '#7c3aed' : '#e5e7eb'}`, background: isActive ? '#faf5ff' : '#fff',
+                        }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: isActive ? '#ede9fe' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <BookOpen size={14} style={{ color: isActive ? '#7c3aed' : '#94a3b8' }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: isActive ? '#6d28d9' : '#111827' }}>{t.name}</span>
+                              {t.is_default && <span style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', border: '1px solid #c4b5fd', padding: '1px 7px', borderRadius: 20 }}>Clinic default</span>}
+                              {isActive && <span style={{ fontSize: 10, fontWeight: 700, background: '#7c3aed', color: '#fff', padding: '2px 8px', borderRadius: 20 }}>✓ In use</span>}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#7c3aed', textTransform: 'capitalize' }}>
+                              {t.id === null ? (t.specialty_key ? `Currently: ${t.specialty_key}` : '') : t.specialty_key}
+                            </div>
+                          </div>
+                          {!isActive && (
+                            <button type="button" disabled={!!settingTpl} onClick={() => handleSetClinicalTemplate(t.id === null ? null : t)}
+                              style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', minHeight: 32 }}>
+                              {busy ? 'Setting…' : 'Set'}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
               ) : (
                 <>
                   {/* Search */}

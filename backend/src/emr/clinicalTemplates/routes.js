@@ -480,9 +480,10 @@ function clinicRoutes(router) {
     const a = await appointmentOf(req);
     const saved = await svc.encounterTemplate(pool, a.encounter_id, a.template_snapshot_id);
     if (saved) return res.json({ adopted: true, source: 'snapshot', ...saved, template: saved.definition.template || null });
-    const tpl = await svc.chooseTemplate(pool, req.emrUser.clinic_id, a.doctor_id || req.emrUser.id, req.query.template_id);
+    const writer = req.emrUser.role === 'doctor' ? req.emrUser.id : (a.doctor_id || req.emrUser.id);
+    const tpl = await svc.chooseTemplate(pool, req.emrUser.clinic_id, writer, req.query.template_id);
     if (!tpl) return res.json({ adopted: false });
-    const eff = await svc.effective(pool, { clinicId: req.emrUser.clinic_id, staffId: a.doctor_id || req.emrUser.id, tpl });
+    const eff = await svc.effective(pool, { clinicId: req.emrUser.clinic_id, staffId: writer, tpl });
     res.json({ adopted: true, source: 'current', template: { id: tpl.id, name: tpl.name, specialty_key: tpl.specialty_key },
       version_no: eff.versionNo, definition: eff.definition, values: {} });
   }));
