@@ -113,13 +113,23 @@ export default function DrawingCanvas({ initialImage, onSave }) {
     }
   };
 
+  // Every change is saved to the prescription straight away, so print and preview always show
+  // the current drawing (no need to press "Save"). An empty canvas removes the drawing.
+  const commit = (empty = false) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onSave(empty ? '' : canvas.toDataURL('image/png'));
+    setSaved(!empty);
+  };
+
   const onUp = useCallback(() => {
     if (!isDrawing) return;
     setIsDrawing(false);
     const canvas = canvasRef.current;
     const ctx    = canvas.getContext('2d');
     setHistory(h => [...h.slice(-29), ctx.getImageData(0, 0, canvas.width, canvas.height)]);
-  }, [isDrawing]);
+    commit();
+  }, [isDrawing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUndo = () => {
     const canvas = canvasRef.current;
@@ -132,7 +142,7 @@ export default function DrawingCanvas({ initialImage, onSave }) {
       ctx.putImageData(history[history.length - 2], 0, 0);
       setHistory(h => h.slice(0, -1));
     }
-    setSaved(false);
+    commit(history.length <= 1);
   };
 
   const handleClear = () => {
@@ -141,7 +151,7 @@ export default function DrawingCanvas({ initialImage, onSave }) {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setHistory([]);
-    setSaved(false);
+    commit(true);
   };
 
   const handleSave = () => {
@@ -188,6 +198,7 @@ export default function DrawingCanvas({ initialImage, onSave }) {
       ctx.save();
       ctx.globalAlpha = 0.85;
       ctx.drawImage(img, dropX - size / 2, dropY - size / 2, size, size);
+      commit();
       ctx.restore();
       setHistory(h => [...h.slice(-29), ctx.getImageData(0, 0, canvas.width, canvas.height)]);
       setSaved(false);
@@ -274,7 +285,7 @@ export default function DrawingCanvas({ initialImage, onSave }) {
           </button>
           <button className={`${styles.saveBtn} ${saved ? styles.saveBtnDone : ''}`} onClick={handleSave}>
             <Save size={13} strokeWidth={2} />
-            {saved ? 'Saved to Prescription ✓' : 'Save to Prescription'}
+            {saved ? 'Added to prescription ✓' : 'Save to Prescription'}
           </button>
         </div>
       </div>
@@ -332,7 +343,7 @@ export default function DrawingCanvas({ initialImage, onSave }) {
       </div>
 
       <p className={styles.hint}>
-        Draw anatomical diagrams or drag body part stencils from the left panel. Click "Save to Prescription" to embed.
+        Draw anatomical diagrams or drag body part stencils from the left panel. It is added to the prescription automatically and shows in Preview and Print.
       </p>
     </div>
   );
