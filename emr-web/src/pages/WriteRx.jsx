@@ -1427,16 +1427,16 @@ export default function WriteRx() {
               </span>
             )}
           </div>
-          {activeTemplate && (
-            <button
+          {(clinicalTpl?.template?.name || activeTemplate) && (
+            // Label only — the template is changed from "Configure your Pad"
+            <span
               className={styles.btnConfigurePad}
-              style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe' }}
-              onClick={() => setShowConfigure(true)}
-              title={`Active template: ${activeTemplate.name}`}
+              style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe', cursor: 'default' }}
+              title={`Template in use: ${clinicalTpl?.template?.name || activeTemplate.name}`}
             >
-              <span style={{ fontSize: 12 }}>📋</span>
-              {activeTemplate.name}
-            </button>
+              <span style={{ fontSize: 12 }} aria-hidden="true">📋</span>
+              {clinicalTpl?.template?.name || activeTemplate.name}
+            </span>
           )}
           <button className={styles.btnConfigurePad} onClick={() => setShowConfigure(true)} title="Configure your Pad">
             <Settings2 size={15} strokeWidth={1.8} /> Configure your Pad
