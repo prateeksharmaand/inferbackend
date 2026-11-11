@@ -422,45 +422,91 @@ function LabReportsTab({ patientId, uhid }) {
 }
 
 // ── Assessments ───────────────────────────────────────────────────────────────
-function Assessments({ history }) {
-  const entries = history.filter(h => h.symptoms?.length || h.diagnosis?.length || h.examination_findings);
-  if (!entries.length) return <EmptyState text="No assessments recorded." />;
+// ── Assessments: AI assessments taken during visits, exactly as shown to the doctor ──
+const RISK = {
+  low:      { label: 'Low Risk',      color: '#16A34A', bg: '#DCFCE7' },
+  moderate: { label: 'Moderate Risk', color: '#B45309', bg: '#FEF3C7' },
+  high:     { label: 'High Risk',     color: '#C2410C', bg: '#FFEDD5' },
+  critical: { label: 'Critical Risk', color: '#DC2626', bg: '#FEE2E2' },
+};
+function AssessmentList({ title, items, color }) {
+  if (!Array.isArray(items) || !items.length) return null;
+  return (
+    <div className={styles.assessSection}>
+      <span className={styles.assessLbl} style={color ? { color } : undefined}>{title}</span>
+      <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.6, color: 'var(--color-text)' }}>
+        {items.map((x, i) => <li key={i}>{x}</li>)}
+      </ul>
+    </div>
+  );
+}
+function Assessments({ mobile }) {
+  const [rows, setRows] = useState(null);
+  const [openQa, setOpenQa] = useState({});
+  useEffect(() => {
+    if (!mobile) { setRows([]); return; }
+    let alive = true;
+    api.get(`/assessment/history?patient_mobile=${encodeURIComponent(mobile)}`)
+      .then(r => { if (alive) setRows(Array.isArray(r) ? r : []); })
+      .catch(() => { if (alive) setRows([]); });
+    return () => { alive = false; };
+  }, [mobile]);
+  if (rows === null) return <EmptyState text="Loading assessments…" />;
+  if (!rows.length) return <EmptyState text="No AI assessments yet. Run one from the prescription screen (Assessment) during a visit." />;
   return (
     <div className={styles.assessList}>
-      {entries.map(h => (
-        <div key={h.id} className={styles.assessCard}>
-          <div className={styles.assessDate}>{fmtDate(h.appointment_date)}</div>
-          {h.symptoms?.length > 0 && (
-            <div className={styles.assessSection}>
-              <span className={styles.assessLbl}>Symptoms</span>
-              <div className={styles.chipRow}>
-                {h.symptoms.map((s, i) => (
-                  <span key={i} className={styles.symptomChip}>
-                    {typeof s === 'string' ? s : s.name}
-                    {typeof s === 'object' && s.since ? ` · ${s.since}` : ''}
-                  </span>
-                ))}
+      {rows.map(a => {
+        const r = a.result || {};
+        const risk = RISK[a.risk_level || r.risk_level] || RISK.moderate;
+        const score = a.risk_score ?? r.risk_score;
+        const when = new Date(a.created_at);
+        return (
+          <div key={a.id} className={styles.assessCard}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
+              <div className={styles.assessDate}>{a.category} › {a.subcategory}</div>
+              <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>
+                {fmtDate(a.appointment_date || a.created_at)} · {when.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                {a.assessed_by ? ` · ${a.assessed_by}` : ''}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '10px 0', padding: '10px 14px', borderRadius: 10, background: risk.bg, border: `1px solid ${risk.color}55` }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', border: `3px solid ${risk.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 18, color: risk.color, background: '#fff', flexShrink: 0 }}>
+                {score ?? '–'}
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, color: risk.color }}>{risk.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-2)' }}>Risk score {score ?? '–'} / 100</div>
               </div>
             </div>
-          )}
-          {h.diagnosis?.length > 0 && (
-            <div className={styles.assessSection}>
-              <span className={styles.assessLbl}>Diagnosis</span>
-              <div className={styles.chipRow}>
-                {h.diagnosis.map((d, i) => (
-                  <span key={i} className={styles.diagChip}>{d.display || d}</span>
-                ))}
+            {r.summary && <p style={{ margin: '0 0 8px', fontSize: 13, lineHeight: 1.6, color: 'var(--color-text)' }}>{r.summary}</p>}
+            <AssessmentList title="Key findings" items={r.findings} />
+            <AssessmentList title="Warning signs" items={r.warning_signs} color="#DC2626" />
+            <AssessmentList title="Recommendations" items={r.recommendations} />
+            {r.when_to_see_doctor && (
+              <div className={styles.assessSection}>
+                <span className={styles.assessLbl}>When to see a doctor</span>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text)' }}>{r.when_to_see_doctor}</p>
               </div>
-            </div>
-          )}
-          {h.examination_findings && (
-            <div className={styles.assessSection}>
-              <span className={styles.assessLbl}>Examination</span>
-              <p className={styles.assessText}>{h.examination_findings}</p>
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+            {Array.isArray(a.answers) && a.answers.length > 0 && (
+              <div className={styles.assessSection}>
+                <button type="button" onClick={() => setOpenQa(o => ({ ...o, [a.id]: !o[a.id] }))}
+                  style={{ border: 'none', background: 'none', padding: '4px 0', color: 'var(--color-primary)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                  {openQa[a.id] ? 'Hide' : 'Show'} questions &amp; answers ({a.answers.length})
+                </button>
+                {openQa[a.id] && (
+                  <ol style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 12, lineHeight: 1.6, color: 'var(--color-text-2)' }}>
+                    {a.answers.map((qa, i) => (
+                      <li key={i}><strong style={{ color: 'var(--color-text)' }}>{qa.question}</strong><br />{Array.isArray(qa.answer) ? qa.answer.join(', ') : (qa.answer || 'Skipped')}</li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--color-text-3)' }}>AI-generated risk assessment, not a diagnosis.</p>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -879,7 +925,7 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
               <VitalsLabs history={history} />
             )}
             {tab === 'Assessments' && (
-              <Assessments history={history} />
+              <Assessments mobile={appt?.patient_mobile} />
             )}
             {tab === 'Vaccinations' && (
               <VaccinationsTab history={history} appt={appt} />

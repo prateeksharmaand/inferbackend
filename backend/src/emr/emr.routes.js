@@ -93,6 +93,7 @@ router.get   ('/scribe/active-template', proOnlyCheck('scribe'), tpl.getActiveTe
 router.patch ('/scribe/active-template', proOnlyCheck('scribe'), tpl.setActiveTemplate);
 router.post  ('/assessment/questions', proOnlyCheck('ai_assessment'), assessment.generateQuestions);
 router.post  ('/assessment/analyze',   proOnlyCheck('ai_assessment'), assessment.analyzeAnswers);
+router.get   ('/assessment/history',   assessment.listAssessments);   // saved assessments (view only)
 
 router.get   ('/appointments/:id/rx-token', rxpublic.getRxToken);
 

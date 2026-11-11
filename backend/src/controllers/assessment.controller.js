@@ -73,7 +73,7 @@ Return a JSON object with this exact structure:
 }
 
 async function analyzeAnswers(req, res) {
-  const { category, subcategory, answers } = req.body;
+  const { category, subcategory, answers, appointment_id } = req.body;
   if (!category || !subcategory || !Array.isArray(answers) || answers.length === 0) {
     return res.status(400).json({ error: 'category, subcategory, and non-empty answers array are required' });
   }
@@ -108,11 +108,55 @@ Important:
   try {
     const data = await _callGroq(prompt);
     logger.info(`[Assessment] Analyzed ${answers.length} answers for "${category}" > "${subcategory}" | risk: ${data.risk_level} (${data.risk_score})`);
-    res.json({ result: data });
+    // Clinic users: keep the assessment with the appointment so it can be reviewed later
+    let assessmentId = null;
+    if (req.emrUser && appointment_id) {
+      try {
+        const { pool } = require('../config/database');
+        const { rows: [a] } = await pool.query(
+          `SELECT id, emr_patient_id, patient_mobile, patient_name FROM emr_appointments WHERE id = $1 AND clinic_id = $2`,
+          [appointment_id, req.emrUser.clinic_id]);
+        if (a) {
+          const score = Number.isFinite(Number(data?.risk_score)) ? Math.round(Number(data.risk_score)) : null;
+          const { rows: [row] } = await pool.query(
+            `INSERT INTO emr_assessments (clinic_id, appointment_id, patient_id, patient_mobile, patient_name,
+               category, subcategory, answers, result, risk_level, risk_score, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+            [req.emrUser.clinic_id, a.id, a.emr_patient_id, a.patient_mobile, a.patient_name, category, subcategory,
+              JSON.stringify(answers), JSON.stringify(data || {}), data?.risk_level || null, score, req.emrUser.id]);
+          assessmentId = row.id;
+        }
+      } catch (e) {
+        logger.error(`[Assessment] save failed: ${e.message}`);   // the doctor still sees the result
+      }
+    }
+    res.json({ result: data, assessment_id: assessmentId });
   } catch (e) {
     logger.error(`[Assessment] analyzeAnswers error: ${e.message}${e.response ? ` | Groq ${e.response.status}: ${JSON.stringify(e.response.data)}` : ''}`);
     res.status(500).json({ error: 'Failed to analyze answers. Please try again.' });
   }
 }
 
-module.exports = { generateQuestions, analyzeAnswers };
+// GET /api/emr/assessment/history?patient_mobile=…  or  ?appointment_id=…
+async function listAssessments(req, res) {
+  const { pool } = require('../config/database');
+  const { patient_mobile, appointment_id } = req.query;
+  const params = [req.emrUser.clinic_id];
+  let where;
+  if (appointment_id) { params.push(appointment_id); where = 'x.appointment_id = $2'; }
+  else if (String(patient_mobile || '').replace(/\D/g, '').length >= 10) {
+    params.push(patient_mobile);
+    where = `right(regexp_replace(COALESCE(x.patient_mobile, ''), '\\D', '', 'g'), 10) = right(regexp_replace($2, '\\D', '', 'g'), 10)`;
+  } else return res.json([]);
+  const { rows } = await pool.query(
+    `SELECT x.id, x.appointment_id, x.category, x.subcategory, x.answers, x.result, x.risk_level, x.risk_score,
+            x.created_at, s.name AS assessed_by, a.appointment_date
+       FROM emr_assessments x
+       LEFT JOIN emr_clinic_staff s ON s.id = x.created_by
+       LEFT JOIN emr_appointments a ON a.id = x.appointment_id
+      WHERE x.clinic_id = $1 AND ${where}
+      ORDER BY x.created_at DESC LIMIT 100`, params);
+  res.json(rows);
+}
+
+module.exports = { generateQuestions, analyzeAnswers, listAssessments };

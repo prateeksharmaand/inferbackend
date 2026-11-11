@@ -1774,6 +1774,7 @@ export default function WriteRx() {
       {showAssessment && (
         <AssessmentPanel
           set={set} onClose={() => setShowAssessment(false)}
+          appointmentId={appointmentId !== 'new' ? appointmentId : null}
         />
       )}
 

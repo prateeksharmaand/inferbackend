@@ -79,7 +79,7 @@ const RISK_CONFIG = {
 };
 
 export default function AssessmentPanel({
-  onClose, standalone = false, fullscreen = false, set,
+  onClose, standalone = false, fullscreen = false, set, appointmentId = null,
 }) {
   const [phase,     setPhase]     = useState('categories');
   const [category,  setCategory]  = useState(null);
@@ -134,6 +134,7 @@ export default function AssessmentPanel({
     try {
       const data = await api.post('/assessment/analyze', {
         category: category.name, subcategory: subcat, answers: payload,
+        appointment_id: appointmentId || undefined,   // saved with the visit (shown under Assessments)
       });
       setResult(data.result);
       setPhase('result');
@@ -141,7 +142,7 @@ export default function AssessmentPanel({
       setErrMsg('Analysis failed: ' + err.message);
       setPhase('questions');
     }
-  }, [questions, answers, category, subcat]);
+  }, [questions, answers, category, subcat, appointmentId]);
 
   const applyToInferPad = useCallback(() => {
     if (!result || !set) return;
