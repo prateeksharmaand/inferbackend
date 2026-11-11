@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import MedicalHistorySection from './MedicalHistorySection';
 import MedicalRecordsTab from './MedicalRecordsTab';
 import DietChartTab from './DietChartTab';
+import useAbdmEnabled from '../hooks/useAbdmEnabled';
 import styles from './PatientProfilePanel.module.css';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -748,7 +749,9 @@ function CareContextsTab({ patientId }) {
 export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
   const { user } = useAuth();
   const perms    = user?.permissions || {};
-  const canAbdm  = user?.role === 'admin' || user?.role === 'doctor' || !!(perms.all || perms['abdm.abha_linking']);
+  // ABHA & Linking / Care Contexts: only for clinics with ABDM switched on, and users allowed to use it
+  const abdmEnabled = useAbdmEnabled();
+  const canAbdm  = abdmEnabled && (user?.role === 'admin' || user?.role === 'doctor' || !!(perms.all || perms['abdm.abha_linking']));
 
   const [tab,            setTab]            = useState('Past Visits');
   const [history,        setHistory]        = useState([]);

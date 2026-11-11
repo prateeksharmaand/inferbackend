@@ -9,6 +9,7 @@ if (typeof document !== 'undefined' && !document.getElementById('pd-styles')) {
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Link2, FileText, AlertCircle, CheckCircle, Clock, RefreshCw, Plus, Unlink, Send } from 'lucide-react';
 import { api } from '../api/client';
+import useAbdmEnabled from '../hooks/useAbdmEnabled';
 import toast from 'react-hot-toast';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -471,6 +472,9 @@ export default function PatientDetail() {
   const navigate = useNavigate();
   const [patient,    setPatient]    = useState(null);
   const [tab,        setTab]        = useState('Overview');
+  const abdmEnabled = useAbdmEnabled();
+  // ABDM tabs (ABHA, care contexts, consent) only for clinics with ABDM switched on
+  const tabs = abdmEnabled ? TABS : TABS.filter(t => t === 'Overview');
   const [loading,    setLoading]    = useState(true);
   const [consentKey, setConsentKey] = useState(0);
   const [abhaCard,   setAbhaCard]   = useState(null); // base64 data URL
@@ -551,7 +555,7 @@ export default function PatientDetail() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: 24, gap: 0 }}>
-        {TABS.map(t => (
+        {tabs.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -583,9 +587,11 @@ export default function PatientDetail() {
               { label: 'Mobile',        value: patient.mobile || '—' },
               { label: 'Gender',        value: patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender || '—' },
               { label: 'Date of Birth', value: patient.dob ? new Date(patient.dob).toLocaleDateString('en-IN') : '—' },
-              { label: 'ABHA Number',   value: patient.abha_number  || '—' },
-              { label: 'ABHA Address',  value: patient.abha_address || '—' },
-              { label: 'Care Contexts', value: careCtxs.length },
+              ...(abdmEnabled ? [
+                { label: 'ABHA Number',   value: patient.abha_number  || '—' },
+                { label: 'ABHA Address',  value: patient.abha_address || '—' },
+                { label: 'Care Contexts', value: careCtxs.length },
+              ] : []),
             ].map(({ label, value }) => (
               <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px' }}>
                 <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
