@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import styles from './BookAppointmentModal.module.css';
 import MedicalHistorySection from './MedicalHistorySection';
+import useAbdmEnabled from '../hooks/useAbdmEnabled';
 
 const CHANNELS = ['Walk in','Online appointment','Follow up','ABHA','Doctor','Patient requested','Staff','Offline'];
 
@@ -19,6 +20,8 @@ const VISIT_TYPE_RULES = {
 };
 
 export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCreated, registerOnly = false, visitId = null, visitType = null }) {
+  const abdmEnabled = useAbdmEnabled();
+  const channels = abdmEnabled ? CHANNELS : CHANNELS.filter(c => c !== 'ABHA');
   const [queues,       setQueues]       = useState([]);
   const [doctors,      setDoctors]      = useState([]);
   const [saving,         setSaving]         = useState(false);
@@ -94,7 +97,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
           phoneNumber: form.patient_mobile,
           dob: form.patient_dob,
           gender: form.patient_gender,
-          abhaNumber: form.patient_abha || undefined,
+          abhaNumber: (abdmEnabled && form.patient_abha) || undefined,
         });
         patientId = patientRes.patientId || patientRes.patient?.id;
 
@@ -221,10 +224,12 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
                 <option value="O">Other</option>
               </select>
             </div>
-            <div className={styles.field}>
-              <label>ABHA ID</label>
-              <input value={form.patient_abha} onChange={e => set('patient_abha', e.target.value)} placeholder="12-3456-7890-1234" />
-            </div>
+            {abdmEnabled && (
+              <div className={styles.field}>
+                <label>ABHA ID</label>
+                <input value={form.patient_abha} onChange={e => set('patient_abha', e.target.value)} placeholder="12-3456-7890-1234" />
+              </div>
+            )}
             <div className={styles.field}>
               <label>Email Address <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>(for appointment & prescription)</span></label>
               <input type="email" value={form.patient_email} onChange={e => set('patient_email', e.target.value)} placeholder="patient@email.com" />
@@ -270,7 +275,7 @@ export default function BookAppointmentModal({ mode, onClose, prefill = {}, onCr
             <div className={styles.field}>
               <label>Channel</label>
               <select value={form.channel} onChange={e => set('channel', e.target.value)}>
-                {CHANNELS.map(c => <option key={c} value={c.toLowerCase().replace(/ /g,'_')}>{c}</option>)}
+                {channels.map(c => <option key={c} value={c.toLowerCase().replace(/ /g,'_')}>{c}</option>)}
               </select>
             </div>
             <div className={styles.field}>

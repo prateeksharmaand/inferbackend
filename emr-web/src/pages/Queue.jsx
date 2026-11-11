@@ -11,6 +11,7 @@ import PatientProfilePanel from '../components/PatientProfilePanel';
 import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
 import DocAssistAI from '../components/DocAssistAI';
+import useAbdmEnabled from '../hooks/useAbdmEnabled';
 import styles from './Queue.module.css';
 
 const STATUS_TABS = ['Booked', 'Follow Ups', 'Others'];
@@ -108,6 +109,7 @@ function sortAppts(list, sort) {
 
 export default function Queue() {
   const navigate = useNavigate();
+  const abdmEnabled = useAbdmEnabled();
   const { queueDate, setQueueDate } = useQueueDate();
   const [queues,       setQueues]       = useState([]);
   const [activeQueue,  setActiveQueue]  = useState(null);
@@ -316,12 +318,14 @@ export default function Queue() {
               </button>
             </div>
 
-            <button
-              onClick={() => navigate('/add-patient-abha')}
-              style={{ padding: '6px 14px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-            >
-              <Plus size={13} /> Add Patient via ABHA
-            </button>
+            {abdmEnabled && (
+              <button
+                onClick={() => navigate('/add-patient-abha')}
+                style={{ padding: '6px 14px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+              >
+                <Plus size={13} /> Add Patient via ABHA
+              </button>
+            )}
           </div>
 
           {/* Service Type Filter Strip */}

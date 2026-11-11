@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import useAbdmEnabled from '../hooks/useAbdmEnabled';
 import styles from './Patients.module.css';
 
 // ── Facility QR Modal ─────────────────────────────────────────────────────────
@@ -129,7 +130,8 @@ function FacilityQrModal({ onClose }) {
 export default function Patients() {
   const { user } = useAuth();
   const perms   = user?.permissions || {};
-  const canAbdm = user?.role === 'admin' || user?.role === 'doctor' || !!(perms.all || perms['abdm.abha_linking']);
+  const abdmEnabled = useAbdmEnabled();
+  const canAbdm = abdmEnabled && (user?.role === 'admin' || user?.role === 'doctor' || !!(perms.all || perms['abdm.abha_linking']));
 
   const [patients,     setPatients]     = useState([]);
   const [search,       setSearch]       = useState('');
@@ -207,8 +209,8 @@ export default function Patients() {
         {filtered.length === 0 && <p className={styles.empty}>No patients found</p>}
       </div>
 
-      {/* Facility QR FAB — above ABHA QR */}
-      <button
+      {/* Facility QR FAB — above ABHA QR (ABDM clinics only) */}
+      {abdmEnabled && <button
         className={styles.fab}
         onClick={() => setShowFacQr(true)}
         title="Show ABDM Facility QR for patient profile sharing"
@@ -216,7 +218,7 @@ export default function Patients() {
       >
         <QrCode size={22} />
         <span>Facility QR</span>
-      </button>
+      </button>}
 
       {/* ABHA QR scan FAB — only for users with ABDM permission */}
       {canAbdm && (

@@ -7,6 +7,7 @@ import { Search, X, ChevronLeft, ChevronRight, Building2, Plus } from 'lucide-re
 import BookAppointmentModal from './BookAppointmentModal';
 import BookSlotModal from './BookSlotModal';
 import { CreditsBadge } from './CreditsBadge';
+import useAbdmEnabled from '../hooks/useAbdmEnabled';
 import styles from './TopBar.module.css';
 
 function formatDateLabel(d) {
@@ -27,6 +28,7 @@ function getAge(dob) {
 
 export default function TopBar() {
   const { user } = useAuth();
+  const abdmEnabled = useAbdmEnabled();
   const { queueDate, prevDay, nextDay } = useQueueDate();
   const navigate = useNavigate();
   const [showBook,     setShowBook]     = useState(false);
@@ -234,7 +236,7 @@ export default function TopBar() {
                       {searchMode === 'checkin' ? 'Check-In' : 'Manual'}
                     </span>
                   </li>
-                  {searchMode !== 'checkin' && (
+                  {searchMode !== 'checkin' && abdmEnabled && (
                     <li className={styles.suggestion} onClick={() => openWithName(trimmed, 'abha')}>
                       <span className={styles.suggIcon}>🔗</span>
                       <div className={styles.suggText}>
