@@ -20,6 +20,22 @@ const SCREEN_NAMES = [
 ];
 const screenName = path => (SCREEN_NAMES.find(([re]) => re.test(path)) || [null, 'Report'])[1];
 
+function formatDateLabel(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const base = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+  if (d.toDateString() === today.toDateString())     return `Tdy, ${base}`;
+  if (d.toDateString() === tomorrow.toDateString())  return `Tmrw, ${base}`;
+  if (d.toDateString() === yesterday.toDateString()) return `Yest, ${base}`;
+  return base;
+}
+
+function getAge(dob) {
+  if (!dob) return null;
+  return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+}
+
 export default function TopBar({ contentRef }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
