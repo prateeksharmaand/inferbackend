@@ -844,11 +844,11 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
         })
         .catch(() => {});
     }
-  }, [appt.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [appt.id, appt.patient_mobile, appt.emr_patient_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveMedHistory = async () => {
-    setSavingMH(true);
     if (!contextApptId) return;
+    setSavingMH(true);
     try { await api.patch(`/appointments/${contextApptId}/status`, { medical_history: medHistory }); }
     catch (_) {}
     setSavingMH(false);

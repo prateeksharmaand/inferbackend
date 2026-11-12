@@ -30,7 +30,7 @@ const listReceipts = async (req, res) => {
   let sql = `SELECT * FROM emr_receipts WHERE clinic_id=$1`;
   const params = [req.emrUser.clinic_id];
   if (appointment_id) { sql += ` AND appointment_id=$${params.length+1}`; params.push(appointment_id); }
-  if (phone)          { sql += ` AND phone=$${params.length+1}`;          params.push(phone); }
+  if (phone)          { sql += ` AND right(regexp_replace(COALESCE(phone, ''), '\\D', '', 'g'), 10) = right(regexp_replace($${params.length+1}, '\\D', '', 'g'), 10)`; params.push(phone); }   // last 10 digits
   if (from)           { sql += ` AND created_at::date >= $${params.length+1}`; params.push(from); }
   if (to)             { sql += ` AND created_at::date <= $${params.length+1}`; params.push(to); }
   sql += ` ORDER BY created_at DESC`;

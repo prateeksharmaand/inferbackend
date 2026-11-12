@@ -747,7 +747,10 @@ const listPatientHistory = async (req, res) => {
   const cid = req.emrUser.clinic_id;
   if (!mobile && !name) return res.json([]);
 
-  const condition = mobile ? `a.patient_mobile = $2` : `LOWER(a.patient_name) = LOWER($2)`;
+  // Mobile: match the last 10 digits, so '+91 98…', '9198…' and '98…' are the same patient
+  const condition = mobile
+    ? `right(regexp_replace(COALESCE(a.patient_mobile, ''), '\\D', '', 'g'), 10) = right(regexp_replace($2, '\\D', '', 'g'), 10)`
+    : `LOWER(a.patient_name) = LOWER($2)`;
   const param     = mobile || name;
 
   const { rows } = await pool.query(
