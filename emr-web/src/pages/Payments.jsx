@@ -8,7 +8,13 @@ import styles from './Payments.module.css';
 
 const PAYMODES  = ['All', 'Cash', 'UPI', 'Card', 'Net Banking', 'Cheque', 'Other'];
 const STATUSES  = ['All', 'Paid', 'Partial', 'Unbilled', 'Due'];
-const DATE_OPTS = ['Today', 'Yesterday', 'This Week', 'This Month', 'Custom'];
+const DATE_OPTS = ['Today', 'Yesterday', 'This Week', 'This Month', 'All Time', 'Custom'];
+
+// Receipts store statuses in lower case ('paid'); show / compare them as 'Paid'
+const normStatus = s => STATUSES.find(x => x.toLowerCase() === String(s || 'unbilled').toLowerCase()) || 'Unbilled';
+// Local (clinic) calendar date — toISOString() is UTC and shifts IST receipts before 5:30 AM
+const pad2 = n => String(n).padStart(2, '0');
+const localYmd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -20,7 +26,7 @@ function fmtCurrency(n) {
 }
 function getDateRange(preset) {
   const today = new Date();
-  const ymd = (d) => d.toISOString().slice(0, 10);
+  const ymd = localYmd;
   if (preset === 'Today')      return { from: ymd(today),             to: ymd(today) };
   if (preset === 'Yesterday')  { const y = new Date(today); y.setDate(y.getDate()-1); return { from: ymd(y), to: ymd(y) }; }
   if (preset === 'This Week')  { const s = new Date(today); s.setDate(s.getDate() - s.getDay()); return { from: ymd(s), to: ymd(today) }; }
@@ -29,6 +35,7 @@ function getDateRange(preset) {
 }
 
 function StatusBadge({ status }) {
+  status = normStatus(status);
   const map = {
     Paid:     { bg: '#dcfce7', color: '#16a34a' },
     Partial:  { bg: '#fef9c3', color: '#a16207' },
@@ -50,7 +57,7 @@ export default function Payments() {
   const [search,      setSearch]      = useState('');
   const [paymode,     setPaymode]     = useState('All');
   const [statusFlt,   setStatusFlt]   = useState('All');
-  const [datePreset,  setDatePreset]  = useState('Today');
+  const [datePreset,  setDatePreset]  = useState('This Month');
   const [customFrom,  setCustomFrom]  = useState('');
   const [customTo,    setCustomTo]    = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -95,9 +102,9 @@ export default function Payments() {
       if (!(r.patient_name?.toLowerCase().includes(q) || r.phone?.includes(q) || r.uhid?.toLowerCase().includes(q))) return false;
     }
     if (paymode !== 'All' && r.paymode !== paymode) return false;
-    if (statusFlt !== 'All' && r.payment_status !== statusFlt) return false;
+    if (statusFlt !== 'All' && normStatus(r.payment_status) !== statusFlt) return false;
     if (dateRange?.from && r.created_at) {
-      const d = r.created_at.slice(0, 10);
+      const d = localYmd(new Date(r.created_at));
       if (d < dateRange.from || d > dateRange.to) return false;
     }
     return true;
@@ -105,9 +112,9 @@ export default function Payments() {
 
   // Summary stats
   const total          = filtered.reduce((s, r) => s + (parseFloat(r.grand_total) || 0), 0);
-  const paid           = filtered.filter(r => r.payment_status === 'Paid').reduce((s, r) => s + (parseFloat(r.grand_total) || 0), 0);
-  const pending        = filtered.filter(r => ['Due','Partial'].includes(r.payment_status)).reduce((s, r) => s + (parseFloat(r.grand_total) || 0), 0);
-  const unbilledCount  = filtered.filter(r => r.payment_status === 'Unbilled').length;
+  const paid           = filtered.filter(r => normStatus(r.payment_status) === 'Paid').reduce((s, r) => s + (parseFloat(r.grand_total) || 0), 0);
+  const pending        = filtered.filter(r => ['Due','Partial'].includes(normStatus(r.payment_status))).reduce((s, r) => s + (parseFloat(r.grand_total) || 0), 0);
+  const unbilledCount  = filtered.filter(r => normStatus(r.payment_status) === 'Unbilled').length;
 
   // CSV export
   const downloadCSV = () => {
@@ -115,7 +122,7 @@ export default function Payments() {
     const rows = filtered.map((r, i) => [
       i + 1, fmtDate(r.created_at), r.patient_name || '', r.uhid || '', r.phone || '',
       (r.items || []).map(it => it.service_name).join('; '),
-      r.grand_total || 0, r.paymode || '', r.payment_status || '',
+      r.grand_total || 0, r.paymode || '', normStatus(r.payment_status),
     ]);
     const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
