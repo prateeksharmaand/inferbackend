@@ -2,12 +2,13 @@
  * Lab Portal - OpenELIS-inspired redesign
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard, Plus, Edit, User, AlertTriangle, FlaskConical,
   FileBarChart, Upload, ClipboardList, GitBranch, BarChart2,
-  BookOpen, Bell, ScrollText, TrendingUp, LogOut, ChevronDown, ChevronRight,
+  BookOpen, Bell, ScrollText, TrendingUp, LogOut, ChevronDown, ChevronRight, Printer, Download,
 } from 'lucide-react';
+import { printScreen, exportScreenTables } from '../../utils/screenExport';
 
 import styles from './LabPortal.module.css';
 import { DashboardTab } from './DashboardTab';
@@ -41,6 +42,8 @@ export function LabPortal() {
   const userInitial = (userEmail[0] || 'L').toUpperCase();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const contentRef = useRef(null);
+  const [toolMsg, setToolMsg] = useState('');
   const [facilityName, setFacilityName] = useState('Loading...');
   const [addSamplePatient, setAddSamplePatient] = useState(null);
   const [expandedMenus, setExpandedMenus] = useState({ reports: false, analytics: false });
@@ -106,6 +109,20 @@ export function LabPortal() {
   const baseTab = activeTab.includes(':') ? activeTab.split(':')[0] : activeTab;
   const subSection = activeTab.includes(':') ? activeTab.split(':')[1] : null;
   const currentNavItem = navItems.find((n) => n.id === baseTab) || navItems[0];
+
+  // Print / Export act on whatever the current screen shows
+  const flash = (m) => { setToolMsg(m); setTimeout(() => setToolMsg(''), 3500); };
+  const screenName = () => {
+    const sub = subSection && currentNavItem.sub?.find((x) => x.id.split(":")[1] === subSection)?.label;
+    return sub ? `${currentNavItem.label} – ${sub}` : currentNavItem.label;
+  };
+  const handlePrint = () => {
+    if (!printScreen(contentRef.current, { title: screenName(), subtitle: facilityName })) flash('Allow pop-ups for this site to print');
+  };
+  const handleExport = () => {
+    const n = exportScreenTables(contentRef.current, `${facilityName || 'lab'} ${screenName()}`);
+    flash(n ? `Exported ${n} table${n > 1 ? 's' : ''}` : 'No table on this screen to export — use Print instead');
+  };
 
   return (
     <div className={styles.shell}>
@@ -199,6 +216,13 @@ export function LabPortal() {
             <div className={styles.topbarFacility}>{facilityName}</div>
           </div>
           <div className={styles.topbarRight}>
+            {toolMsg && <span className={styles.toolMsg} role="status">{toolMsg}</span>}
+            <button type="button" className={styles.toolBtn} onClick={handlePrint} title="Print this screen">
+              <Printer size={14} /> Print
+            </button>
+            <button type="button" className={styles.toolBtn} onClick={handleExport} title="Download this screen's tables as an Excel file">
+              <Download size={14} /> Export
+            </button>
             <div className={styles.userChip}>
               <div className={styles.userAvatar}>{userInitial}</div>
               <span>{userEmail}</span>
@@ -208,7 +232,7 @@ export function LabPortal() {
         </header>
 
         {/* Tab content */}
-        <main className={styles.content}>
+        <main className={styles.content} ref={contentRef}>
           {baseTab === 'dashboard'      && <DashboardTab labId={labId} styles={styles} />}
           {baseTab === 'add-sample'     && <AddSampleTab labId={labId} styles={styles} prefillPatient={addSamplePatient} onPrefillUsed={() => setAddSamplePatient(null)} />}
           {baseTab === 'edit-sample'    && <EditSampleTab labId={labId} styles={styles} />}
