@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut, Users, Wallet } from 'lucide-react';
+import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut, Users, Wallet, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 const ALL_NAV = [
@@ -30,15 +31,29 @@ export default function Sidebar() {
 
   const nav = ALL_NAV.filter(item => hasAccess(user, item.perm));
 
+  // Slide open / closed; remembered per browser. --sidebar-w keeps fixed panels aligned with it.
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem('sidebar_open') === '1'; } catch { return false; } });
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-w', open ? '220px' : '64px');
+    try { localStorage.setItem('sidebar_open', open ? '1' : '0'); } catch { /* private mode */ }
+  }, [open]);
+
   return (
-    <aside className={styles.sidebar}>
+    <aside className={`${styles.sidebar} ${open ? styles.open : ''}`} aria-label="Main navigation">
       <div className={styles.logo}>
-        <div className={styles.logoIcon}>I</div>
-        <div className={styles.logoTextWrap}>
-          <span className={styles.logoName}>Infer Care</span>
-          <span className={styles.logoSub}>Doctor Management</span>
-        </div>
+        <div className={styles.logoIcon} aria-hidden="true">I</div>
+        {open && (
+          <div className={styles.logoTextWrap}>
+            <span className={styles.logoName}>Infer Care</span>
+            <span className={styles.logoSub}>Doctor Management</span>
+          </div>
+        )}
       </div>
+
+      <button type="button" className={styles.toggle} onClick={() => setOpen(o => !o)}
+        aria-expanded={open} aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'} title={open ? 'Collapse' : 'Expand'}>
+        {open ? <ChevronsLeft size={16} /> : <ChevronsRight size={16} />}
+      </button>
 
       <nav className={styles.nav}>
         {nav.map(({ to, Icon, label }) => (
@@ -54,11 +69,19 @@ export default function Sidebar() {
       </nav>
 
       <div className={styles.bottom}>
-        <button className={styles.avatar} title={`${user?.name} — Logout`} onClick={handleLogout}>
-          {user?.name?.[0]?.toUpperCase() ?? 'U'}
-        </button>
-        <button className={styles.logoutBtn} onClick={handleLogout} title="Logout">
-          <LogOut size={15} strokeWidth={1.8} />
+        <div className={styles.userRow}>
+          <div className={styles.avatar} title={user?.name} aria-hidden="true">
+            {user?.name?.[0]?.toUpperCase() ?? 'U'}
+          </div>
+          {open && (
+            <div className={styles.userText}>
+              <span className={styles.userName}>{user?.name}</span>
+              <span className={styles.userRole}>{user?.role}</span>
+            </div>
+          )}
+        </div>
+        <button className={styles.logoutBtn} onClick={handleLogout} title="Logout" aria-label="Logout">
+          <LogOut size={15} strokeWidth={1.8} />{open && <span>Logout</span>}
         </button>
       </div>
     </aside>

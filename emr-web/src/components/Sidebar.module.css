@@ -1,8 +1,9 @@
 .sidebar {
-  width: var(--sidebar-w); background: var(--color-sidebar); display: flex;
+  width: 64px; background: var(--color-sidebar); display: flex;
   flex-direction: column; align-items: center; padding: 12px 0;
-  flex-shrink: 0; z-index: 100;
+  flex-shrink: 0; z-index: 100; transition: width .2s ease; overflow: hidden;
 }
+.sidebar.open { width: 220px; align-items: stretch; }
 .logo {
   margin-bottom: 16px; display: flex; flex-direction: column;
   align-items: center; gap: 6px; padding: 0 8px;
@@ -44,3 +45,28 @@
   transition: all .15s;
 }
 .logoutBtn:hover { color: #ef4444; background: rgba(239,68,68,.1); }
+
+/* ── Slide open / closed ── */
+.toggle {
+  width: 32px; height: 28px; margin: 0 auto 12px; border: none; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,.06); color: #94a3b8; display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s; flex-shrink: 0;
+}
+.toggle:hover { background: var(--color-sidebar-hover); color: #fff; }
+.toggle:focus-visible, .navItem:focus-visible, .logoutBtn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+.open .toggle { margin: 0 12px 12px auto; }
+.open .logo { flex-direction: row; align-items: center; gap: 10px; padding: 0 14px; }
+.open .logoTextWrap { align-items: flex-start; min-width: 0; }
+.open .logoName { font-size: 15px; white-space: nowrap; }
+.open .logoSub { font-size: 11px; white-space: nowrap; }
+.open .nav { padding: 0 10px; }
+.open .navItem { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 10px 12px; text-align: left; }
+.open .navLabel { font-size: 13px; letter-spacing: 0; white-space: nowrap; }
+.userRow { display: flex; align-items: center; gap: 10px; }
+.avatar { cursor: default; }
+.userText { display: flex; flex-direction: column; min-width: 0; }
+.userName { font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.userRole { font-size: 11px; color: #94a3b8; text-transform: capitalize; }
+.open .bottom { align-items: stretch; padding: 0 14px 4px; }
+.logoutBtn { gap: 8px; font-size: 13px; }
+.open .logoutBtn { justify-content: flex-start; padding: 8px; }
