@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar      from './Sidebar';
 import TopBar       from './TopBar';
@@ -14,6 +14,7 @@ export default function Layout() {
   const hideBanner   = pathname.startsWith('/rx/') || onSettings;
 
   const [limitEvent, setLimitEvent] = useState(null);
+  const contentRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => setLimitEvent(e.detail);
@@ -27,8 +28,8 @@ export default function Layout() {
       <div className={styles.main}>
         {!hideBanner && <Banner />}
         {!hideBanner && <InfoStrip />}
-        {!hideTopBar && <TopBar />}
-        <div className={styles.content}>
+        {!hideTopBar && <TopBar contentRef={contentRef} />}
+        <div className={styles.content} ref={contentRef}>
           <Outlet />
         </div>
       </div>

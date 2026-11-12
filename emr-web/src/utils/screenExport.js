@@ -52,27 +52,28 @@ export function readScreenTables(root) {
 }
 
 /**
- * Download the screen's tables as an Excel workbook (one sheet per table).
+ * Download sheets as an Excel workbook (one sheet each).
  * Excel-XML (.xls) needs no library and opens in Excel, Google Sheets and Numbers.
- * @returns {number} number of tables exported (0 = nothing to export)
+ * @param {{title:string, head:string[], body:any[][]}[]} sheets
+ * @returns {number} number of sheets written (0 = nothing to export)
  */
-export function exportScreenTables(root, name = 'export') {
-  const tables = readScreenTables(root);
+export function downloadWorkbook(sheets, name = 'export') {
+  const tables = (sheets || []).filter(t => t && t.body?.length);
   if (!tables.length) return 0;
   const used = new Set();
   const sheetName = t => {
-    let n = t.replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 28) || 'Sheet';
+    const n = String(t || 'Sheet').replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 28) || 'Sheet';
     let k = n, i = 2;
     while (used.has(k.toLowerCase())) k = `${n.slice(0, 25)} ${i++}`;
     used.add(k.toLowerCase());
     return k;
   };
   const cell = v => {
-    const s = String(v ?? '');
-    const isNum = /^-?\d+(\.\d+)?$/.test(s) && !/^0\d/.test(s) && s.length < 15;   // keep mobiles/UHIDs as text
-    return `<Cell><Data ss:Type="${isNum ? 'Number' : 'String'}">${esc(s)}</Data></Cell>`;
+    const s = v === null || v === undefined ? '' : String(v);
+    const isNum = typeof v === 'number' || (/^-?\d+(\.\d+)?$/.test(s) && !/^-?0\d/.test(s) && s.length < 10);   // keep mobiles/UHIDs as text
+    return `<Cell><Data ss:Type="${isNum && s !== '' ? 'Number' : 'String'}">${esc(s)}</Data></Cell>`;
   };
-  const sheets = tables.map(t => `
+  const xmlSheets = tables.map(t => `
  <Worksheet ss:Name="${esc(sheetName(t.title))}"><Table>
   <Row ss:StyleID="h">${t.head.map(cell).join('')}</Row>
   ${t.body.map(r => `<Row>${r.map(cell).join('')}</Row>`).join('\n  ')}
@@ -80,7 +81,7 @@ export function exportScreenTables(root, name = 'export') {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#EEF2FF" ss:Pattern="Solid"/></Style></Styles>${sheets}
+ <Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#EEF2FF" ss:Pattern="Solid"/></Style></Styles>${xmlSheets}
 </Workbook>`;
   const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
   const a = document.createElement('a');
@@ -90,6 +91,19 @@ export function exportScreenTables(root, name = 'export') {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   return tables.length;
 }
+
+/** Download the tables shown inside `root`. @returns {number} tables exported */
+export function exportScreenTables(root, name = 'export') {
+  return downloadWorkbook(readScreenTables(root), name);
+}
+
+// A page whose lists aren't <table>s (cards, grids) can register its rows for the header Export button.
+let registered = null;
+export function registerScreenSheets(fn) {
+  registered = fn;
+  return () => { if (registered === fn) registered = null; };
+}
+export const registeredScreenSheets = () => { try { return registered ? registered() : null; } catch { return null; } };
 
 /**
  * Print the screen inside `root` with a title header. Typed form values and charts are kept;

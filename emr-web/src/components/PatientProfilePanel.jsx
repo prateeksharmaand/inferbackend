@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X, User, Clock, Stethoscope, ClipboardList, FileText,
   Activity, Search, PlusCircle, IndianRupee, Paperclip,
@@ -12,6 +12,8 @@ import MedicalHistorySection from './MedicalHistorySection';
 import MedicalRecordsTab from './MedicalRecordsTab';
 import DietChartTab from './DietChartTab';
 import useAbdmEnabled from '../hooks/useAbdmEnabled';
+import ScreenTools from './ScreenTools';
+import { readScreenTables } from '../utils/screenExport';
 import styles from './PatientProfilePanel.module.css';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -816,6 +818,7 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
   const canAbdm  = abdmEnabled && (user?.role === 'admin' || user?.role === 'doctor' || !!(perms.all || perms['abdm.abha_linking']));
 
   const [tab,            setTab]            = useState('Past Visits');
+  const contentRef = useRef(null);
   const [history,        setHistory]        = useState([]);
   const [histLoading,    setHistLoading]    = useState(true);
   const [receipts,       setReceipts]       = useState([]);
@@ -872,6 +875,38 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
   const gender  = appt.patient_gender === 'M' ? 'M' : appt.patient_gender === 'F' ? 'F' : appt.patient_gender;
   const initials = (appt.patient_name || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
+  // Export: the patient's whole record as a workbook (one sheet per section)
+  const patientSheets = () => {
+    const d = v => (v ? fmtDate(v) : '');
+    const visits = history.filter(hasContent);
+    const names = (arr, f) => (arr || []).map(f).filter(Boolean).join(', ');
+    const V = h => h.vitals || {};
+    return [
+      { title: 'Patient', head: ['Field', 'Value'], body: [
+        ['Name', appt.patient_name], ['Mobile', appt.patient_mobile], ['UHID', appt.uhid],
+        ['Date of birth', d(appt.patient_dob)], ['Age', age != null ? `${age} years` : ''],
+        ['Gender', appt.patient_gender === 'M' ? 'Male' : appt.patient_gender === 'F' ? 'Female' : appt.patient_gender],
+        ...(abdmEnabled ? [['ABHA', appt.patient_abha]] : []), ['Total visits', history.length],
+      ].filter(r => r[1] !== undefined && r[1] !== null && r[1] !== '') },
+      { title: 'Past Visits', head: ['Date', 'Doctor', 'Status', 'Visit type', 'Symptoms', 'Diagnosis', 'Medicines', 'Advice', 'Follow-up'],
+        body: visits.map(h => [d(h.appointment_date), h.doctor_name || '', (h.status || '').replace(/_/g, ' '), h.visit_type || '',
+          names(h.symptoms, x => (typeof x === 'string' ? x : x?.name)), names(h.diagnosis, x => x?.display || x),
+          (h.medications || []).length, h.advices || '', d(h.next_visit_date)]) },
+      { title: 'Treatments', head: ['Date', 'Doctor', 'Medicine', 'Dose', 'Frequency', 'Duration', 'Instructions'],
+        body: history.flatMap(h => (h.medications || []).map(m => [d(h.appointment_date), h.doctor_name || '', m.name || '',
+          m.dose || m.dosage || '', m.frequency || '', m.duration || '', m.instructions || ''])) },
+      { title: 'Vitals', head: ['Date', 'BP', 'Pulse', 'SpO2 %', 'Temp °C', 'Weight kg', 'Height cm', 'BMI', 'Resp. rate'],
+        body: history.filter(h => h.vitals && Object.values(h.vitals).some(Boolean)).map(h => [d(h.appointment_date),
+          V(h).bp_systolic && V(h).bp_diastolic ? `${V(h).bp_systolic}/${V(h).bp_diastolic}` : '', V(h).pulse ?? '', V(h).spo2 ?? '',
+          V(h).temp ?? '', V(h).weight ?? '', V(h).height ?? '', V(h).bmi ?? '', V(h).respiratory_rate ?? '']) },
+      { title: 'Visit Lab Results', head: ['Date', 'Test', 'Result', 'Unit'],
+        body: history.flatMap(h => (h.lab_results || []).map(r => [d(h.appointment_date), r.test || '', r.result ?? '', r.unit || ''])) },
+      { title: 'Receipts', head: ['Date', 'Receipt no', 'Services', 'Amount ₹', 'Pay mode', 'Status'],
+        body: receipts.map(r => [d(r.created_at), r.receipt_number || r.receipt_no || '', names(r.items, i => i?.service_name),
+          Number(parseFloat(r.grand_total || 0).toFixed(2)), r.paymode || '', r.payment_status || '']) },
+    ];
+  };
+
   return (
     <>
       <div className={styles.backdrop} onClick={onClose} />
@@ -887,6 +922,14 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
                 .filter(Boolean).join('  ·  ')}
             </div>
           </div>
+          <ScreenTools
+            targetRef={contentRef}
+            title={tab}
+            subtitle={[appt.patient_name, gender, age != null ? `${age}y` : null, appt.patient_mobile,
+              appt.uhid ? `UHID: ${appt.uhid}` : null, user?.clinic_name].filter(Boolean).join(' · ')}
+            getSheets={() => [...patientSheets(), ...readScreenTables(contentRef.current)]}
+            style={{ marginRight: 8 }}
+          />
           <button className={styles.closeBtn} onClick={onClose}><X size={16} /></button>
         </div>
 
@@ -911,7 +954,7 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
           </nav>
 
           {/* Tab content */}
-          <div className={styles.content}>
+          <div className={styles.content} ref={contentRef}>
             {tab === 'Past Visits' && (
               <PastVisits history={history} loading={histLoading} currentId={appt.id} />
             )}

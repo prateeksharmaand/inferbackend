@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useQueueDate } from '../context/QueueDateContext';
 import { api } from '../api/client';
@@ -8,26 +8,21 @@ import BookAppointmentModal from './BookAppointmentModal';
 import BookSlotModal from './BookSlotModal';
 import { CreditsBadge } from './CreditsBadge';
 import useAbdmEnabled from '../hooks/useAbdmEnabled';
+import ScreenTools from './ScreenTools';
 import styles from './TopBar.module.css';
 
-function formatDateLabel(d) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const base = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-  if (d.toDateString() === today.toDateString())     return `Tdy, ${base}`;
-  if (d.toDateString() === tomorrow.toDateString())  return `Tmrw, ${base}`;
-  if (d.toDateString() === yesterday.toDateString()) return `Yest, ${base}`;
-  return base;
-}
+// Name used on printouts / export files for each screen
+const SCREEN_NAMES = [
+  [/lab-results/, 'Lab Results'], [/^\/queue\/setup/, 'Queue Setup'], [/^\/queue/, 'Queue'],
+  [/^\/patients/, 'Patients'], [/^\/payments/, 'Payments'], [/^\/wallet/, 'Wallet'], [/^\/analytics/, 'Analytics'],
+  [/^\/voice/, 'Infer Voice AI'], [/^\/assessment/, 'Assessment'], [/^\/inbound/, 'Inbound'],
+  [/^\/admin\/laboratories/, 'Laboratories'], [/^\/add-patient-abha/, 'Add Patient'],
+];
+const screenName = path => (SCREEN_NAMES.find(([re]) => re.test(path)) || [null, 'Report'])[1];
 
-function getAge(dob) {
-  if (!dob) return null;
-  return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
-}
-
-export default function TopBar() {
+export default function TopBar({ contentRef }) {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const abdmEnabled = useAbdmEnabled();
   const { queueDate, prevDay, nextDay } = useQueueDate();
   const navigate = useNavigate();
@@ -161,6 +156,9 @@ export default function TopBar() {
         </div>
 
         <div className={styles.right}>
+          {contentRef && (
+            <ScreenTools targetRef={contentRef} title={screenName(pathname)} subtitle={user?.clinic_name || ''} useRegistered compact />
+          )}
           <div className={styles.addWrap} ref={addRef}>
             <button className={styles.addBtn} onClick={() => handleOption('checkin')}>
               Add new Patient <Plus size={16} strokeWidth={2.5} />

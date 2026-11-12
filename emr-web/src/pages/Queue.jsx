@@ -12,6 +12,7 @@ import CalendarView from '../components/CalendarView';
 import FilterPanel, { DEFAULT_FILTERS, activeFilterCount } from '../components/FilterPanel';
 import DocAssistAI from '../components/DocAssistAI';
 import useAbdmEnabled from '../hooks/useAbdmEnabled';
+import { registerScreenSheets } from '../utils/screenExport';
 import styles from './Queue.module.css';
 
 const STATUS_TABS = ['Booked', 'Follow Ups', 'Others'];
@@ -283,6 +284,20 @@ export default function Queue() {
 
   // Calculate statistics by service type
   const allAppts = [...(board.booked || []), ...(board.my_opd || []), ...(board.completed || [])];
+
+  // Header Export: the day's appointments, one sheet per column
+  useEffect(() => {
+    const day = `${queueDate.getFullYear()}-${String(queueDate.getMonth() + 1).padStart(2, '0')}-${String(queueDate.getDate()).padStart(2, '0')}`;
+    const t = v => (v ? new Date(v).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '');
+    const head = ['Token', 'Patient', 'Mobile', 'UHID', 'Gender', 'Time', 'Visit type', 'Status', 'Checked in', 'Completed'];
+    const row = a => [a.token_number ?? '', a.patient_name || '', a.patient_mobile || '', a.uhid || '', a.patient_gender || '',
+      a.appointment_time || '', (a.visit_type || '').replace(/_/g, ' '), (a.status || '').replace(/_/g, ' '), t(a.checked_in_at), t(a.completed_at)];
+    return registerScreenSheets(() => [
+      { title: `Booked ${day}`, head, body: (board.booked || []).map(row) },
+      { title: `My OPD ${day}`, head, body: (board.my_opd || []).map(row) },
+      { title: `Completed ${day}`, head, body: (board.completed || []).map(row) },
+    ]);
+  }, [board, queueDate]);
   const serviceTypeStats = SERVICE_TYPE_OPTIONS.reduce((acc, opt) => {
     if (opt.id === 'all') return acc;
     const count = allAppts.filter(a => (a.service_type || 'consultation') === opt.id).length;

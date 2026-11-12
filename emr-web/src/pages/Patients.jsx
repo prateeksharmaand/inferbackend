@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import useAbdmEnabled from '../hooks/useAbdmEnabled';
 import PatientProfilePanel from '../components/PatientProfilePanel';
+import { registerScreenSheets } from '../utils/screenExport';
 import styles from './Patients.module.css';
 
 // ── Facility QR Modal ─────────────────────────────────────────────────────────
@@ -170,6 +171,14 @@ export default function Patients() {
     (p.abha_number || '').includes(search) ||
     (p.abha_address || '').toLowerCase().includes(search.toLowerCase())
   );
+
+  // Header Export: the patient list as shown (search applied)
+  useEffect(() => registerScreenSheets(() => [{
+    title: 'Patients',
+    head: ['Name', 'Mobile', 'Gender', ...(canAbdm ? ['ABHA Number', 'ABHA Address', 'Care Contexts'] : [])],
+    body: filtered.map(p => [p.name, p.mobile || '', p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : (p.gender || ''),
+      ...(canAbdm ? [p.abha_number || '', p.abha_address || '', p.context_count ?? 0] : [])]),
+  }]));
 
   const handleDeletePatient = async (p) => {
     if (!window.confirm(`Delete patient "${p.name}"?\n\nThis will also remove their registered record. Appointment history (visits) will be preserved.`)) return;
