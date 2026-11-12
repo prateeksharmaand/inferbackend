@@ -37,19 +37,22 @@ class SampleService {
   }) {
     const sample_id = generateSampleId();
     const barcode = generateBarcode();
+    // patient_id is a PHR user UUID; EMR patients have integer ids → emr_patient_id
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(patient_id || ''));
+    const emrPatientId = !isUuid && /^\d+$/.test(String(patient_id || '')) ? Number(patient_id) : null;
 
     const res = await query(
       `INSERT INTO lab_samples
          (sample_id, barcode, order_id, patient_id, patient_uhid, lab_id, specimen_type,
           collection_method, collection_site, collected_by, collected_at,
-          volume_ml, container_type, storage_location, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+          volume_ml, container_type, storage_location, notes, emr_patient_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [
         sample_id,
         barcode,
         order_id || null,
-        patient_id || null,
+        isUuid ? patient_id : null,
         patient_uhid || null,
         lab_id,
         specimen_type,
@@ -61,6 +64,7 @@ class SampleService {
         container_type || null,
         storage_location || null,
         notes || null,
+        emrPatientId,
       ]
     );
 

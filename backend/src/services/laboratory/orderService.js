@@ -71,16 +71,19 @@ class OrderService {
     }
 
     // 2. Insert order (allow orders without tests - they can be added later via samples)
+    // patient_id is a PHR user UUID; EMR patients have integer ids → emr_patient_id
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(patient_id || ''));
+    const emrPatientId = !isUuid && /^\d+$/.test(String(patient_id || '')) ? Number(patient_id) : null;
     const orderNumber = generateOrderNumber();
     const orderRes = await query(
       `INSERT INTO lab_orders
          (order_number, patient_id, patient_uhid, patient_name, lab_id, ordering_doctor_id, clinic_id, priority,
-          clinical_notes, diagnosis_codes, scheduled_collection_at, total_cost)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+          clinical_notes, diagnosis_codes, scheduled_collection_at, total_cost, emr_patient_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [
         orderNumber,
-        patient_id || null,
+        isUuid ? patient_id : null,
         patient_uhid || null,
         patient_name || null,
         lab_id,
@@ -91,6 +94,7 @@ class OrderService {
         diagnosis_codes || null,
         scheduled_collection_at || null,
         totalCost,
+        emrPatientId,
       ]
     );
     const order = orderRes.rows[0];
@@ -156,8 +160,10 @@ class OrderService {
   }
 
   async getOrdersByPatient(patient_id, filters = {}) {
-    const params = [patient_id];
-    let where = 'o.patient_id = $1';
+    // PHR user UUID → patient_id; EMR integer id → emr_patient_id
+    const isUuid = /^[0-9a-f-]{36}$/i.test(String(patient_id || ''));
+    const params = [isUuid ? patient_id : (parseInt(patient_id, 10) || 0)];
+    let where = isUuid ? 'o.patient_id = $1' : 'o.emr_patient_id = $1';
     let idx = 2;
 
     if (filters.status) {

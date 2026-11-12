@@ -36,23 +36,27 @@ class ReportService {
     performed_by,
   }) {
     const report_number = generateReportNumber();
+    // patient_id is a PHR user UUID; EMR patients have integer ids → emr_patient_id
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(patient_id || ''));
+    const emrPatientId = !isUuid && /^\d+$/.test(String(patient_id || '')) ? Number(patient_id) : null;
 
     const res = await query(
       `INSERT INTO lab_reports
          (report_number, order_id, patient_id, lab_id, doctor_id, report_type,
-          clinical_notes, observations, recommendations)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          clinical_notes, observations, recommendations, emr_patient_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         report_number,
         order_id || null,
-        patient_id,
+        isUuid ? patient_id : null,
         lab_id,
         doctor_id || null,
         report_type,
         clinical_notes || null,
         observations || null,
         recommendations || null,
+        emrPatientId,
       ]
     );
 
