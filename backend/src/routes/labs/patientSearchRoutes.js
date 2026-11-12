@@ -41,7 +41,7 @@ router.get('/search', verifyLabToken, async (req, res) => {
               a.patient_abha            AS abha_number,
               pc.uhid                   AS uhid
        FROM emr_appointments a
-       LEFT JOIN patient_clinics pc ON a.patient_id = pc.patient_id AND a.clinic_id = pc.clinic_id
+       LEFT JOIN patient_clinics pc ON pc.patient_id = a.emr_patient_id AND pc.clinic_id = a.clinic_id
        WHERE (LOWER(a.patient_name) LIKE LOWER($1)
               OR a.patient_mobile LIKE $1
               OR LOWER(COALESCE(pc.uhid, '')) LIKE LOWER($1)
@@ -53,7 +53,10 @@ router.get('/search', verifyLabToken, async (req, res) => {
       apptParams
     );
 
-    // 2) Registered patients (emr_patients) — global, may not have an appointment yet.
+    // 2) Registered patients (emr_patients) — limited to this clinic's patients when known.
+    const patParams = [searchTerm];
+    let patClinic = '';
+    if (clinicId) { patParams.push(clinicId); patClinic = `AND EXISTS (SELECT 1 FROM patient_clinics x WHERE x.patient_id = p.id AND x.clinic_id = $2)`; }
     const patRes = await pool.query(
       `SELECT p.id,
               p.name,
@@ -63,12 +66,13 @@ router.get('/search', verifyLabToken, async (req, res) => {
               p.abha_number,
               (SELECT uhid FROM patient_clinics WHERE patient_id = p.id AND uhid IS NOT NULL LIMIT 1) AS uhid
        FROM emr_patients p
-       WHERE LOWER(p.name) LIKE LOWER($1)
+       WHERE (LOWER(p.name) LIKE LOWER($1)
           OR p.mobile LIKE $1
-          OR LOWER(COALESCE(p.abha_number, '')) LIKE LOWER($1)
+          OR LOWER(COALESCE(p.abha_number, '')) LIKE LOWER($1))
+         ${patClinic}
        ORDER BY p.name
        LIMIT 15`,
-      [searchTerm]
+      patParams
     );
 
     // Merge & de-duplicate by mobile → uhid → name. Registered patient wins (has a real id).
