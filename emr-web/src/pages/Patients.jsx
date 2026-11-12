@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import useAbdmEnabled from '../hooks/useAbdmEnabled';
+import PatientProfilePanel from '../components/PatientProfilePanel';
 import styles from './Patients.module.css';
 
 // ── Facility QR Modal ─────────────────────────────────────────────────────────
@@ -134,6 +135,27 @@ export default function Patients() {
   const canAbdm = abdmEnabled && (user?.role === 'admin' || user?.role === 'doctor' || !!(perms.all || perms['abdm.abha_linking']));
 
   const [patients,     setPatients]     = useState([]);
+  const [profile,      setProfile]      = useState(null);   // patient details panel
+
+  // Open the patient details panel. It works per visit, so attach the latest visit (for medical
+  // records / history); with no current visit, Past Visits shows every visit.
+  const openPatient = async (p) => {
+    let latest = null;
+    if (p.mobile) {
+      try {
+        const rows = await api.get(`/patients/history?mobile=${encodeURIComponent(p.mobile)}`);
+        latest = (rows || []).find(r => !p.id || !r.emr_patient_id || r.emr_patient_id === p.id) || (rows || [])[0] || null;
+      } catch { /* open without visit context */ }
+    }
+    setProfile({
+      id: null, latest_appointment_id: latest?.id || null,
+      patient_id: p.id, emr_patient_id: p.id,
+      patient_name: p.name, patient_mobile: p.mobile, patient_gender: p.gender,
+      patient_dob: p.dob, uhid: p.uhid || latest?.uhid || null,
+      patient_abha: p.abha_number, abha_number: p.abha_number,
+      medical_history: latest?.medical_history || [],
+    });
+  };
   const [search,       setSearch]       = useState('');
   const [deleting,     setDeleting]     = useState(null);
   const [showFacQr,    setShowFacQr]    = useState(false);
@@ -185,7 +207,9 @@ export default function Patients() {
           <span>Name</span><span>Mobile</span><span>ABHA Number / Address</span><span>Gender</span><span>Care Contexts</span><span>Action</span>
         </div>
         {filtered.map(p => (
-          <div key={p.id} className={styles.row}>
+          <div key={p.id} className={`${styles.row} ${styles.rowClickable}`} role="button" tabIndex={0}
+            onClick={() => openPatient(p)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPatient(p); } }}
+            title={`Open ${p.name}`}>
             <span className={styles.name}>{p.name}</span>
             <span>{p.mobile || '—'}</span>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -197,7 +221,8 @@ export default function Patients() {
             <span>{p.context_count ?? 0}</span>
             <span>
               <button
-                onClick={() => handleDeletePatient(p)}
+                onClick={e => { e.stopPropagation(); handleDeletePatient(p); }}
+                onKeyDown={e => e.stopPropagation()}
                 disabled={deleting === p.id}
                 title="Delete patient"
                 style={{ background: 'none', border: '1px solid #fecaca', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#dc2626', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, opacity: deleting === p.id ? 0.5 : 1 }}>
@@ -234,6 +259,13 @@ export default function Patients() {
 
       {/* Modals */}
       {showFacQr && <FacilityQrModal onClose={() => setShowFacQr(false)} />}
+      {profile && (
+        <PatientProfilePanel
+          appt={profile}
+          onClose={() => setProfile(null)}
+          onNewVisit={(a) => { setProfile(null); window.dispatchEvent(new CustomEvent('checkin:prefill', { detail: a })); }}
+        />
+      )}
     </div>
   );
 }

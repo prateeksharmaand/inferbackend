@@ -793,6 +793,8 @@ function CareContextsTab({ patientId }) {
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
+  // Visit used for medical records / history edits: this visit, or the patient's latest one
+  const contextApptId = appt.id || appt.latest_appointment_id || null;
   const { user } = useAuth();
   const perms    = user?.permissions || {};
   // ABHA & Linking / Care Contexts: only for clinics with ABDM switched on, and users allowed to use it
@@ -846,7 +848,8 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
 
   const saveMedHistory = async () => {
     setSavingMH(true);
-    try { await api.patch(`/appointments/${appt.id}/status`, { medical_history: medHistory }); }
+    if (!contextApptId) return;
+    try { await api.patch(`/appointments/${contextApptId}/status`, { medical_history: medHistory }); }
     catch (_) {}
     setSavingMH(false);
   };
@@ -940,7 +943,7 @@ export default function PatientProfilePanel({ appt, onClose, onNewVisit }) {
               <ReceiptsTab receipts={receipts} loading={recLoading} />
             )}
             {tab === 'Medical Documents' && (
-              <MedicalRecordsTab apptId={appt.id} patientMobile={appt.patient_mobile} />
+              <MedicalRecordsTab apptId={contextApptId} patientMobile={appt.patient_mobile} />
             )}
             {tab === 'Lab Reports' && (
               <LabReportsTab patientId={appt.emr_patient_id || appt.patient_id} uhid={appt.uhid} />

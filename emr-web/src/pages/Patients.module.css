@@ -12,3 +12,8 @@
 .name { font-weight: 600; }
 .empty { padding: 32px; text-align: center; color: var(--color-text-3); }
 
+
+/* Rows open the patient details panel */
+.rowClickable { cursor: pointer; transition: background .12s; }
+.rowClickable:hover { background: color-mix(in srgb, var(--color-primary) 6%, transparent); }
+.rowClickable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
