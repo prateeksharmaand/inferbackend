@@ -32,7 +32,7 @@ router.get('/search', verifyLabToken, async (req, res) => {
     if (clinicId) { apptParams.push(clinicId); clinicFilter = `AND a.clinic_id = $${apptParams.length}`; }
 
     const apptRes = await pool.query(
-      `SELECT DISTINCT ON (LOWER(COALESCE(NULLIF(a.patient_mobile, ''), a.patient_name)))
+      `SELECT DISTINCT ON (right(regexp_replace(COALESCE(a.patient_mobile, ''), '\\D', '', 'g'), 10), LOWER(TRIM(a.patient_name)))
               a.emr_patient_id          AS id,
               a.patient_name            AS name,
               a.patient_mobile          AS mobile,
@@ -47,7 +47,7 @@ router.get('/search', verifyLabToken, async (req, res) => {
               OR LOWER(COALESCE(pc.uhid, '')) LIKE LOWER($1)
               OR LOWER(COALESCE(a.patient_abha, '')) LIKE LOWER($1))
          ${clinicFilter}
-       ORDER BY LOWER(COALESCE(NULLIF(a.patient_mobile, ''), a.patient_name)),
+       ORDER BY right(regexp_replace(COALESCE(a.patient_mobile, ''), '\\D', '', 'g'), 10), LOWER(TRIM(a.patient_name)),
                 (pc.uhid IS NOT NULL) DESC, a.created_at DESC
        LIMIT 15`,
       apptParams
@@ -77,10 +77,14 @@ router.get('/search', verifyLabToken, async (req, res) => {
 
     // Merge & de-duplicate by mobile → uhid → name. Registered patient wins (has a real id).
     const merged = new Map();
+    // Same person even when the mobile is stored as '+9198…', '9198…' or '98…'
+    const last10 = (m) => String(m || '').replace(/\D/g, '').slice(-10);
+    // mobile + name, so family members sharing one number stay separate
+    const nm = (r) => String(r.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
     const keyOf = (r) =>
-      (r.mobile && `m:${String(r.mobile).toLowerCase()}`) ||
+      (last10(r.mobile) && `m:${last10(r.mobile)}|${nm(r)}`) ||
       (r.uhid && `u:${String(r.uhid).toLowerCase()}`) ||
-      `n:${String(r.name || '').toLowerCase()}`;
+      `n:${nm(r)}`;
 
     for (const r of patRes.rows) merged.set(keyOf(r), r);
     for (const r of apptRes.rows) {
