@@ -164,7 +164,13 @@ async function callGroq(messages, maxTokens = 1024) {
     },
   );
 
-  return response.data?.choices?.[0]?.message?.content || null;
+  const choice = response.data?.choices?.[0];
+  const content = choice?.message?.content || null;
+  // Reasoning models spend part of the budget thinking; say so instead of ending mid-answer
+  if (content && choice?.finish_reason === 'length') {
+    return `${content}\n\n_(Reply shortened — ask "continue" for the rest.)_`;
+  }
+  return content;
 }
 
 // â”€â”€ Chat endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -380,7 +386,7 @@ exports.chat = async (req, res) => {
   ];
 
   try {
-    const reply = await callGroq(messages, 1024);
+    const reply = await callGroq(messages, 4096);   // room for tables / multi-visit summaries
     if (!reply) return res.json({ reply: _chatFallback(message) });
     res.json({ reply });
   } catch (e) {

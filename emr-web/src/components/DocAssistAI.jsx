@@ -407,7 +407,7 @@ function buildContextFromHistory(rows, appt) {
   return lines.join('\n');
 }
 
-function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
+function PatientContextPanel({ appt, onQuickAsk, onClearPatient, onContext }) {
   const [expanded,    setExpanded]    = useState(true);
   const [patientData, setPatientData] = useState(null);
   const [loading,     setLoading]     = useState(false);
@@ -426,6 +426,7 @@ function PatientContextPanel({ appt, onQuickAsk, onClearPatient }) {
       .then(rows => {
         if (!rows?.length) return;
         const context = buildContextFromHistory(rows, appt);
+        onContext?.(context);   // typed questions use the full history + vitals too, not only suggestions
         const last = rows.find(r => r.appointment_date);
         setPatientData({
           context,
@@ -602,6 +603,7 @@ function ChatTab({ appt, onClearPatient }) {
         <PatientContextPanel
           appt={appt}
           onQuickAsk={handleQuickAsk}
+          onContext={ctx => setPatientCtx(ctx)}
           onClearPatient={onClearPatient}
         />
       )}
@@ -653,7 +655,7 @@ function ChatTab({ appt, onClearPatient }) {
       </div>
 
       {!isEmpty && (
-        <button className={styles.newChatBtn} onClick={() => { setMessages([]); setPatientCtx(''); }}>
+        <button className={styles.newChatBtn} onClick={() => setMessages([])}>
           <RotateCcw size={12} strokeWidth={2} /> New chat
         </button>
       )}
