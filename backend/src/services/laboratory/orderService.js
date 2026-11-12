@@ -266,6 +266,11 @@ class OrderService {
       changes_made: { from: fromStatus, to: new_status },
     });
 
+    // Report released → email the PDF to the patient (if the clinic has their email)
+    if (new_status === 'REPORTED' && fromStatus !== 'REPORTED') {
+      require('../../emr/labReport/autoEmail').emailReleasedOrderInBackground(res.rows[0]);
+    }
+
     return res.rows[0];
   }
 

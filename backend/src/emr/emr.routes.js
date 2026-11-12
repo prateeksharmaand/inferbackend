@@ -1,4 +1,6 @@
 ﻿const router    = require('express').Router();
+const { loadPatientLabReports, loadPatientForReport } = require('./labReport/data');
+const { buildLabReportPdf } = require('./labReport/pdf');
 const rateLimit = require('express-rate-limit');
 const { emrAuth } = require('./emr.middleware');
 const { pool }  = require('../config/database');
@@ -535,182 +537,56 @@ router.get('/patients/:id/lab-results', async (req, res) => {
 router.get('/patients/:id/lab-reports', async (req, res) => {
   try {
     const { pool } = require('../config/database');
-
-    // 1. Resolve UHID â€” prefer query param, then look up from emr_appointments
-    let uhid = req.query.uhid || null;
-    if (!uhid) {
-      const { rows: uhidRows } = await pool.query(
-        `SELECT uhid FROM patient_clinics WHERE patient_id::text = $1 AND uhid IS NOT NULL LIMIT 1`,
-        [req.params.id]
-      );
-      uhid = uhidRows[0]?.uhid || null;
-    }
-    // Also try matching by patient_id via patient_clinics
-    if (!uhid && req.params.id && req.params.id !== 'unknown') {
-      const { rows: uhidRows2 } = await pool.query(
-        `SELECT pc.uhid FROM patient_clinics pc
-         JOIN emr_patients p ON p.id = pc.patient_id
-         WHERE p.id::text = $1 AND pc.uhid IS NOT NULL AND p.deleted_at IS NULL LIMIT 1`,
-        [req.params.id]
-      );
-      uhid = uhidRows2[0]?.uhid || null;
-    }
-
-    // 2. Formal lab_reports (any status)
-    const { rows: formalReports } = await pool.query(
-      `SELECT r.id, r.report_number, r.created_at, r.observations, r.clinical_notes, r.pdf_path,
-              l.facility_name AS lab_name, o.order_number,
-              array_agg(json_build_object(
-                'test_name', res.test_name,
-                'result_value', res.result_value,
-                'result_unit', res.result_unit,
-                'is_critical', res.is_critical_value
-              )) FILTER (WHERE res.id IS NOT NULL) AS results
-       FROM lab_reports r
-       LEFT JOIN laboratories l ON l.id = r.lab_id
-       LEFT JOIN lab_orders o ON o.id = r.order_id
-       LEFT JOIN lab_test_results res ON (res.patient_uhid = $2 OR res.patient_id::text = $1) AND res.lab_id = r.lab_id
-       WHERE (r.patient_uhid = $2 OR r.patient_id::text = $1)
-       GROUP BY r.id, l.facility_name, o.order_number
-       ORDER BY r.created_at DESC`,
-      [req.params.id, uhid || '']
-    );
-
-    // 3. Direct lab_test_results by UHID (uploaded results without a formal report)
-    //    Group by lab + date to form virtual report cards
-    let virtualReports = [];
-    if (uhid) {
-      const { rows: rawResults } = await pool.query(
-        `SELECT res.id, res.test_name, res.result_value, res.result_unit,
-                res.is_critical_value, res.collection_timestamp, res.result_status,
-                res.reference_range_low, res.reference_range_high,
-                l.facility_name AS lab_name, l.id AS lab_id
-         FROM lab_test_results res
-         LEFT JOIN laboratories l ON l.id = res.lab_id
-         WHERE res.patient_uhid = $1
-         ORDER BY res.collection_timestamp DESC`,
-        [uhid]
-      );
-
-      // Group by lab + date
-      const grouped = {};
-      for (const r of rawResults) {
-        const dateKey = r.collection_timestamp
-          ? new Date(r.collection_timestamp).toISOString().split('T')[0]
-          : 'unknown';
-        const key = `${r.lab_id || 'unknown'}__${dateKey}`;
-        if (!grouped[key]) {
-          grouped[key] = {
-            id: `vr_${key}`,
-            report_number: null,
-            order_number: null,
-            lab_name: r.lab_name || 'Lab',
-            created_at: r.collection_timestamp || new Date().toISOString(),
-            observations: null,
-            clinical_notes: null,
-            pdf_path: null,
-            results: [],
-          };
-        }
-        grouped[key].results.push({
-          test_name: r.test_name,
-          result_value: r.result_value,
-          result_unit: r.result_unit,
-          is_critical: r.is_critical_value,
-          reference_range_low: r.reference_range_low,
-          reference_range_high: r.reference_range_high,
-          result_status: r.result_status,
-        });
-      }
-      virtualReports = Object.values(grouped);
-    }
-
-    // Also check lab_orders by UHID and pull their samples' results
-    if (uhid) {
-      const { rows: orderResults } = await pool.query(
-        `SELECT o.id AS order_id, o.order_number, o.created_at, o.clinical_notes, o.status AS order_status,
-                l.facility_name AS lab_name,
-                json_agg(json_build_object(
-                  'test_name', oi.test_name,
-                  'result_value', COALESCE(ltr.result_value, ltr2.result_value),
-                  'result_unit', COALESCE(ltr.result_unit, ltr2.result_unit),
-                  'is_critical', COALESCE(ltr.is_critical_value, ltr2.is_critical_value, false),
-                  'reference_range_low', COALESCE(ltr.reference_range_low, ltr2.reference_range_low),
-                  'reference_range_high', COALESCE(ltr.reference_range_high, ltr2.reference_range_high),
-                  'result_status', COALESCE(ltr.result_status, ltr2.result_status)
-                ) ORDER BY oi.test_name) AS results
-         FROM lab_orders o
-         LEFT JOIN laboratories l ON l.id = o.lab_id
-         LEFT JOIN lab_order_items oi ON oi.order_id = o.id
-         LEFT JOIN lab_test_results ltr ON ltr.id = oi.result_id
-         LEFT JOIN lab_test_results ltr2
-           ON ltr.id IS NULL
-           AND ltr2.patient_uhid = o.patient_uhid
-           AND (LOWER(ltr2.test_code) = LOWER(oi.test_code) OR LOWER(ltr2.test_name) = LOWER(oi.test_name))
-         WHERE o.patient_uhid = $1
-         GROUP BY o.id, l.facility_name
-         ORDER BY o.created_at DESC`,
-        [uhid]
-      );
-
-      // Only add order-based cards if not already covered by virtualReports or formalReports
-      const coveredOrderNums = new Set([
-        ...formalReports.map(r => r.order_number),
-        ...virtualReports.map(r => r.order_number),
-      ]);
-      for (const o of orderResults) {
-        if (!coveredOrderNums.has(o.order_number)) {
-          virtualReports.push({
-            id: `order_${o.order_id}`,
-            report_number: null,
-            order_number: o.order_number,
-            order_status: o.order_status,
-            lab_name: o.lab_name || 'Lab',
-            created_at: o.created_at,
-            observations: null,
-            clinical_notes: o.clinical_notes || null,
-            pdf_path: null,
-            results: (o.results || []).filter(r => r.test_name),
-          });
-        }
-      }
-    }
-
-    // Merge and sort by date
-    const all = [...formalReports, ...virtualReports].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
-
-    // Add each test's description and reference range from the catalogue (by name)
-    const names = [...new Set(all.flatMap(r => (r.results || []).map(x => x?.test_name).filter(Boolean)
-      .map(n => n.trim().toLowerCase())))];
-    if (names.length) {
-      const { DESCRIPTIONS } = require('../services/laboratory/testDescriptions');
-      const { rows: cat } = await pool.query(
-        `SELECT DISTINCT ON (lower(trim(test_name))) lower(trim(test_name)) AS k, test_code, description,
-                reference_range_low, reference_range_high, reference_range_text, unit
-           FROM lab_test_catalog WHERE lower(trim(test_name)) = ANY($1)
-          ORDER BY lower(trim(test_name)), (description IS NOT NULL) DESC`, [names]);
-      const info = Object.fromEntries(cat.map(c => [c.k, c]));
-      for (const r of all) {
-        for (const x of r.results || []) {
-          const c = x?.test_name && info[x.test_name.trim().toLowerCase()];
-          if (!c) continue;
-          x.description = c.description || DESCRIPTIONS[c.test_code] || null;
-          x.reference_range_text = c.reference_range_text || null;
-          if (x.reference_range_low == null && x.reference_range_high == null) {
-            x.reference_range_low = c.reference_range_low;
-            x.reference_range_high = c.reference_range_high;
-          }
-          if (!x.result_unit && x.result_value != null) x.result_unit = c.unit;
-        }
-      }
-    }
+    const all = await loadPatientLabReports(pool, req.params.id, req.query.uhid || null);
     res.json(all);
   } catch (err) {
     console.error('Lab reports error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// One lab report as a printable PDF, and emailing it to the patient
+async function labReportPdfFor(req) {
+  const { pool } = require('../config/database');
+  const uhid = req.query.uhid || req.body?.uhid || null;
+  const patient = await loadPatientForReport(pool, req.emrUser.clinic_id, req.params.id, uhid);
+  if (!patient) return { status: 404, error: 'Patient not found' };
+  const reports = await loadPatientLabReports(pool, req.params.id, patient.uhid || uhid);
+  const report = reports.find(r => String(r.id) === String(req.params.reportId));
+  if (!report) return { status: 404, error: 'Report not found' };
+  const { rows: [clinic] } = await pool.query(`SELECT name FROM emr_clinics WHERE id = $1`, [req.emrUser.clinic_id]);
+  const pdf = await buildLabReportPdf({ report, patient, clinicName: clinic?.name || '' });
+  const base = `Lab-Report-${String(patient.name || 'patient').replace(/[^A-Za-z0-9]+/g, '-')}-${String(report.order_number || report.report_number || '').replace(/[^A-Za-z0-9-]+/g, '')}`.replace(/-+$/, '');
+  return { pdf, patient, report, clinicName: clinic?.name || '', filename: `${base}.pdf` };
+}
+
+router.get('/patients/:id/lab-reports/:reportId/pdf', async (req, res) => {
+  const out = await labReportPdfFor(req);
+  if (out.error) return res.status(out.status).json({ error: out.error });
+  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${out.filename}"`, 'Cache-Control': 'no-store' });
+  res.send(out.pdf);
+});
+
+// POST { to?, uhid? } — to defaults to the email on the patient's visits
+router.post('/patients/:id/lab-reports/:reportId/email', async (req, res) => {
+  const out = await labReportPdfFor(req);
+  if (out.error) return res.status(out.status).json({ error: out.error });
+  const to = String(req.body?.to || out.patient.email || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(422).json({ error: 'No email address for this patient — enter one to send the report' });
+  const results = (out.report.results || []).filter(x => x?.test_name);
+  const n = v => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+  const abnormalCount = results.filter(x => {
+    const v = n(x.result_value), lo = n(x.reference_range_low), hi = n(x.reference_range_high);
+    return v !== null && ((hi !== null && v > hi) || (lo !== null && v < lo));
+  }).length;
+  try {
+    await mailer.sendLabReport({ to, patientName: out.patient.name, clinicName: out.clinicName,
+      labName: out.report.lab?.facility_name || out.report.lab_name, pdfBuffer: out.pdf, filename: out.filename, abnormalCount });
+  } catch (e) {
+    console.error('[email] lab report send failed:', e.message);
+    return res.status(502).json({ error: `Email could not be sent: ${e.message}` });
+  }
+  res.json({ ok: true, to });
 });
 
 // R2-006: authenticated file download â€” medical documents require valid EMR JWT

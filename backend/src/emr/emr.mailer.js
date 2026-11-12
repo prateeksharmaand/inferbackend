@@ -263,4 +263,27 @@ async function sendClinicWelcome({ to, name, clinicName, trialDays }) {
   });
 }
 
-module.exports = { sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt, sendStaffInvitation, sendGoogleReviewRequest, sendSignupCode, sendClinicWelcome };
+// Lab report PDF to the patient
+async function sendLabReport({ to, patientName, clinicName, labName, pdfBuffer, filename, abnormalCount }) {
+  const transporter = buildMailer();
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Your lab report from ${labName || clinicName || 'the laboratory'}`,
+    html: `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1f2937">
+        <div style="background:#0f3d6e;color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
+          <div style="font-size:18px;font-weight:700">${esc(labName || clinicName || 'Lab Report')}</div>
+          ${clinicName && labName ? `<div style="font-size:12px;opacity:.8">Shared by ${esc(clinicName)}</div>` : ''}
+        </div>
+        <div style="border:1px solid #e5e7eb;border-top:none;padding:20px 22px;border-radius:0 0 10px 10px">
+          <p style="margin:0 0 12px">Dear ${esc(patientName || 'Patient')},</p>
+          <p style="margin:0 0 12px">Your lab test report is ready and attached to this email as a PDF.</p>
+          ${abnormalCount ? `<p style="margin:0 0 12px;padding:10px 12px;background:#fef3c7;border-radius:8px;font-size:13px">${abnormalCount} value${abnormalCount > 1 ? 's are' : ' is'} outside the normal range. Please discuss the report with your doctor.</p>` : ''}
+          <p style="margin:0;font-size:12px;color:#6b7280">This report is for your doctor to interpret. Please do not change any medicine based on it without medical advice.</p>
+        </div>
+      </div>`,
+    attachments: [{ filename, content: pdfBuffer, contentType: 'application/pdf' }],
+  });
+}
+
+module.exports = { sendLabReport, sendAppointmentConfirmation, sendPrescriptionFromAppt, sendReceipt, sendStaffInvitation, sendGoogleReviewRequest, sendSignupCode, sendClinicWelcome };

@@ -317,8 +317,49 @@ function refRangeOf(res) {
   return null;
 }
 
-function LabReportCard({ r }) {
+// Open the printable PDF / email it to the patient
+const reportPath = (patientId, r, uhid) =>
+  `/patients/${encodeURIComponent(patientId || 'unknown')}/lab-reports/${encodeURIComponent(r.id)}`;
+const qsUhid = uhid => (uhid ? `?uhid=${encodeURIComponent(uhid)}` : '');
+
+async function openReportPdf(patientId, r, uhid) {
+  const win = window.open('', '_blank');   // open now, inside the click, so pop-up blockers allow it
+  try {
+    const res = await fetch(`/api/emr${reportPath(patientId, r, uhid)}/pdf${qsUhid(uhid)}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('emr_token') || ''}` },
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    const url = URL.createObjectURL(await res.blob());
+    if (win) win.location.href = url; else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  } catch (e) {
+    win?.close();
+    toast.error(`Could not open the report: ${e.message}`);
+  }
+}
+
+async function emailReport(patientId, r, uhid, setSending) {
+  const send = to => api.post(`${reportPath(patientId, r, uhid)}/email`, { uhid, ...(to ? { to } : {}) });
+  setSending(true);
+  try {
+    let out;
+    try { out = await send(); }
+    catch (e) {
+      if (e.status !== 422) throw e;
+      const to = window.prompt('No email address is saved for this patient. Send the report to:');
+      if (!to) return;
+      out = await send(to.trim());
+    }
+    toast.success(`Report emailed to ${out.to}`);
+  } catch (e) {
+    toast.error(e.message || 'Email failed');
+  } finally { setSending(false); }
+}
+
+function LabReportCard({ r, patientId, uhid }) {
   const [open, setOpen] = useState(true);
+  const [sending, setSending] = useState(false);
+  const actBtn = { fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#1e40af', cursor: 'pointer' };
   const hasResults = Array.isArray(r.results) && r.results.filter(x => x.test_name).length > 0;
   const statusColors  = { PENDING: '#92400e', COLLECTED: '#1e40af', PROCESSING: '#6d28d9', RESULTED: '#065f46', REPORTED: '#065f46', CANCELLED: '#991b1b' };
   const statusLabels  = { PENDING: 'Sample Pending', SCHEDULED: 'Scheduled', COLLECTED: 'Sample Collected', PROCESSING: 'Under Testing', RESULTED: 'Results Ready', REPORTED: 'Report Released', CANCELLED: 'Cancelled' };
@@ -348,6 +389,14 @@ function LabReportCard({ r }) {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
           {r.lab_name && <span style={{ fontSize: 11, background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>{r.lab_name}</span>}
           <span style={{ fontSize: 11, color: '#64748b' }}>{new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          {hasResults && (
+            <>
+              <button type="button" data-print-hide style={actBtn} title="Open the full report (PDF) to print or save"
+                onClick={e => { e.stopPropagation(); openReportPdf(patientId, r, uhid); }}>Print report</button>
+              <button type="button" data-print-hide style={actBtn} disabled={sending} title="Email this report to the patient as a PDF"
+                onClick={e => { e.stopPropagation(); emailReport(patientId, r, uhid, setSending); }}>{sending ? 'Sending…' : 'Email'}</button>
+            </>
+          )}
           <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>{open ? '▲' : '▼'}</span>
         </div>
       </div>
@@ -432,7 +481,7 @@ function LabReportsTab({ patientId, uhid }) {
 
   return (
     <div className={styles.tabPad}>
-      {reports.map((r) => <LabReportCard key={r.id} r={r} />)}
+      {reports.map((r) => <LabReportCard key={r.id} r={r} patientId={patientId} uhid={uhid} />)}
     </div>
   );
 }
