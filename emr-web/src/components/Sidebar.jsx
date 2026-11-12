@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { LayoutList, Mic2, CreditCard, BarChart2, Settings, LogOut, Users, Wallet, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import styles from './Sidebar.module.css';
@@ -38,14 +39,34 @@ export default function Sidebar() {
     try { localStorage.setItem('sidebar_open', open ? '1' : '0'); } catch { /* private mode */ }
   }, [open]);
 
+  // Clinic name + logo (Settings → Clinic Website logo, else the InferPad logo in this browser)
+  const cid = user?.clinic_id;
+  const localLogo = () => { try { return cid ? localStorage.getItem(`rx_logo_${cid}`) || '' : ''; } catch { return ''; } };
+  const [brand, setBrand] = useState(() => ({ name: user?.clinic_name || '', logo: localLogo() }));
+  useEffect(() => {
+    if (!cid) return undefined;
+    let alive = true;
+    const load = () => api.get('/clinic-branding')
+      .then(b => { if (alive) setBrand({ name: b?.name || user?.clinic_name || '', logo: b?.logo || localLogo() }); })
+      .catch(() => { if (alive) setBrand(x => ({ ...x, logo: x.logo || localLogo() })); });
+    load();
+    window.addEventListener('storage', load);             // logo changed in InferPad settings
+    window.addEventListener('clinic-branding:changed', load);
+    return () => { alive = false; window.removeEventListener('storage', load); window.removeEventListener('clinic-branding:changed', load); };
+  }, [cid]); // eslint-disable-line react-hooks/exhaustive-deps
+  const clinicName = brand.name || 'Infer Care';
+  const initial = (clinicName.trim()[0] || 'I').toUpperCase();
+
   return (
     <aside className={`${styles.sidebar} ${open ? styles.open : ''}`} aria-label="Main navigation">
-      <div className={styles.logo}>
-        <div className={styles.logoIcon} aria-hidden="true">I</div>
+      <div className={styles.logo} title={clinicName}>
+        <div className={`${styles.logoIcon} ${brand.logo ? styles.logoHasImg : ''}`} aria-hidden="true">
+          {brand.logo ? <img src={brand.logo} alt="" /> : initial}
+        </div>
         {open && (
           <div className={styles.logoTextWrap}>
-            <span className={styles.logoName}>Infer Care</span>
-            <span className={styles.logoSub}>Doctor Management</span>
+            <span className={styles.logoName}>{clinicName}</span>
+            <span className={styles.logoSub}>{brand.name ? 'Powered by Infer Care' : 'Doctor Management'}</span>
           </div>
         )}
       </div>

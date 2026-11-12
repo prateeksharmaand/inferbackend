@@ -20,6 +20,13 @@ async function canManage(req) {
 
 const str = (v, max) => (v === undefined ? undefined : String(v ?? '').trim().slice(0, max));
 
+// Clinic name + logo for the app's sidebar (logo from Settings → Clinic Website)
+router.get('/clinic-branding', async (req, res) => {
+  const { rows: [c] } = await pool.query(
+    `SELECT name, public_page->>'logo' AS logo FROM emr_clinics WHERE id = $1`, [req.emrUser.clinic_id]);
+  res.json({ name: c?.name || '', logo: c?.logo || null });
+});
+
 router.get('/clinic-page', async (req, res) => {
   const cid = req.emrUser.clinic_id;
   const { rows: [c] } = await pool.query(`SELECT id, name, slug FROM emr_clinics WHERE id = $1`, [cid]);

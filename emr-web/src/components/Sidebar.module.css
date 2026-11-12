@@ -70,3 +70,8 @@
 .open .bottom { align-items: stretch; padding: 0 14px 4px; }
 .logoutBtn { gap: 8px; font-size: 13px; }
 .open .logoutBtn { justify-content: flex-start; padding: 8px; }
+
+/* Clinic logo in the tile */
+.logoHasImg { background: #fff; overflow: hidden; padding: 3px; }
+.logoHasImg img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.open .logoName { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }

@@ -60,8 +60,8 @@ const login = async (req, res) => {
     `SELECT d.*, c.name AS clinic_name, c.address AS clinic_address, c.phone AS clinic_phone, c.plan, c.max_patients
      FROM emr_clinic_staff d
      JOIN emr_clinics c ON c.id = d.clinic_id
-     WHERE d.email = $1 AND d.is_active = true`,
-    [email]
+     WHERE lower(d.email) = lower(trim($1)) AND d.is_active = true`,   // case / spaces don't matter
+    [String(email)]
   );
 
   if (!rows.length) {

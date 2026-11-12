@@ -71,6 +71,7 @@ export default function ClinicWebsiteSettings() {
     try {
       const out = await api.put('/clinic-page', payload());
       toast.success(out.published ? 'Saved — your clinic website is updated' : 'Saved — the website is unpublished');
+      window.dispatchEvent(new Event('clinic-branding:changed'));   // sidebar shows the new logo / name
       await load();
     } catch (e) { toast.error(e.data?.errors?.join(' · ') || e.message); }
     finally { setSaving(false); }

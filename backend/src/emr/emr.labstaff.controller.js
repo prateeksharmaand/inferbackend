@@ -192,8 +192,8 @@ async function loginStaff(req, res) {
       `SELECT s.*, l.facility_name, l.lab_type
        FROM emr_lab_staff s
        LEFT JOIN laboratories l ON l.id = s.lab_id
-       WHERE s.email = $1 AND s.is_active = true`,
-      [email]
+       WHERE lower(s.email) = lower(trim($1)) AND s.is_active = true`,   // 'Amallabs@…' / autofill spaces still match
+      [String(email)]
     );
 
     if (rows.length === 0) return res.status(401).json({ error: 'Invalid email or password' });
