@@ -1,0 +1,107 @@
+/**
+ * One-line descriptions of common lab tests, keyed by catalog test_code.
+ * Used to fill lab_test_catalog.description and as a fallback on reports.
+ */
+const DESCRIPTIONS = {
+  // Haematology
+  HB: 'Oxygen-carrying protein in red cells; low values suggest anaemia.',
+  TLC: 'Total white blood cells; high in infection or inflammation, low in marrow suppression.',
+  RBC: 'Number of red blood cells; helps classify anaemia and polycythaemia.',
+  PCV: 'Share of blood volume made up of red cells; low in anaemia, high in dehydration.',
+  MCV: 'Average red cell size; low in iron deficiency, high in B12/folate deficiency.',
+  MCH: 'Average haemoglobin per red cell.',
+  MCHC: 'Haemoglobin concentration inside red cells.',
+  RDW: 'Variation in red cell size; raised in mixed or nutritional anaemias.',
+  PLT: 'Cells that help blood clot; low counts raise bleeding risk (e.g. dengue).',
+  NEUT: 'White cells that fight bacteria; high in bacterial infection.',
+  LYMPH: 'White cells of the immune response; high in viral infections.',
+  MONO: 'White cells that clear debris; raised in chronic infection.',
+  EOS: 'White cells raised in allergy and parasitic infection.',
+  BASO: 'Rare white cells involved in allergic reactions.',
+  ESR: 'Non-specific marker of inflammation, infection or chronic disease.',
+  PS: 'Microscopic review of blood cell shape and parasites.',
+  RETIC: 'Young red cells; shows how actively the marrow is making blood.',
+  BGRH: 'ABO blood group and Rh type, needed for transfusion and pregnancy.',
+  PT: 'Clotting time of the extrinsic pathway; INR monitors warfarin and liver function.',
+  APTT: 'Clotting time of the intrinsic pathway; monitors heparin and bleeding disorders.',
+  // Diabetes
+  FBS: 'Blood sugar after 8–10 hours of fasting; screens for diabetes.',
+  PPBS: 'Blood sugar 2 hours after a meal; shows how the body handles food sugar.',
+  RBS: 'Blood sugar at any time of day.',
+  HBA1C: 'Average blood sugar over the past 2–3 months; used to diagnose and monitor diabetes.',
+  // Lipids
+  CHOL: 'Total cholesterol in the blood; a heart-risk marker.',
+  TG: 'Blood fats from diet; high levels raise heart and pancreatitis risk.',
+  HDL: '"Good" cholesterol that protects the heart; higher is better.',
+  LDL: '"Bad" cholesterol that builds up in arteries; the main target of treatment.',
+  VLDL: 'Cholesterol carried with triglycerides; rises with high triglycerides.',
+  // Liver
+  TBIL: 'Pigment from broken-down red cells; high levels cause jaundice.',
+  DBIL: 'Bilirubin processed by the liver; raised in liver or bile-duct disease.',
+  IBIL: 'Unprocessed bilirubin; raised when red cells break down faster.',
+  SGOT: 'Enzyme from liver, heart and muscle; rises with cell injury.',
+  SGPT: 'Liver-specific enzyme; rises in hepatitis and fatty liver.',
+  ALP: 'Enzyme from liver and bone; high in bile blockage or bone disease.',
+  GGT: 'Liver enzyme sensitive to alcohol and bile-duct problems.',
+  TP: 'All proteins in blood; reflects nutrition and liver function.',
+  ALB: 'Main blood protein made by the liver; low in liver, kidney disease or malnutrition.',
+  GLOB: 'Immune and carrier proteins; high in chronic infection or inflammation.',
+  // Kidney
+  UREA: 'Waste from protein breakdown cleared by the kidneys.',
+  BUN: 'Nitrogen part of urea; a kidney function marker.',
+  CREAT: 'Muscle waste cleared by the kidneys; the main kidney function marker.',
+  UA: 'Waste from purine breakdown; high levels cause gout and kidney stones.',
+  EGFR: 'Estimated kidney filtering rate from creatinine, age and sex.',
+  // Electrolytes & minerals
+  NA: 'Controls fluid balance; abnormal levels cause confusion and weakness.',
+  K: 'Essential for heart rhythm and muscles; both high and low levels are dangerous.',
+  CL: 'Works with sodium to keep fluid and acid–base balance.',
+  CA: 'Needed for bones, nerves and muscles; regulated by parathyroid and vitamin D.',
+  PHOS: 'Works with calcium for bone health; altered in kidney disease.',
+  MG: 'Needed for muscle, nerve and heart function.',
+  // Thyroid & hormones
+  T3: 'Active thyroid hormone controlling metabolism.',
+  T4: 'Main hormone made by the thyroid gland.',
+  TSH: 'Pituitary signal to the thyroid; high in hypothyroidism, low in hyperthyroidism.',
+  FT3: 'Unbound, active portion of T3.',
+  FT4: 'Unbound portion of T4; the best single measure of thyroid output.',
+  PRL: 'Pituitary hormone for milk production; high levels affect periods and fertility.',
+  BHCG: 'Pregnancy hormone; confirms and tracks early pregnancy.',
+  VITD: 'Vitamin for bone and muscle health; deficiency is very common in India.',
+  B12: 'Vitamin for nerves and red cells; low in vegetarians and with metformin use.',
+  // Iron
+  IRON: 'Iron circulating in the blood.',
+  TIBC: 'Capacity of blood to carry iron; high in iron deficiency.',
+  TSAT: 'Share of iron-carrying protein that is filled with iron.',
+  FERR: 'Stored iron; the best test for iron deficiency (also rises with inflammation).',
+  // Cardiac & inflammation
+  CRP: 'Protein that rises quickly with infection or inflammation.',
+  HSCRP: 'Sensitive CRP used to estimate heart-disease risk.',
+  TROPI: 'Heart-muscle protein; rises after a heart attack.',
+  CKMB: 'Heart-muscle enzyme; supports diagnosis of heart injury.',
+  RA: 'Antibody found in rheumatoid arthritis and some other conditions.',
+  ASO: 'Antibody after a recent streptococcal (throat) infection.',
+  // Serology
+  WIDAL: 'Antibodies against typhoid bacteria; best read with symptoms and timing.',
+  DENGNS1: 'Dengue virus protein; positive in the first 1–5 days of fever.',
+  DENGAB: 'Antibodies to dengue; IgM shows recent, IgG past or repeat infection.',
+  MP: 'Looks for malaria parasites (vivax / falciparum) in blood.',
+  TYPHI: 'IgM antibodies for recent typhoid infection.',
+  HBSAG: 'Screens for hepatitis B infection.',
+  HCV: 'Screens for hepatitis C infection.',
+  HIV: 'Screens for HIV-1 and HIV-2 antibodies.',
+  VDRL: 'Screening test for syphilis.',
+  // Urine & stool
+  URM: 'Checks urine for sugar, protein, blood, pus cells and infection.',
+  UPREG: 'Detects pregnancy hormone in urine.',
+  UACR: 'Early marker of kidney damage in diabetes and high BP.',
+  UCS: 'Grows bacteria from urine and finds which antibiotics work.',
+  STR: 'Checks stool for worms, cysts, blood and digestion problems.',
+  SOB: 'Detects hidden blood in stool from the gut.',
+  // Other
+  PSA: 'Prostate protein; screens for prostate enlargement or cancer in men.',
+  AMY: 'Pancreatic enzyme; high in acute pancreatitis.',
+  LIP: 'Pancreas-specific enzyme; the preferred test for pancreatitis.',
+};
+
+module.exports = { DESCRIPTIONS };

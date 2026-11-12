@@ -680,6 +680,32 @@ router.get('/patients/:id/lab-reports', async (req, res) => {
     const all = [...formalReports, ...virtualReports].sort(
       (a, b) => new Date(b.created_at) - new Date(a.created_at)
     );
+
+    // Add each test's description and reference range from the catalogue (by name)
+    const names = [...new Set(all.flatMap(r => (r.results || []).map(x => x?.test_name).filter(Boolean)
+      .map(n => n.trim().toLowerCase())))];
+    if (names.length) {
+      const { DESCRIPTIONS } = require('../services/laboratory/testDescriptions');
+      const { rows: cat } = await pool.query(
+        `SELECT DISTINCT ON (lower(trim(test_name))) lower(trim(test_name)) AS k, test_code, description,
+                reference_range_low, reference_range_high, reference_range_text, unit
+           FROM lab_test_catalog WHERE lower(trim(test_name)) = ANY($1)
+          ORDER BY lower(trim(test_name)), (description IS NOT NULL) DESC`, [names]);
+      const info = Object.fromEntries(cat.map(c => [c.k, c]));
+      for (const r of all) {
+        for (const x of r.results || []) {
+          const c = x?.test_name && info[x.test_name.trim().toLowerCase()];
+          if (!c) continue;
+          x.description = c.description || DESCRIPTIONS[c.test_code] || null;
+          x.reference_range_text = c.reference_range_text || null;
+          if (x.reference_range_low == null && x.reference_range_high == null) {
+            x.reference_range_low = c.reference_range_low;
+            x.reference_range_high = c.reference_range_high;
+          }
+          if (!x.result_unit && x.result_value != null) x.result_unit = c.unit;
+        }
+      }
+    }
     res.json(all);
   } catch (err) {
     console.error('Lab reports error:', err);

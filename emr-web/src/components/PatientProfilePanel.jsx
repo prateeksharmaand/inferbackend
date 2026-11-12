@@ -303,6 +303,18 @@ function VitalsLabs({ history }) {
 }
 
 // ── Lab Reports (from lab system) ─────────────────────────────────────────────
+// '12.0000' → '12', '0.0400' → '0.04'; non-numbers are shown as they are
+const numOrNull = v => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+const fmtLab = v => { const n = numOrNull(v); return n === null ? v : String(parseFloat(n.toFixed(4))); };
+function refRangeOf(res) {
+  const lo = numOrNull(res.reference_range_low), hi = numOrNull(res.reference_range_high);
+  if (lo !== null && hi !== null) return `${fmtLab(lo)} – ${fmtLab(hi)}`;
+  if (res.reference_range_text) return res.reference_range_text;
+  if (hi !== null) return `< ${fmtLab(hi)}`;
+  if (lo !== null) return `> ${fmtLab(lo)}`;
+  return null;
+}
+
 function LabReportCard({ r }) {
   const [open, setOpen] = useState(true);
   const hasResults = Array.isArray(r.results) && r.results.filter(x => x.test_name).length > 0;
@@ -358,23 +370,25 @@ function LabReportCard({ r }) {
                 </thead>
                 <tbody>
                   {r.results.filter(x => x.test_name).map((res, i) => {
-                    const refRange = (res.reference_range_low != null && res.reference_range_high != null)
-                      ? `${res.reference_range_low} – ${res.reference_range_high}`
-                      : null;
+                    const refRange = refRangeOf(res);
                     const val = res.result_value;
-                    const isHigh = val != null && res.reference_range_high != null && val > res.reference_range_high;
-                    const isLow  = val != null && res.reference_range_low  != null && val < res.reference_range_low;
+                    const n = numOrNull(val), lo = numOrNull(res.reference_range_low), hi = numOrNull(res.reference_range_high);
+                    const isHigh = n !== null && hi !== null && n > hi;
+                    const isLow  = n !== null && lo !== null && n < lo;
                     return (
                       <tr key={i} style={{ borderTop: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '5px 0', fontWeight: 600 }}>{res.test_name}</td>
-                        <td style={{ padding: '5px 8px', color: res.is_critical ? '#991b1b' : isHigh || isLow ? '#b45309' : '#1a202c', fontWeight: res.is_critical || isHigh || isLow ? 700 : 400 }}>
-                          {val != null ? val : <span style={{ color: '#94a3b8' }}>Pending</span>}
+                        <td style={{ padding: '6px 12px 6px 0', verticalAlign: 'top' }}>
+                          <div style={{ fontWeight: 600 }}>{res.test_name}</div>
+                          {res.description && <div style={{ fontSize: 11, color: '#64748b', fontWeight: 400, lineHeight: 1.4, marginTop: 2, maxWidth: 420 }}>{res.description}</div>}
+                        </td>
+                        <td style={{ padding: '6px 8px', verticalAlign: 'top', color: res.is_critical ? '#991b1b' : isHigh || isLow ? '#b45309' : '#1a202c', fontWeight: res.is_critical || isHigh || isLow ? 700 : 400 }}>
+                          {val != null ? fmtLab(val) : <span style={{ color: '#94a3b8' }}>Pending</span>}
                           {isHigh && <span style={{ marginLeft: 4, fontSize: 10 }}>▲</span>}
                           {isLow  && <span style={{ marginLeft: 4, fontSize: 10 }}>▼</span>}
                         </td>
-                        <td style={{ padding: '5px 0', color: '#64748b' }}>{res.result_unit || '—'}</td>
-                        <td style={{ padding: '5px 8px', color: '#64748b', fontSize: 11 }}>{refRange || '—'}</td>
-                        <td>{res.is_critical && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>CRITICAL</span>}</td>
+                        <td style={{ padding: '6px 0', verticalAlign: 'top', color: '#64748b' }}>{res.result_unit || '—'}</td>
+                        <td style={{ padding: '6px 8px', verticalAlign: 'top', color: '#64748b', fontSize: 11 }}>{refRange || '—'}</td>
+                        <td style={{ verticalAlign: 'top', paddingTop: 6 }}>{res.is_critical && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>CRITICAL</span>}</td>
                       </tr>
                     );
                   })}
