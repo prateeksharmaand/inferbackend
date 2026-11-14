@@ -12,10 +12,11 @@ from datetime import date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp-relay.brevo.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
-SMTP_USER = os.environ.get("SMTP_USER", "ae2c1b001@smtp-brevo.com")
-SMTP_PASS = os.environ.get("SMTP_PASS", "GPa1qL6UYHIWjF7d")
+# Credentials come only from .env — never hard-code them here
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.hostinger.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 465))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", "support@inferapp.online")
 FROM_NAME = os.environ.get("FROM_NAME", "Infer EMR")
 
@@ -29,6 +30,41 @@ BOUNCE_LOG_FILE  = os.path.join(_BASE, "bounce_log.json")
 # SMTP_PROBE=true  — adds RCPT-TO handshake, slower (~5s/domain) but more accurate
 # Set SMTP_PROBE=true in .env only if you want maximum accuracy and can afford the time
 SMTP_PROBE = os.environ.get("SMTP_PROBE", "false").lower() == "true"
+
+
+UNSUBSCRIBE_TEXT = ("You are receiving this because your clinic is publicly listed. "
+                    "Reply with UNSUBSCRIBE and we will not email you again.")
+
+
+def _smtp():
+    """SSL on 465 (Hostinger), STARTTLS otherwise."""
+    if SMTP_PORT == 465:
+        return smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=30)
+    server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
+    server.ehlo()
+    server.starttls()
+    return server
+
+
+def send_plain(to_email: str, subject: str, html: str, text: str = "", attachments=None) -> bool:
+    """Internal emails (e.g. the daily report): no template, tracking or limits."""
+    from email.mime.application import MIMEApplication
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = subject
+    msg["From"] = f"{FROM_NAME} <{SMTP_FROM}>"
+    msg["To"] = to_email
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(text or "See the HTML version of this email.", "plain", "utf-8"))
+    alt.attach(MIMEText(html, "html", "utf-8"))
+    msg.attach(alt)
+    for name, data in (attachments or []):
+        part = MIMEApplication(data.encode("utf-8") if isinstance(data, str) else data, Name=name)
+        part["Content-Disposition"] = f'attachment; filename="{name}"'
+        msg.attach(part)
+    with _smtp() as server:
+        server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(SMTP_FROM, [to_email], msg.as_bytes())
+    return True
 
 
 # ── Daily counter ─────────────────────────────────────────────────────────────
@@ -191,17 +227,21 @@ def send_email(to_email: str, subject: str, body: str, clinic_name: str = "",
         print(f"  ✗ Template error: {e}")
         return False
 
+    # Every sales email says how to opt out (header + footer)
+    plain = f"{plain}\n\n--\n{UNSUBSCRIBE_TEXT}"
+    footer = (f'<p style="font-size:11px;color:#9ca3af;text-align:center;margin:16px 0 0">{UNSUBSCRIBE_TEXT}</p>')
+    html = html.replace("</body>", f"{footer}\n</body>") if "</body>" in html else html + footer
+
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"]    = f"{FROM_NAME} <{SMTP_FROM}>"
         msg["To"]      = to_email
-        msg.attach(MIMEText(plain, "plain"))
-        msg.attach(MIMEText(html,  "html"))
+        msg["List-Unsubscribe"] = f"<mailto:{SMTP_FROM}?subject=unsubscribe>"
+        msg.attach(MIMEText(plain, "plain", "utf-8"))
+        msg.attach(MIMEText(html,  "html", "utf-8"))
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.ehlo()
-            server.starttls()
+        with _smtp() as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_FROM, to_email, msg.as_bytes())
 

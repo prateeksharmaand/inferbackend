@@ -7,3 +7,4 @@ quota.json
 debug_html/
 daily_email_count.json
 scrape_done.json
+bounce_log.json

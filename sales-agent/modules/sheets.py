@@ -27,7 +27,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-SHEET_ID   = os.environ["GOOGLE_SHEET_ID"]
+SHEET_ID   = os.environ.get("GOOGLE_SHEET_ID", "")
 CREDS_FILE = os.environ.get("GOOGLE_CREDS_FILE", "google_creds.json")
 
 _client = None
@@ -40,6 +40,10 @@ HEADERS = ["name", "email", "specialty", "clinic", "city", "phone",
 def _get_sheet():
     global _client, _sheet
     if _sheet is None:
+        if not SHEET_ID:
+            raise RuntimeError("GOOGLE_SHEET_ID is not set in the agent's .env — the lead sheet can't be opened")
+        if not os.path.exists(CREDS_FILE):
+            raise RuntimeError(f"Google service-account key not found at {CREDS_FILE}")
         creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
         _client = gspread.authorize(creds)
         _sheet  = _client.open_by_key(SHEET_ID).sheet1
