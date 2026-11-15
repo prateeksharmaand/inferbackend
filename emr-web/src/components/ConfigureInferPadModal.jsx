@@ -187,7 +187,7 @@ export default function ConfigureInferPadModal({ clinicId: propClinicId, onClose
       ? mandatoryFields.filter(f => f !== k)
       : [...mandatoryFields, k];
     setMandatoryFields(next);
-    localStorage.setItem(`rx_mandatory_fields_${cid}`, JSON.stringify(next));
+    try { localStorage.setItem(`rx_mandatory_fields_${cid}`, JSON.stringify(next)); } catch { /* storage full */ }
     window.dispatchEvent(new Event('storage'));
   };
 

@@ -146,8 +146,21 @@ export function getSectionOrder(clinicId) {
   } catch { return INFERPAD_SECTIONS.map(s => s.key); }
 }
 
+// Browser storage can be full (letterhead images live there too): never let a full store break a toggle.
+function safeSet(k, v) {
+  try { localStorage.setItem(k, v); return true; }
+  catch { console.warn('[InferPad] could not save setting', k); return false; }
+}
+
+// True once this browser has saved its own choice for a Pad Order column. Those choices override a
+// clinic clinical template, so the Configure-your-Pad switches keep working after a template is adopted.
+export function hasLocalPadSetting(clinicId, kind) {
+  const keys = { order: 'rx_section_order_', disabled: 'rx_disabled_sections_', print: 'rx_print_sections_', mandatory: 'rx_mandatory_fields_' };
+  try { return localStorage.getItem(`${keys[kind]}${clinicId}`) !== null; } catch { return false; }
+}
+
 export function saveSectionOrder(clinicId, order) {
-  localStorage.setItem(`rx_section_order_${clinicId}`, JSON.stringify(order));
+  safeSet(`rx_section_order_${clinicId}`, JSON.stringify(order));
   window.dispatchEvent(new Event('storage'));
 }
 
@@ -158,7 +171,7 @@ export function getDisabledSections(clinicId) {
   catch { return []; }
 }
 export function saveDisabledSections(clinicId, keys) {
-  localStorage.setItem(`rx_disabled_sections_${clinicId}`, JSON.stringify(keys));
+  safeSet(`rx_disabled_sections_${clinicId}`, JSON.stringify(keys));
   window.dispatchEvent(new Event('storage'));
 }
 
@@ -185,7 +198,7 @@ export function getPrintSections(clinicId) {
   } catch { return DEFAULT_PRINT_SECTIONS; }
 }
 export function savePrintSections(clinicId, keys) {
-  localStorage.setItem(`rx_print_sections_${clinicId}`, JSON.stringify(keys));
+  safeSet(`rx_print_sections_${clinicId}`, JSON.stringify(keys));
   window.dispatchEvent(new Event('storage'));
 }
 

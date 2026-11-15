@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutTemplate, LayoutList, FlaskConical, Zap, KeyRound, Palette, ShieldCheck, ClipboardList, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, Hash, Tag, Stethoscope, LayoutList, FlaskConical, Zap, KeyRound, Palette, ShieldCheck, ClipboardList, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import UhidSettings from './settings/UhidSettings';
 import CustomAttributes from './settings/CustomAttributes';
 import ServicesSettings from './settings/ServicesSettings';
-import InferPadSettings from './settings/InferPadSettings';
 import ClinicalTermsSettings from './settings/ClinicalTermsSettings';
 import QueuesSettings from './settings/QueuesSettings';
 import LabStaffSettings from './settings/LabStaffSettings';
@@ -24,7 +23,6 @@ const ALL_TABS = [
   { key: 'uhid',         Icon: Hash,           label: 'UHID Settings',        adminOnly: false },
   { key: 'tags',         Icon: Tag,            label: 'Custom Attributes',    adminOnly: false },
   { key: 'services',     Icon: Stethoscope,    label: 'Services',             adminOnly: false },
-  { key: 'inferpad',     Icon: LayoutTemplate, label: 'InferPad',             adminOnly: false },
   { key: 'templates',    Icon: ClipboardList,  label: 'Clinical Templates',   adminOnly: false },
   { key: 'website',      Icon: Globe,          label: 'Clinic Website',       adminOnly: false },
   { key: 'terms',        Icon: ClipboardList,  label: 'Symptoms & Diagnoses', adminOnly: false },
@@ -70,7 +68,6 @@ export default function Settings() {
         {tab === 'uhid'         && <UhidSettings />}
         {tab === 'tags'         && <CustomAttributes />}
         {tab === 'services'     && <ServicesSettings />}
-        {tab === 'inferpad'     && <InferPadSettings />}
         {tab === 'templates'    && <ClinicalTemplateBuilder />}
         {tab === 'website'      && <ClinicWebsiteSettings />}
         {tab === 'terms'        && <ClinicalTermsSettings />}

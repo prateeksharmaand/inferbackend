@@ -7,7 +7,7 @@ import AutocompleteInput from './AutocompleteInput';
 import MedicalHistorySection from './MedicalHistorySection';
 import CalculatorsSection from './CalculatorsSection';
 import { CALCULATORS, getCalcPrefs, saveCalcPrefs } from '../data/calculators';
-import { getSectionOrder, getICD10Settings, getDisabledSections } from '../pages/settings/InferPadSettings';
+import { getSectionOrder, getICD10Settings, getDisabledSections, hasLocalPadSetting } from '../pages/settings/InferPadSettings';
 import GrowthChart from './GrowthChart';
 import DynamicFields, { customFieldsOf } from './clinicalTemplates/DynamicFields';
 import s2 from './GrowthChart.module.css';
@@ -497,8 +497,16 @@ export default function InferPad({ form, set, setVital, setCalcResult, appt, pas
   const tdef = clinicalTemplate?.definition || null;
   const tsec = key => tdef?.sections?.find(x => x.key === key) || null;
   const tOrdered = tdef ? [...tdef.sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : null;
-  const effOrder    = tOrdered ? tOrdered.map(x => x.key) : sectionOrder;
-  const effDisabled = tOrdered ? tOrdered.filter(x => !x.enabled).map(x => x.key) : disabledSections;
+  // The doctor's own Pad Order choices (Configure your Pad) win over the template once they have made them:
+  // order from the pad when saved; a section shows only if both the template and the pad have it enabled.
+  const tKeys       = tOrdered ? tOrdered.map(x => x.key) : null;
+  const effOrder    = !tKeys ? sectionOrder
+    : hasLocalPadSetting(clinicId, 'order')
+      ? [...sectionOrder.filter(k => tKeys.includes(k)), ...tKeys.filter(k => !sectionOrder.includes(k))]
+      : tKeys;
+  const effDisabled = tOrdered
+    ? [...new Set([...tOrdered.filter(x => !x.enabled).map(x => x.key), ...disabledSections])]
+    : disabledSections;
   const growthOn    = tdef ? !!tsec('growth_chart')?.enabled : growthEnabled;
   const colField = (sec, col) => tsec(sec)?.fields?.find(f => f.key === col && f.storage === 'core') || null;
   const colOn    = (sec, col) => (tdef ? (colField(sec, col)?.enabled ?? true) !== false : true);

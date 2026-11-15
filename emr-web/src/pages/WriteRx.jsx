@@ -23,7 +23,7 @@ import { CALCULATORS } from '../data/calculators';
 import ScribePanel from '../components/ScribePanel';
 import PatientContextPanel from '../components/PatientContextPanel';
 import AssessmentPanel from '../components/AssessmentPanel';
-import { getMandatoryFields, MANDATORY_FIELDS, getPrintSections } from './settings/InferPadSettings';
+import { getMandatoryFields, MANDATORY_FIELDS, getPrintSections, getDisabledSections, hasLocalPadSetting } from './settings/InferPadSettings';
 import toast from 'react-hot-toast';
 import styles from './WriteRx.module.css';
 import { ctApi, errorsBySection } from '../api/clinicalTemplates';
@@ -296,7 +296,12 @@ export function RxDocumentBody({ form, appt, user, rxImages = {}, dietCharts = [
   const t    = getLang(lang);
   const cid  = user?.clinic_id || 'default';
   const printSecs = getPrintSections(cid);
-  const inPrint = key => templatePrints(form.clinical_template, key) ?? printSecs.includes(key);
+  // Copy to Pad: the doctor's saved choice wins; otherwise the clinical template decides; a section switched off in the pad never prints.
+  const padPrint = hasLocalPadSetting(cid, 'print');
+  const padOff = getDisabledSections(cid);
+  const inPrint = key => !padOff.includes(key) && (padPrint
+    ? printSecs.includes(key) && form.clinical_template?.sections?.find(x => x.key === key)?.enabled !== false
+    : (templatePrints(form.clinical_template, key) ?? printSecs.includes(key)));
   const tplRows = templatePrintRows(form.clinical_template, form.template_values);
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
@@ -1020,7 +1025,7 @@ export default function WriteRx() {
   };
 
   function checkMandatory() {
-    if (clinicalTpl) return null;   // clinical template: the server validates required sections/fields
+    // With a clinical template the server also validates the template's required fields; the pad's own Mandatory switches still apply.
     const required = getMandatoryFields(user?.clinic_id || 'default');
     if (!required.length) return null;
     const missing = [];
