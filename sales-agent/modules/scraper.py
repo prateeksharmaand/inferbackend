@@ -1,20 +1,34 @@
 """
-Google Maps Places API (New) scraper.
-Uses the new Places API v1 endpoints.
+Google Maps Places API (New) lead search.
 
-Enable in Google Cloud Console: "Places API (New)"
-Get API key: https://console.cloud.google.com
+Each run works through (specialty × location) searches it has not done recently — priority cities first,
+then their localities, then more and more cities across India — until it has found TARGET_NEW_LEADS new
+leads or used the day's Maps budget. Progress is kept in scrape_progress.json, so every day searches new
+places instead of repeating yesterday's queries (which only return duplicates).
+
+Enable in Google Cloud Console: "Places API (New)".
 """
 
 import os
+import re
+import json
 import time
+import calendar
+from datetime import date, timedelta
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
-from modules.quota import consume, status as quota_status
+from modules.quota import consume, get_remaining
 
 MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
-
 PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
-PLACES_DETAIL_URL = "https://places.googleapis.com/v1/places/{place_id}"
+
+_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+PROGRESS_FILE = os.path.join(_BASE, "scrape_progress.json")
+
+TARGET_NEW_LEADS = int(os.environ.get("TARGET_NEW_LEADS", 900))
+RESEARCH_AFTER_DAYS = int(os.environ.get("RESEARCH_AFTER_DAYS", 45))   # repeat a search only after this long
+MAPS_DAILY_CAP = int(os.environ.get("MAPS_DAILY_CAP", 0))              # 0 = spread the monthly cap over the days left
 
 SPECIALTIES = [
     ("General Physician",  "general physician clinic"),
@@ -27,87 +41,144 @@ SPECIALTIES = [
     ("Cardiologist",       "cardiologist heart clinic"),
     ("ENT",                "ENT ear nose throat specialist"),
     ("Diabetologist",      "diabetologist diabetes clinic"),
+    ("Physiotherapist",    "physiotherapy clinic"),
+    ("Psychiatrist",       "psychiatrist mental health clinic"),
+    ("Neurologist",        "neurologist clinic"),
+    ("Urologist",          "urologist clinic"),
+    ("Gastroenterologist", "gastroenterologist clinic"),
+    ("Pulmonologist",      "chest physician pulmonologist clinic"),
+    ("Homeopath",          "homeopathy clinic"),
+    ("Ayurveda",           "ayurvedic clinic doctor"),
+    ("Multispeciality",    "multispeciality clinic"),
+    ("Diagnostic Lab",     "pathology lab diagnostic centre"),
 ]
+
+# Big cities are also searched locality by locality: Maps returns at most 60 places per search.
+METRO_AREAS = {
+    "Mumbai":    ["Andheri", "Borivali", "Thane", "Navi Mumbai", "Bandra", "Dadar", "Ghatkopar", "Malad", "Kandivali", "Chembur", "Powai", "Goregaon", "Mulund", "Vashi", "Kalyan", "Mira Road"],
+    "Delhi":     ["Rohini", "Dwarka", "Lajpat Nagar", "Saket", "Janakpuri", "Pitampura", "Karol Bagh", "Laxmi Nagar", "Preet Vihar", "Vasant Kunj", "Mayur Vihar", "Rajouri Garden"],
+    "Bangalore": ["Whitefield", "Koramangala", "Indiranagar", "Jayanagar", "HSR Layout", "Electronic City", "Marathahalli", "Malleshwaram", "Yelahanka", "BTM Layout", "Rajajinagar", "JP Nagar"],
+    "Hyderabad": ["Kukatpally", "Gachibowli", "Banjara Hills", "Secunderabad", "Ameerpet", "Dilsukhnagar", "Madhapur", "LB Nagar", "Miyapur", "Begumpet"],
+    "Chennai":   ["Anna Nagar", "T Nagar", "Velachery", "Adyar", "Tambaram", "Porur", "Mylapore", "Chromepet", "OMR"],
+    "Pune":      ["Kothrud", "Hinjewadi", "Wakad", "Baner", "Hadapsar", "Viman Nagar", "Pimpri", "Chinchwad", "Kharadi", "Aundh"],
+    "Kolkata":   ["Salt Lake", "Howrah", "New Town", "Behala", "Dum Dum", "Ballygunge", "Garia"],
+    "Ahmedabad": ["Satellite", "Maninagar", "Bopal", "Navrangpura", "Vastrapur", "Chandkheda"],
+    "Gurgaon":   ["DLF Phase", "Sohna Road", "Golf Course Road", "Sector 56"],
+    "Noida":     ["Sector 18", "Sector 62", "Greater Noida"],
+}
 
 CITIES = [
-    "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Pune",
-    "Chennai", "Ahmedabad", "Jaipur", "Surat", "Lucknow"
+    "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Pune", "Kolkata", "Ahmedabad", "Gurgaon", "Noida",
+    "Jaipur", "Surat", "Lucknow", "Kanpur", "Nagpur", "Indore", "Bhopal", "Visakhapatnam", "Patna", "Vadodara",
+    "Ghaziabad", "Ludhiana", "Agra", "Nashik", "Faridabad", "Meerut", "Rajkot", "Varanasi", "Srinagar", "Aurangabad",
+    "Dhanbad", "Amritsar", "Allahabad", "Ranchi", "Coimbatore", "Jabalpur", "Gwalior", "Vijayawada", "Jodhpur", "Madurai",
+    "Raipur", "Kota", "Chandigarh", "Guwahati", "Solapur", "Mysore", "Bareilly", "Aligarh", "Jalandhar", "Tiruchirappalli",
+    "Bhubaneswar", "Salem", "Thiruvananthapuram", "Kochi", "Kozhikode", "Dehradun", "Mangalore", "Udaipur", "Jamshedpur", "Belgaum",
+    "Hubli", "Kolhapur", "Ajmer", "Siliguri", "Jammu", "Bhavnagar", "Jamnagar", "Gorakhpur", "Cuttack", "Bikaner",
+    "Warangal", "Guntur", "Nellore", "Thrissur", "Tirupati", "Navi Mumbai", "Thane", "Panipat", "Rohtak", "Haridwar",
 ]
 
-# Test mode — override via env vars
 TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
 if TEST_MODE:
-    SPECIALTIES = [("General Physician", "general physician clinic")]
+    SPECIALTIES = SPECIALTIES[:1]
     CITIES = ["Mumbai"]
+    METRO_AREAS = {}
 
 
-def search_places(query: str, city: str, max_results: int = 60) -> list[dict]:
-    """
-    Text search using Places API (New) with pagination via nextPageToken.
-    Fetches up to max_results places (20 per page, max 3 pages).
-    """
+# ── search plan ──────────────────────────────────────────────────────────────
+
+def _locations(priority_cities):
+    """Priority cities first, then their localities, then every other city and its localities."""
+    order, seen = [], set()
+    def add(loc, city):
+        if loc not in seen:
+            seen.add(loc); order.append((loc, city))
+    cities = [c for c in priority_cities if c] + [c for c in CITIES if c not in priority_cities]
+    for c in cities:
+        add(c, c)
+    for c in cities:
+        for a in METRO_AREAS.get(c, []):
+            add(f"{a}, {c}", c)
+    return order
+
+
+def _load_progress():
+    try:
+        with open(PROGRESS_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_progress(p):
+    with open(PROGRESS_FILE, "w") as f:
+        json.dump(p, f)
+
+
+def daily_call_budget() -> int:
+    """Maps calls allowed today: MAPS_DAILY_CAP, or the monthly cap left spread over the days left."""
+    remaining = get_remaining()
+    if MAPS_DAILY_CAP > 0:
+        return min(MAPS_DAILY_CAP, remaining)
+    today = date.today()
+    days_left = calendar.monthrange(today.year, today.month)[1] - today.day + 1
+    return remaining // max(days_left, 1)
+
+
+# ── Maps + website helpers ───────────────────────────────────────────────────
+
+def search_places(query: str, location: str, budget: dict, max_results: int = 60) -> list[dict]:
+    """Text search with pagination (20 per page, max 3 pages). Every page costs one call from `budget`."""
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": MAPS_API_KEY,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,nextPageToken",
+        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,"
+                            "places.internationalPhoneNumber,places.websiteUri,nextPageToken",
     }
-
-    results = []
-    page_token = None
-
+    results, page_token = [], None
     while len(results) < max_results:
-        if not consume(1):
+        if budget["left"] <= 0 or not consume(1):
+            budget["left"] = 0
             break
-
-        body = {
-            "textQuery": f"{query} in {city} India",
-            "regionCode": "IN",
-            "maxResultCount": 20,
-        }
+        budget["left"] -= 1
+        budget["used"] += 1
+        body = {"textQuery": f"{query} in {location}, India", "regionCode": "IN", "maxResultCount": 20}
         if page_token:
             body["pageToken"] = page_token
-
         try:
-            resp = requests.post(PLACES_SEARCH_URL, json=body, headers=headers, timeout=10)
-            data = resp.json()
-
-            if "error" in data:
-                print(f"  ⚠ Maps API error: {data['error'].get('message', data['error'])}")
-                break
-
-            places = data.get("places", [])
-            results.extend(places)
-            print(f"    Page fetched: {len(places)} results (total so far: {len(results)})")
-
-            page_token = data.get("nextPageToken")
-            if not page_token:
-                break
-
-            time.sleep(2)  # required delay between paginated requests
-
+            data = requests.post(PLACES_SEARCH_URL, json=body, headers=headers, timeout=15).json()
         except Exception as e:
             print(f"  ⚠ Request error: {e}")
             break
-
+        if "error" in data:
+            print(f"  ⚠ Maps API error: {data['error'].get('message', data['error'])}")
+            budget["error"] = data["error"].get("message", "Maps API error")
+            break
+        places = data.get("places", [])
+        results.extend(places)
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+        time.sleep(2)   # required before using nextPageToken
     return results
+
+
+_SKIP = ("example", "noreply", "no-reply", "sentry", "wixpress", "domain.com", "email.com", "yourname",
+         ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
 
 
 def extract_email_from_website(website: str) -> str:
     if not website:
         return ""
-    import re
     try:
         resp = requests.get(website, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
-        emails = re.findall(r"mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})", resp.text)
-        if emails:
-            return emails[0].lower()
-        emails = re.findall(r"\b([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})\b", resp.text)
-        emails = [e for e in emails if not any(x in e for x in ["example", "noreply", "sentry", ".png", ".jpg"])]
-        if emails:
-            return emails[0].lower()
+        text = resp.text
+        found = re.findall(r"mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})", text) \
+            or re.findall(r"\b([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})\b", text)
+        found = [e.lower() for e in found if not any(x in e.lower() for x in _SKIP)]
+        return found[0] if found else ""
     except Exception:
-        pass
-    return ""
+        return ""
 
 
 def guess_email(website: str) -> str:
@@ -115,75 +186,112 @@ def guess_email(website: str) -> str:
         return ""
     try:
         from urllib.parse import urlparse
-        domain = urlparse(website).netloc.replace("www.", "")
-        return f"info@{domain}" if domain else ""
+        domain = urlparse(website).netloc.lower().replace("www.", "")
+        # Social pages / site builders are not the clinic's own domain
+        if not domain or any(d in domain for d in ("facebook.", "instagram.", "google.", "practo.", "justdial.",
+                                                   "linkedin.", "wa.me", "whatsapp.", "business.site", "linktr.ee")):
+            return ""
+        return f"info@{domain}"
     except Exception:
         return ""
 
 
-def scrape_leads(cities: list[str] = None, specialties: list[tuple] = None,
-                 max_per_combo: int = 20) -> list[dict]:
-    if cities is None:
-        cities = CITIES
-    if specialties is None:
-        specialties = SPECIALTIES
+def normalize_phone(place: dict) -> tuple[str, bool]:
+    """Returns (+91XXXXXXXXXX, is_mobile). Indian mobiles are 10 digits starting 6-9."""
+    raw = place.get("internationalPhoneNumber") or place.get("nationalPhoneNumber") or ""
+    digits = re.sub(r"\D", "", raw)
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    digits = digits.lstrip("0")
+    if len(digits) != 10:
+        return (raw.strip(), False)
+    return (f"+91{digits}", digits[0] in "6789")
 
-    # Load already-known emails from CRM to avoid re-scraping
+
+def _lead_from_place(place, specialty_label, city, location):
+    website = place.get("websiteUri", "")
+    email = extract_email_from_website(website)
+    guessed = False
+    if not email:
+        email, guessed = guess_email(website), True
+    if not email:
+        return None
+    phone, mobile = normalize_phone(place)
+    return {
+        "name": "",
+        "email": email.lower(),
+        "specialty": specialty_label,
+        "clinic": place.get("displayName", {}).get("text", ""),
+        "city": city,
+        "phone": phone,
+        "status": "new",
+        "step": 0,
+        "next_send_date": "",
+        "last_sent_date": "",
+        "notes": " | ".join(x for x in [place.get("formattedAddress", ""),
+                                        "" if mobile or not phone else "phone is a landline",
+                                        "email:guessed" if guessed else ""] if x),
+        "_location": location,
+    }
+
+
+# ── main entry ───────────────────────────────────────────────────────────────
+
+def scrape_leads(priority_cities=None, target=TARGET_NEW_LEADS) -> tuple[list[dict], dict]:
+    """
+    Search until `target` new leads are found, the day's Maps budget is used, or every search has been
+    done recently. Returns (leads, info) where info has calls used, searches run and cities covered.
+    """
     try:
         from modules.sheets import get_existing_emails
         seen = get_existing_emails()
-        print(f"  Skipping {len(seen)} already-known emails from CRM.")
+        print(f"  {len(seen)} emails already in the lead sheet will be skipped.")
     except Exception:
         seen = set()
 
-    all_leads = []
+    budget = {"left": daily_call_budget(), "used": 0, "error": ""}
+    print(f"  Maps budget today: {budget['left']} calls · target: {target} new leads")
+    progress = _load_progress()
+    cutoff = (date.today() - timedelta(days=RESEARCH_AFTER_DAYS)).isoformat()
 
-    for city in cities:
-        for specialty_label, query in specialties:
-            print(f"  Searching: {specialty_label} in {city}...")
-            places = search_places(query, city)
+    plan = [(spec, q, loc, city)
+            for loc, city in _locations(priority_cities or [])
+            for spec, q in SPECIALTIES]
+    # Never-searched first, then the oldest searches past the cutoff
+    plan = [p for p in plan if progress.get(f"{p[0]}|{p[2]}", "") < cutoff]
+    plan.sort(key=lambda p: progress.get(f"{p[0]}|{p[2]}", ""))
 
-            count = 0
-            for place in places:
-                if count >= max_per_combo:
+    leads, searches, cities = [], 0, []
+    pool = ThreadPoolExecutor(max_workers=12)
+    try:
+        for spec, query, location, city in plan:
+            if len(leads) >= target or budget["left"] <= 0:
+                break
+            places = search_places(query, location, budget)
+            searches += 1
+            progress[f"{spec}|{location}"] = date.today().isoformat()
+            # Only places with a website can give us an email; fetch those sites in parallel
+            futures = [pool.submit(_lead_from_place, p, spec, city, location) for p in places if p.get("websiteUri")]
+            new_here = 0
+            for fut in futures:
+                lead = fut.result()
+                if not lead or lead["email"] in seen:
+                    continue
+                seen.add(lead["email"])
+                leads.append(lead)
+                new_here += 1
+                if len(leads) >= target:
                     break
+            if city not in cities and new_here:
+                cities.append(city)
+            print(f"  {spec} in {location}: {len(places)} places → {new_here} new  (total {len(leads)}, calls left {budget['left']})")
+            if budget["error"]:
+                break
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+        _save_progress(progress)
 
-                clinic_name = place.get("displayName", {}).get("text", "")
-                address     = place.get("formattedAddress", "")
-                phone       = place.get("nationalPhoneNumber", "")
-                website     = place.get("websiteUri", "")
-
-                email = extract_email_from_website(website)
-                guessed = False
-                if not email:
-                    email = guess_email(website)
-                    guessed = True
-
-                if not email:
-                    continue
-
-                # Skip if already in CRM
-                if email.lower() in seen:
-                    print(f"    ↷ Skipping duplicate: {clinic_name} ({email})")
-                    continue
-                seen.add(email.lower())
-
-                all_leads.append({
-                    "name": "",
-                    "email": email,
-                    "specialty": specialty_label,
-                    "clinic": clinic_name,
-                    "city": city,
-                    "status": "new",
-                    "step": 0,
-                    "next_send_date": "",
-                    "last_sent_date": "",
-                    "notes": f"Phone: {phone} | {address}" + (" | email:guessed" if guessed else ""),
-                })
-                count += 1
-                print(f"    ✓ {clinic_name} — {email}")
-
-                time.sleep(0.3)
-
-    print(f"\n  Total leads found: {len(all_leads)}")
-    return all_leads
+    info = {"calls": budget["used"], "searches": searches, "cities": cities, "error": budget["error"],
+            "exhausted": len(leads) < target and budget["left"] > 0 and not budget["error"]}
+    print(f"\n  Total new leads found: {len(leads)} ({searches} searches, {budget['used']} Maps calls)")
+    return leads, info

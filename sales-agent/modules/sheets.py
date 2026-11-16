@@ -18,6 +18,7 @@ L: whatsapp_log       (e.g. "Day 4: sent 2024-06-08 | Day 14: sent 2024-06-22")
 """
 
 import os
+import re
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import date
@@ -271,3 +272,45 @@ def mark_replied_by_phone(from_number: str, note: str = "") -> bool:
             mark_replied(lead["_row"], note or f"WhatsApp reply received: {from_number}")
             return True
     return False
+
+
+def mark_failed_batch(row_indexes) -> int:
+    """Marks many rows 'failed' in one API call (bounced or invalid emails), so they stop counting as due."""
+    rows = sorted(set(int(r) for r in row_indexes))
+    if not rows:
+        return 0
+    _get_sheet().batch_update([{"range": f"G{r}", "values": [["failed"]]} for r in rows], value_input_option="RAW")
+    return len(rows)
+
+
+_PHONE_IN_NOTES = re.compile(r"Phone:\s*([+\d][\d\s\-()]{6,})")
+
+
+def phone_of(lead: dict) -> str:
+    """The lead's phone: the phone column, or the 'Phone: …' that older leads have in notes."""
+    p = str(lead.get("phone", "")).strip()
+    if p:
+        return p
+    m = _PHONE_IN_NOTES.search(str(lead.get("notes", "")))
+    if not m:
+        return ""
+    digits = re.sub(r"\D", "", m.group(1))
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    digits = digits.lstrip("0")
+    return f"+91{digits}" if len(digits) == 10 else m.group(1).strip()
+
+
+def backfill_phones() -> int:
+    """Copies phone numbers that older leads kept in notes into the phone column (one batch write)."""
+    sheet = _get_sheet()
+    updates = []
+    for i, row in enumerate(sheet.get_all_records(), start=2):
+        if str(row.get("phone", "")).strip():
+            continue
+        p = phone_of(row)
+        if p:
+            updates.append({"range": f"F{i}", "values": [[p]]})
+    for k in range(0, len(updates), 500):
+        sheet.batch_update(updates[k:k + 500], value_input_option="RAW")
+    return len(updates)

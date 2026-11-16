@@ -19,8 +19,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from modules.scraper import scrape_leads, SPECIALTIES
-from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed, log_whatsapp, has_opened_email, mark_email_opened, mark_replied_by_phone
+from modules.scraper import scrape_leads, TARGET_NEW_LEADS
+from modules.sheets import import_leads, get_leads_due_today, update_lead, mark_failed, mark_failed_batch, log_whatsapp, has_opened_email, mark_email_opened, mark_replied_by_phone, phone_of, backfill_phones
 from modules.personalizer import personalize_email
 from modules.mailer import send_email
 from modules.scheduler import get_next_step, get_next_send_date, is_sequence_complete
@@ -32,13 +32,13 @@ DELAY_MIN            = int(os.environ.get("DELAY_MIN", 45))    # min seconds bet
 DELAY_MAX            = int(os.environ.get("DELAY_MAX", 90))    # max seconds between emails
 BURST_EVERY          = int(os.environ.get("BURST_EVERY", 10))  # longer pause every N emails
 BURST_PAUSE          = int(os.environ.get("BURST_PAUSE", 180)) # seconds for burst pause (3 min)
+# Searched first; after these the search moves on to their localities and then other cities on its own
 SCRAPE_CITIES        = os.environ.get("SCRAPE_CITIES", "Mumbai,Pune,Delhi,Bangalore").split(",")
-MAX_PER_COMBO        = int(os.environ.get("MAX_PER_COMBO", 10))
 REPORT_EMAIL         = os.environ.get("REPORT_EMAIL", "support@inferapp.online")
 
 # What this run did — emailed to REPORT_EMAIL at the end (see send_daily_report)
 STATS = {
-    "opens_synced": 0, "leads_added": 0, "scrape_note": "", "due": 0, "preflight_removed": 0,
+    "opens_synced": 0, "leads_added": 0, "new_leads": [], "scrape_note": "", "due": 0, "preflight_removed": 0,
     "sent": [], "skipped": 0, "failed": [], "whatsapp": [], "wa_replies": [], "warnings": [],
 }
 
@@ -132,28 +132,28 @@ def phase_scrape():
         _mark_scrape_done()
         return 0
 
-    cities = [c.strip() for c in SCRAPE_CITIES if c.strip()]
-
     try:
-        leads = scrape_leads(
-            cities=cities,
-            specialties=SPECIALTIES,
-            max_per_combo=MAX_PER_COMBO,
-        )
+        leads, info = scrape_leads(priority_cities=[c.strip() for c in SCRAPE_CITIES if c.strip()], target=TARGET_NEW_LEADS)
     except Exception as e:
         print(f"  ⚠ Scraper error: {e}")
         STATS["warnings"].append(f"Lead scraping failed: {e}")
         return 0
 
-    if not leads:
-        print("  No new leads found.")
-        _mark_scrape_done()
-        return 0
-
-    added = import_leads(leads)
+    added = import_leads(leads) if leads else 0
     print(f"  Added {added} new leads to CRM (duplicates skipped).")
     STATS["leads_added"] = added
-    STATS["scrape_note"] = f"{len(leads)} found in {', '.join(cities)}"
+    STATS["new_leads"] = leads
+    shown = ", ".join(info["cities"][:12]) + (f" +{len(info['cities']) - 12} more" if len(info["cities"]) > 12 else "")
+    STATS["scrape_note"] = (f"{len(leads)} found in {shown or '—'} · {info['searches']} searches · "
+                            f"{info['calls']} Maps calls · quota {quota_status()}")
+    if info["error"]:
+        STATS["warnings"].append(f"Google Maps stopped the search: {info['error']}")
+    elif added < TARGET_NEW_LEADS and not info["exhausted"]:
+        STATS["warnings"].append(f"Only {added} of {TARGET_NEW_LEADS} new leads: today's Maps budget ran out. "
+                                 "Raise MAPS_MONTHLY_CAP / MAPS_DAILY_CAP in .env (Google bills calls beyond the free tier).")
+    elif info["exhausted"]:
+        STATS["warnings"].append("Every city/locality search has been run recently — add cities in modules/scraper.py "
+                                 "or lower RESEARCH_AFTER_DAYS.")
     _mark_scrape_done()
     return added
 
@@ -188,13 +188,23 @@ def phase_preflight(leads: list) -> list:
             rejected += 1
 
     print(f"  Pre-flight: {rejected} emails removed before sending.")
-    STATS["preflight_removed"] = rejected
 
-    # Filter leads to only those that passed
-    valid_leads = [
-        lead for lead in leads
-        if not lead.get("email") or not is_bounced(str(lead.get("email", "")).strip())
-    ]
+    # Leads whose email bounced or failed the check are marked 'failed' in the sheet, so they stop
+    # showing up as due every day
+    valid_leads, dead_rows = [], []
+    for lead in leads:
+        email = str(lead.get("email", "")).strip()
+        if email and is_bounced(email):
+            dead_rows.append(lead["_row"])
+        else:
+            valid_leads.append(lead)
+    try:
+        n = mark_failed_batch(dead_rows)
+        if n:
+            print(f"  Marked {n} leads with dead emails as failed in the sheet.")
+    except Exception as e:
+        print(f"  ⚠ Could not mark dead leads in the sheet: {e}")
+    STATS["preflight_removed"] = len(dead_rows)
     return valid_leads
 
 
@@ -209,10 +219,15 @@ def phase_outreach():
         return
 
     leads = phase_preflight(leads)
+    STATS["sendable"] = len(leads)
+    # Follow-ups that are due go first, then new leads (oldest first)
+    leads.sort(key=lambda l: (0 if int(l.get("step") or 0) > 0 else 1, l["_row"]))
 
     sent = skipped = failed = 0
 
-    for lead in leads[:MAX_EMAILS_PER_RUN]:
+    for lead in leads:
+        if sent >= MAX_EMAILS_PER_RUN:
+            break
         name  = lead.get("name") or lead.get("clinic") or "Doctor"
         email = str(lead.get("email", "")).strip()
         step  = int(lead.get("step", 0))
@@ -257,7 +272,7 @@ def phase_outreach():
             status = "active" if next_date else "completed"
             update_lead(row_index=row, step=next_step, next_send_date=next_date or "", status=status)
             sent += 1
-            STATS["sent"].append({"name": name, "clinic": lead.get("clinic", ""), "city": lead.get("city", ""),
+            STATS["sent"].append({"name": name, "clinic": lead.get("clinic", ""), "city": lead.get("city", ""), "phone": phone_of(lead),
                                   "specialty": lead.get("specialty", ""), "email": email, "step": next_step,
                                   "subject": content["subject"], "next": next_date or "sequence complete"})
 
@@ -275,7 +290,7 @@ def phase_outreach():
             failed += 1
             STATS["failed"].append({"name": name, "email": email, "step": next_step, "reason": "not sent (bounced, blocked, invalid or SMTP error — see log)"})
 
-        if sent < len(leads):
+        if sent < min(len(leads), MAX_EMAILS_PER_RUN):
             # Burst pause every BURST_EVERY emails — mimics human behaviour
             if sent % BURST_EVERY == 0 and sent > 0:
                 print(f"  ⏸  Burst pause ({BURST_PAUSE}s) after {sent} emails…")
@@ -366,14 +381,28 @@ def send_daily_report(started, finished, crashed=None, log_text=""):
     card = lambda label, value: (f'<td style="padding:10px 14px;background:#f1f5f9;border-radius:8px;text-align:center">'
                                  f'<div style="font-size:22px;font-weight:700;color:#0f3d6e">{value}</div>'
                                  f'<div style="font-size:11px;color:#64748b">{label}</div></td>')
+    tel = lambda p: f'<a href="tel:{esc(p)}">{esc(p)}</a>' if p else '<span style="color:#94a3b8">—</span>'
     rows = "".join(
-        f"<tr><td>{esc(x['name'])}</td><td>{esc(x['clinic'])}</td><td>{esc(x['city'])}</td><td>{esc(x['specialty'])}</td>"
-        f"<td>{esc(x['email'])}</td><td style='text-align:center'>{x['step']}</td><td>{esc(x['subject'])}</td><td>{esc(str(x['next']))}</td></tr>"
+        f"<tr><td>{esc(x['clinic'] or x['name'])}</td><td>{esc(x['city'])}</td><td>{esc(x['specialty'])}</td>"
+        f"<td style='white-space:nowrap'>{tel(x.get('phone', ''))}</td>"
+        f"<td>{esc(x['email'])}</td><td style='text-align:center'>{x['step']}</td><td>{esc(x['subject'])}</td><td style='white-space:nowrap'>{esc(str(x['next']))}</td></tr>"
         for x in S["sent"]) or '<tr><td colspan="8" style="color:#64748b">No emails sent today.</td></tr>'
     failed = "".join(f"<li>{esc(x['name'])} &lt;{esc(x['email'])}&gt; — step {x['step']}: {esc(x['reason'])}</li>" for x in S["failed"])
     wa = "".join(f"<li>{esc(x['name'])} ({esc(str(x['phone']))}) — step {x['step']}</li>" for x in S["whatsapp"])
     replies = "".join(f"<li>{esc(x['from'])}{'' if x['matched'] else ' (no matching lead)'}: “{esc(x['text'])}”</li>" for x in S["wa_replies"])
     warns = "".join(f"<li>{esc(w)}</li>" for w in S["warnings"])
+    from collections import Counter
+    by_city = Counter(l["city"] for l in S["new_leads"])
+    with_mobile = sum(1 for l in S["new_leads"] if str(l.get("phone", "")).startswith("+91") and "landline" not in l.get("notes", ""))
+    new_by_city = (f'<h3 style="margin:18px 0 6px">New leads ({len(S["new_leads"])}, {with_mobile} with a mobile number)</h3>'
+                   f'<p style="font-size:12px">' + " · ".join(f"{esc(c)}: {n}" for c, n in by_city.most_common()) +
+                   '</p><p style="font-size:11px;color:#64748b">Full list with phone numbers attached (new-leads CSV).</p>') if S["new_leads"] else ""
+    import csv, io
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["clinic", "specialty", "city", "area", "phone", "email", "address / notes"])
+    for l in S["new_leads"]:
+        w.writerow([l["clinic"], l["specialty"], l["city"], l.get("_location", ""), l.get("phone", ""), l["email"], l.get("notes", "")])
     pipe_txt = " · ".join(f"{k}: {v}" for k, v in pipe.items()) if pipe else "unavailable"
     th = 'style="text-align:left;background:#0f3d6e;color:#fff;padding:6px 8px;font-size:12px"'
     html = f"""<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:900px">
@@ -382,15 +411,16 @@ def send_daily_report(started, finished, crashed=None, log_text=""):
      <span style="color:#64748b;font-weight:400">· {started:%I:%M %p} – {finished:%I:%M %p} ({mins} min)</span></p>
   {f'<p style="background:#fee2e2;padding:10px;border-radius:8px"><b>Error:</b> {esc(str(crashed))}</p>' if crashed else ''}
   <table cellspacing="8" style="margin:0 -8px 10px"><tr>
-    {card("Emails sent", len(S["sent"]))}{card("Leads due", S["due"])}{card("Failed", len(S["failed"]))}
+    {card("Emails sent", len(S["sent"]))}{card("Leads due", S["due"])}{card("Sendable", S.get("sendable", 0))}{card("Failed", len(S["failed"]))}
     {card("Skipped", S["skipped"])}{card("New leads", S["leads_added"])}{card("WhatsApp sent", len(S["whatsapp"]))}
     {card("WA replies", len(S["wa_replies"]))}{card("Opens synced", S["opens_synced"])}</tr></table>
   <p style="font-size:13px"><b>Lead search:</b> {esc(S["scrape_note"] or "—")} &nbsp;|&nbsp;
      <b>Removed by email check:</b> {S["preflight_removed"]} &nbsp;|&nbsp; <b>Lead list:</b> {esc(pipe_txt)}</p>
   <h3 style="margin:18px 0 6px">Emails sent ({len(S["sent"])})</h3>
   <table cellspacing="0" cellpadding="6" style="border-collapse:collapse;font-size:12px;width:100%" border="1" bordercolor="#e5e7eb">
-    <tr><th {th}>Doctor</th><th {th}>Clinic</th><th {th}>City</th><th {th}>Specialty</th><th {th}>Email</th><th {th}>Step</th><th {th}>Subject</th><th {th}>Next email</th></tr>
+    <tr><th {th}>Clinic</th><th {th}>City</th><th {th}>Specialty</th><th {th}>Mobile</th><th {th}>Email</th><th {th}>Step</th><th {th}>Subject</th><th {th}>Next email</th></tr>
     {rows}</table>
+  {new_by_city}
   {f'<h3 style="margin:18px 0 6px;color:#b91c1c">Not sent ({len(S["failed"])})</h3><ul style="font-size:12px">{failed}</ul>' if failed else ''}
   {f'<h3 style="margin:18px 0 6px">WhatsApp sent</h3><ul style="font-size:12px">{wa}</ul>' if wa else ''}
   {f'<h3 style="margin:18px 0 6px">WhatsApp replies</h3><ul style="font-size:12px">{replies}</ul>' if replies else ''}
@@ -401,7 +431,8 @@ def send_daily_report(started, finished, crashed=None, log_text=""):
             f"new leads {S['leads_added']}, WhatsApp {len(S['whatsapp'])}, replies {len(S['wa_replies'])}.")
     subject = (f"Sales agent {started:%d %b}: {len(S['sent'])} emails sent, {S['leads_added']} new leads"
                + (" — FAILED" if crashed else ""))
-    send_plain(REPORT_EMAIL, subject, html, text, attachments=[(f"sales-agent-{started:%Y-%m-%d}.log", log_text)])
+    send_plain(REPORT_EMAIL, subject, html, text, attachments=[(f"sales-agent-{started:%Y-%m-%d}.log", log_text)]
+               + ([(f"new-leads-{started:%Y-%m-%d}.csv", buf.getvalue())] if S["new_leads"] else []))
     print(f"  ✓ Daily report emailed to {REPORT_EMAIL}")
 
 
@@ -418,6 +449,12 @@ def run():
     print("╚══════════════════════════════════════╝")
     try:
         sync_email_opens()
+        try:
+            n = backfill_phones()
+            if n:
+                print(f"\n  Copied {n} phone numbers from notes into the phone column.")
+        except Exception as e:
+            print(f"  ⚠ Phone backfill skipped: {e}")
         phase_scrape()
         phase_outreach()
         sync_wa_replies()

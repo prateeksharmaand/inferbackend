@@ -22,7 +22,7 @@ echo "==> Copying sales-agent code to $VPS:$DIR"
 ssh "$VPS" "mkdir -p $DIR/logs"
 rsync -az \
   --exclude .env --exclude google_creds.json --exclude logs/ --exclude __pycache__/ --exclude '*.pyc' \
-  --exclude quota.json --exclude bounce_log.json --exclude daily_email_count.json --exclude scrape_done.json \
+  --exclude quota.json --exclude bounce_log.json --exclude daily_email_count.json --exclude scrape_done.json --exclude scrape_progress.json \
   --exclude debug_html/ --exclude 'preview_*.html' \
   "$REPO/sales-agent/" "$VPS:$DIR/"
 
