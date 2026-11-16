@@ -1,6 +1,10 @@
 """
 Monthly request quota tracker for Google Maps API.
-Hard cap at 9,500 requests/month (500 buffer under free tier limit of 10,000).
+
+Our Text Search asks for phone + website, which Google bills as "Text Search Enterprise":
+1,000 free requests a month, then $35 per 1,000. To guarantee no Google bill, the cap is
+FREE_TIER_SAFE (950) and MAPS_MONTHLY_CAP in .env can only LOWER it — raising it needs
+MAPS_ALLOW_PAID=yes as an explicit opt-in to paid usage.
 Resets automatically on the 1st of each month.
 State stored in quota.json next to this file.
 """
@@ -10,7 +14,10 @@ import json
 from datetime import date
 
 QUOTA_FILE = os.path.join(os.path.dirname(__file__), "..", "quota.json")
-MONTHLY_CAP = int(os.environ.get("MAPS_MONTHLY_CAP", 9500))
+FREE_TIER_SAFE = 950   # 1,000 free Enterprise calls/month, minus a 50-call margin
+_ALLOW_PAID = os.environ.get("MAPS_ALLOW_PAID", "").strip().lower() in ("1", "yes", "true")
+_ENV_CAP = int(os.environ.get("MAPS_MONTHLY_CAP", FREE_TIER_SAFE) or FREE_TIER_SAFE)
+MONTHLY_CAP = _ENV_CAP if _ALLOW_PAID else min(_ENV_CAP, FREE_TIER_SAFE)
 
 
 def _load() -> dict:

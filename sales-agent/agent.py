@@ -150,7 +150,7 @@ def phase_scrape():
         STATS["warnings"].append(f"Google Maps stopped the search: {info['error']}")
     elif added < TARGET_NEW_LEADS and not info["exhausted"]:
         STATS["warnings"].append(f"Only {added} of {TARGET_NEW_LEADS} new leads: today's Maps budget ran out. "
-                                 "Raise MAPS_MONTHLY_CAP / MAPS_DAILY_CAP in .env (Google bills calls beyond the free tier).")
+                                 "This is deliberate: Maps use is capped at 950 calls a month to stay inside Google's free tier (no Google bill).")
     elif info["exhausted"]:
         STATS["warnings"].append("Every city/locality search has been run recently — add cities in modules/scraper.py "
                                  "or lower RESEARCH_AFTER_DAYS.")
