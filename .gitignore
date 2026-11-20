@@ -1,0 +1,15 @@
+.env
+*.env.local
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+node_modules/
+.next/
+out/
+storage/*
+!storage/.gitkeep
+*.log
+.DS_Store
+backups/
