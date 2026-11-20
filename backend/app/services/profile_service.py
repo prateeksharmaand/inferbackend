@@ -74,6 +74,9 @@ def apply_extraction(db: Session, p: CandidateProfile, ex: ResumeExtraction, *, 
 
 
 def compute_confirmations(p: CandidateProfile, notes: list[str] | None = None) -> list[dict]:
+    """Recompute the 'please confirm' list. Resume-parser notes and manual notes persist until a new
+    resume is parsed (notes passed explicitly) or the user edits the profile field they refer to."""
+    kept = [i for i in (p.needs_confirmation or []) if i.get("field") in ("resume", "note")] if notes is None else []
     items = []
     for f, label in [("target_ctc_min_lpa", "Target CTC"), ("current_ctc_lpa", "Current CTC"),
                      ("notice_period_days", "Notice period"), ("location", "Current location"),
@@ -87,7 +90,7 @@ def compute_confirmations(p: CandidateProfile, notes: list[str] | None = None) -
                           "and generated resumes."})
     for n in notes or []:
         items.append({"field": "resume", "message": n})
-    return items
+    return items + kept
 
 
 def confirmed_skills(p: CandidateProfile) -> list[str]:

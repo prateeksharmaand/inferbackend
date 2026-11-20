@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
 def _refresh(db, p):
-    p.needs_confirmation = compute_confirmations(p, [n for n in [] if n])
+    p.needs_confirmation = compute_confirmations(p)
     db.commit()
     db.refresh(p)
     return p

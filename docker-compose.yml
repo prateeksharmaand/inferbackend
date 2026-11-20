@@ -1,0 +1,73 @@
+# CareerPilot AI — production stack. See docs/DEPLOYMENT.md.
+name: careerpilot
+
+x-backend: &backend
+  image: careerpilot-backend:latest
+  env_file: ${ENV_FILE:-.env}
+  environment:
+    DATABASE_URL: postgresql+psycopg://careerpilot:${POSTGRES_PASSWORD}@postgres:5432/careerpilot
+    REDIS_URL: redis://redis:6379/0
+    STORAGE_PATH: /app/storage
+  volumes: [storage:/app/storage]
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: careerpilot
+      POSTGRES_USER: careerpilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U careerpilot"], interval: 10s, timeout: 5s, retries: 5 }
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 10s, timeout: 5s, retries: 5 }
+    restart: unless-stopped
+
+  backend:
+    <<: *backend
+    build: { context: ., dockerfile: infrastructure/docker/backend.Dockerfile }
+
+  celery-worker:
+    <<: *backend
+    command: ["celery", "-A", "app.automation.celery_app", "worker", "-l", "info", "-c", "2"]
+    healthcheck: { test: ["CMD-SHELL", "celery -A app.automation.celery_app inspect ping -d celery@$$HOSTNAME -t 5 | grep -q pong"], interval: 60s, timeout: 15s, retries: 3 }
+    depends_on: { backend: { condition: service_healthy } }
+
+  celery-beat:
+    <<: *backend
+    command: ["celery", "-A", "app.automation.celery_app", "beat", "-l", "info", "-s", "/tmp/celerybeat-schedule"]
+    healthcheck: { disable: true }
+    depends_on: { backend: { condition: service_healthy } }
+
+  frontend:
+    build: { context: ., dockerfile: infrastructure/docker/frontend.Dockerfile }
+    image: careerpilot-frontend:latest
+    environment: { INTERNAL_API_URL: http://backend:8000 }
+    depends_on: { backend: { condition: service_healthy } }
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["${HTTP_PORT:-80}:80", "${HTTPS_PORT:-443}:443"]
+    environment: { DOMAIN: "${DOMAIN:-localhost}" }
+    volumes:
+      - ./infrastructure/nginx/templates:/etc/nginx/templates:ro
+      - ./infrastructure/nginx/certs:/etc/nginx/certs:ro
+      - certbot-www:/var/www/certbot
+    depends_on: [frontend, backend]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  storage:
+  certbot-www:

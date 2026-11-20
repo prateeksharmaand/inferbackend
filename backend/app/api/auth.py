@@ -24,7 +24,7 @@ LOCK_MINUTES = 15
 
 
 def _set_session(resp: Response, access: str, refresh: str) -> None:
-    secure = settings.is_production
+    secure = settings.cookie_secure
     resp.set_cookie(ACCESS_COOKIE, access, httponly=True, secure=secure, samesite="lax", path="/",
                     max_age=settings.ACCESS_TOKEN_MINUTES * 60)
     resp.set_cookie(REFRESH_COOKIE, refresh, httponly=True, secure=secure, samesite="strict", path="/api/auth",

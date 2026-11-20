@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_DAYS: int = 14
     ENCRYPTION_KEY: str = ""  # Fernet key; generate with app.core.crypto.generate_key()
     ALLOW_REGISTRATION: bool = True  # set False after creating your account
+    COOKIE_SECURE: bool | None = None  # default: True when APP_ENV=production. Requires HTTPS.
 
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_CHAT_ID: str = ""
@@ -64,6 +65,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == "production"
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.is_production if self.COOKIE_SECURE is None else self.COOKIE_SECURE
 
     @property
     def ai_configured(self) -> bool:
