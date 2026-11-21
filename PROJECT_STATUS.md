@@ -1,6 +1,9 @@
 # Project status
 
-_Last updated: 2026-11-20._
+_Last updated: 2026-11-21._
+
+**Deployed** to https://jobs.inferapp.online (pending the DNS A record) on the shared VPS. AI runs on Google Gemini
+(`gemini-3.5-flash`); live structured-output and Google-Search-grounded research calls verified 2026-11-21.
 
 ## Summary
 All seven phases are implemented. The backend (58 tests), frontend (11 tests, type-check, production build)
@@ -29,7 +32,7 @@ scheduled steps.
 ## Awaiting credentials
 | Item | What to set | Effect when missing |
 |---|---|---|
-| Claude | `ANTHROPIC_API_KEY` | Rule-based matching, heuristic parsing, template letters; research disabled |
+| Claude (optional) | `ANTHROPIC_API_KEY` + `AI_PROVIDER=anthropic` | Gemini is used instead (configured in production) |
 | JSearch | `SEARCH_PROVIDER_API_KEY` | No LinkedIn/Indeed/Naukri/Foundit coverage |
 | Adzuna | `JOB_SEARCH_API_KEY` | One fewer source |
 | SMTP | `SMTP_*` | Notifications stay in-app; outreach emails can't be sent from the app |

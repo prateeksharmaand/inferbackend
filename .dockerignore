@@ -8,3 +8,6 @@ storage
 backups
 .git
 infrastructure/nginx/certs
+!frontend/.next/standalone
+!frontend/.next/static
+!frontend/.next/standalone/node_modules

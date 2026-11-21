@@ -56,3 +56,25 @@ Copy `backups/` off the server regularly (e.g. `rclone` to cloud storage). Resum
 - Health: `curl https://DOMAIN/api/health`; Settings → Integrations shows every service's state.
 - Updates: `./infrastructure/scripts/deploy.sh` (migrations run automatically at backend start).
 - Persistent volumes: `pgdata` (database), `storage` (resumes & generated documents), `redisdata`.
+
+## Live instance: jobs.inferapp.online (shared VPS 187.127.135.184)
+This VPS's ports 80/443 belong to the beyondlife Caddy container, so CareerPilot runs without its own nginx:
+- Code + server-only `.env` in `/opt/careerpilot` (compose project `careerpilot`), using
+  `infrastructure/vps/docker-compose.vps.yml`: backend and frontend join `beyondlife_default` as
+  `careerpilot-api` / `careerpilot-web`; postgres/redis are `careerpilot-db` / `careerpilot-redis` (the shared
+  network already has hosts called `db` and `redis`).
+- Caddy site block appended to `/opt/beyondlife/deploy/Caddyfile` (`/api/*` → careerpilot-api:8000, rest →
+  careerpilot-web:3000); applied with `caddy reload` (no restart). Caddy issues the TLS certificate.
+- Images are built on the server. The frontend is prebuilt on a dev machine
+  (`cd frontend && INTERNAL_API_URL=http://backend:8000 npm run build`) and packaged with
+  `infrastructure/docker/frontend.prebuilt.Dockerfile`, so `next build` never runs on the shared 4 GB box.
+- AI: `AI_PROVIDER=gemini`, `GEMINI_MODEL=gemini-3.5-flash` (same key as the Infer stack).
+
+Redeploy:
+```bash
+cd frontend && INTERNAL_API_URL=http://backend:8000 npm run build && cd ..
+rsync -az --partial --delete --exclude .git --exclude 'frontend/node_modules' --exclude .venv --exclude .env \
+  --exclude storage --exclude backups --exclude __pycache__ --exclude frontend/.next/cache ./ root@187.127.135.184:/opt/careerpilot/
+ssh root@187.127.135.184 'cd /opt/careerpilot && docker compose -p careerpilot -f docker-compose.yml \
+  -f infrastructure/vps/docker-compose.vps.yml up -d --build'
+```

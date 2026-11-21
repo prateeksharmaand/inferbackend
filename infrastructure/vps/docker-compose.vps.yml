@@ -1,0 +1,44 @@
+# Override for a VPS where an existing Caddy (on the external network `beyondlife_default`) owns 80/443.
+# Usage on the server:  docker compose -f docker-compose.yml -f infrastructure/vps/docker-compose.vps.yml up -d
+# - nginx is not started; Caddy routes jobs.<domain>/api → careerpilot-api:8000 and / → careerpilot-web:3000
+# - postgres/redis get unique hostnames because the shared network already has hosts named "db" and "redis"
+# - smaller worker counts for a shared 4 GB box
+x-env: &env
+  DATABASE_URL: postgresql+psycopg://careerpilot:${POSTGRES_PASSWORD}@careerpilot-db:5432/careerpilot
+  REDIS_URL: redis://careerpilot-redis:6379/0
+  STORAGE_PATH: /app/storage
+  UVICORN_WORKERS: "1"
+
+services:
+  postgres:
+    networks: { default: { aliases: [careerpilot-db] } }
+    deploy: { resources: { limits: { memory: 384m } } }
+  redis:
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
+    networks: { default: { aliases: [careerpilot-redis] } }
+  backend:
+    environment: *env
+    networks:
+      default: {}
+      shared: { aliases: [careerpilot-api] }
+    deploy: { resources: { limits: { memory: 768m } } }
+  celery-worker:
+    environment: *env
+    command: ["celery", "-A", "app.automation.celery_app", "worker", "-l", "info", "-c", "1", "--max-tasks-per-child", "50"]
+    deploy: { resources: { limits: { memory: 768m } } }
+  celery-beat:
+    environment: *env
+    deploy: { resources: { limits: { memory: 192m } } }
+  frontend:
+    build: { context: ., dockerfile: infrastructure/docker/frontend.prebuilt.Dockerfile }
+    networks:
+      default: {}
+      shared: { aliases: [careerpilot-web] }
+    deploy: { resources: { limits: { memory: 256m } } }
+  nginx:
+    profiles: ["nginx"]
+
+networks:
+  shared:
+    external: true
+    name: beyondlife_default
