@@ -94,7 +94,7 @@ def _company(db, user, cid) -> Company:
 @router.post("/api/companies/{cid}/research", response_model=CompanyOut)
 def research(cid: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     if not settings.ai_configured:
-        raise AppError("Company research needs the Claude API (set ANTHROPIC_API_KEY).", status_code=503,
+        raise AppError("Company research needs an AI provider (set ANTHROPIC_API_KEY or GEMINI_API_KEY).", status_code=503,
                        code="ai_unavailable")
     c = research_company(db, _company(db, user, cid), user.id)
     db.commit()
@@ -104,7 +104,7 @@ def research(cid: int, user: User = Depends(current_user), db: Session = Depends
 @router.post("/api/companies/{cid}/discover-contacts")
 def discover(cid: int, job_id: int | None = None, user: User = Depends(current_user), db: Session = Depends(get_db)):
     if not settings.ai_configured:
-        raise AppError("Recruiter discovery needs the Claude API (set ANTHROPIC_API_KEY).", status_code=503,
+        raise AppError("Recruiter discovery needs an AI provider (set ANTHROPIC_API_KEY or GEMINI_API_KEY).", status_code=503,
                        code="ai_unavailable")
     c = _company(db, user, cid)
     title = ""

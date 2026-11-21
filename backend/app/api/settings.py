@@ -27,9 +27,10 @@ def integrations(check_ai: bool = False, user: User = Depends(current_user), db:
     items = []
     ai_state = ai.status() if check_ai else (
         {"state": "configured", "detail": "Key present (click Test to verify)", "model": ai.model_name()}
-        if settings.ai_configured else {"state": "awaiting_credentials", "detail": "Set ANTHROPIC_API_KEY",
-                                        "model": ai.model_name()})
-    items.append({"key": "anthropic", "name": "Claude API", **ai_state})
+        if settings.ai_configured else {"state": "awaiting_credentials",
+                                        "detail": "Set ANTHROPIC_API_KEY or GEMINI_API_KEY", "model": ai.model_name()})
+    provider = {"anthropic": "Claude API", "gemini": "Google Gemini API"}.get(settings.ai_provider or "", "AI provider")
+    items.append({"key": "anthropic", "name": f"AI ({provider})", **ai_state})
     items.append({"key": "smtp", "name": "Email (SMTP / Gmail App Password)",
                   "state": "configured" if channels.email_configured() else "awaiting_credentials",
                   "detail": settings.SMTP_HOST or "Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD"})

@@ -24,9 +24,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://localhost/careerpilot"
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # AI provider: "anthropic" (Claude) or "gemini". "auto" picks whichever key is set (Claude first).
+    AI_PROVIDER: str = "auto"
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-opus-5-5"
     AI_EFFORT: str = "medium"
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3.5-flash"
 
     JWT_SECRET: str = "dev-only-change-me-dev-only-change-me"
     ACCESS_TOKEN_MINUTES: int = 15
@@ -71,8 +75,17 @@ class Settings(BaseSettings):
         return self.is_production if self.COOKIE_SECURE is None else self.COOKIE_SECURE
 
     @property
+    def ai_provider(self) -> str | None:
+        p = self.AI_PROVIDER.lower()
+        if p == "anthropic":
+            return "anthropic" if self.ANTHROPIC_API_KEY else None
+        if p == "gemini":
+            return "gemini" if self.GEMINI_API_KEY else None
+        return "anthropic" if self.ANTHROPIC_API_KEY else ("gemini" if self.GEMINI_API_KEY else None)
+
+    @property
     def ai_configured(self) -> bool:
-        return bool(self.ANTHROPIC_API_KEY)
+        return self.ai_provider is not None
 
 
 @lru_cache

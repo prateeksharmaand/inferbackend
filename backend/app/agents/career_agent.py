@@ -69,7 +69,7 @@ def chat(db: Session, user: User, conv: AgentConversation, text: str) -> AgentMe
             reply = reply or "I ran out of steps for this request. Try narrowing it down."
     except ai.AIUnavailable as e:
         reply, more = _fallback(db, user, text)
-        reply = f"(Claude unavailable: {e})\n\n{reply}"
+        reply = f"(AI unavailable: {e})\n\n{reply}"
         calls += more
         # keep the transcript well-formed: drop the dangling turn
         while transcript and transcript[-1]["role"] != "user":
@@ -123,5 +123,5 @@ def _fallback(db: Session, user: User, text: str) -> tuple[str, list[dict]]:
         return (body and f"Matching jobs from your database:\n{body}") or \
             "No matching jobs in your database yet. Run a job search from Agent Automation or import a posting URL.", \
             [{"name": "search_jobs", "input": args, "summary": s}]
-    return ("The Career Agent needs the Claude API for open-ended requests (set ANTHROPIC_API_KEY). Without it I can "
+    return ("The Career Agent needs an AI provider for open-ended requests (ANTHROPIC_API_KEY or GEMINI_API_KEY). Without it I can "
             "still list jobs (e.g. 'remote Flutter jobs above 25 LPA') and applications awaiting follow-up."), []

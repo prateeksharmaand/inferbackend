@@ -29,9 +29,14 @@ class AIUnavailable(Exception):
 _client: anthropic.Anthropic | None = None
 
 
+def _gemini():
+    from app.services import ai_gemini
+    return ai_gemini
+
+
 def client() -> anthropic.Anthropic:
     global _client
-    if not settings.ai_configured:
+    if not settings.ANTHROPIC_API_KEY:
         raise AIUnavailable("ANTHROPIC_API_KEY is not configured")
     if _client is None:
         _client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, max_retries=3, timeout=300.0)
@@ -39,7 +44,13 @@ def client() -> anthropic.Anthropic:
 
 
 def model_name() -> str:
-    return settings.ANTHROPIC_MODEL
+    return settings.GEMINI_MODEL if settings.ai_provider == "gemini" else settings.ANTHROPIC_MODEL
+
+
+def _require():
+    if not settings.ai_configured:
+        raise AIUnavailable("No AI provider configured (set ANTHROPIC_API_KEY or GEMINI_API_KEY)")
+    return settings.ai_provider
 
 
 def _fallback_kwargs() -> dict:
@@ -81,10 +92,16 @@ def _wrap_errors(fn):
     return inner
 
 
-@_wrap_errors
 def structured(system: str, user: str | list, schema: type[T], *, max_tokens: int = 16000,
                effort: str | None = None) -> T:
     """Single call returning a validated Pydantic object."""
+    if _require() == "gemini":
+        return _gemini().structured(system, user, schema, max_tokens=max_tokens, effort=effort)
+    return _claude_structured(system, user, schema, max_tokens=max_tokens, effort=effort)
+
+
+@_wrap_errors
+def _claude_structured(system, user, schema, *, max_tokens, effort):
     content = user if isinstance(user, list) else [{"type": "text", "text": user}]
     resp = client().messages.parse(
         model=model_name(),
@@ -101,10 +118,16 @@ def structured(system: str, user: str | list, schema: type[T], *, max_tokens: in
     return schema.model_validate(resp.parsed_output.model_dump())
 
 
-@_wrap_errors
 def research(system: str, user: str, schema: type[T], *, max_searches: int = 6) -> tuple[T, list[dict]]:
-    """Web-grounded call: Claude may use the server-side web_search tool, then returns structured JSON.
-    Returns (parsed, sources) where sources are the URLs actually returned by web search."""
+    """Web-grounded call returning (parsed, sources); sources are the URLs actually returned by web search
+    (Claude web_search tool, or Gemini Google Search grounding)."""
+    if _require() == "gemini":
+        return _gemini().research(system, user, schema)
+    return _claude_research(system, user, schema, max_searches=max_searches)
+
+
+@_wrap_errors
+def _claude_research(system, user, schema, *, max_searches):
     messages = [{"role": "user", "content": user}]
     tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": max_searches,
               "user_location": {"type": "approximate", "country": "IN"}}]
@@ -141,9 +164,16 @@ def effort_for_research() -> str:
     return "medium"
 
 
-@_wrap_errors
 def chat_turn(system: str, messages: list, tools: list, *, max_tokens: int = 16000):
-    """One step of the agent loop (caller executes tool_use blocks and loops)."""
+    """One step of the agent loop (caller executes tool_use blocks and loops). Returns an object with
+    Anthropic-shaped `stop_reason` and `content` blocks regardless of provider."""
+    if _require() == "gemini":
+        return _gemini().chat_turn(system, messages, tools, max_tokens=max_tokens)
+    return _claude_chat(system, messages, tools, max_tokens=max_tokens)
+
+
+@_wrap_errors
+def _claude_chat(system, messages, tools, *, max_tokens):
     resp = client().messages.create(
         model=model_name(), max_tokens=max_tokens, system=system, messages=messages, tools=tools,
         output_config={"effort": settings.AI_EFFORT}, **_fallback_kwargs())
@@ -154,7 +184,10 @@ def chat_turn(system: str, messages: list, tools: list, *, max_tokens: int = 160
 
 def status() -> dict:
     if not settings.ai_configured:
-        return {"state": "awaiting_credentials", "detail": "Set ANTHROPIC_API_KEY", "model": model_name()}
+        return {"state": "awaiting_credentials", "detail": "Set ANTHROPIC_API_KEY or GEMINI_API_KEY",
+                "model": model_name()}
+    if settings.ai_provider == "gemini":
+        return _gemini().status()
     try:
         client().models.retrieve(model_name())
         return {"state": "connected", "detail": "Model reachable", "model": model_name()}

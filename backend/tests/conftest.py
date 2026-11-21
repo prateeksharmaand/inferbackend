@@ -6,6 +6,8 @@ import os
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", f"postgresql+psycopg://{os.environ.get('USER', 'postgres')}@localhost/careerpilot_test")
 os.environ["ANTHROPIC_API_KEY"] = ""
+os.environ["GEMINI_API_KEY"] = ""
+os.environ["AI_PROVIDER"] = "auto"
 os.environ["REDIS_URL"] = "redis://localhost:6399/0"  # unreachable on purpose -> in-memory rate limiter
 os.environ["STORAGE_PATH"] = "/tmp/careerpilot-test-storage"
 os.environ["SMTP_HOST"] = ""
