@@ -1,0 +1,15 @@
+# Enable HTTPS after obtaining a certificate (docs/DEPLOYMENT.md, step 5):
+#   cp infrastructure/nginx/https.conf.example infrastructure/nginx/templates/https-server.inc.template
+#   echo 'return 301 https://$host$request_uri;' > infrastructure/nginx/templates/https-redirect.inc.template
+#   docker compose restart nginx
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name ${DOMAIN};
+  ssl_certificate     /etc/nginx/certs/live/${DOMAIN}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/certs/live/${DOMAIN}/privkey.pem;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:SSL:10m;
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  include /etc/nginx/conf.d/app-locations.inc;
+}

@@ -1,0 +1,13 @@
+**/.env
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+**/.next
+storage
+backups
+.git
+infrastructure/nginx/certs
+!frontend/.next/standalone
+!frontend/.next/static
+!frontend/.next/standalone/node_modules
