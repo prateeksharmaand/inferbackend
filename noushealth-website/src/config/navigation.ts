@@ -7,6 +7,7 @@ export interface NavItem {
 export const mainNav: NavItem[] = [
   { label: 'Home', to: '/' },
   { label: 'Services', to: '/services' },
+  { label: 'Products', to: '/products' },
   { label: 'Solutions', to: '/solutions' },
   { label: 'Industries', to: '/industries' },
   { label: 'About', to: '/about' },
@@ -20,6 +21,7 @@ export const footerColumns = [
     title: 'Company',
     links: [
       { label: 'About', to: '/about' },
+      { label: 'Products', to: '/products' },
       { label: 'Careers', to: '/about#team' },
       { label: 'Contact', to: '/contact' },
       { label: 'Partners', to: '/about#partners' },

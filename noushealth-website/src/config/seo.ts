@@ -23,6 +23,11 @@ export const pageSeo = {
     description: 'Software, web, mobile, AI, cloud, design and consulting services built around your business.',
     path: '/services',
   },
+  products: {
+    title: `Products — ${company.companyName}`,
+    description: 'Infer Health, an AI-native EMR, and CareerPilot AI, an AI co-pilot for senior tech job search.',
+    path: '/products',
+  },
   solutions: {
     title: `Solutions — ${company.companyName}`,
     description: 'Packaged engineering solutions for platforms, automation, data and modernization.',

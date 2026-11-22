@@ -6,6 +6,7 @@ import Home from './pages/Home'
 const Services = lazy(() => import('./pages/Services'))
 const ServiceDetail = lazy(() => import('./pages/ServiceDetail'))
 const Solutions = lazy(() => import('./pages/Solutions'))
+const Products = lazy(() => import('./pages/Products'))
 const Industries = lazy(() => import('./pages/Industries'))
 const About = lazy(() => import('./pages/About'))
 const CaseStudies = lazy(() => import('./pages/CaseStudies'))
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="services" element={<Services />} />
           <Route path="services/:slug" element={<ServiceDetail />} />
           <Route path="solutions" element={<Solutions />} />
+          <Route path="products" element={<Products />} />
           <Route path="industries" element={<Industries />} />
           <Route path="about" element={<About />} />
           <Route path="case-studies" element={<CaseStudies />} />

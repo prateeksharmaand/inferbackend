@@ -2,6 +2,7 @@ import { Hero } from '../components/Hero'
 import { ClientLogos } from '../components/home/ClientLogos'
 import { ServicesSection } from '../components/home/ServicesSection'
 import { Showcase } from '../components/home/Showcase'
+import { ProductsSection } from '../components/home/ProductsSection'
 import { WhyChoose } from '../components/home/WhyChoose'
 import { IndustriesSection } from '../components/home/IndustriesSection'
 import { CaseStudiesSection } from '../components/home/CaseStudiesSection'
@@ -25,6 +26,7 @@ export default function Home() {
       <ClientLogos />
       <ServicesSection />
       <Showcase />
+      <ProductsSection />
       <WhyChoose />
       <IndustriesSection />
       <CaseStudiesSection />

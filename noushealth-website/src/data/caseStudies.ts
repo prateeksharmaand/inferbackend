@@ -13,6 +13,24 @@ const process = [
 /** First five are Nous Healthcare projects (descriptions are drafts to edit); the rest are fictional placeholders. */
 export const caseStudies: CaseStudy[] = [
   {
+    slug: 'careerpilot-ai',
+    title: 'CareerPilot AI — AI Co-pilot for Senior Tech Job Search',
+    industry: 'SaaS',
+    client: 'Nous Healthcare (own product)',
+    summary: 'A self-hosted AI job-search platform that discovers roles daily, scores them against a candidate\'s real experience, tailors resumes and cover letters, and tracks applications through to offer.',
+    technologies: ['Next.js', 'FastAPI', 'PostgreSQL', 'Celery + Redis', 'LLM Applications', 'Docker'],
+    outcome: 'A focused, well-run job search in 15–30 minutes a day',
+    metrics: [{ value: '6', label: 'Weighted match factors' }, { value: '13', label: 'Application stages' }, { value: '0', label: 'Messages sent without approval' }],
+    image: { kind: 'web', seed: 21, alt: 'CareerPilot AI dashboard with job matches, applications and interviews', src: '/product-shots/careerpilot.jpg' },
+    screenshots: shots(),
+    featured: true,
+    challenge: 'Senior engineers searching for lead and architect roles juggle many job boards, rewrite their resume for every posting, lose track of recruiters and follow-ups, and walk into interviews underprepared.',
+    solution: 'A daily automated pipeline that searches licensed job APIs and company career pages, deduplicates postings, scores each job on six weighted factors with AI, researches companies and recruiters with cited sources, and prepares tailored application packages for the candidate to approve.',
+    architecture: ['Next.js dashboard with Kanban application tracker', 'FastAPI backend with PostgreSQL and Alembic migrations', 'Celery + Redis scheduler for the daily pipeline (IST)', 'LLM matching, tailoring and research with server-side fact-checks', 'Email and Telegram notifications'],
+    process,
+    results: ['Daily shortlist of scored jobs by email and Telegram', 'Tailored resume and cover letter in one click, with fact-check report', 'Every application, recruiter and interview tracked in one place'],
+  },
+  {
     slug: 'infer-healthcare-systems',
     title: 'Infer Health — AI-Native Ambient EMR',
     industry: 'Healthcare',
