@@ -55,7 +55,8 @@ export default function AutomationPage() {
           <CardContent>
             <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate({ keywords: f.keywords, locations: f.locations, work_modes: f.work_modes,
               min_ctc_lpa: f.min_ctc_lpa, min_match_score: f.min_match_score, posted_within_hours: f.posted_within_hours,
-              max_ai_matches_per_run: f.max_ai_matches_per_run, max_research_per_run: f.max_research_per_run }); }}>
+              max_ai_matches_per_run: f.max_ai_matches_per_run, max_research_per_run: f.max_research_per_run,
+              auto_prepare_min_score: f.auto_prepare_min_score, max_auto_prepare_per_run: f.max_auto_prepare_per_run }); }}>
               <Field label="Job keywords"><ChipsInput value={f.keywords} onChange={(v) => setF({ ...f, keywords: v })} placeholder="Add keyword" /></Field>
               <Field label="Locations"><ChipsInput value={f.locations} onChange={(v) => setF({ ...f, locations: v })} placeholder="Add location" /></Field>
               <Field label="Work modes"><div className="flex gap-3 text-sm">{["remote", "hybrid", "office"].map((m) => (
@@ -67,6 +68,8 @@ export default function AutomationPage() {
                 <Field label="Posted within (hours)"><Input type="number" min={12} value={f.posted_within_hours} onChange={(e) => setF({ ...f, posted_within_hours: Number(e.target.value) })} /></Field>
                 <Field label="AI matches per run"><Input type="number" min={1} value={f.max_ai_matches_per_run} onChange={(e) => setF({ ...f, max_ai_matches_per_run: Number(e.target.value) })} /></Field>
                 <Field label="Companies researched per run"><Input type="number" min={0} value={f.max_research_per_run} onChange={(e) => setF({ ...f, max_research_per_run: Number(e.target.value) })} /></Field>
+                <Field label="Auto-prepare packages at score ≥" hint="Tailored resume + cover letter, awaiting your approval. Never submitted."><Input type="number" min={55} max={100} value={f.auto_prepare_min_score} onChange={(e) => setF({ ...f, auto_prepare_min_score: Number(e.target.value) })} /></Field>
+                <Field label="Packages prepared per day" hint="0 turns it off"><Input type="number" min={0} max={10} value={f.max_auto_prepare_per_run} onChange={(e) => setF({ ...f, max_auto_prepare_per_run: Number(e.target.value) })} /></Field>
               </div>
               <Button type="submit" loading={save.isPending}>Save preferences</Button>
             </form>

@@ -103,6 +103,54 @@ def research(db: Session, user_id: int, log) -> dict:
     return {"companies_researched": done, "contacts_added": contacts}
 
 
+def prepare_packages(db: Session, user_id: int, log) -> dict:
+    """Prepare (never submit) tailored resume + cover letter for the strongest new matches.
+    Applications land in 'awaiting_approval'; the candidate reviews, applies on the employer's site,
+    and marks them applied."""
+    from app.api.applications import prepare_package
+    from app.schemas.apps import PrepareIn
+    from app.services.applications import active_application, ensure_application
+    st = settings_for(db, user_id)
+    if st.max_auto_prepare_per_run <= 0:
+        return {"prepared": 0, "skipped": "disabled"}
+    user = db.get(User, user_id)
+    p = get_or_create_profile(db, user)
+    if not p.employment:
+        log("profile has no employment history; skipping")
+        return {"prepared": 0, "skipped": "empty profile"}
+    rows = db.execute(
+        select(Job, JobMatch).join(JobMatch, and_(JobMatch.job_id == Job.id, JobMatch.is_current))
+        .where(Job.user_id == user_id, Job.archived_at.is_(None), Job.dismissed_at.is_(None), Job.status != "expired",
+               JobMatch.overall_score >= st.auto_prepare_min_score, JobMatch.model != "rules-v1")
+        .order_by(JobMatch.overall_score.desc()).limit(st.max_auto_prepare_per_run * 4)).all()
+    prepared = []
+    for job, m in rows:
+        if len(prepared) >= st.max_auto_prepare_per_run:
+            break
+        existing = active_application(db, user_id, job.id)
+        if existing and (existing.resume_id or existing.status not in ("discovered", "shortlisted")):
+            continue  # already prepared, or the candidate has moved it on
+        a = existing or ensure_application(db, user, job, status="shortlisted", note="Auto-selected (score "
+                                           f"{m.overall_score})", actor="agent")
+        job.shortlisted_at = job.shortlisted_at or now_utc()
+        db.flush()
+        try:
+            prepare_package(a.id, PrepareIn(variant=None, cover_letter=True), user, db)
+            prepared.append((job, m))
+            log(f"prepared {job.title} @ {job.company_name} ({m.overall_score})")
+        except Exception as e:  # noqa: BLE001
+            db.rollback()
+            log(f"failed to prepare job {job.id}: {e}")
+    if prepared:
+        text, html = job_lines(prepared)
+        notify(db, user_id, "excellent_match", f"{len(prepared)} application package(s) ready for your approval",
+               "Tailored resume + cover letter prepared. Review in Applications, apply on the employer's site, "
+               f"then mark as applied. Nothing has been submitted.\n\n{text}", html=html,
+               dedupe_key=f"prepared:{user_id}:{local_today().isoformat()}")
+    db.commit()
+    return {"prepared": len(prepared)}
+
+
 def daily_digest(db: Session, user_id: int, log) -> dict:
     st = settings_for(db, user_id)
     since = now_utc() - timedelta(hours=30)
@@ -174,10 +222,11 @@ def weekly_report(db: Session, user_id: int, log) -> dict:
 
 STEPS = {
     "discover_jobs": discover_jobs, "normalize_dedupe": normalize_dedupe, "match_jobs": match_jobs,
-    "research": research, "daily_digest": daily_digest, "follow_ups": follow_ups, "weekly_report": weekly_report,
+    "research": research, "prepare_packages": prepare_packages, "daily_digest": daily_digest, "follow_ups": follow_ups, "weekly_report": weekly_report,
 }
 LABELS = {
     "discover_jobs": "Search for new jobs", "normalize_dedupe": "Verify links & clean up", "match_jobs":
-    "AI matching & ranking", "research": "Research companies & recruiters", "daily_digest": "Daily shortlist notification",
+    "AI matching & ranking", "research": "Research companies & recruiters", "prepare_packages": "Prepare application packages (for approval)",
+    "daily_digest": "Daily shortlist notification",
     "follow_ups": "Follow-up check", "weekly_report": "Weekly career report",
 }

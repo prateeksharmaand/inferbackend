@@ -100,7 +100,7 @@ export interface ApplicationDetail extends Application {
 export interface AutomationSettings {
   automation_enabled: boolean; schedule: Record<string, string>; disabled_tasks: string[]; keywords: string[];
   locations: string[]; work_modes: string[]; min_ctc_lpa: number | null; min_match_score: number; posted_within_hours: number;
-  max_ai_matches_per_run: number; max_research_per_run: number; notify_channels: string[]; notify_events: Record<string, boolean>;
+  max_ai_matches_per_run: number; max_research_per_run: number; auto_prepare_min_score: number; max_auto_prepare_per_run: number; notify_channels: string[]; notify_events: Record<string, boolean>;
 }
 export interface AutomationTask { name: string; label: string; schedule: string; enabled: boolean; last_run: { status: string; at: string; id: number } | null }
 export interface AutomationRun {

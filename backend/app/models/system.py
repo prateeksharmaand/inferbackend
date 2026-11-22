@@ -11,6 +11,7 @@ DEFAULT_SCHEDULE = {
     "normalize_dedupe": "08:30",
     "match_jobs": "09:00",
     "research": "09:30",
+    "prepare_packages": "09:45",
     "daily_digest": "10:00",
     "follow_ups": "18:00",
     "weekly_report": "SUN 19:00",
@@ -39,6 +40,9 @@ class AgentSettings(TimestampMixin, Base):
     posted_within_hours: Mapped[int] = mapped_column(Integer, default=72)
     max_ai_matches_per_run: Mapped[int] = mapped_column(Integer, default=40)
     max_research_per_run: Mapped[int] = mapped_column(Integer, default=5)
+    # Auto-prepare (never submit) application packages for strong matches
+    auto_prepare_min_score: Mapped[int] = mapped_column(Integer, default=85, server_default="85")
+    max_auto_prepare_per_run: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
     notify_channels: Mapped[list] = mapped_column(JSONB, default=lambda: ["email", "telegram"])
     notify_events: Mapped[dict] = mapped_column(JSONB, default=lambda: {
         "daily_digest": True, "excellent_match": True, "recruiter_response": True, "interview": True,

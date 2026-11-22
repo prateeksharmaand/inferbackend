@@ -47,7 +47,9 @@ def run_discovery(db: Session, user_id: int, *, source_keys: list[str] | None = 
             continue
         normalized = [conn.normalize_job(r) for r in raws]
         res = ingest(db, user_id, normalized, src, posted_within_hours=st.posted_within_hours)
-        src.status, src.status_detail, src.last_error = "connected", f"{len(raws)} results last run", ""
+        quota = conn.config.pop("_quota_remaining", None)
+        src.status, src.status_detail, src.last_error = "connected", (
+            f"{len(raws)} results last run" + (f" · {quota} API requests left this month" if quota is not None else "")), ""
         src.last_success_at, src.jobs_found_last_run = now_utc(), res.inserted
         totals["sources"][src.key] = {"received": res.received, "inserted": res.inserted,
                                       "duplicates": res.duplicates, "irrelevant": res.irrelevant}

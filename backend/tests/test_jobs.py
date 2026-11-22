@@ -150,11 +150,11 @@ def test_jsearch_parsing(fake_http, monkeypatch):
     from app.connectors.base import SearchQuery
     from app.core.config import settings
     monkeypatch.setattr(settings, "SEARCH_PROVIDER_API_KEY", "k")
-    fake_http({"https://jsearch.p.rapidapi.com/search": {"data": [{
+    fake_http({"https://jsearch.p.rapidapi.com/search-v2": {"data": {"cursor": "x", "jobs": [{
         "job_id": "abc", "job_title": "Flutter Architect", "employer_name": "Beta", "job_apply_link": "https://b.com/a",
         "job_description": "Flutter architect role", "job_city": "Pune", "job_country": "IN",
         "job_posted_at_datetime_utc": "2026-11-19T08:00:00Z", "job_min_salary": 3000000, "job_max_salary": 4000000,
-        "job_salary_currency": "INR", "job_salary_period": "YEAR", "job_is_remote": False, "job_publisher": "LinkedIn"}]}})
+        "job_salary_currency": "INR", "job_salary_period": "YEAR", "job_is_remote": False, "job_publisher": "LinkedIn"}]}}})
     jobs = JSearchConnector({"max_requests": 1}).search_jobs(SearchQuery(keywords=["Flutter Architect"], locations=["Pune"]))
     n = normalize(jobs[0])
     assert n.title == "Flutter Architect" and (n.ctc_min_lpa, n.ctc_max_lpa) == (30, 40)
@@ -221,3 +221,17 @@ def test_import_url_gated_site(auth_client, monkeypatch):
     monkeypatch.setattr("app.connectors.manual.http_client", factory)
     r = auth_client.post("/api/jobs/import-url", json={"url": "https://www.linkedin.com/jobs/view/1"})
     assert r.status_code == 400 and "sign-in" in r.json()["error"]["message"]
+
+
+def test_jsearch_daily_rotation_covers_all_keywords():
+    from app.connectors.aggregators import JSearchConnector
+    from app.connectors.base import SearchQuery
+    kws = [f"k{i}" for i in range(9)]
+    c = JSearchConnector({"max_requests": 6})
+    q = SearchQuery(keywords=kws, locations=["Pune", "Remote India"])
+    seen = set()
+    for day in range(2):
+        plan = c.plan(q, 1000 + day)
+        assert len(plan) == 6
+        seen |= {k for k, _ in plan}
+    assert seen == set(kws)  # every keyword searched within 2 days on a 6-request budget

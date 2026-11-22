@@ -17,7 +17,7 @@ DEFAULT_CONFIG = {
                               {"token": "druva", "company": "Druva"}]},
     "lever": {"boards": [{"token": "cred", "company": "CRED"}, {"token": "paytm", "company": "Paytm"}]},
     "ashby": {"boards": []},
-    "jsearch": {"max_keywords": 5, "max_locations": 4, "max_requests": 12},
+    "jsearch": {"max_requests": 6},  # free RapidAPI plan: 200 requests/month
     "adzuna": {},
     "manual": {},
 }

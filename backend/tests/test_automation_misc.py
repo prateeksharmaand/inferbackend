@@ -165,3 +165,27 @@ def test_export_and_delete_account(auth_client, db):
     assert r.status_code == 200
     db.expire_all()
     assert db.query(User).count() == 0 and db.query(Job).count() == 0
+
+
+def test_prepare_packages_only_for_strong_ai_matches(auth_client, db, monkeypatch):
+    from app.automation.pipeline import prepare_packages
+    from app.models import Application, JobMatch
+    from tests.helpers import add_job, setup_candidate
+    setup_candidate(auth_client)
+    strong = add_job(auth_client)
+    weak = add_job(auth_client, title="Mobile Architect", company_name="Beta")
+    rules_only = add_job(auth_client, title="Flutter Lead", company_name="Gamma")
+    for jid in (strong, weak, rules_only):
+        auth_client.post(f"/api/matches/job/{jid}")
+    # Simulate AI scores: strong=90, weak=70; rules_only keeps a rules-v1 score of 95 (must be ignored)
+    for jid, score, model in ((strong, 90, "gemini-3.5-flash"), (weak, 70, "gemini-3.5-flash"), (rules_only, 95, "rules-v1")):
+        m = db.query(JobMatch).filter_by(job_id=jid, is_current=True).one()
+        m.overall_score, m.model = score, model
+    db.commit()
+    res = prepare_packages(db, 1, lambda m: None)
+    assert res["prepared"] == 1
+    a = db.query(Application).filter_by(job_id=strong).one()
+    assert a.status == "awaiting_approval" and a.resume_id and a.cover_letter_id and a.applied_at is None
+    assert db.query(Application).filter_by(job_id=weak).count() == 0
+    # Idempotent: a second run doesn't re-prepare
+    assert prepare_packages(db, 1, lambda m: None)["prepared"] == 0

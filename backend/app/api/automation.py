@@ -31,6 +31,8 @@ class SettingsOut(ORM):
     posted_within_hours: int
     max_ai_matches_per_run: int
     max_research_per_run: int
+    auto_prepare_min_score: int
+    max_auto_prepare_per_run: int
     notify_channels: list[str]
     notify_events: dict
 
@@ -47,6 +49,8 @@ class SettingsIn(BaseModel):
     posted_within_hours: int | None = Field(None, ge=12, le=720)
     max_ai_matches_per_run: int | None = Field(None, ge=1, le=200)
     max_research_per_run: int | None = Field(None, ge=0, le=30)
+    auto_prepare_min_score: int | None = Field(None, ge=55, le=100)
+    max_auto_prepare_per_run: int | None = Field(None, ge=0, le=10)
     notify_channels: list[str] | None = None
     notify_events: dict[str, bool] | None = None
 

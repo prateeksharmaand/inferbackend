@@ -31,37 +31,56 @@ class JSearchConnector(BaseConnector):
             raise SourceUnavailable("SEARCH_PROVIDER_API_KEY not set")
         return {"x-rapidapi-key": settings.SEARCH_PROVIDER_API_KEY, "x-rapidapi-host": self.HOST}
 
-    def search_jobs(self, query: SearchQuery) -> list[RawJob]:
-        headers = self._headers()
-        date_posted = "today" if query.posted_within_hours <= 24 else "3days" if query.posted_within_hours <= 72 \
-            else "week" if query.posted_within_hours <= 168 else "month"
-        out: list[RawJob] = []
-        locs = [l for l in query.locations if "remote" not in l.lower()][: self.config.get("max_locations", 4)]
-        searches = [(k, l) for k in query.keywords[: self.config.get("max_keywords", 5)] for l in (locs or ["India"])]
+    def plan(self, query: SearchQuery, day_index: int) -> list[tuple[str, str]]:
+        """All (keyword, where) searches, rotated so a small daily budget still covers every keyword
+        over a few days. RapidAPI's free JSearch plan is 200 requests/month (~6/day)."""
+        searches = [(k, "India") for k in query.keywords]
         if any("remote" in l.lower() for l in query.locations):
             searches += [(k, "remote") for k in query.keywords[:3]]
+        budget = int(self.config.get("max_requests", 6))
+        if not searches:
+            return []
+        start = (day_index * budget) % len(searches)
+        rotated = searches[start:] + searches[:start]
+        return rotated[:budget]
+
+    def search_jobs(self, query: SearchQuery) -> list[RawJob]:
+        from app.core.time import local_today
+        headers = self._headers()
+        plan = self.plan(query, local_today().toordinal())
+        cycle_days = max(1, -(-len(query.keywords) // max(1, int(self.config.get("max_requests", 6)))))
+        hours = max(query.posted_within_hours, cycle_days * 24 + 24)  # don't miss posts between rotations
+        date_posted = "today" if hours <= 24 else "3days" if hours <= 72 else "week" if hours <= 168 else "month"
+        out: list[RawJob] = []
         with http_client(30) as c:
-            for kw, loc in searches[: self.config.get("max_requests", 12)]:
-                params = {"query": f"{kw} in {loc}" if loc != "remote" else kw, "page": 1, "num_pages": 1,
+            for kw, where in plan:
+                params = {"query": f"{kw} in {where}" if where != "remote" else kw, "page": 1, "num_pages": 1,
                           "country": "in", "date_posted": date_posted}
-                if loc == "remote":
+                if where == "remote":
                     params["work_from_home"] = "true"
                 try:
-                    r = c.get(f"https://{self.HOST}/search", params=params, headers=headers)
+                    r = c.get(f"https://{self.HOST}/search-v2", params=params, headers=headers)
                 except httpx.HTTPError as e:
                     raise SourceUnavailable(f"JSearch network error: {e}") from e
                 if r.status_code in (401, 403):
-                    raise SourceUnavailable("JSearch rejected the API key")
+                    raise SourceUnavailable("JSearch rejected the API key (or the plan isn't subscribed)")
                 if r.status_code == 429:
-                    break  # quota hit; keep what we have
+                    if not out:
+                        raise SourceUnavailable("JSearch monthly quota reached")
+                    break
                 r.raise_for_status()
-                out += [self._raw(j) for j in r.json().get("data", [])]
+                data = r.json().get("data")
+                jobs = data.get("jobs", []) if isinstance(data, dict) else (data or [])
+                out += [self._raw(j) for j in jobs]
+                remaining = r.headers.get("x-ratelimit-requests-remaining")
+                if remaining is not None:
+                    self.config["_quota_remaining"] = int(remaining)
                 if len(out) >= query.max_results:
                     break
         return out
 
     def _raw(self, j: dict) -> RawJob:
-        loc = ", ".join(x for x in [j.get("job_city"), j.get("job_state"), j.get("job_country")] if x)
+        loc = j.get("job_location") or ", ".join(x for x in [j.get("job_city"), j.get("job_state"), j.get("job_country")] if x)
         exp = (j.get("job_required_experience") or {}).get("required_experience_in_months")
         return RawJob(
             source_key=self.key, external_id=j.get("job_id"), title=j.get("job_title", ""),
@@ -70,6 +89,7 @@ class JSearchConnector(BaseConnector):
             posted_at=_iso(j.get("job_posted_at_datetime_utc")), salary_min=j.get("job_min_salary"),
             salary_max=j.get("job_max_salary"), salary_currency=j.get("job_salary_currency"),
             salary_period=(j.get("job_salary_period") or "").lower() or None, is_remote=j.get("job_is_remote"),
+            salary_text=j.get("job_salary_string") or j.get("job_salary") or "",
             employment_type=j.get("job_employment_type") or "", experience_months=exp,
             company_website=j.get("employer_website") or "",
             raw={"publisher": j.get("job_publisher"), "job_id": j.get("job_id")})
