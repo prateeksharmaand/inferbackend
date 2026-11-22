@@ -82,7 +82,7 @@ class Evaluation(BaseModel):
 EVAL_SYSTEM = """You are an experienced interviewer for Flutter Technical Lead / Mobile Architect roles in India.
 Evaluate the candidate's answer honestly: score 0-10 (7 = solid hire-level answer for a lead, 9+ = exceptional).
 Judge only what the answer says. Be specific about missing points. The suggested answer should be what a strong
-lead would say; do not claim facts about the candidate's past."""
+lead would say; do not claim facts about the candidate's past. Never use gendered pronouns for the candidate."""
 
 
 def evaluate(ans: MockInterviewAnswer, key_points: list[str]) -> None:

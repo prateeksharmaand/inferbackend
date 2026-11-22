@@ -20,8 +20,9 @@ def unsupported_numbers(generated: str, source: str) -> set[str]:
     return numbers_in(generated) - numbers_in(source)
 
 
-def unsupported_skills(generated: str, confirmed: list[str]) -> set[str]:
-    mine = {norm(s) for s in confirmed}
+def unsupported_skills(generated: str, confirmed: list[str], source: str = "") -> set[str]:
+    """Technical skills mentioned in `generated` that are neither confirmed nor already in `source`."""
+    mine = {norm(s) for s in confirmed} | {norm(s) for s in find_skills(source)}
     # Domain/leadership words are too generic to police; only technical/tool/platform skills
     from app.services.skills_catalog import SKILLS
     found = {s for s, cat in find_skills(generated).items() if cat in ("technical", "tool", "platform")}
@@ -33,7 +34,7 @@ def check_text(generated: str, source: str, confirmed: list[str]) -> list[str]:
     nums = unsupported_numbers(generated, source)
     if nums:
         issues.append(f"numbers not in your profile: {', '.join(sorted(nums))}")
-    sk = unsupported_skills(generated, confirmed)
+    sk = unsupported_skills(generated, confirmed, source)
     if sk:
         issues.append(f"skills not confirmed in your profile: {', '.join(sorted(sk))}")
     return issues

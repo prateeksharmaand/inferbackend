@@ -32,7 +32,10 @@ export default function OverviewPage() {
   return (
     <>
       <PageHeader title={`Welcome${profile.data?.full_name ? `, ${profile.data.full_name.split(" ")[0]}` : ""}`}
-        description="Your search for a ₹25–35 LPA Flutter / Mobile leadership role at a glance."
+        description={profile.data?.target_ctc_min_lpa
+          ? `Your search for a ${fmtLpa(profile.data.target_ctc_min_lpa, profile.data.target_ctc_max_lpa)} ${profile.data.preferred_designations[0] ?? "role"} role at a glance.`
+            .replace(" role role", " role")
+          : "Your job search at a glance."}
         actions={<Button asChild><Link href="/jobs"><Search />Discover jobs</Link></Button>} />
       {profile.data && !profile.data.employment.length && (
         <Card className="mb-6 border-primary/40 bg-accent/40 p-4 text-sm">

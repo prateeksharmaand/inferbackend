@@ -71,6 +71,7 @@ Score strictly from the evidence provided. Rules:
 - Category maxima: technical {MAX['technical']}, leadership {MAX['leadership']}, architecture {MAX['architecture']},
   compensation {MAX['compensation']}, location {MAX['location']}, company {MAX['company']}.
 - Salary figures are INR lakhs per annum (LPA).
+- Refer to the candidate by first name or as "the candidate"; never use gendered pronouns or assume gender.
 Prompt version: {PROMPT_VERSION}."""
 
 

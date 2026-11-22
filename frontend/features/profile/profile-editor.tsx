@@ -24,7 +24,7 @@ export function ProfileEditor() {
 
 function Editor({ p }: { p: Profile }) {
   const [f, setF] = useState(p);
-  useEffect(() => setF(p), [p]);
+  useEffect(() => { setF(p); }, [p]);
   const inv = [["profile"]];
   const save = useAction(() => profileApi.update({
     full_name: f.full_name, headline: f.headline, email: f.email, phone: f.phone, linkedin_url: f.linkedin_url, location: f.location,

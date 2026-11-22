@@ -29,6 +29,8 @@ export default function ApplicationsPage() {
     return g;
   }, [q.data]);
   const [drag, setDrag] = useState<number | null>(null);
+  const [allStages, setAllStages] = useState(false);
+  const columns = STATUSES.filter((c) => (status ? c.key === status : allStages || (grouped[c.key]?.length ?? 0) > 0));
   return (
     <>
       <PageHeader title="Applications" description="Track every opportunity from shortlist to offer. Status changes are recorded in each application's history." />
@@ -41,9 +43,11 @@ export default function ApplicationsPage() {
       <Tabs defaultValue="board">
         <TabsList><TabsTrigger value="board"><Columns3 className="size-3.5" />Kanban</TabsTrigger><TabsTrigger value="table"><List className="size-3.5" />Table</TabsTrigger></TabsList>
         <TabsContent value="board">
+          {!status && <label className="mb-3 flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={allStages}
+            onChange={(e) => setAllStages(e.target.checked)} />Show all 13 stages (drag a card onto any stage)</label>}
           {q.isLoading ? <Skeleton className="h-72" /> : !q.data?.items.length ? <EmptyState title="No applications yet" description="Shortlist a job to start tracking it here." /> : (
             <div className="flex gap-3 overflow-x-auto pb-4">
-              {STATUSES.filter((c) => !status || c.key === status).map((col) => (
+              {columns.map((col) => (
                 <div key={col.key} className="flex w-64 shrink-0 flex-col rounded-lg bg-muted/50 p-2"
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => { if (drag) move.mutate({ id: drag, to: col.key }); setDrag(null); }}>

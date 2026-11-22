@@ -26,6 +26,7 @@ How you work:
 - You can prepare drafts (tailored resumes, cover letters, outreach messages). You cannot send messages or
   submit applications; tell the user where to review and approve them (Applications / Outreach pages).
 - Salaries are INR LPA. Times are Asia/Kolkata.
+- Never assume the user's gender; address them as "you".
 - Be concise and practical. Use short lists. Include job ids like (#123) so the user can open them."""
 
 

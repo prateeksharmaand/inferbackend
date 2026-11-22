@@ -99,7 +99,7 @@ def tailor_resume(p: CandidateProfile, job: Job, variant: str) -> tuple[dict, di
                 continue
             orig = e["bullets"][b.source_index]
             nums = unsupported_numbers(b.text, orig)
-            sk = unsupported_skills(b.text, confirmed)
+            sk = unsupported_skills(b.text, confirmed, orig)
             if nums or sk:
                 report["reverted"].append({"field": f"{e['company']} bullet {b.source_index}",
                                            "reason": f"introduced {', '.join(sorted(nums | sk))}"})
@@ -130,7 +130,7 @@ class Letter(BaseModel):
 LETTER_SYSTEM = """You write concise, specific cover letters (250-350 words) for a senior mobile engineering
 candidate in India. Use ONLY facts from the candidate profile — no invented metrics, employers, tools or
 achievements. Reference 2-3 concrete, true overlaps with the job. Plain text, paragraphs separated by a blank
-line, no placeholders like [Company]. Sign with the candidate's name."""
+line, no placeholders like [Company]. Sign with the candidate's name. Never use gendered pronouns for the candidate."""
 
 
 def cover_letter(p: CandidateProfile, job: Job) -> tuple[str, str, dict]:
@@ -176,7 +176,7 @@ CHANNEL_RULES = {
 OUTREACH_SYSTEM = """You draft personalised, professional outreach from a senior mobile engineer in India to a
 specific person at a company. Use ONLY facts from the candidate profile and the job. Never invent mutual
 connections, referrals, prior conversations, metrics or skills. Be specific and brief; no flattery clichés.
-Sign with the candidate's first name."""
+Sign with the candidate's first name. Never use gendered pronouns for the candidate."""
 
 
 def outreach(p: CandidateProfile, channel: str, job: Job | None, recruiter=None) -> tuple[str, str, dict]:

@@ -98,3 +98,13 @@ def test_tailoring_reverts_fabrications(auth_client, monkeypatch):
     assert "Led a team of 8 engineers shipping a Flutter app to 3M users." in bullets
     assert not any("70%" in b for b in bullets)
     assert any("70" in x["reason"] for x in rep["reverted"])
+
+
+def test_factcheck_allows_skills_already_in_source():
+    from app.services.factcheck import check_text, unsupported_skills
+    orig = "Designed a modular Clean Architecture with BLoC and offline-first sync for 40+ screens."
+    rewrite = "Architected offline-first sync with BLoC and Clean Architecture across 40+ screens."
+    assert unsupported_skills(rewrite, ["BLoC"], orig) == set()
+    assert "Swift" in unsupported_skills("Shipped SwiftUI and Swift modules", ["Flutter"], orig) or \
+        "SwiftUI" in unsupported_skills("Shipped SwiftUI and Swift modules", ["Flutter"], orig)
+    assert check_text("Mobile Architect with 12+ years", "Mobile Architect with 12+ years of experience", []) == []

@@ -32,7 +32,7 @@ export const NAV = [
 
 function ThemeToggle() {
   const [dark, setDark] = useState(false);
-  useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
+  useEffect(() => { setDark(document.documentElement.classList.contains("dark")); }, []);
   return (
     <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={() => {
       const next = !dark;
@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (me.isError) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [me.isError, pathname, router]);
-  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   if (me.isLoading || me.isError) {
     return <div className="flex h-screen items-center justify-center"><Skeleton className="h-8 w-48" /></div>;
