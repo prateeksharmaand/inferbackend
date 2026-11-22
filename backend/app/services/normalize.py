@@ -71,6 +71,9 @@ def normalize_url(url: str | None) -> str | None:
         return None
     if p.scheme not in ("http", "https"):
         return None
+    host = p.netloc.lower()
+    if host.endswith(("google.com", "google.co.in")) and p.path.startswith("/search"):
+        return None  # generic search links don't identify a single posting
     q = urlencode(sorted((k, v) for k, v in parse_qsl(p.query) if not TRACKING.match(k)))
     host = p.netloc.lower().removeprefix("www.").removeprefix("in.")
     return urlunsplit(("https", host, p.path.rstrip("/"), q, ""))
@@ -149,6 +152,13 @@ def is_relevant(title: str, description: str) -> bool:
                                              and SENIOR_WORDS.search(title)))
 
 
+def _ext_id(v) -> str | None:
+    if not v:
+        return None
+    v = str(v)
+    return v if len(v) <= 255 else "sha256:" + hashlib.sha256(v.encode()).hexdigest()
+
+
 def normalize(raw) -> NormalizedJob:
     desc = html_to_text(raw.description or "")
     title = re.sub(r"\s+", " ", html_to_text(raw.title or "")).strip()[:255]
@@ -171,7 +181,7 @@ def normalize(raw) -> NormalizedJob:
     else:
         dedup = hashlib.sha256(f"{tck}|{description_fingerprint(desc) or ''}".encode()).hexdigest()
     return NormalizedJob(
-        source_key=raw.source_key, external_id=(raw.external_id or None) and str(raw.external_id)[:255],
+        source_key=raw.source_key, external_id=_ext_id(raw.external_id),
         title=title, company=company, description=desc[:50000], url=url, normalized_url=nurl,
         apply_url=raw.apply_url or url, location=(raw.location or "").strip()[:255],
         work_mode=detect_work_mode(raw.is_remote, raw.location, title, desc[:4000]),

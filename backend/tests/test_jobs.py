@@ -235,3 +235,26 @@ def test_jsearch_daily_rotation_covers_all_keywords():
         assert len(plan) == 6
         seen |= {k for k, _ in plan}
     assert seen == set(kws)  # every keyword searched within 2 days on a 6-request budget
+
+
+def test_jsearch_v2_generic_google_links_are_not_duplicates(db):
+    """v2 returns the same google search URL for every job; distinct postings must not collapse."""
+    from app.connectors.aggregators import JSearchConnector
+    from app.connectors.registry import ensure_sources
+    from app.models import JobSource, User
+    from app.services.job_service import ingest
+    u = User(email="v2@example.com", password_hash="x")
+    db.add(u)
+    db.flush()
+    ensure_sources(db)
+    src = db.query(JobSource).filter_by(key="jsearch").one()
+    g = "https://www.google.com/search?q=jobs&gl=in&hl=en&udm=8#vhid=vt%3D20/docid%3D"
+    jobs = [{"job_id": "A" * 400 + str(i), "job_title": t, "employer_name": c, "job_google_link": g + str(i),
+             "job_apply_link": f"https://{c.lower()}.example/apply/{i}", "job_description": "Flutter mobile lead role",
+             "job_city": "Pune"} for i, (t, c) in enumerate([("Flutter Lead", "Acme"), ("Mobile Architect", "Beta"),
+                                                             ("Flutter Architect", "Gamma")])]
+    raws = [JSearchConnector()._raw(j) for j in jobs]
+    st = ingest(db, u.id, [normalize(r) for r in raws], src)
+    assert st.inserted == 3 and st.duplicates == 0
+    assert all(len(normalize(r).external_id) <= 255 for r in raws)
+    assert normalize_url(g + "1") is None

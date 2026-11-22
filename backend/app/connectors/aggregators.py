@@ -84,7 +84,9 @@ class JSearchConnector(BaseConnector):
         exp = (j.get("job_required_experience") or {}).get("required_experience_in_months")
         return RawJob(
             source_key=self.key, external_id=j.get("job_id"), title=j.get("job_title", ""),
-            company=j.get("employer_name", ""), url=j.get("job_google_link") or j.get("job_apply_link"),
+            # v2 google links are a generic search URL (job identity only in the #fragment), so the
+            # direct apply link is the posting URL; the google link is kept in raw.
+            company=j.get("employer_name", ""), url=j.get("job_apply_link") or j.get("job_google_link"),
             apply_url=j.get("job_apply_link"), description=j.get("job_description", ""), location=loc,
             posted_at=_iso(j.get("job_posted_at_datetime_utc")), salary_min=j.get("job_min_salary"),
             salary_max=j.get("job_max_salary"), salary_currency=j.get("job_salary_currency"),
@@ -92,7 +94,7 @@ class JSearchConnector(BaseConnector):
             salary_text=j.get("job_salary_string") or j.get("job_salary") or "",
             employment_type=j.get("job_employment_type") or "", experience_months=exp,
             company_website=j.get("employer_website") or "",
-            raw={"publisher": j.get("job_publisher"), "job_id": j.get("job_id")})
+            raw={"publisher": j.get("job_publisher"), "google_link": j.get("job_google_link")})
 
     def fetch_job_details(self, ref: str) -> RawJob | None:
         with http_client(30) as c:
