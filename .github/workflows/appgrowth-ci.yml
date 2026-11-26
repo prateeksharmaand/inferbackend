@@ -1,0 +1,100 @@
+# AppGrowth AI — CI: lint, typecheck, tests, migration validation, image builds, dependency scanning.
+name: appgrowth-ci
+on:
+  push: { branches: [main], paths: ['appgrowth-ai/**', '.github/workflows/appgrowth-*.yml'] }
+  pull_request: { paths: ['appgrowth-ai/**', '.github/workflows/appgrowth-*.yml'] }
+permissions: { contents: read }
+concurrency: { group: 'appgrowth-ci-${{ github.ref }}', cancel-in-progress: true }
+defaults: { run: { working-directory: appgrowth-ai } }
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    services:
+      postgres: { image: 'postgres:16-alpine', env: { POSTGRES_USER: ci, POSTGRES_PASSWORD: ci, POSTGRES_DB: appgrowth }, ports: ['5432:5432'], options: '--health-cmd "pg_isready -U ci" --health-interval 5s --health-retries 10' }
+      redis: { image: 'redis:7.4-alpine', ports: ['6379:6379'] }
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/appgrowth?schema=public
+      TEST_DATABASE_URL: postgresql://ci:ci@localhost:5432/appgrowth_test?schema=public
+      REDIS_URL: redis://localhost:6379/5
+      JWT_ACCESS_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-0000
+      DATA_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      DEVICE_HASH_SALT: ci
+      PUBLIC_URL: http://localhost:3100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: appgrowth-ai/apps/api/package-lock.json }
+      - run: npm ci
+        working-directory: appgrowth-ai/apps/api
+      - name: Lint and typecheck
+        working-directory: appgrowth-ai/apps/api
+        run: npx eslint "src/**/*.ts" "test/**/*.ts" && npx tsc --noEmit
+      - name: Validate migrations (apply from scratch, then check for drift)
+        working-directory: appgrowth-ai/apps/api
+        run: |
+          PGPASSWORD=ci psql -h localhost -U ci -d appgrowth -c 'CREATE DATABASE shadow'
+          npx prisma migrate deploy
+          npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "postgresql://ci:ci@localhost:5432/shadow" --exit-code || (echo "schema.prisma has changes without a migration"; exit 1)
+      - name: Prepare test database
+        working-directory: appgrowth-ai/apps/api
+        run: |
+          PGPASSWORD=ci psql -h localhost -U ci -d appgrowth -c 'CREATE DATABASE appgrowth_test'
+          DATABASE_URL=$TEST_DATABASE_URL npx prisma migrate deploy && DATABASE_URL=$TEST_DATABASE_URL npm run db:seed
+          printf 'DATABASE_URL=%s\nREDIS_URL=%s\nJWT_ACCESS_SECRET=%s\nDATA_ENCRYPTION_KEY=%s\nDEVICE_HASH_SALT=ci\nPUBLIC_URL=%s\n' "$TEST_DATABASE_URL" "$REDIS_URL" "$JWT_ACCESS_SECRET" "$DATA_ENCRYPTION_KEY" "$PUBLIC_URL" > .env
+      - name: Unit tests
+        working-directory: appgrowth-ai/apps/api
+        run: npx jest
+      - name: Integration / e2e tests
+        working-directory: appgrowth-ai/apps/api
+        run: npx jest --config test/jest-e2e.json --runInBand
+
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: appgrowth-ai/apps/web/package-lock.json }
+      - run: npm ci && npx eslint src && npx tsc --noEmit && npx next build
+        working-directory: appgrowth-ai/apps/web
+
+  ai:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --python 3.12 && uv run ruff check app tests && uv run pytest -q
+        working-directory: appgrowth-ai/apps/ai
+
+  security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: npm audit (high and above)
+        run: |
+          (cd apps/api && npm audit --omit=dev --audit-level=high)
+          (cd apps/web && npm audit --omit=dev --audit-level=high)
+      - uses: astral-sh/setup-uv@v6
+      - name: pip-audit
+        working-directory: appgrowth-ai/apps/ai
+        run: uv export --no-dev --format requirements-txt > /tmp/req.txt && uvx pip-audit -r /tmp/req.txt
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+
+  images:
+    needs: [api, web, ai]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build images (no push)
+        run: |
+          docker build -f infrastructure/docker/api.Dockerfile -t appgrowth-api:ci .
+          docker build -f infrastructure/docker/web.Dockerfile -t appgrowth-web:ci .
+          docker build -f infrastructure/docker/ai.Dockerfile -t appgrowth-ai:ci .
+      - name: Scan images (Trivy, high/critical)
+        uses: aquasecurity/trivy-action@0.28.0
+        with: { image-ref: 'appgrowth-api:ci', severity: 'HIGH,CRITICAL', ignore-unfixed: true, exit-code: '0', format: table }

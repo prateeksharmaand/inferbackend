@@ -1,0 +1,22 @@
+# Appended to /opt/beyondlife/deploy/Caddyfile. Caddy obtains and renews the Let's Encrypt certificate itself
+# and redirects HTTP → HTTPS automatically.
+marketing.noushealthcare.online {
+	encode zstd gzip
+	request_body {
+		max_size 110MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	@metrics path /api/v1/metrics
+	respond @metrics 404
+	handle /api/* {
+		reverse_proxy appgrowth-api:4100
+	}
+	handle {
+		reverse_proxy appgrowth-web:3000
+	}
+}

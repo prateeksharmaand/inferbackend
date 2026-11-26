@@ -1,0 +1,26 @@
+[project]
+name = "appgrowth-ai-service"
+version = "0.1.0"
+description = "AppGrowth AI agent service: provider adapters + structured agent outputs. Stateless; no database access."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "httpx>=0.28",
+  "anthropic>=0.75",
+  "google-genai>=1.30",
+  "openai>=1.99",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

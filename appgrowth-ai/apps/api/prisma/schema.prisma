@@ -1,0 +1,1716 @@
+// AppGrowth AI — PostgreSQL schema.
+// Conventions: UUID keys; timestamps are timestamptz (UTC); money is BigInt minor units (paise/cents) + ISO currency;
+// every tenant-owned table has organizationId and is protected by Row Level Security (see migrations/*_rls).
+// Provider-side identifiers live in `external*` columns, never in our primary keys.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Enums ───────────────────────────────
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  SUPPORT
+  NONE
+}
+
+enum Platform {
+  ANDROID
+  IOS
+}
+
+enum AdProvider {
+  GOOGLE_ADS
+  APPLE_ADS
+  META_ADS
+  TIKTOK_ADS
+}
+
+enum AnalyticsProviderKind {
+  FIREBASE
+  GA4
+  APPSFLYER
+  ADJUST
+}
+
+enum IntegrationStatus {
+  PENDING
+  CONNECTED
+  EXPIRED
+  REVOKED
+  ERROR
+  DISCONNECTED
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_APPROVAL
+  READY
+  ACTIVE
+  PAUSED
+  FAILED
+  COMPLETED
+  ARCHIVED
+}
+
+enum AutonomyLevel {
+  RECOMMENDATION
+  APPROVED_AUTOMATION
+  AUTONOMOUS
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CreativeType {
+  AD_COPY
+  HEADLINE
+  DESCRIPTION
+  IMAGE
+  VIDEO
+  VIDEO_SCRIPT
+  SOCIAL_POST
+  BANNER
+  SCREENSHOT_CONCEPT
+}
+
+enum ExecutionStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  AWAITING_REVIEW
+}
+
+enum InstallKind {
+  FIRST_INSTALL
+  REINSTALL
+}
+
+enum AttributionType {
+  ORGANIC
+  PAID
+  UNATTRIBUTED
+}
+
+enum AttributionGranularity {
+  USER_LEVEL
+  AGGREGATE // SKAdNetwork / AdAttributionKit / modelled reporting
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+// ───────────────────────── SaaS & authentication ─────────────────────────
+
+model Organization {
+  id                String        @id @default(uuid()) @db.Uuid
+  name              String
+  slug              String        @unique
+  status            OrgStatus     @default(ACTIVE)
+  suspendedReason   String?
+  country           String        @default("IN")
+  currency          String        @default("INR") @db.Char(3)
+  timezone          String        @default("Asia/Kolkata")
+  brandColors       Json          @default("[]")
+  brandVoice        String        @default("")
+  brandGuidelines   String        @default("")
+  logoAssetKey      String?
+  autonomyLevel     AutonomyLevel @default(RECOMMENDATION)
+  automationEnabled Boolean       @default(true)
+  emergencyStopAt   DateTime?     @db.Timestamptz
+  createdAt         DateTime      @default(now()) @db.Timestamptz
+  updatedAt         DateTime      @updatedAt @db.Timestamptz
+  deletedAt         DateTime?     @db.Timestamptz
+
+  members       OrganizationMember[]
+  invitations   Invitation[]
+  subscriptions Subscription[]
+  applications  Application[]
+  accounts      ConnectedAccount[]
+  campaigns     Campaign[]
+  budgets       OrganizationBudget[]
+  policy        AutomationPolicy?
+
+  @@map("organizations")
+}
+
+model User {
+  id              String       @id @default(uuid()) @db.Uuid
+  email           String       @unique
+  name            String
+  passwordHash    String?
+  status          UserStatus   @default(ACTIVE)
+  platformRole    PlatformRole @default(NONE)
+  emailVerifiedAt DateTime?    @db.Timestamptz
+  mfaSecretEnc    String? // AES-GCM encrypted TOTP secret
+  mfaEnabledAt    DateTime?    @db.Timestamptz
+  failedLogins    Int          @default(0)
+  lockedUntil     DateTime?    @db.Timestamptz
+  lastLoginAt     DateTime?    @db.Timestamptz
+  createdAt       DateTime     @default(now()) @db.Timestamptz
+  updatedAt       DateTime     @updatedAt @db.Timestamptz
+  deletedAt       DateTime?    @db.Timestamptz
+
+  memberships OrganizationMember[]
+  sessions    UserSession[]
+  resetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique // owner, admin, marketer, analyst, viewer
+  name        String
+  description String   @default("")
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  permissions RolePermission[]
+  members     OrganizationMember[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique // e.g. apps.write
+  description String @default("")
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  userId         String       @db.Uuid
+  roleId         String       @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model UserSession {
+  id             String         @id @default(uuid()) @db.Uuid
+  userId         String         @db.Uuid
+  organizationId String?        @db.Uuid // active org for this session
+  ip             String?
+  userAgent      String?
+  mfaVerified    Boolean        @default(false)
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  lastSeenAt     DateTime       @default(now()) @db.Timestamptz
+  revokedAt      DateTime?      @db.Timestamptz
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens  RefreshToken[]
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+/// Rotating refresh tokens. Each use creates a successor; presenting a used token revokes the whole family.
+model RefreshToken {
+  id        String      @id @default(uuid()) @db.Uuid
+  sessionId String      @db.Uuid
+  tokenHash String      @unique
+  expiresAt DateTime    @db.Timestamptz
+  usedAt    DateTime?   @db.Timestamptz
+  createdAt DateTime    @default(now()) @db.Timestamptz
+  session   UserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz
+  usedAt    DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model Invitation {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  email          String
+  roleKey        String
+  tokenHash      String       @unique
+  invitedById    String?      @db.Uuid
+  expiresAt      DateTime     @db.Timestamptz
+  acceptedAt     DateTime?    @db.Timestamptz
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("invitations")
+}
+
+model SubscriptionPlan {
+  id                 String   @id @default(uuid()) @db.Uuid
+  key                String   @unique // free_trial, starter, professional, agency, enterprise
+  name               String
+  description        String   @default("")
+  priceMinor         BigInt   @default(0)
+  currency           String   @default("INR") @db.Char(3)
+  interval           String   @default("month") // month | year
+  trialDays          Int      @default(0)
+  maxApps            Int
+  maxMembers         Int
+  maxAdAccounts      Int
+  aiGenerationsMonth Int
+  aiTokensMonth      BigInt
+  features           Json     @default("{}")
+  isPublic           Boolean  @default(true)
+  isActive           Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now()) @db.Timestamptz
+  updatedAt          DateTime @updatedAt @db.Timestamptz
+
+  subscriptions Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationId     String             @db.Uuid
+  planId             String             @db.Uuid
+  status             SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime           @db.Timestamptz
+  currentPeriodEnd   DateTime           @db.Timestamptz
+  trialEndsAt        DateTime?          @db.Timestamptz
+  cancelAtPeriodEnd  Boolean            @default(false)
+  externalId         String? // payment gateway subscription id
+  createdAt          DateTime           @default(now()) @db.Timestamptz
+  updatedAt          DateTime           @updatedAt @db.Timestamptz
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan               SubscriptionPlan   @relation(fields: [planId], references: [id])
+  invoices           Invoice[]
+
+  @@index([organizationId, status])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  subscriptionId String?       @db.Uuid
+  number         String        @unique
+  status         String        @default("open") // draft | open | paid | void
+  subtotalMinor  BigInt
+  taxMinor       BigInt        @default(0)
+  totalMinor     BigInt
+  currency       String        @db.Char(3)
+  periodStart    DateTime      @db.Timestamptz
+  periodEnd      DateTime      @db.Timestamptz
+  lines          Json          @default("[]")
+  issuedAt       DateTime      @default(now()) @db.Timestamptz
+  paidAt         DateTime?     @db.Timestamptz
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  payments       Payment[]
+
+  @@index([organizationId, issuedAt])
+  @@map("invoices")
+}
+
+model Payment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  invoiceId      String?  @db.Uuid
+  amountMinor    BigInt
+  currency       String   @db.Char(3)
+  method         String // gateway | bank_transfer | manual
+  status         String   @default("succeeded")
+  externalId     String?
+  receivedAt     DateTime @default(now()) @db.Timestamptz
+  recordedById   String?  @db.Uuid
+  invoice        Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@unique([method, externalId])
+  @@index([organizationId])
+  @@map("payments")
+}
+
+// ───────────────────────── Application management ─────────────────────────
+
+model Application {
+  id                   String       @id @default(uuid()) @db.Uuid
+  organizationId       String       @db.Uuid
+  name                 String
+  category             String       @default("")
+  description          String       @default("")
+  targetAudience       String       @default("")
+  iconAssetKey         String?
+  monthlyInstallTarget Int          @default(10000)
+  targetCpiMinor       BigInt?
+  currency             String       @default("INR") @db.Char(3)
+  status               String       @default("active") // active | paused | archived
+  onboardingStatus     String       @default("pending") // pending | running | done | failed
+  createdAt            DateTime     @default(now()) @db.Timestamptz
+  updatedAt            DateTime     @updatedAt @db.Timestamptz
+  deletedAt            DateTime?    @db.Timestamptz
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  platforms ApplicationPlatform[]
+  listings  ApplicationStoreListing[]
+  assets    ApplicationAsset[]
+  countries ApplicationCountry[]
+  languages ApplicationLanguage[]
+  targets   ApplicationTarget[]
+  campaigns Campaign[]
+
+  @@index([organizationId, deletedAt])
+  @@map("applications")
+}
+
+model ApplicationPlatform {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  applicationId  String      @db.Uuid
+  platform       Platform
+  storeId        String // Android package name or iOS bundle id
+  storeUrl       String      @default("")
+  appleAppId     String? // numeric App Store id (iOS)
+  validatedAt    DateTime?   @db.Timestamptz
+  validationNote String      @default("")
+  createdAt      DateTime    @default(now()) @db.Timestamptz
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, platform])
+  @@unique([organizationId, platform, storeId])
+  @@map("application_platforms")
+}
+
+/// Store metadata snapshots: one row per fetch, so listing changes can be diffed.
+model ApplicationStoreListing {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  applicationId  String      @db.Uuid
+  platform       Platform
+  country        String      @default("IN")
+  language       String      @default("en")
+  title          String      @default("")
+  subtitle       String      @default("")
+  description    String      @default("")
+  developer      String      @default("")
+  rating         Decimal?    @db.Decimal(3, 2)
+  ratingCount    Int?
+  iconUrl        String      @default("")
+  screenshotUrls Json        @default("[]")
+  raw            Json        @default("{}")
+  source         String // itunes_lookup | play_developer_api | manual
+  contentHash    String
+  fetchedAt      DateTime    @default(now()) @db.Timestamptz
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, platform, fetchedAt])
+  @@map("application_store_listings")
+}
+
+model ApplicationAsset {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  applicationId  String      @db.Uuid
+  kind           String // icon | screenshot | logo | video
+  storageKey     String
+  mimeType       String
+  sizeBytes      Int
+  width          Int?
+  height         Int?
+  createdAt      DateTime    @default(now()) @db.Timestamptz
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("application_assets")
+}
+
+model ApplicationCountry {
+  organizationId String      @db.Uuid
+  applicationId  String      @db.Uuid
+  country        String      @db.Char(2)
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, country])
+  @@map("application_countries")
+}
+
+model ApplicationLanguage {
+  organizationId String      @db.Uuid
+  applicationId  String      @db.Uuid
+  language       String
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, language])
+  @@map("application_languages")
+}
+
+/// Monthly install goals (one row per app per month; overrides Application.monthlyInstallTarget).
+model ApplicationTarget {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  applicationId  String      @db.Uuid
+  month          DateTime    @db.Date // first day of month
+  installs       Int
+  targetCpiMinor BigInt?
+  createdAt      DateTime    @default(now()) @db.Timestamptz
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, month])
+  @@map("application_targets")
+}
+
+/// Custom conversion event definitions per app (registration, purchase, …).
+model ApplicationEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  applicationId  String   @db.Uuid
+  key            String // e.g. sign_up
+  name           String
+  category       String // registration | login | purchase | subscription | custom
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@unique([applicationId, key])
+  @@map("application_events")
+}
+
+// ───────────────────────────── Integrations ─────────────────────────────
+
+/// Platform-level provider catalogue, managed by Super Admin (enabled flag doubles as a feature flag).
+model IntegrationProvider {
+  id            String   @id @default(uuid()) @db.Uuid
+  key           String   @unique // google_ads | apple_ads | meta_ads | tiktok_ads | firebase | ga4 | appsflyer | adjust | play_console | app_store_connect
+  name          String
+  category      String // advertising | analytics | store
+  enabled       Boolean  @default(false)
+  readiness     String   @default("not_configured") // not_configured | configured | verified
+  readinessNote String   @default("")
+  docsUrl       String   @default("")
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+
+  @@map("integration_providers")
+}
+
+model ConnectedAccount {
+  id                String                  @id @default(uuid()) @db.Uuid
+  organizationId    String                  @db.Uuid
+  providerKey       String
+  externalAccountId String
+  name              String
+  currency          String?                 @db.Char(3)
+  timezone          String?
+  status            IntegrationStatus       @default(PENDING)
+  statusDetail      String                  @default("")
+  scopes            String[]
+  automationEnabled Boolean                 @default(true)
+  connectedById     String?                 @db.Uuid
+  lastSyncedAt      DateTime?               @db.Timestamptz
+  tokenExpiresAt    DateTime?               @db.Timestamptz
+  createdAt         DateTime                @default(now()) @db.Timestamptz
+  updatedAt         DateTime                @updatedAt @db.Timestamptz
+  deletedAt         DateTime?               @db.Timestamptz
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  token             OAuthToken?
+  permissions       IntegrationPermission[]
+  appLinks          AccountApplication[]
+  campaigns         Campaign[]
+
+  @@unique([organizationId, providerKey, externalAccountId])
+  @@index([status])
+  @@map("connected_accounts")
+}
+
+/// Encrypted with AES-256-GCM (DATA_ENCRYPTION_KEY). Never returned by any API.
+model OAuthToken {
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @db.Uuid
+  connectedAccountId String           @unique @db.Uuid
+  accessTokenEnc     String
+  refreshTokenEnc    String?
+  tokenType          String           @default("Bearer")
+  expiresAt          DateTime?        @db.Timestamptz
+  refreshedAt        DateTime?        @db.Timestamptz
+  createdAt          DateTime         @default(now()) @db.Timestamptz
+  updatedAt          DateTime         @updatedAt @db.Timestamptz
+  account            ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@map("oauth_tokens")
+}
+
+/// Short-lived OAuth state (PKCE verifier, org, return url). One-time use.
+model OAuthState {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @db.Uuid
+  userId          String    @db.Uuid
+  providerKey     String
+  stateHash       String    @unique
+  codeVerifierEnc String?
+  expiresAt       DateTime  @db.Timestamptz
+  usedAt          DateTime? @db.Timestamptz
+  createdAt       DateTime  @default(now()) @db.Timestamptz
+
+  @@map("oauth_states")
+}
+
+model IntegrationPermission {
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @db.Uuid
+  connectedAccountId String           @db.Uuid
+  capability         String // read_campaigns | manage_campaigns | read_reports | upload_creatives
+  granted            Boolean
+  checkedAt          DateTime         @default(now()) @db.Timestamptz
+  detail             String           @default("")
+  account            ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([connectedAccountId, capability])
+  @@map("integration_permissions")
+}
+
+model AccountApplication {
+  organizationId     String           @db.Uuid
+  connectedAccountId String           @db.Uuid
+  applicationId      String           @db.Uuid
+  externalAppId      String? // the app's id inside the ad platform (Meta application id, TikTok app id)
+  account            ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@id([connectedAccountId, applicationId])
+  @@map("account_applications")
+}
+
+model IntegrationSyncLog {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @db.Uuid
+  connectedAccountId String?  @db.Uuid
+  providerKey        String
+  operation          String
+  status             String // ok | error | partial
+  httpStatus         Int?
+  errorCode          String?
+  message            String   @default("")
+  durationMs         Int?
+  startedAt          DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, startedAt])
+  @@index([providerKey, status, startedAt])
+  @@map("integration_sync_logs")
+}
+
+model WebhookEndpoint {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  providerKey    String
+  secretEnc      String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@unique([organizationId, providerKey])
+  @@map("webhook_endpoints")
+}
+
+model WebhookEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @db.Uuid
+  providerKey    String
+  externalId     String
+  signatureValid Boolean
+  payload        Json
+  processedAt    DateTime? @db.Timestamptz
+  error          String?
+  receivedAt     DateTime  @default(now()) @db.Timestamptz
+
+  @@unique([providerKey, externalId])
+  @@map("webhook_events")
+}
+
+// ───────────────────────── Marketing intelligence ─────────────────────────
+
+model MarketResearch {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  applicationId  String   @db.Uuid
+  executionId    String?  @db.Uuid
+  summary        String
+  markets        Json // [{country, opportunity, reasoning, confidence}]
+  audiences      Json
+  opportunities  Json
+  evidence       Json // [{claim, source}]
+  confidence     Decimal  @db.Decimal(3, 2)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([applicationId, createdAt])
+  @@map("market_research")
+}
+
+model Competitor {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @db.Uuid
+  applicationId  String          @db.Uuid
+  name           String
+  website        String          @default("")
+  notes          String          @default("")
+  source         String          @default("ai") // ai | manual
+  createdAt      DateTime        @default(now()) @db.Timestamptz
+  apps           CompetitorApp[]
+
+  @@unique([applicationId, name])
+  @@map("competitors")
+}
+
+model CompetitorApp {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @db.Uuid
+  competitorId   String     @db.Uuid
+  platform       Platform
+  storeId        String
+  title          String     @default("")
+  rating         Decimal?   @db.Decimal(3, 2)
+  ratingCount    Int?
+  lastFetchedAt  DateTime?  @db.Timestamptz
+  competitor     Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@unique([competitorId, platform, storeId])
+  @@map("competitor_apps")
+}
+
+model KeywordResearch {
+  id                  String    @id @default(uuid()) @db.Uuid
+  organizationId      String    @db.Uuid
+  applicationId       String    @db.Uuid
+  platform            Platform?
+  country             String    @default("IN")
+  keyword             String
+  relevance           Decimal   @db.Decimal(3, 2)
+  estimatedPopularity String    @default("unknown") // low | medium | high | unknown (no vendor data)
+  competition         String    @default("unknown")
+  source              String    @default("ai")
+  createdAt           DateTime  @default(now()) @db.Timestamptz
+
+  @@unique([applicationId, country, keyword])
+  @@map("keyword_research")
+}
+
+model AsoAudit {
+  id                String   @id @default(uuid()) @db.Uuid
+  organizationId    String   @db.Uuid
+  applicationId     String   @db.Uuid
+  platform          Platform
+  listingId         String?  @db.Uuid
+  executionId       String?  @db.Uuid
+  score             Int
+  findings          Json // [{area, issue, recommendation, impact}]
+  suggestedTitle    String   @default("")
+  suggestedSubtitle String   @default("")
+  suggestedKeywords Json     @default("[]")
+  localization      Json     @default("[]")
+  createdAt         DateTime @default(now()) @db.Timestamptz
+
+  @@index([applicationId, createdAt])
+  @@map("aso_audits")
+}
+
+model AudienceSegment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  applicationId  String   @db.Uuid
+  name           String
+  description    String
+  countries      String[]
+  ageRange       String   @default("")
+  interests      String[]
+  source         String   @default("ai")
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@map("audience_segments")
+}
+
+model MarketingStrategy {
+  id                   String         @id @default(uuid()) @db.Uuid
+  organizationId       String         @db.Uuid
+  applicationId        String         @db.Uuid
+  executionId          String?        @db.Uuid
+  month                DateTime?      @db.Date
+  title                String
+  summary              String
+  channels             Json // [{provider, share, rationale}]
+  countryAllocations   Json
+  estimatedCpiMinor    BigInt?
+  estimatedBudgetMinor BigInt?
+  forecastInstalls     Json // {low, expected, high, method}
+  campaignPlan         Json
+  assumptions          Json
+  status               ApprovalStatus @default(PENDING)
+  decidedById          String?        @db.Uuid
+  decidedAt            DateTime?      @db.Timestamptz
+  createdAt            DateTime       @default(now()) @db.Timestamptz
+
+  @@index([applicationId, createdAt])
+  @@map("marketing_strategies")
+}
+
+// ───────────────────────── Creative management ─────────────────────────
+
+model BrandKit {
+  organizationId String   @id @db.Uuid
+  colors         Json     @default("[]")
+  voice          String   @default("")
+  guidelines     String   @default("")
+  bannedClaims   String[]
+  logoStorageKey String?
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@map("brand_kits")
+}
+
+model CreativeProject {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @db.Uuid
+  applicationId  String          @db.Uuid
+  campaignId     String?         @db.Uuid
+  name           String
+  brief          String          @default("")
+  createdById    String?         @db.Uuid
+  createdAt      DateTime        @default(now()) @db.Timestamptz
+  assets         CreativeAsset[]
+
+  @@index([organizationId, applicationId])
+  @@map("creative_projects")
+}
+
+model CreativeAsset {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @db.Uuid
+  projectId      String                @db.Uuid
+  applicationId  String                @db.Uuid
+  campaignId     String?               @db.Uuid
+  type           CreativeType
+  title          String                @default("")
+  currentVersion Int                   @default(1)
+  approvalStatus ApprovalStatus        @default(PENDING)
+  policyFlags    Json                  @default("[]")
+  createdAt      DateTime              @default(now()) @db.Timestamptz
+  updatedAt      DateTime              @updatedAt @db.Timestamptz
+  deletedAt      DateTime?             @db.Timestamptz
+  project        CreativeProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions       CreativeVersion[]
+  approvals      CreativeApproval[]
+  performance    CreativePerformance[]
+
+  @@index([organizationId, applicationId, type])
+  @@map("creative_assets")
+}
+
+model CreativeVersion {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  assetId        String        @db.Uuid
+  version        Int
+  content        Json // text fields, or {storageKey, mimeType, width, height}
+  promptId       String?       @db.Uuid
+  provider       String
+  model          String
+  costMicros     BigInt        @default(0) // USD micros
+  createdById    String?       @db.Uuid
+  createdAt      DateTime      @default(now()) @db.Timestamptz
+  asset          CreativeAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, version])
+  @@map("creative_versions")
+}
+
+model CreativePrompt {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  type           CreativeType
+  prompt         String
+  parameters     Json         @default("{}")
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+
+  @@map("creative_prompts")
+}
+
+model CreativeApproval {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @db.Uuid
+  assetId        String         @db.Uuid
+  version        Int
+  status         ApprovalStatus
+  comment        String         @default("")
+  decidedById    String         @db.Uuid
+  decidedAt      DateTime       @default(now()) @db.Timestamptz
+  asset          CreativeAsset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@map("creative_approvals")
+}
+
+model CreativePerformance {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  assetId        String        @db.Uuid
+  campaignId     String        @db.Uuid
+  date           DateTime      @db.Date
+  impressions    BigInt        @default(0)
+  clicks         BigInt        @default(0)
+  installs       Int           @default(0)
+  spendMinor     BigInt        @default(0)
+  asset          CreativeAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, campaignId, date])
+  @@map("creative_performance")
+}
+
+// ───────────────────────── Campaign management ─────────────────────────
+
+model CampaignGroup {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @db.Uuid
+  name           String
+  strategyId     String?    @db.Uuid
+  createdAt      DateTime   @default(now()) @db.Timestamptz
+  campaigns      Campaign[]
+
+  @@map("campaign_groups")
+}
+
+model Campaign {
+  id                 String               @id @default(uuid()) @db.Uuid
+  organizationId     String               @db.Uuid
+  applicationId      String               @db.Uuid
+  connectedAccountId String?              @db.Uuid
+  groupId            String?              @db.Uuid
+  strategyId         String?              @db.Uuid
+  name               String
+  provider           AdProvider
+  platform           Platform
+  objective          String               @default("installs") // installs | in_app_actions | value
+  countries          String[]
+  languages          String[]
+  dailyBudgetMinor   BigInt
+  monthlyBudgetMinor BigInt?
+  targetCpiMinor     BigInt?
+  currency           String               @db.Char(3)
+  startDate          DateTime             @db.Date
+  endDate            DateTime?            @db.Date
+  status             CampaignStatus       @default(DRAFT)
+  statusReason       String               @default("")
+  externalCampaignId String?
+  externalStatus     String?
+  tracking           Json                 @default("{}")
+  automationEnabled  Boolean              @default(true)
+  lastSyncedAt       DateTime?            @db.Timestamptz
+  createdById        String?              @db.Uuid
+  createdAt          DateTime             @default(now()) @db.Timestamptz
+  updatedAt          DateTime             @updatedAt @db.Timestamptz
+  deletedAt          DateTime?            @db.Timestamptz
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  application        Application          @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  account            ConnectedAccount?    @relation(fields: [connectedAccountId], references: [id])
+  group              CampaignGroup?       @relation(fields: [groupId], references: [id])
+  adsets             CampaignAdset[]
+  creatives          CampaignCreative[]
+  budgets            CampaignBudget[]
+  metrics            CampaignMetric[]
+  actions            CampaignAction[]
+  experiments        CampaignExperiment[]
+
+  @@unique([connectedAccountId, externalCampaignId])
+  @@index([organizationId, status])
+  @@index([applicationId])
+  @@map("campaigns")
+}
+
+model CampaignAdset {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  campaignId     String       @db.Uuid
+  name           String
+  targeting      Json         @default("{}")
+  externalId     String?
+  status         String       @default("draft")
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  campaign       Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ads            CampaignAd[]
+
+  @@map("campaign_adsets")
+}
+
+model CampaignAd {
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String        @db.Uuid
+  adsetId         String        @db.Uuid
+  name            String
+  creativeAssetId String?       @db.Uuid
+  externalId      String?
+  status          String        @default("draft")
+  createdAt       DateTime      @default(now()) @db.Timestamptz
+  adset           CampaignAdset @relation(fields: [adsetId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_ads")
+}
+
+model CampaignCreative {
+  organizationId  String    @db.Uuid
+  campaignId      String    @db.Uuid
+  creativeAssetId String    @db.Uuid
+  version         Int
+  externalAssetId String?
+  uploadedAt      DateTime? @db.Timestamptz
+  campaign        Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, creativeAssetId])
+  @@map("campaign_creatives")
+}
+
+model CampaignBudget {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  campaignId     String   @db.Uuid
+  dailyMinor     BigInt
+  monthlyMinor   BigInt?
+  effectiveFrom  DateTime @default(now()) @db.Timestamptz
+  changedBy      String // user:<id> | agent:<key>
+  reason         String   @default("")
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, effectiveFrom])
+  @@map("campaign_budgets")
+}
+
+/// Daily metrics as reported by the ad platform. Upserted per (campaign, date) so re-syncs replace, never add.
+model CampaignMetric {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  campaignId     String   @db.Uuid
+  date           DateTime @db.Date
+  country        String   @default("ZZ") @db.Char(2) // ZZ = all/unknown
+  impressions    BigInt   @default(0)
+  clicks         BigInt   @default(0)
+  installs       Int      @default(0) // platform-reported conversions
+  spendMinor     BigInt   @default(0)
+  currency       String   @db.Char(3)
+  syncedAt       DateTime @default(now()) @db.Timestamptz
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, date, country])
+  @@index([organizationId, date])
+  @@map("campaign_metrics")
+}
+
+/// Every action on a campaign (user or agent). Idempotency key makes retried executions safe.
+model CampaignAction {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  campaignId     String    @db.Uuid
+  action         String // create | launch | pause | resume | budget_change | sync | archive
+  actor          String // user:<id> | agent:<key> | system
+  idempotencyKey String    @unique
+  status         String    @default("pending") // pending | succeeded | failed
+  request        Json      @default("{}")
+  response       Json      @default("{}")
+  error          String?
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  completedAt    DateTime? @db.Timestamptz
+  campaign       Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, createdAt])
+  @@map("campaign_actions")
+}
+
+model CampaignExperiment {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  campaignId     String    @db.Uuid
+  hypothesis     String
+  variants       Json
+  metric         String    @default("cpi")
+  status         String    @default("proposed") // proposed | running | concluded | abandoned
+  result         Json?
+  startedAt      DateTime? @db.Timestamptz
+  endedAt        DateTime? @db.Timestamptz
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  campaign       Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_experiments")
+}
+
+// ───────────────────────── AI & automation ─────────────────────────
+
+model AiProvider {
+  id        String    @id @default(uuid()) @db.Uuid
+  key       String    @unique // openai | anthropic | gemini | ollama
+  name      String
+  baseUrl   String    @default("")
+  apiKeyEnc String? // falls back to env var when null
+  enabled   Boolean   @default(false)
+  isDefault Boolean   @default(false)
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  models    AiModel[]
+
+  @@map("ai_providers")
+}
+
+model AiModel {
+  id                String     @id @default(uuid()) @db.Uuid
+  providerId        String     @db.Uuid
+  modelId           String
+  purpose           String     @default("text") // text | image | video
+  inputCostPerMTok  Decimal    @default(0) @db.Decimal(12, 4) // USD
+  outputCostPerMTok Decimal    @default(0) @db.Decimal(12, 4)
+  unitCost          Decimal    @default(0) @db.Decimal(12, 4) // per image / per video second
+  enabled           Boolean    @default(true)
+  provider          AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, modelId])
+  @@map("ai_models")
+}
+
+model AiAgentDefinition {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String   @unique // market_research | aso | creative | campaign_strategy | campaign_execution | budget_optimization | analytics | growth | retention | reporting
+  name         String
+  description  String
+  enabled      Boolean  @default(true)
+  schedule     String? // cron, UTC
+  timeoutSec   Int      @default(120)
+  maxRetries   Int      @default(2)
+  providerKey  String? // null = platform default
+  modelId      String?
+  manualReview Boolean  @default(false)
+  tools        String[] // registered tool keys this agent may call
+  updatedAt    DateTime @updatedAt @db.Timestamptz
+
+  @@map("ai_agent_definitions")
+}
+
+model AiAgentTool {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  description String
+  inputSchema Json
+  mutating    Boolean  @default(false) // mutating tools obey autonomy level + spend policy
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@map("ai_agent_tools")
+}
+
+model AiAgentExecution {
+  id                  String           @id @default(uuid()) @db.Uuid
+  organizationId      String           @db.Uuid
+  agentKey            String
+  applicationId       String?          @db.Uuid
+  campaignId          String?          @db.Uuid
+  workflowExecutionId String?          @db.Uuid
+  trigger             String // manual | schedule | workflow
+  status              ExecutionStatus  @default(QUEUED)
+  input               Json
+  output              Json?
+  error               String?
+  provider            String?
+  model               String?
+  inputTokens         Int              @default(0)
+  outputTokens        Int              @default(0)
+  costMicros          BigInt           @default(0)
+  attempts            Int              @default(0)
+  requestedById       String?          @db.Uuid
+  reviewedById        String?          @db.Uuid
+  startedAt           DateTime?        @db.Timestamptz
+  finishedAt          DateTime?        @db.Timestamptz
+  createdAt           DateTime         @default(now()) @db.Timestamptz
+  logs                AiExecutionLog[]
+
+  @@index([organizationId, createdAt])
+  @@index([status])
+  @@map("ai_agent_executions")
+}
+
+model AiExecutionLog {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  executionId    String           @db.Uuid
+  level          String           @default("info")
+  message        String
+  data           Json?
+  createdAt      DateTime         @default(now()) @db.Timestamptz
+  execution      AiAgentExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId, createdAt])
+  @@map("ai_execution_logs")
+}
+
+model AiUsage {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  date           DateTime @db.Date
+  provider       String
+  model          String
+  requests       Int      @default(0)
+  inputTokens    BigInt   @default(0)
+  outputTokens   BigInt   @default(0)
+  generations    Int      @default(0) // images/videos
+  costMicros     BigInt   @default(0)
+
+  @@unique([organizationId, date, provider, model])
+  @@map("ai_usage")
+}
+
+model AutomationPolicy {
+  organizationId         String        @id @db.Uuid
+  autonomyLevel          AutonomyLevel @default(RECOMMENDATION)
+  maxDailySpendMinor     BigInt?
+  maxMonthlySpendMinor   BigInt?
+  maxCampaignBudgetMinor BigInt?
+  maxBudgetIncreasePct   Int           @default(20)
+  maxConcurrentCampaigns Int           @default(10)
+  reservePct             Int           @default(10) // held back for reporting delays / billing discrepancies
+  allowedProviders       AdProvider[]
+  autoPauseOnCpiMultiple Decimal       @default(2.0) @db.Decimal(4, 2)
+  updatedById            String?       @db.Uuid
+  updatedAt              DateTime      @updatedAt @db.Timestamptz
+  organization           Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("automation_policies")
+}
+
+model AutomationWorkflow {
+  id             String            @id @default(uuid()) @db.Uuid
+  key            String            @unique // app_onboarding | campaign_creation | campaign_monitoring | budget_optimization | daily_reporting | monthly_planning | integration_health
+  name           String
+  description    String
+  schedule       String? // cron (UTC) for scheduled workflows
+  enabled        Boolean           @default(true)
+  currentVersion Int               @default(1)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz
+  versions       WorkflowVersion[]
+
+  @@map("automation_workflows")
+}
+
+model WorkflowVersion {
+  id         String             @id @default(uuid()) @db.Uuid
+  workflowId String             @db.Uuid
+  version    Int
+  steps      Json // ordered step keys
+  createdAt  DateTime           @default(now()) @db.Timestamptz
+  workflow   AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
+  @@map("workflow_versions")
+}
+
+model WorkflowExecution {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @db.Uuid
+  workflowKey    String
+  version        Int
+  subjectType    String? // application | campaign
+  subjectId      String?         @db.Uuid
+  idempotencyKey String          @unique
+  status         ExecutionStatus @default(QUEUED)
+  currentStep    String?
+  steps          Json            @default("[]") // [{key, status, startedAt, finishedAt, output, error}]
+  error          String?
+  startedAt      DateTime?       @db.Timestamptz
+  finishedAt     DateTime?       @db.Timestamptz
+  createdAt      DateTime        @default(now()) @db.Timestamptz
+
+  @@index([organizationId, createdAt])
+  @@index([workflowKey, status])
+  @@map("workflow_executions")
+}
+
+model ScheduledJob {
+  id         String    @id @default(uuid()) @db.Uuid
+  key        String    @unique
+  queue      String
+  cron       String
+  enabled    Boolean   @default(true)
+  lastRunAt  DateTime? @db.Timestamptz
+  lastStatus String?
+  lastError  String?
+  updatedAt  DateTime  @updatedAt @db.Timestamptz
+
+  @@map("scheduled_jobs")
+}
+
+/// Every optimisation decision, whether executed, proposed or blocked by policy.
+model OptimizationDecision {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  campaignId     String?  @db.Uuid
+  agentKey       String
+  executionId    String?  @db.Uuid
+  kind           String // budget_increase | budget_decrease | pause | resume | reallocate
+  before         Json
+  after          Json
+  rationale      String
+  outcome        String // executed | proposed | blocked | failed
+  blockedReason  String?
+  approvedById   String?  @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, createdAt])
+  @@map("optimization_decisions")
+}
+
+// ───────────────────────────── Analytics ─────────────────────────────
+
+model AttributionSource {
+  id                    String                @id @default(uuid()) @db.Uuid
+  organizationId        String                @db.Uuid
+  applicationId         String                @db.Uuid
+  provider              AnalyticsProviderKind
+  config                Json                  @default("{}") // non-secret settings (app ids, property ids)
+  secretEnc             String? // encrypted API token / service-account JSON
+  status                IntegrationStatus     @default(PENDING)
+  statusDetail          String                @default("")
+  attributionWindowDays Int                   @default(7)
+  lastSyncedAt          DateTime?             @db.Timestamptz
+  createdAt             DateTime              @default(now()) @db.Timestamptz
+
+  @@unique([applicationId, provider])
+  @@map("attribution_sources")
+}
+
+/// User-level install events (where the platform permits). dedupeKey = provider event id, or a fingerprint.
+model InstallEvent {
+  id                 String          @id @default(uuid()) @db.Uuid
+  organizationId     String          @db.Uuid
+  applicationId      String          @db.Uuid
+  platform           Platform
+  source             String // firebase | appsflyer | adjust | ga4 | sdk
+  dedupeKey          String
+  deviceIdHash       String? // salted SHA-256, never raw advertising IDs
+  kind               InstallKind
+  attribution        AttributionType
+  campaignId         String?         @db.Uuid
+  externalCampaignId String?
+  mediaSource        String?
+  country            String          @default("ZZ") @db.Char(2)
+  installedAt        DateTime        @db.Timestamptz
+  receivedAt         DateTime        @default(now()) @db.Timestamptz
+
+  @@unique([applicationId, dedupeKey])
+  @@index([organizationId, installedAt])
+  @@index([applicationId, installedAt])
+  @@map("install_events")
+}
+
+/// Aggregate attribution (SKAdNetwork postbacks, AdAttributionKit, platform-modelled reporting). No user-level data.
+model AttributionEvent {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  organizationId     String                 @db.Uuid
+  applicationId      String                 @db.Uuid
+  source             String // skadnetwork | adattributionkit | google_ads | meta | apple_ads | tiktok
+  granularity        AttributionGranularity
+  dedupeKey          String
+  campaignId         String?                @db.Uuid
+  externalCampaignId String?
+  country            String                 @default("ZZ") @db.Char(2)
+  date               DateTime               @db.Date
+  installs           Int
+  conversionValue    Int?
+  raw                Json                   @default("{}")
+  receivedAt         DateTime               @default(now()) @db.Timestamptz
+
+  @@unique([applicationId, dedupeKey])
+  @@index([organizationId, date])
+  @@map("attribution_events")
+}
+
+model ConversionEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  applicationId  String   @db.Uuid
+  eventKey       String // first_open | sign_up | login | purchase | subscribe | session | custom key
+  category       String // registration | login | purchase | subscription | engagement | custom
+  platform       Platform?
+  source         String
+  dedupeKey      String
+  deviceIdHash   String?
+  campaignId     String?  @db.Uuid
+  country        String   @default("ZZ") @db.Char(2)
+  valueMinor     BigInt?
+  currency       String?  @db.Char(3)
+  occurredAt     DateTime @db.Timestamptz
+  receivedAt     DateTime @default(now()) @db.Timestamptz
+
+  @@unique([applicationId, dedupeKey])
+  @@index([applicationId, eventKey, occurredAt])
+  @@map("conversion_events")
+}
+
+/// Rollups rebuilt by the analytics engine (idempotent: delete+insert per app/date range in one transaction).
+model AnalyticsDaily {
+  id                          String   @id @default(uuid()) @db.Uuid
+  organizationId              String   @db.Uuid
+  applicationId               String   @db.Uuid
+  platform                    Platform
+  date                        DateTime @db.Date
+  firstInstalls               Int      @default(0)
+  reinstalls                  Int      @default(0)
+  organicInstalls             Int      @default(0)
+  paidInstalls                Int      @default(0)
+  unattributedInstalls        Int      @default(0)
+  aggregateAttributedInstalls Int      @default(0) // SKAN/AAK — not de-duplicable against user-level
+  registrations               Int      @default(0)
+  activeUsers                 Int      @default(0)
+  spendMinor                  BigInt   @default(0)
+  currency                    String   @db.Char(3)
+  computedAt                  DateTime @default(now()) @db.Timestamptz
+
+  @@unique([applicationId, platform, date])
+  @@index([organizationId, date])
+  @@map("analytics_daily")
+}
+
+model AnalyticsCampaignDaily {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @db.Uuid
+  campaignId         String   @db.Uuid
+  date               DateTime @db.Date
+  impressions        BigInt   @default(0)
+  clicks             BigInt   @default(0)
+  platformInstalls   Int      @default(0)
+  attributedInstalls Int      @default(0)
+  registrations      Int      @default(0)
+  spendMinor         BigInt   @default(0)
+  cpiMinor           BigInt?
+  computedAt         DateTime @default(now()) @db.Timestamptz
+
+  @@unique([campaignId, date])
+  @@index([organizationId, date])
+  @@map("analytics_campaign_daily")
+}
+
+model RetentionMetric {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  applicationId  String   @db.Uuid
+  cohortDate     DateTime @db.Date
+  campaignId     String?  @db.Uuid
+  source         String   @default("all")
+  cohortSize     Int
+  d1             Decimal? @db.Decimal(5, 4)
+  d7             Decimal? @db.Decimal(5, 4)
+  d30            Decimal? @db.Decimal(5, 4)
+  computedAt     DateTime @default(now()) @db.Timestamptz
+
+  @@unique([applicationId, cohortDate, source, campaignId])
+  @@map("retention_metrics")
+}
+
+model CountryMetric {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  applicationId  String   @db.Uuid
+  country        String   @db.Char(2)
+  date           DateTime @db.Date
+  installs       Int      @default(0)
+  paidInstalls   Int      @default(0)
+  spendMinor     BigInt   @default(0)
+  registrations  Int      @default(0)
+
+  @@unique([applicationId, country, date])
+  @@map("country_metrics")
+}
+
+// ───────────────────────────── Finance ─────────────────────────────
+
+/// Customer-controlled advertising budget for a month (separate from SaaS subscription billing).
+model OrganizationBudget {
+  id                String                        @id @default(uuid()) @db.Uuid
+  organizationId    String                        @db.Uuid
+  month             DateTime                      @db.Date
+  monthlyLimitMinor BigInt
+  dailyLimitMinor   BigInt?
+  currency          String                        @db.Char(3)
+  alertThresholds   Int[]                         @default([50, 75, 90])
+  alertsSent        Int[]                         @default([])
+  createdById       String?                       @db.Uuid
+  createdAt         DateTime                      @default(now()) @db.Timestamptz
+  updatedAt         DateTime                      @updatedAt @db.Timestamptz
+  organization      Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allocations       AdvertisingBudgetAllocation[]
+
+  @@unique([organizationId, month])
+  @@map("organization_budgets")
+}
+
+model AdvertisingBudgetAllocation {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @db.Uuid
+  budgetId       String             @db.Uuid
+  applicationId  String?            @db.Uuid
+  provider       AdProvider?
+  platform       Platform?
+  country        String?            @db.Char(2)
+  limitMinor     BigInt
+  createdAt      DateTime           @default(now()) @db.Timestamptz
+  budget         OrganizationBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+  @@map("advertising_budget_allocations")
+}
+
+/// Spend as reported by each ad account, per day. Source of truth for budget enforcement.
+model AdvertisingSpend {
+  id                 String     @id @default(uuid()) @db.Uuid
+  organizationId     String     @db.Uuid
+  connectedAccountId String     @db.Uuid
+  campaignId         String?    @db.Uuid
+  provider           AdProvider
+  date               DateTime   @db.Date
+  amountMinor        BigInt
+  currency           String     @db.Char(3)
+  syncedAt           DateTime   @default(now()) @db.Timestamptz
+
+  @@unique([connectedAccountId, campaignId, date])
+  @@index([organizationId, date])
+  @@map("advertising_spend")
+}
+
+model SubscriptionTransaction {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  subscriptionId String   @db.Uuid
+  kind           String // created | renewed | upgraded | downgraded | cancelled | trial_converted
+  fromPlanKey    String?
+  toPlanKey      String?
+  actor          String
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@map("subscription_transactions")
+}
+
+model UsageCharge {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  month          DateTime @db.Date
+  metric         String // ai_tokens | ai_generations | storage_bytes
+  quantity       BigInt
+  amountMinor    BigInt   @default(0)
+  currency       String   @db.Char(3)
+  invoiceId      String?  @db.Uuid
+
+  @@unique([organizationId, month, metric])
+  @@map("usage_charges")
+}
+
+/// Platform's own costs (AI providers, infra) attributed to orgs for margin reporting.
+model CostRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @db.Uuid
+  category       String // ai | storage | email | infra
+  description    String
+  amountMicros   BigInt // USD micros
+  date           DateTime @db.Date
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([date])
+  @@map("cost_records")
+}
+
+// ───────────────────────── Platform operations ─────────────────────────
+
+model Notification {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String?             @db.Uuid
+  userId         String              @db.Uuid
+  kind           String // budget_threshold | campaign_failed | integration_expiring | unusual_spend | target_risk | report_ready | ...
+  severity       String              @default("info") // info | warning | critical
+  title          String
+  body           String
+  link           String?
+  channel        NotificationChannel @default(IN_APP)
+  dedupeKey      String?
+  readAt         DateTime?           @db.Timestamptz
+  emailedAt      DateTime?           @db.Timestamptz
+  createdAt      DateTime            @default(now()) @db.Timestamptz
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  kind           String
+  inApp          Boolean  @default(true)
+  email          Boolean  @default(true)
+  config         Json     @default("{}") // thresholds, e.g. {"cpiMultiple": 1.5}
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@unique([organizationId, userId, kind])
+  @@map("notification_preferences")
+}
+
+model Report {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  kind           String // daily | weekly | monthly | budget | campaign | installs | recommendations
+  title          String
+  periodStart    DateTime  @db.Date
+  periodEnd      DateTime  @db.Date
+  applicationId  String?   @db.Uuid
+  status         String    @default("queued") // queued | ready | failed
+  data           Json?
+  pdfKey         String?
+  csvKey         String?
+  error          String?
+  requestedById  String?   @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  readyAt        DateTime? @db.Timestamptz
+
+  @@index([organizationId, createdAt])
+  @@map("reports")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @db.Uuid
+  actorUserId    String?  @db.Uuid
+  actor          String // user:<id> | agent:<key> | system
+  action         String
+  entityType     String?
+  entityId       String?
+  before         Json?
+  after          Json?
+  ip             String?
+  security       Boolean  @default(false) // login failures, MFA changes, token reuse...
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, createdAt])
+  @@index([security, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model SupportTicket {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  openedById     String       @db.Uuid
+  subject        String
+  status         TicketStatus @default(OPEN)
+  priority       String       @default("normal")
+  assignedToId   String?      @db.Uuid
+  messages       Json         @default("[]") // [{authorId, body, at, staff}]
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @db.Timestamptz
+
+  @@index([status, updatedAt])
+  @@index([organizationId])
+  @@map("support_tickets")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@map("system_settings")
+}
+
+model FeatureFlag {
+  key          String   @id
+  description  String   @default("")
+  enabled      Boolean  @default(false)
+  orgAllowList String[] // org ids that get the flag even when globally disabled
+  updatedAt    DateTime @updatedAt @db.Timestamptz
+
+  @@map("feature_flags")
+}
+
+model ApiLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @db.Uuid
+  userId         String?  @db.Uuid
+  method         String
+  route          String
+  status         Int
+  durationMs     Int
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([createdAt])
+  @@index([organizationId, createdAt])
+  @@map("api_logs")
+}
+
+model ErrorLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @db.Uuid
+  service        String // api | worker | scheduler | ai
+  message        String
+  stack          String?
+  context        Json?
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([createdAt])
+  @@map("error_logs")
+}

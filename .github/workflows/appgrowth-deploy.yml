@@ -1,0 +1,34 @@
+# AppGrowth AI — deploy to the VPS. Manual, environment-protected (configure required reviewers on "production").
+name: appgrowth-deploy
+on:
+  workflow_dispatch:
+    inputs:
+      environment: { description: 'Target environment', type: choice, options: [staging, production], default: staging }
+      seed: { description: 'Run the reference-data seed', type: boolean, default: false }
+permissions: { contents: read }
+concurrency: { group: 'appgrowth-deploy-${{ inputs.environment }}', cancel-in-progress: false }
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
+    defaults: { run: { working-directory: appgrowth-ai } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: appgrowth-ai/apps/web/package-lock.json }
+      - run: npm ci
+        working-directory: appgrowth-ai/apps/web
+      - name: SSH key (masked; never echoed)
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.APPGROWTH_SSH_KEY }}" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.APPGROWTH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      - name: Deploy
+        env:
+          APPGROWTH_HOST: ${{ secrets.APPGROWTH_HOST }}
+          APPGROWTH_DIR: ${{ vars.APPGROWTH_DIR }}
+          APPGROWTH_DOMAIN: ${{ vars.APPGROWTH_DOMAIN }}
+        run: scripts/deploy.sh ${{ inputs.seed && '--seed' || '' }}
+      - name: Post-deploy health check
+        env: { APPGROWTH_HOST: '${{ secrets.APPGROWTH_HOST }}', APPGROWTH_DIR: '${{ vars.APPGROWTH_DIR }}', APPGROWTH_DOMAIN: '${{ vars.APPGROWTH_DOMAIN }}' }
+        run: scripts/health-check.sh

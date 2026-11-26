@@ -1,0 +1,22 @@
+groups:
+  - name: appgrowth
+    rules:
+      - alert: ApiP95Slow
+        expr: histogram_quantile(0.95, sum by (le) (rate(appgrowth_http_request_duration_seconds_bucket[10m]))) > 0.8
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "API p95 latency above 800 ms" }
+      - alert: ApiServerErrors
+        expr: sum(rate(appgrowth_http_request_duration_seconds_count{status=~"5.."}[10m])) > 0.05
+        for: 10m
+        labels: { severity: critical }
+      - alert: JobFailures
+        expr: sum(increase(appgrowth_jobs_total{outcome="failed"}[1h])) > 10
+        labels: { severity: warning }
+      - alert: ProviderErrors
+        expr: sum by (provider) (increase(appgrowth_provider_errors_total[1h])) > 20
+        labels: { severity: warning }
+      - alert: ApiDown
+        expr: up{job="appgrowth-api"} == 0
+        for: 3m
+        labels: { severity: critical }

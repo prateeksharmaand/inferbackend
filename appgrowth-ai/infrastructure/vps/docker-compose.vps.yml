@@ -1,0 +1,15 @@
+# Override for the shared Nous VPS (187.127.135.184): Caddy (beyondlife) owns 80/443 and terminates TLS,
+# PostgreSQL is the shared careerpilot-postgres (own role + database "appgrowth"), web image is prebuilt off-box.
+# Usage: docker compose -p appgrowth -f docker-compose.yml -f infrastructure/vps/docker-compose.vps.yml up -d
+services:
+  api:
+    networks: [internal, edge, careerpilot]
+  worker:
+    networks: [internal, edge, careerpilot]
+  scheduler:
+    networks: [internal, careerpilot]
+  web:
+    build: { context: ./web-build, dockerfile: ../infrastructure/docker/web.prebuilt.Dockerfile }
+networks:
+  edge: { name: beyondlife_default, external: true }
+  careerpilot: { name: careerpilot_default, external: true }

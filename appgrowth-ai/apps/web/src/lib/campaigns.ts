@@ -1,0 +1,1 @@
+export const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = { ACTIVE: 'default', PAUSED: 'secondary', FAILED: 'destructive', DRAFT: 'outline', PENDING_APPROVAL: 'outline', READY: 'outline', COMPLETED: 'secondary', ARCHIVED: 'secondary' };

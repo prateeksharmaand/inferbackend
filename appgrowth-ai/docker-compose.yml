@@ -1,0 +1,171 @@
+# AppGrowth AI — production stack (Docker Compose v2).
+#
+# Always on: api, worker, scheduler, web, ai, redis.
+# Optional profiles:
+#   db          appgrowth-postgres (omit when using an existing PostgreSQL server)
+#   nginx       appgrowth-nginx with Let's Encrypt certificates (omit when another reverse proxy owns 80/443)
+#   minio       self-hosted object storage (STORAGE_DRIVER=minio); default is local disk
+#   clamav      malware scanning for uploads (set CLAMAV_HOST=appgrowth-clamav)
+#   monitoring  prometheus, grafana, loki, promtail
+# Example (single dedicated server):  docker compose --profile db --profile nginx --profile monitoring up -d
+#
+# PostgreSQL and Redis never publish ports. Only nginx (or your existing proxy) is public.
+
+x-app-env: &app-env
+  env_file: .env
+  restart: unless-stopped
+  logging: { driver: json-file, options: { max-size: "10m", max-file: "5" } }
+
+services:
+  api:
+    <<: *app-env
+    image: appgrowth-api:${APP_VERSION:-latest}
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    container_name: appgrowth-api
+    environment: { APP_VERSION: "${APP_VERSION:-latest}" }
+    volumes: [storage:/data/storage]
+    networks: [internal, edge]
+    depends_on: { redis: { condition: service_healthy } }
+    deploy: { resources: { limits: { memory: 320m } } }
+
+  worker:
+    <<: *app-env
+    image: appgrowth-api:${APP_VERSION:-latest}
+    container_name: appgrowth-worker
+    command: ["node", "--max-old-space-size=256", "dist/worker"]
+    healthcheck: { test: ["CMD", "node", "-e", "process.exit(0)"], interval: 60s }
+    volumes: [storage:/data/storage]
+    networks: [internal, edge]   # edge: outbound calls to ad platforms / AI providers
+    depends_on: { redis: { condition: service_healthy }, api: { condition: service_healthy } }
+    deploy: { resources: { limits: { memory: 384m } } }
+
+  scheduler:
+    <<: *app-env
+    image: appgrowth-api:${APP_VERSION:-latest}
+    container_name: appgrowth-scheduler
+    command: ["node", "--max-old-space-size=96", "dist/scheduler"]
+    healthcheck: { test: ["CMD", "node", "-e", "process.exit(0)"], interval: 60s }
+    networks: [internal]
+    depends_on: { redis: { condition: service_healthy }, api: { condition: service_healthy } }
+    deploy: { resources: { limits: { memory: 160m } } }
+
+  web:
+    image: appgrowth-web:${APP_VERSION:-latest}
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { API_ORIGIN: "http://appgrowth-api:4100" } }
+    container_name: appgrowth-web
+    restart: unless-stopped
+    environment: { API_ORIGIN: "http://appgrowth-api:4100" }
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+    networks: [internal, edge]
+    deploy: { resources: { limits: { memory: 256m } } }
+
+  ai:
+    image: appgrowth-ai:${APP_VERSION:-latest}
+    build: { context: ., dockerfile: infrastructure/docker/ai.Dockerfile }
+    container_name: appgrowth-ai
+    restart: unless-stopped
+    env_file: .env.ai
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+    networks: [internal, edge]   # edge: outbound to LLM providers; never published
+    deploy: { resources: { limits: { memory: 256m } } }
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: appgrowth-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction", "--requirepass", "${REDIS_PASSWORD}"]
+    healthcheck: { test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"], interval: 10s, retries: 5 }
+    environment: { REDIS_PASSWORD: "${REDIS_PASSWORD}" }
+    volumes: [redis:/data]
+    networks: [internal]
+    deploy: { resources: { limits: { memory: 128m } } }
+
+  postgres:
+    profiles: [db]
+    image: postgres:16-alpine
+    container_name: appgrowth-postgres
+    restart: unless-stopped
+    environment: { POSTGRES_DB: appgrowth, POSTGRES_USER: appgrowth, POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}" }
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U appgrowth"], interval: 10s, retries: 5 }
+    volumes: [pg:/var/lib/postgresql/data]
+    networks: [internal]
+    deploy: { resources: { limits: { memory: 512m } } }
+
+  nginx:
+    profiles: [nginx]
+    image: nginx:1.27-alpine
+    container_name: appgrowth-nginx
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./infrastructure/nginx/appgrowth.conf:/etc/nginx/conf.d/default.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - acme:/var/www/acme:ro
+    networks: [edge]
+    depends_on: [web, api]
+  certbot:
+    profiles: [nginx]
+    image: certbot/certbot:v3.0.1
+    container_name: appgrowth-certbot
+    volumes: [letsencrypt:/etc/letsencrypt, acme:/var/www/acme]
+    entrypoint: ["/bin/sh", "-c", "trap exit TERM; while :; do certbot renew --webroot -w /var/www/acme --quiet; sleep 12h & wait $${!}; done"]
+
+  minio:
+    profiles: [minio]
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: appgrowth-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment: { MINIO_ROOT_USER: "${MINIO_ACCESS_KEY}", MINIO_ROOT_PASSWORD: "${MINIO_SECRET_KEY}" }
+    volumes: [minio:/data]
+    networks: [internal]
+
+  clamav:
+    profiles: [clamav]
+    image: clamav/clamav:1.4
+    container_name: appgrowth-clamav
+    restart: unless-stopped
+    networks: [internal, edge]
+    deploy: { resources: { limits: { memory: 1300m } } }
+
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v3.1.0
+    container_name: appgrowth-prometheus
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+    volumes: [./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro, ./infrastructure/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro, ./secrets/metrics_token:/etc/prometheus/metrics_token:ro, prometheus:/prometheus]
+    networks: [internal]
+    deploy: { resources: { limits: { memory: 256m } } }
+  loki:
+    profiles: [monitoring]
+    image: grafana/loki:3.3.2
+    container_name: appgrowth-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes: [./infrastructure/monitoring/loki.yml:/etc/loki/config.yml:ro, loki:/loki]
+    networks: [internal]
+    deploy: { resources: { limits: { memory: 256m } } }
+  promtail:
+    profiles: [monitoring]
+    image: grafana/promtail:3.3.2
+    container_name: appgrowth-promtail
+    restart: unless-stopped
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes: [./infrastructure/monitoring/promtail.yml:/etc/promtail/config.yml:ro, /var/lib/docker/containers:/var/lib/docker/containers:ro, /var/run/docker.sock:/var/run/docker.sock:ro]
+    networks: [internal]
+  grafana:
+    profiles: [monitoring]
+    image: grafana/grafana:11.4.0
+    container_name: appgrowth-grafana
+    restart: unless-stopped
+    environment: { GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD}", GF_SERVER_ROOT_URL: "${PUBLIC_URL}/grafana/", GF_SERVER_SERVE_FROM_SUB_PATH: "true", GF_USERS_ALLOW_SIGN_UP: "false" }
+    volumes: [./infrastructure/monitoring/grafana:/etc/grafana/provisioning:ro, grafana:/var/lib/grafana]
+    networks: [internal, edge]
+    deploy: { resources: { limits: { memory: 192m } } }
+
+networks:
+  internal: { internal: true }   # no route to the outside; databases live here
+  edge: { name: appgrowth_edge }
+
+volumes: { storage: {}, redis: {}, pg: {}, letsencrypt: {}, acme: {}, minio: {}, prometheus: {}, loki: {}, grafana: {} }

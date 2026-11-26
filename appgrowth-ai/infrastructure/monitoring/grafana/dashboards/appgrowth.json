@@ -1,0 +1,11 @@
+{
+  "title": "AppGrowth AI", "uid": "appgrowth", "schemaVersion": 39, "refresh": "1m", "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    { "type": "timeseries", "title": "API p95 latency (s)", "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(appgrowth_http_request_duration_seconds_bucket[5m])))" }] },
+    { "type": "timeseries", "title": "Requests by status", "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }, "targets": [{ "expr": "sum by (status) (rate(appgrowth_http_request_duration_seconds_count[5m]))" }] },
+    { "type": "timeseries", "title": "Background jobs", "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }, "targets": [{ "expr": "sum by (queue, outcome) (increase(appgrowth_jobs_total[15m]))" }] },
+    { "type": "timeseries", "title": "Provider errors", "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }, "targets": [{ "expr": "sum by (provider, kind) (increase(appgrowth_provider_errors_total[15m]))" }] },
+    { "type": "timeseries", "title": "API memory (RSS bytes)", "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 }, "targets": [{ "expr": "appgrowth_process_resident_memory_bytes" }] },
+    { "type": "logs", "title": "Errors (all containers)", "datasource": "Loki", "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 }, "targets": [{ "expr": "{container=~\"appgrowth-.*\"} |~ \"(?i)error\"" }] }
+  ]
+}
