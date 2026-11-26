@@ -5,7 +5,7 @@
 | Passwords | Argon2id (19 MiB, t=2); strength policy; constant-time unknown-user path |
 | Sessions | 15-min HS256 access JWT; 30-day rotating refresh tokens stored hashed; reuse of a used token revokes the session and is logged as a security event |
 | Brute force | 5 failures → 15-min lock; per-route throttling (login, reset, invites, AI, uploads) |
-| MFA | TOTP, mandatory for Super Admin/Support (console blocked until enrolled and verified per session) |
+| MFA | TOTP; mandatory for Super Admin/Support by default (console blocked until enrolled and verified per session). `ADMIN_MFA_REQUIRED=false` disables the requirement — production currently runs with it off at the owner's request |
 | CSRF | SameSite=Lax cookies + double-submit `X-CSRF-Token` for cookie-authenticated mutations |
 | XSS | React escaping, strict CSP, `nosniff`, frame-ancestors none; no HTML from users or models is rendered |
 | SQL injection | Prisma parameterised queries; raw SQL only via tagged templates |

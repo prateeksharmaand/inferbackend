@@ -128,6 +128,17 @@ describe('Authentication, authorization and tenant isolation', () => {
     expect(r.body.error.code).toBe('mfa_setup_required');
   });
 
+  it('lets admins in without two-factor only when ADMIN_MFA_REQUIRED=false', async () => {
+    const a = await signUp(app);
+    await prisma.user.update({ where: { id: a.userId }, data: { platformRole: 'SUPER_ADMIN' } });
+    process.env.ADMIN_MFA_REQUIRED = 'false';
+    try {
+      await a.as('get', '/api/v1/admin/dashboard', null).expect(200);
+      expect((await a.as('get', '/api/v1/auth/me', null).expect(200)).body.adminMfaRequired).toBe(false);
+    } finally { delete process.env.ADMIN_MFA_REQUIRED; }
+    await a.as('get', '/api/v1/admin/dashboard', null).expect(403);
+  });
+
   it('stops all writes for a suspended organization but keeps reads', async () => {
     const a = await signUp(app);
     await prisma.organization.update({ where: { id: a.orgId }, data: { status: 'SUSPENDED' } });

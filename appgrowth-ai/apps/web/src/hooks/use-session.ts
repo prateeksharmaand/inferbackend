@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { api, getOrgId, setOrgId } from '@/lib/api';
 
 export interface Me {
-  id: string; email: string; name: string; platformRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE'; mfaEnabled: boolean; mfaVerified: boolean;
+  id: string; email: string; name: string; platformRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE'; mfaEnabled: boolean; mfaVerified: boolean; adminMfaRequired: boolean;
   organizations: { id: string; name: string; slug: string; status: string; role: string; roleName: string; permissions: string[] }[];
 }
 

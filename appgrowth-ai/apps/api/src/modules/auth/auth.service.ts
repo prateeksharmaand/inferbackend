@@ -6,6 +6,7 @@ import { AuditService } from '../../common/audit.service';
 import { CryptoService } from '../../common/crypto.service';
 import { AppError } from '../../common/errors';
 import { PrismaService } from '../../common/prisma.service';
+import { adminMfaRequired } from '../../common/guards/auth.guard';
 import { MailService } from '../mail/mail.service';
 import { OrganizationsService } from '../organizations/organizations.service';
 import type { LoginDto, RegisterDto } from './dto';
@@ -179,7 +180,7 @@ export class AuthService {
 
   async mfaDisable(userId: string, code: string, ctx: Ctx) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    if (user.platformRole !== 'NONE') throw new AppError('Platform administrators must keep two-factor authentication on', 403, 'mfa_mandatory');
+    if (user.platformRole !== 'NONE' && adminMfaRequired()) throw new AppError('Platform administrators must keep two-factor authentication on', 403, 'mfa_mandatory');
     if (!user.mfaSecretEnc || !authenticator.check(code, this.crypto.decrypt(user.mfaSecretEnc))) throw new AppError('That code is not valid', 400, 'invalid_code');
     await this.prisma.user.update({ where: { id: userId }, data: { mfaEnabledAt: null, mfaSecretEnc: null } });
     await this.audit.record({ actorUserId: userId, actor: `user:${userId}`, action: 'auth.mfa_disabled', ip: ctx.ip, security: true });
@@ -195,7 +196,7 @@ export class AuthService {
     ]);
     return {
       id: user.id, email: user.email, name: user.name, platformRole: user.platformRole,
-      mfaEnabled: !!user.mfaEnabledAt, mfaVerified: session.mfaVerified,
+      mfaEnabled: !!user.mfaEnabledAt, mfaVerified: session.mfaVerified, adminMfaRequired: adminMfaRequired(),
       organizations: user.memberships.filter((m) => !m.organization.deletedAt).map((m) => ({
         id: m.organization.id, name: m.organization.name, slug: m.organization.slug, status: m.organization.status,
         role: m.role.key, roleName: m.role.name, permissions: m.role.permissions.map((p) => p.permission.key),

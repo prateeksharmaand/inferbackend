@@ -27,7 +27,7 @@ export default function SecurityPage() {
         {me?.mfaEnabled ? (
           <div className="space-y-4">
             <p className="flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400"><ShieldCheck className="size-5" /> On</p>
-            {me.platformRole === 'NONE' && (
+            {(me.platformRole === 'NONE' || !me.adminMfaRequired) && (
               <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); disable.mutate(); }}>
                 <div className="space-y-1.5"><Label htmlFor="dcode">Code to turn it off</Label><Input id="dcode" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} className="w-36" /></div>
                 <Button variant="destructive" type="submit" disabled={code.length !== 6 || disable.isPending}>Turn off</Button>

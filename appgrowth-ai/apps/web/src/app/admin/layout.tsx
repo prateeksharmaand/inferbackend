@@ -16,5 +16,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (isLoading || unauth) return <div className="mx-auto max-w-3xl p-10"><LoadingBlock /></div>;
   if (error) return <div className="mx-auto max-w-3xl p-10"><ErrorBlock error={error} /></div>;
   if (!me || me.platformRole === 'NONE') return <div className="mx-auto max-w-xl p-10"><ErrorBlock error={new Error('The admin console is only for platform administrators.')} /></div>;
-  return <AppShell nav={ADMIN_NAV} admin>{!me.mfaEnabled || !me.mfaVerified ? <MfaGate me={me} /> : children}</AppShell>;
+  return <AppShell nav={ADMIN_NAV} admin>{me.adminMfaRequired && (!me.mfaEnabled || !me.mfaVerified) ? <MfaGate me={me} /> : children}</AppShell>;
 }

@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma.service';
 
 export const COOKIES = { access: 'ag_access', refresh: 'ag_refresh', csrf: 'ag_csrf' } as const;
 export const ORG_HEADER = 'x-organization-id';
+export const adminMfaRequired = () => process.env.ADMIN_MFA_REQUIRED !== 'false';
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -58,8 +59,11 @@ export class AuthGuard implements CanActivate {
     if (admin) {
       const ok = u.platformRole === 'SUPER_ADMIN' || (admin.allowSupport && u.platformRole === 'SUPPORT');
       if (!ok) throw new ForbiddenException({ message: 'Platform administrators only', code: 'forbidden' });
-      if (!u.mfaEnabledAt) throw new ForbiddenException({ message: 'Set up two-factor authentication to use the admin console', code: 'mfa_setup_required' });
-      if (!session.mfaVerified) throw new ForbiddenException({ message: 'Two-factor verification required', code: 'mfa_required' });
+      // ADMIN_MFA_REQUIRED=false (operator's choice) lets admins in without two-factor; on by default.
+      if (adminMfaRequired()) {
+        if (!u.mfaEnabledAt) throw new ForbiddenException({ message: 'Set up two-factor authentication to use the admin console', code: 'mfa_setup_required' });
+        if (!session.mfaVerified) throw new ForbiddenException({ message: 'Two-factor verification required', code: 'mfa_required' });
+      }
       return true;
     }
 
